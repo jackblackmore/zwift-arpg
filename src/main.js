@@ -94,6 +94,10 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // Testing hooks (used by tests/sim.mjs and handy in the console).
+// Build stamp on the home screen (set by vite.config.js; shown in local time).
+{ const B = __BUILD__, d = new Date(B.date);
+  $('build').textContent = `v${B.version}${B.commit ? ' · ' + B.commit : ''} · built ${d.toLocaleString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`; }
+
 window.__dbg = {
   G, P, S, ctl, Q, chars, ride, setRide,
   ready: () => (chars.ready || chars.failed) && G.loaded, cycleQuality, cycleStyle,

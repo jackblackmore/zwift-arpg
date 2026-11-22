@@ -126,3 +126,5 @@ body.ride #xp{bottom:4px}
   body.touch .orb,body.ride .orb{top:128px}
   body.touch #toasts,body.ride #toasts{top:200px}
 }
+
+.build{margin:-6px 0 8px;font-size:11px;color:#8a7a66;letter-spacing:.5px}
