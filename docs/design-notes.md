@@ -25,7 +25,7 @@ What the first playable slice contains. It tests the feel and the rhythm, not th
 - **Saved and shown.** Gem levels and AP are saved and shown on the skill bar. Tuning lives in `src/data/gems.js`; level tuning in `src/data/levels.js`.
 
 Deviations from the design, and why:
-- A level plays in roughly 8–12 minutes, not 30. The slice tunes the rhythm, not the length. The design's par minutes are kept as notes in `levels.js`.
+- A level is far shorter than 30 minutes. The headless autopilot run (life topped up, nothing else helped) clears it in about 1.5–3 simulated minutes; a real player who takes damage and loots will be slower, but probably under 10. The slice tunes the rhythm, not the length. The design's par minutes are kept as notes in `levels.js`.
 - The two medium slots are fixed as elite then ambush, as the slice asked. The small and big slots do reroll.
 - Map tiers and the Pale Warden boss are gone. There is one depth for now.
 - Removed with mana: Blood Magic (Blood Rite is deferred), Flame Dash and its charges, Arc as a button (it survives only as the Heart of the Storm unique's effect), and the Forked Sky, Conduit and Ember Step passives. Mana affixes became cooldown reduction.

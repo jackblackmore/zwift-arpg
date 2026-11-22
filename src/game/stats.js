@@ -1,5 +1,6 @@
 // Derived stats from level, gear and passives, plus experience and levelling.
 import { P, S } from '../core/state.js';
+import { ctl } from '../input/input.js';
 import { PASS } from '../data/passives.js';
 import { SK, CDR_CAP } from '../data/skills.js';
 import { gemBase } from './gems.js';
@@ -31,7 +32,7 @@ export function gainXp(n) {
   P.xp += n;
   while (P.xp >= xpNeed(P.lvl)) {
     P.xp -= xpNeed(P.lvl); P.lvl++; P.pts++; recalc(); P.life = S.maxLife;
-    banner('LEVEL ' + P.lvl, '#ffd23f', 'Passive point gained · press P'); SFX.lvl();
+    banner('LEVEL ' + P.lvl, '#ffd23f', 'Passive point gained · ' + (ctl.touch ? 'tap PASSIVES' : 'press P')); SFX.lvl();
     for (let i = 0; i < 40; i++) emit(glows, P.x + rand(-.5, .5), rand(0, .5), P.z + rand(-.5, .5), 0, rand(3, 6), 0, rand(.6, 1.1), 0xffd23f);
   }
 }
