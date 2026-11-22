@@ -15,7 +15,7 @@ export const G = {
 export const P = {
   x: 0, z: 0, r: .4, face: 0, life: 100, lvl: 1, xp: 0, kills: 0,
   castAnim: 0, flask: 3, flaskT: 0, flaskRate: 0,
-  bar: { ...BAR }, cd: { main: 0, flexA: 0, guard: 0, evade: 0 }, ward: null, eff: { move: 1, atk: 1 },
+  bar: { ...BAR }, gems: {}, cd: { main: 0, flexA: 0, guard: 0, evade: 0 }, ward: null, eff: { move: 1, atk: 1 },
   inv: [], gear: {}, passives: {}, pts: 0, offer: null, newItems: 0,
   dead: 0, walkT: 0, moving: false, invuln: 0, fbN: 0, autoNovaT: 5, moveX: 0, moveZ: 1, castSeq: 0, lastCast: null,
 };

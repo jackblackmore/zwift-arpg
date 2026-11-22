@@ -142,7 +142,7 @@ try {
       D.ctl.main = true; D.ctl.aim = [P.x + 5, P.z]; const f1 = P.fbN; D.sim(30); D.ctl.main = false; D.ctl.aim = null; out.manualFired = P.fbN - f1;
       // Cooldowns gate casts; cdr shortens them, capped at 40%.
       P.cd.flexA = 0; out.cast1 = D.castSlot('flexA'); out.cast2 = D.castSlot('flexA'); out.cd1 = P.cd.flexA;
-      D.sim(200); out.cdDone = P.cd.flexA === 0; out.cast3 = D.castSlot('flexA');
+      for (let i = 0; i < 10; i++) { P.life = S.maxLife; D.sim(20); } out.cdDone = P.cd.flexA === 0; out.cast3 = D.castSlot('flexA');
       P.gear.ring = { slot: 'ring', rar: 1, name: 't', mods: [['cdr', .1]] }; D.recalc(); P.cd.flexA = 0; D.castSlot('flexA'); out.cd10 = P.cd.flexA; out.cdr10 = S.cdr;
       P.gear.ring = { slot: 'ring', rar: 1, name: 't', mods: [['cdr', .9]] }; D.recalc(); P.cd.flexA = 0; D.castSlot('flexA'); out.cd90 = P.cd.flexA; out.cdr90 = S.cdr;
       P.gear.ring = null; D.recalc();
@@ -184,6 +184,74 @@ try {
     check(r.blinkInvuln && r.blinkCd && r.blinkFree, 'skills: Blink grants invulnerability, has a cooldown, and works with no threat');
     check(r.noMana && r.slots, 'skills: no mana remains; skill bar slots present');
     check(errors.length === 0, `skills: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
+  }
+
+  // ---------- Gems ----------
+  {
+    const { page, errors } = await open('/');
+    const r = await page.evaluate(async () => {
+      const D = window.__dbg, P = D.P, S = D.S, G = D.G, out = {};
+      const clear = () => { G.enemies.forEach(e => { e.gone = true; e.deathT = 1; }); G.enemies = []; };
+      const free = (x, z) => !D.blocked(x, z, .6);
+      const resetGems = () => { for (const id in P.gems) P.gems[id] = { lvl: 1, ap: 0 }; };
+      D.start(true); clear(); P.cd.main = 1e6; // no auto-fire in these tests
+      out.start = Object.entries(P.gems).map(([k, g]) => k + ':' + g.lvl).join(',');
+      // Kills grant AP to equipped gems; an unequipped gem (Blink, with Nova on the Evade slot) gets 10%.
+      const bar0 = { ...P.bar }; P.bar.evade = 'nova'; resetGems();
+      D.kill(D.spawnEnemy('runner', P.x + 3, P.z, null, 0));
+      out.killAp = [P.gems.fireball.ap, P.gems.blink.ap];
+      D.kill(D.spawnEnemy('runner', P.x + 3, P.z, null, 2)); out.rareAp = P.gems.fireball.ap - out.killAp[0];
+      P.bar = bar0;
+      // Time grants AP.
+      resetGems(); clear(); D.sim(300); out.timeAp = P.gems.fireball.ap;
+      // Level 5 pierces: a line of two enemies, 4 apart (outside one explosion's radius).
+      let spot = null;
+      for (let k = 0; k < 600 && !spot; k++) { const x = (Math.random() - .5) * 50, z = (Math.random() - .5) * 50; if (free(x, z) && free(x + 3, z) && free(x + 7, z) && D.los(x, z, x + 3, z) && D.los(x, z, x + 7, z) && D.los(x + 3, z, x + 7, z)) spot = [x, z]; }
+      const line = lvl => {
+        resetGems(); P.gems.fireball.lvl = lvl; clear(); P.x = spot[0]; P.z = spot[1]; G.proj.forEach(p => { p.dead = true; }); G.proj = [];
+        const a = D.spawnEnemy('runner', spot[0] + 3, spot[1], null, 0), b = D.spawnEnemy('runner', spot[0] + 7, spot[1], null, 0);
+        for (const e of [a, b]) { e.hp = e.maxHp = 1e6; e.awake = false; }
+        D.castFireball(spot[0] + 7, spot[1]); D.sim(20);
+        return [a.hp < 1e6, b.hp < 1e6];
+      };
+      out.line1 = line(1);
+      resetGems(); D.gainAP(580); out.lvl5 = P.gems.fireball.lvl; out.has5 = D.gemHas('fireball', 'pierce'); out.has10a = D.gemHas('fireball', 'burn');
+      const fire5 = P.gems.fireball.lvl; out.line5 = line(fire5);
+      // Level 10 caps, leaves burning ground, and AP can't push past it.
+      resetGems(); D.gainAP(1e6); out.lvl10 = P.gems.fireball.lvl; D.gainAP(5000); out.capLvl = P.gems.fireball.lvl; out.capAp = P.gems.fireball.ap; out.has10 = D.gemHas('fireball', 'burn');
+      clear(); G.patches = []; P.x = spot[0]; P.z = spot[1]; P.dead = 0; P.life = S.maxLife;
+      const e = D.spawnEnemy('runner', spot[0] + 3, spot[1], null, 0); e.hp = e.maxHp = 1e6; e.awake = false;
+      D.castFireball(spot[0] + 3, spot[1]); D.sim(40); out.patches = G.patches.length;
+      // Gem base drives damage: lv10 hit ~3x a lv1 hit with the same gear (no gear flat, no crit).
+      const gear = P.gear; P.gear = {}; D.recalc(); const crit = S.crit; S.crit = 0; clear();
+      const t = D.spawnEnemy('runner', spot[0] + 3, spot[1], null, 0); t.hp = t.maxHp = 1e9; t.awake = false;
+      const avg = lvl => { P.gems.fireball.lvl = lvl; let s = 0; for (let i = 0; i < 60; i++) s += D.hit(t, 1, 'fire', { sk: 'fireball', dot: 1 }); return s / 60; };
+      out.dmgRatio = avg(10) / avg(1); P.gear = gear; D.recalc(); S.crit = crit;
+      // Gems survive save -> load; old saves with no gems start at lv1.
+      resetGems(); P.gems.fireball = { lvl: 7, ap: 33 }; P.gems.blink.lvl = 3; D.save();
+      D.start(false); out.loaded = [P.gems.fireball.lvl, Math.round(P.gems.fireball.ap), P.gems.blink.lvl];
+      const sv = JSON.parse(localStorage.getItem('wd-arpg-1')); delete sv.gems; localStorage.setItem('wd-arpg-1', JSON.stringify(sv));
+      D.start(false); out.oldSave = Object.values(P.gems).every(g => g.lvl === 1 && g.ap === 0);
+      // HUD: the badge and AP bar render in each slot.
+      P.gems.fireball.lvl = 4; P.gems.fireball.ap = 50; P.gems.nova.lvl = 10;
+      for (let i = 0; i < 40 && !document.querySelector('#sMain .gem b'); i++) await new Promise(r => setTimeout(r, 100));
+      await new Promise(r => setTimeout(r, 300));
+      out.badge = document.querySelector('#sMain .gem b').textContent; out.badgeMax = document.querySelector('#sFlexA .gem b').textContent;
+      out.bar = document.querySelector('#sMain .gem u').style.width;
+      return out;
+    });
+    console.log('  gems:', JSON.stringify(r));
+    check(r.start === 'fireball:1,nova:1,ward:1,blink:1', 'gems: all four start at level 1');
+    check(r.killAp[0] === 1 && Math.abs(r.killAp[1] - .1) < 1e-9 && r.rareAp === 10, `gems: kills give AP (rare 10x); unequipped gem gets 10% (${r.killAp})`);
+    check(r.timeAp > .5 && r.timeAp < 2, `gems: time grants AP (${r.timeAp.toFixed(2)} in 10 s)`);
+    check(r.line1[0] && !r.line1[1], `gems: lv1 Fireball explodes on the first enemy (${r.line1})`);
+    check(r.lvl5 === 5 && r.has5 && !r.has10a && r.line5[0] && r.line5[1], `gems: lv5 Fireball pierces and hits both enemies (${r.line5})`);
+    check(r.lvl10 === 10 && r.capLvl === 10 && r.capAp === 0 && r.has10, 'gems: level 10 is the cap; AP cannot push past it');
+    check(r.patches > 0, `gems: lv10 Fireball leaves burning ground (${r.patches})`);
+    check(r.dmgRatio > 2.8 && r.dmgRatio < 3.2, `gems: lv10 Fireball hits ~3x lv1 with the same gear (${r.dmgRatio.toFixed(2)}x)`);
+    check(r.loaded[0] === 7 && r.loaded[1] === 33 && r.loaded[2] === 3 && r.oldSave, `gems: survive save and load; old saves start at lv1 (${r.loaded})`);
+    check(r.badge === 'Lv 4' && r.badgeMax === 'MAX' && parseFloat(r.bar) > 0, `gems: skill bar shows level badge and AP bar (${r.badge}, ${r.badgeMax}, ${r.bar})`);
+    check(errors.length === 0, `gems: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   }
 
   // ---------- Pedal demo ----------

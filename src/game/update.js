@@ -10,6 +10,7 @@ import { explode, updPatches, processQueue } from './combat.js';
 import { pickUp, updItems } from './items.js';
 import { newMap, respawn } from './maps.js';
 import { save } from './save.js';
+import { gemsTick } from './gems.js';
 import { autopilot } from './autopilot.js';
 import { RIDE } from '../data/ride.js';
 
@@ -45,7 +46,7 @@ function updPlayer(dt) {
 
 export function update(dt) {
   G.gt += dt;
-  if (P.dead > 0) { P.dead -= dt; if (P.dead <= 0) respawn(); } else updPlayer(dt);
+  if (P.dead > 0) { P.dead -= dt; if (P.dead <= 0) respawn(); } else { updPlayer(dt); gemsTick(dt); }
   materialize(); buildHash();
   for (const e of G.enemies) updEnemy(e, dt);
   separate();

@@ -20,13 +20,14 @@ import { update } from './game/update.js';
 import { recalc } from './game/stats.js';
 import { newMap } from './game/maps.js';
 import { save, load } from './game/save.js';
-import { kill, hurtP } from './game/combat.js';
+import { kill, hit, hurtP } from './game/combat.js';
 import { castSlot, castFireball, castNova, castWard, castBlink, mainTarget, mainRange, endWard } from './game/skills.js';
 import { spawnEnemy } from './game/enemies.js';
 import { blocked, los } from './world/map.js';
 import { dropItem, cleanItem } from './game/items.js';
 import { PASS } from './data/passives.js';
 import { BAR } from './data/skills.js';
+import { initGems, gainAP, gemBase, gemHas } from './game/gems.js';
 import { hud } from './ui/hud.js';
 import { initPanels, syncPause, openInv, openPass, toggleInv, togglePass, closeAll, equip } from './ui/panels.js';
 
@@ -40,7 +41,7 @@ function cleanSave(sv) {
 }
 
 function begin(fresh) {
-  audio(); resetSkills();
+  audio(); resetSkills(); P.gems = initGems(null);
   const sv = load(); if (sv) cleanSave(sv);
   if (fresh || !sv) {
     Object.assign(P, { lvl: 1, xp: 0, gear: {}, inv: [], passives: {}, pts: 0, offer: null, newItems: 0, kills: 0 });
@@ -48,7 +49,7 @@ function begin(fresh) {
     recalc(); newMap(1); save();
   } else {
     Object.assign(P, { lvl: sv.lvl, xp: sv.xp, gear: sv.gear || {}, inv: sv.inv || [], passives: sv.passives || {}, pts: sv.pts || 0, offer: null });
-    G.itemId = sv.itemId || 100; recalc(); newMap(sv.tier || 1);
+    P.gems = initGems(sv.gems); G.itemId = sv.itemId || 100; recalc(); newMap(sv.tier || 1);
   }
   G.started = true; $('mMenu').classList.remove('show'); syncPause();
 }
@@ -111,5 +112,5 @@ window.__dbg = {
   start: fresh => begin(fresh !== false),
   sim: n => { for (let i = 0; i < n; i++) { update(.033); updFx(.033); } },
   enemies: () => G.enemies, packs: () => G.packs, items: () => G.ground,
-  newMap, kill, dropItem, spawnEnemy, blocked, los, recalc, hurtP, castSlot, castFireball, castNova, castWard, castBlink, mainTarget, mainRange, openInv, openPass, equip,
+  newMap, kill, hit, save, dropItem, spawnEnemy, blocked, los, recalc, hurtP, castSlot, castFireball, castNova, castWard, castBlink, mainTarget, mainRange, gainAP, gems: () => P.gems, gemBase, gemHas, openInv, openPass, equip,
 };

@@ -6,6 +6,8 @@ import { ctl } from '../input/input.js';
 import { $ } from '../core/util.js';
 import { HALF } from '../world/map.js';
 import { xpNeed } from '../game/stats.js';
+import { apNeed } from '../data/gems.js';
+import { GEMS } from '../data/gems.js';
 import { rideHud } from '../input/ridesim.js';
 
 const mmc = $('mm').getContext('2d');
@@ -23,6 +25,7 @@ export function hud(dt) {
   const SLOTS = { main: 'sMain', flexA: 'sFlexA', guard: 'sGuard', evade: 'sEvade' };
   for (const k of SLOT_ORDER) {
     const el = $(SLOTS[k]), id = P.bar[k], cd = P.cd[k];
+    gemBadge(el, id);
     if (k === 'main') { el.classList.toggle('fire', cd > SK[id].rate / S.cast * .55); continue; }
     const full = SK[id].cd * (1 - S.cdr);
     el.querySelector('.cd').style.height = cd > 0 ? Math.min(100, cd / full * 100) + '%' : '0%';
@@ -37,6 +40,15 @@ export function hud(dt) {
   rideHud();
   T.mm -= .07; if (T.mm > 0 || !G.mmBase) return; T.mm = .2;
   minimap();
+}
+
+// Gem badge ("Lv N") and a thin AP bar along the slot's bottom edge (gold and "MAX" at the cap).
+function gemBadge(el, id) {
+  const g = P.gems && P.gems[id], box = el.querySelector('.gem'); if (!g || !box) return;
+  if (!box.firstChild) box.innerHTML = '<b></b><i><u></u></i>';
+  const max = g.lvl >= GEMS[id].cap;
+  box.firstChild.textContent = max ? 'MAX' : 'Lv ' + g.lvl;
+  box.lastChild.firstChild.style.width = (max ? 100 : g.ap / apNeed(g.lvl) * 100) + '%'; el.classList.toggle('gmax', max);
 }
 
 function minimap() {

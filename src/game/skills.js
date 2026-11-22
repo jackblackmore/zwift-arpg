@@ -12,6 +12,7 @@ import { sparks, glows, emit, ringFx, flashFx, boltFx } from '../render/fx.js';
 import { blocked, los } from '../world/map.js';
 import { near } from './enemies.js';
 import { hit } from './combat.js';
+import { gemMile, gemScale } from './gems.js';
 
 // Where the player is aiming: the device's aim point, else the nearest awake enemy, else straight ahead.
 export function aim() {
@@ -45,7 +46,7 @@ export function castFireball(ax, az) {
   for (let i = 0; i < n; i++) {
     const a = base + (i - (n - 1) / 2) * F.spread, g = new T.Group(); g.add(glowSprite(0xff6a1a, 1.4), glowSprite(0xffe0a0, .55));
     g.position.set(P.x + Math.sin(a) * .7, 1.2, P.z + Math.cos(a) * .7); scene.add(g);
-    G.proj.push({ x: g.position.x, z: g.position.z, dx: Math.sin(a), dz: Math.cos(a), sp: F.speed, life: F.life, pierce: S.pierce, hitS: new Set(), g, storm: false });
+    G.proj.push({ x: g.position.x, z: g.position.z, dx: Math.sin(a), dz: Math.cos(a), sp: F.speed, life: F.life, pierce: S.pierce + gemMile('fireball', 'pierce', 'pierce'), hitS: new Set(), g, storm: false });
   }
   P.fbN++; if (S.storm && P.fbN % 4 === 0) G.proj[G.proj.length - 1].storm = true;
   SFX.fire(); return true;
@@ -101,7 +102,7 @@ export function castWard() {
   const W = SK.ward; endWard();
   const g = new T.Mesh(GS, new T.MeshBasicMaterial({ color: 0x8fe0ff, transparent: true, opacity: .2, depthWrite: false, blending: T.AdditiveBlending }));
   g.scale.setScalar(W.radius); g.position.set(P.x, 1, P.z); scene.add(g);
-  const hp = S.maxLife * W.absorb; P.ward = { hp, max: hp, t: W.dur, flash: 0, g };
+  const hp = S.maxLife * W.absorb * gemScale('ward'); P.ward = { hp, max: hp, t: W.dur, flash: 0, g };
   P.castAnim = .3; P.castSeq++; P.lastCast = 'ward';
   ringFx(P.x, P.z, W.radius * 1.6, 0x8fe0ff, .4, .3); flashFx(P.x, 1, P.z, 0x8fe0ff, 3.4, .3); flashLight(P.x, P.z, 0x8fe0ff, 3, .3); SFX.nova();
   for (let i = 0; i < 16; i++) emit(glows, P.x + rand(-.6, .6), rand(.2, 1.8), P.z + rand(-.6, .6), 0, rand(.5, 2), 0, rand(.4, .7), 0x8fe0ff);
@@ -117,13 +118,13 @@ export function updWard(dt) {
 
 // ---- Evade: Blink (away from the nearest threat) ----
 export function castBlink() {
-  const B = SK.blink, th = [];
+  const B = SK.blink, th = [], range = B.range * gemScale('blink');
   for (const e of G.enemies) if (!e.deathT && e.awake) { const d = dist(e.x, e.z, P.x, P.z); if (d < B.threat) th.push([e.x, e.z, 1 / (1 + d) ** 2]); }
   for (const p of G.eproj) { const d = dist(p.x, p.z, P.x, P.z); if (d < B.threat) th.push([p.x, p.z, 1 / (1 + d) ** 2]); }
   let best = null, bs = -1e9;
   for (let i = 0; i < B.tries; i++) {
     const a = P.face + i / B.tries * Math.PI * 2;
-    for (const L of [B.range, B.range * .8, B.range * .6, B.minRange]) {
+    for (const L of [range, range * .8, range * .6, B.minRange]) {
       const x = P.x + Math.sin(a) * L, z = P.z + Math.cos(a) * L;
       if (blocked(x, z, P.r + .25)) continue;
       let s;
