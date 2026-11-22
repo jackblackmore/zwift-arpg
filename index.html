@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#07060a">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E%E2%9A%94%3C/text%3E%3C/svg%3E">
+<title>Watt Dungeon</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+<div id="view"></div>
+<div id="bars"></div>
+<div id="tags"></div>
+<div id="flts"></div>
+
+<div id="hudL" class="hud">
+  <div id="pwr">0 W</div>
+  <div id="zone">—</div>
+  <div id="stats">—</div>
+  <div class="bar"><span>HEALTH</span><b><i id="bHp" style="background:#d23b3b"></i></b></div>
+  <div class="bar"><span>STAMINA W′</span><b><i id="bW" style="background:#4fd1a5"></i></b></div>
+  <div class="bar"><span>CLEAVE</span><b><i id="bC" style="background:#e8b960"></i></b></div>
+  <div class="bar"><span>OVERLOAD</span><b><i id="bO" style="background:#b06bff"></i></b></div>
+  <div id="str"><span>STRENGTH</span></div>
+  <div id="boons"></div>
+</div>
+<div id="hudR" class="hud">
+  <div id="floor">FLOOR 1</div>
+  <div id="gold">0 gold</div>
+  <div id="gear"></div>
+</div>
+<div id="toasts"></div>
+<div id="banner"><h2 id="bT"></h2><p id="bS"></p></div>
+<div id="prompt"><div class="pi"></div><div><b></b><span></span><div class="pb"><i></i></div><div class="pa"><i></i></div></div></div>
+<div id="choice"><div class="t" id="cT">CHOOSE YOUR PATH · Zwift Ride ◀ / ▶ (keys 1 / 2)</div><button id="c1"></button><button id="c2"></button></div>
+
+<div id="panel">
+  <div class="ctl"><label>POWER <b id="pwo">170 W</b></label><input id="pw" type="range" min="0" max="900" step="5" value="170"></div>
+  <div class="ctl"><label>CADENCE <b id="cdo">88 rpm</b></label><input id="cd" type="range" min="40" max="140" step="1" value="88"></div>
+  <div class="ctl small"><label>FTP</label><input id="ftp" type="number" min="100" max="500" value="250"></div>
+  <button id="sprint" class="hot">SPRINT</button>
+  <button id="auto">AUTO: OFF</button>
+  <button id="end">END RIDE</button>
+  <button id="mute">♪</button>
+  <button id="help">?</button>
+</div>
+<div id="sum" class="hide"><div class="card" id="sumC"></div></div>
+
+<div id="ov">
+  <div class="card">
+    <h1>WATT DUNGEON</h1>
+    <div class="sub">A Diablo-lite you pedal · engine demo with simulated power &amp; cadence</div>
+    <ul>
+      <li>Your hero explores and fights automatically. <b>You choose the path</b>, so you choose how hard the day is.</li>
+      <li style="--c:#e8b960"><b>Any riding</b> banks kilojoules that charge <b>Cleave</b>. Easy rides still progress.</li>
+      <li style="--c:#ffd23f"><b>Sweet spot</b> held builds Strength. <b>Cadence</b> sets attack speed and picks treasure locks.</li>
+      <li style="--c:#b06bff"><b>Above FTP</b> charges <b>Overload</b> and adds crit chance, but drains your W′ stamina.</li>
+      <li style="--c:#ff4fd8"><b>Enemies telegraph moves you answer with your legs:</b> SURGE to dodge charges and bombs, EASE OFF to brace slams, SPIN to interrupt casters, HOLD sweet spot to outlast a frenzy.</li>
+      <li style="--c:#7fd8ff"><b>Your zone sets your element:</b> ❄ Frost (easy to tempo), 🔥 Fire (sweet spot to threshold), ⚡ Storm (VO2 and sprint). Hit a weakness for double damage.</li>
+      <li style="--c:#6fd3ff"><b>Know your foes:</b> shield bearers block all but crits, healers mend allies, archers keep their distance, bats swarm (Cleave them).</li>
+      <li style="--c:#ff7a4a"><b>Campfires</b> heal faster when you spin easy. Dying costs some gold, never the run.</li>
+    </ul>
+    <div class="keys">Path choice <kbd>1</kbd>/<kbd>2</kbd> · Power <kbd>Q</kbd>/<kbd>E</kbd> · Cadence <kbd>Z</kbd>/<kbd>C</kbd> · Sprint hold <kbd>Space</kbd> · Auto mode <kbd>A</kbd></div>
+    <div class="row">
+      <button id="goEnd" class="on">EASY DAY<small>auto endurance ride</small></button>
+      <button id="goInt">GOOD DAY<small>auto interval workout</small></button>
+      <button id="goMan">MANUAL<small>you set the sliders</small></button>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>
