@@ -54,9 +54,38 @@ Two ideas sit underneath everything:
 
 - **Problem:** three skills that differ only by element get boring fast.
 - **How others solve it:** D3 runes transform skills; Last Epoch per-skill trees; PoE hundreds of skills plus supports and triggers; D4 aspects rewrite skills; Hades god boons twist the same attacks; Vampire Survivors evolutions. Variety comes from **how a skill delivers damage, not its element**.
-- **Open (proposal):** skill families by delivery (projectile, chain, nova, ground, channel, minion, totem, aura/orbit, melee); **element comes from supports and the tree**, not the skill (e.g. a Cold Infusion support); gem milestones transform skills; uniques rewrite them.
-- **Bike angle:** minion, totem and aura builds are nearly hands-free (easy rides, tired days); channel fits the Ride's hold buttons; projectile and ground are more active. Free gem swaps let you change style per ride.
-- **Open:** first families to build. Suggestion: projectile, chain, nova, ground, minion, then channel and totem.
+- **Leaning: slot layout.**
+
+| Slot | Holds |
+|---|---|
+| Main skill | The skill your build revolves around; deepest gem investment and most transforms. Always the same button |
+| 2 flexible slots | Any attack or support skill |
+| 1 defensive slot | Guard, shield, ward, decoy |
+| Evade | Non-aimed: jumps away from the nearest threat. Works on every device |
+
+- **Leaning: rare keystones change slot types**, each with a real cost (you give up coverage to specialise):
+
+| Keystone | Slot change | Cost |
+|---|---|---|
+| Legion | A flexible slot becomes a second support slot; minions stronger | Less personal damage |
+| Glass Cannon | The defensive slot becomes an attack slot; big damage bonus | Much less life, no guard skill |
+| Summoner's Pact | The main slot can hold a minion skill | You barely attack yourself |
+| Fortress | A flexible slot becomes a second defensive slot | Slower kills |
+
+- **Leaning: variety comes from mechanics, not element or shape.** Pull, traps, marks, corpses, turrets, clones, charge-ups. Each named skill has its own element (Fireball is fire) and the element adds flavour (burn, freeze, shock). Element conversion is a rare jackpot (uniques or rare supports), not a setup step.
+- **Test for any new skill or keystone:** does a build using it play differently? Example builds that pass:
+
+| Build | Main | Flexible | Defence | Keystone | Feels like |
+|---|---|---|---|---|---|
+| Pyromancer | Fireball (pierce, burning ground) | Meteor, Flame Totem | Fire ward | n/a | Aim and fire, things burn |
+| Necromancer | Raise Skeletons | Corpse Explosion, Bone Armour | Decoy | Summoner's Pact | Army fights, blow up the bodies |
+| Frost Sniper | Frost Lance (huge single hits) | Mark Target, Ice Trap | n/a | Glass Cannon | Pick targets, one-shot, fragile |
+| Engineer | Lightning Turret | Second turret, Pull | Shield | Legion | Set up, pull enemies into the kill zone |
+
+- **Bike angle:** minion, totem and aura builds are nearly hands-free (easy rides, tired days); hold-to-channel skills fit the Ride's hold buttons. Free gem swaps let you change style per ride.
+- **Parked:** "Surge", a bike-only evade from a short effort spike. Depends on the bike link, and must not push sprinting on recovery days. Mouse and touch could keep an aimed dash as a bonus.
+- **Dropped:** strict role slots (target / chain / area): chain and area did the same job, and Diablo 3 players switched strict slots off. Also dropped: a 3×3 grid of the same skills in three elements, which recreates the "fire, ice, lightning" boredom.
+- **Dropped:** dash as a core skill on the bike (aiming is awkward, and pedalling already sets movement).
 
 ## Regions and levels
 
