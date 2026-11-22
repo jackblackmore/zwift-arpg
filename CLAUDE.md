@@ -10,3 +10,4 @@
 - The owner builds from his phone, so changes are checked headless: run `npm run build && npm test` before every push. To look at the game, take a screenshot with `SCREENSHOT=/tmp/shot.png npm test`.
 - Bluetooth is deliberately last. The current focus is making the ARPG fun with keyboard, mouse and touch.
 - Pushing to `main` deploys to GitHub Pages.
+- While the game is being built, the owner has authorised Claude to open a PR to `main` and merge it once `npm run build && npm test` pass, without asking each time. Work on the session branch, never push straight to `main`, and say in the reply what was merged. Ask first for anything risky or hard to undo (deleting saves or content, big asset changes, upgrading three.js).
