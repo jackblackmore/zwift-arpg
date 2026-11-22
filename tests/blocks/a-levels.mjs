@@ -4,7 +4,7 @@ export default async function ({ open, check, SEED, SHOT }) {
   const { page, errors } = await open('/');
   const ready = () => page.waitForFunction(() => window.__dbg && window.__dbg.ready(), { timeout: 20000 });
   // Test helpers living in the page: keep the hero alive, run ticks, run a level's guardian beat.
-  await page.evaluate(() => {
+  const install = () => page.evaluate(() => {
     const D = window.__dbg, P = D.P;
     window.A = {
       // fight: let Main auto-attack (off by default so nothing dies unless a test kills it)
@@ -16,8 +16,9 @@ export default async function ({ open, check, SEED, SHOT }) {
       // Remove every monster and corpse (noLoot kills leave none) and let the death animations finish.
       sweep() { for (const e of D.enemies()) if (!e.deathT) { e.noLoot = true; D.kill(e); } D.sim(100); while (D.takeCorpse(0, 0, 1e4)); },
     };
-    D.start(true); P.invuln = 1e9;
   });
+  await install();
+  await page.evaluate(() => { window.__dbg.start(true); window.__dbg.P.invuln = 1e9; });
 
   // ---------- 1. Each Crypt: name, monster mix, guardian ----------
   const NAMES = ['Crypt Halls', 'Ossuary', 'Flooded Tombs', 'Bone Gardens', 'Throne Approach'], GTYPES = ['guardian', 'captain', 'warden', 'lord', 'lieutenant'];
@@ -174,7 +175,7 @@ export default async function ({ open, check, SEED, SHOT }) {
   check(r7.fresh.crypt === 1 && r7.fresh.wp === 0 && !r7.fresh.open && !r7.lockedEnter && r7.stillCrypt1, 'waypoint: a fresh character enters Crypt 1 directly; locked levels cannot be entered');
   check(r7.wp === 2 && r7.clears === 1 && r7.portal && r7.saved === 2 && r7.open, `waypoint: killing Crypt 2's guardian sets the waypoint to ${r7.wp} (saved ${r7.saved}) and the portal opens the waypoint screen`);
   console.log('  waypoint rows disabled:', JSON.stringify(r7.rows));
-  await page.reload({ waitUntil: 'load' }); await ready();
+  await page.reload({ waitUntil: 'load' }); await ready(); await install();
   const label = await page.evaluate(() => document.getElementById('goCont').textContent);
   const r7b = await page.evaluate(() => {
     const D = window.__dbg, G = D.G, P = D.P, out = {};
@@ -208,7 +209,7 @@ export default async function ({ open, check, SEED, SHOT }) {
   });
   check(r8.leaveShown && r8.open && r8.back, 'leave: the menu offers LEAVE LEVEL mid-level and it opens the waypoint screen (with a way back)');
   check(r8.before === r8.after && r8.hadGear > 0 && r8.kills > 0, `leave: XP, gear, items and gem AP are untouched (${r8.kills} kills, ${r8.hadGear} gear pieces)`);
-  await page.reload({ waitUntil: 'load' }); await ready();
+  await page.reload({ waitUntil: 'load' }); await ready(); await install();
   const r8b = await page.evaluate(() => {
     const D = window.__dbg, P = D.P; D.start(false);
     return JSON.stringify({ lvl: P.lvl, xp: Math.round(P.xp * 1e3), gear: P.gear, inv: P.inv, gems: P.gems });
