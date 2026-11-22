@@ -12,7 +12,7 @@
 // (390x844 touch viewport) and x-gallery-*.png (gallery views).
 import { preview } from 'vite';
 import puppeteer from 'puppeteer-core';
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 
 const chrome = process.env.CHROME_PATH || ['/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser'].find(existsSync);
 if (!chrome) { console.error('No Chrome found. Set CHROME_PATH.'); process.exit(1); }
@@ -545,6 +545,21 @@ try {
     check(r.loaded[0] === 7 && r.loaded[1] === 33 && r.loaded[2] === 3 && r.oldSave, `gems: survive save and load; old saves start at lv1 (${r.loaded})`);
     check(r.badge === 'Lv 4' && r.badgeMax === 'MAX' && parseFloat(r.bar) > 0, `gems: skill bar shows level badge and AP bar (${r.badge}, ${r.badgeMax}, ${r.bar})`);
     check(errors.length === 0, `gems: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
+  }
+
+  // ---------- Slice 2+ blocks: every tests/blocks/*.mjs, in file-name order ----------
+  // Each block file exports `default async function ({ open, check, SEED, SHOT })`. Blocks own their pages and must
+  // check their own page errors. Adding a file here never touches this one, so parallel work doesn't collide.
+  {
+    const dir = new URL('./blocks/', import.meta.url);
+    const files = existsSync(dir) ? readdirSync(dir).filter(f => f.endsWith('.mjs')).sort() : [];
+    const only = process.env.ONLY; // ONLY=name runs just the blocks whose file name contains it (plus the blocks above)
+    for (const f of files) {
+      if (only && !f.includes(only)) continue;
+      console.log(`  -- block ${f}`);
+      const mod = await import(new URL(f, dir));
+      await mod.default({ open, check, SEED, SHOT: process.env.SCREENSHOT || null });
+    }
   }
 
   // ---------- Pedal demo ----------

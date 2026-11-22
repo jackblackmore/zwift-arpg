@@ -24,37 +24,27 @@ import { recalc } from './game/stats.js';
 import { newLevel, levelGoal, currentBeat, startBeat } from './game/level.js';
 import { LEVEL } from './data/levels.js';
 import { save, load } from './game/save.js';
+import { initCharacter } from './game/character.js';
+import { startRun } from './game/waypoint.js';
+import { dbg } from './core/dbg.js';
 import { kill, hit, hurtP } from './game/combat.js';
 import { castSlot, castFireball, castNova, castWard, castBlink, mainTarget, mainRange, endWard } from './game/skills.js';
 import { spawnEnemy } from './game/enemies.js';
 import { blocked, los } from './world/map.js';
-import { dropItem, cleanItem } from './game/items.js';
-import { PASS } from './data/passives.js';
+import { dropItem } from './game/items.js';
 import { BAR } from './data/skills.js';
-import { initGems, gainAP, gemBase, gemHas } from './game/gems.js';
+import { gainAP, gemBase, gemHas } from './game/gems.js';
 import { hud } from './ui/hud.js';
 import { initPanels, syncPause, openInv, openPass, toggleInv, togglePass, closeAll, equip } from './ui/panels.js';
 
 // Fresh skill state: default bar, no cooldowns, no ward.
 function resetSkills() { endWard(); P.bar = { ...BAR }; P.cd = { main: 0, flexA: 0, guard: 0, evade: 0 }; }
-// Old saves: drop retired passives and mods (mana, Flame Dash charges, Arc chains, Blood Magic ...).
-function cleanSave(sv) {
-  for (const k of Object.keys(sv.passives || {})) if (!PASS[k]) delete sv.passives[k];
-  Object.values(sv.gear || {}).forEach(cleanItem); (sv.inv || []).forEach(cleanItem);
-  return sv;
-}
 
+// Start (fresh) or continue a character: restore it (game/character.js), then enter the world (game/waypoint.js).
 function begin(fresh) {
-  audio(); resetSkills(); initSurge(ride.ftp); P.gems = initGems(null);
-  const sv = load(); if (sv) cleanSave(sv);
-  if (fresh || !sv) {
-    Object.assign(P, { lvl: 1, xp: 0, gear: {}, inv: [], passives: {}, pts: 0, offer: null, newItems: 0, kills: 0 });
-    P.gear.weapon = { id: G.itemId++, slot: 'weapon', rar: 1, base: 'Ashwood Staff', name: 'Smouldering Ashwood Staff', il: 1, impl: 1, mods: [['spell', 5], ['fire', .12]] };
-    recalc(); newLevel(0); save();
-  } else {
-    Object.assign(P, { lvl: sv.lvl, xp: sv.xp, gear: sv.gear || {}, inv: sv.inv || [], passives: sv.passives || {}, pts: sv.pts || 0, offer: null });
-    P.gems = initGems(sv.gems); G.itemId = sv.itemId || 100; recalc(); newLevel(sv.clears ?? Math.max(0, (sv.tier || 1) - 1));
-  }
+  audio(); resetSkills(); initSurge(ride.ftp);
+  const sv = fresh ? null : load();
+  initCharacter(sv); recalc(); startRun(sv);
   G.started = true; $('mMenu').classList.remove('show'); syncPause();
 }
 
@@ -110,11 +100,11 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // Testing hooks (used by tests/sim.mjs and handy in the console).
-window.__dbg = {
+window.__dbg = Object.assign(dbg, {
   G, P, S, SK, ctl, Q, chars, ride, setRide, effortMods, pollRide, autopilotRanges, surge: () => P.surge,
   ready: () => (chars.ready || chars.failed) && G.loaded, cycleQuality, cycleStyle,
   start: fresh => begin(fresh !== false), hurt: d => hurtP(d), hud: () => { hud(.1); hud(.1); },
   sim: n => { for (let i = 0; i < n; i++) { update(.033); updFx(.033); } },
   enemies: () => G.enemies, packs: () => G.packs, items: () => G.ground,
   newLevel, level: () => G.level, levelGoal, beat: currentBeat, startBeat, hit, kill, save, dropItem, spawnEnemy, blocked, los, recalc, hurtP, castSlot, castFireball, castNova, castWard, castBlink, mainTarget, mainRange, gainAP, gems: () => P.gems, gemBase, gemHas, openInv, openPass, equip,
-};
+});
