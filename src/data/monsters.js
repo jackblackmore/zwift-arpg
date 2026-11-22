@@ -1,0 +1,25 @@
+// Monster types. hp/dmg are tier-1 values; maps scale them per tier (TIER below).
+export const MT = {
+  zombie: { hp: 16, dmg: 6, spd: 1.8, r: .38, cd: 1.4, range: .75, ai: 'melee', xp: 3, col: 0x5f6f4a, head: 0x8a9a6a, eye: 0xff3020, h: 1.8 },
+  runner: { hp: 8, dmg: 3, spd: 4.0, r: .3, cd: .8, range: .6, ai: 'melee', xp: 2, col: 0x7a2a24, head: 0x9a3a2a, eye: 0xffd000, h: 1.35, scale: .75 },
+  archer: { hp: 12, dmg: 7, spd: 2.3, r: .34, cd: 2.2, range: 8, ai: 'ranged', xp: 3, col: 0xb8ae96, head: 0xe6dfcc, eye: 0xff3020, h: 1.8, bow: 1 },
+  bloater: { hp: 28, dmg: 22, spd: 1.6, r: .6, cd: 0, ai: 'bomb', xp: 4, col: 0x6aa040, head: 0x9ad060, eye: 0xffff60, h: 1.6, blob: 1 },
+  boss: { hp: 1200, dmg: 16, spd: 2.4, r: 1.1, cd: 1.7, range: 1.8, ai: 'boss', xp: 160, col: 0x2a2236, head: 0x5a4a70, eye: 0xff2bd6, h: 5.6, scale: 2.6, horns: 1 },
+};
+
+// Per-tier scaling: each map tier adds this fraction on top of tier 1.
+export const TIER = { hp: .45, dmg: .3, xp: .35, packSize: .08 };
+
+// Pack templates: [type, count] pairs. Counts scale with tier.
+export const PACKS = [
+  [['zombie', 9]], [['runner', 12]], [['zombie', 6], ['archer', 3]], [['bloater', 3], ['zombie', 5]],
+  [['runner', 7], ['archer', 2], ['bloater', 2]], [['archer', 5], ['zombie', 4]], [['zombie', 5], ['runner', 6]],
+];
+export const PACK = { magicChance: .3, rareChance: .4, rareTypes: ['zombie', 'archer', 'bloater', 'zombie'], aggro: 11.5, spawnRange: 27 };
+
+export const RAREAFF = { hasted: 'Hasted', fortified: 'Fortified', burning: 'Burning', splitting: 'Splitting', volatile: 'Volatile', frenzied: 'Frenzied' };
+export const RN1 = ['Gut', 'Rot', 'Grim', 'Bile', 'Ash', 'Hollow', 'Mire', 'Dread', 'Blight', 'Cinder', 'Gloom', 'Wretch'];
+export const RN2 = ['maw', 'tooth', 'spine', 'gnaw', 'husk', 'grip', 'fang', 'skull', 'hide', 'bone'];
+
+// Boss ability rotation and timings.
+export const BOSS = { rotation: ['slam', 'nova', 'slam', 'summon'], abilGap: 3.8, abilGap2: 2.6, slamR: 2.9, novaBolts: 14, summon: 5, summon2: 7 };

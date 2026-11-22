@@ -1,45 +1,212 @@
-import { S } from '../core/state.js';
-import { $, rand, pick } from '../core/util.js';
-import { ELEM } from '../data/combat.js';
+// Monster packs, spawning, AI (melee, ranged, bomber, boss) and crowd separation.
+import * as T from 'three';
+import { G, P, shake, stop } from '../core/state.js';
+import { MT, TIER, PACKS, PACK, RAREAFF, RN1, RN2, BOSS } from '../data/monsters.js';
+import { rand, pick, dist, $ } from '../core/util.js';
+import { SFX } from '../core/audio.js';
 import { scene } from '../render/scene.js';
-import { lam, box, sph, humanoid, slimeModel, batModel, collectMats } from '../render/models.js';
-import { walk } from '../world/map.js';
-import { floorScale } from './stats.js';
+import { GB, eyeMat, glowSprite, decal } from '../render/assets.js';
+import { buildModel } from '../render/models.js';
+import { sparks, emit, burst, ringFx, flashFx, telegraph, banner } from '../render/fx.js';
+import { pushOut, blocked, los } from '../world/map.js';
+import { hurtP, kill } from './combat.js';
 
-export const ETYPES = {
-  skeleton: { hp: 32, dmg: 6, speed: 2.0, range: 1.25, cd: 1.3, r: .35, gold: 3, make: () => humanoid({ body: 0xd8d0b8, dark: 0xb8ae96, head: 0xe6dfcc, eyes: 0xff3020, weapon: 0x8a8a8a, weaponLen: .6 }) },
-  slime:    { hp: 24, dmg: 4, speed: 1.7, range: 1.1, cd: 1.1, r: .4, gold: 2, make: () => slimeModel(0x3fbf4a) },
-  imp:      { hp: 18, dmg: 3, speed: 3.3, range: 1.1, cd: .9, r: .3, gold: 3, tells: ['fuse'], label: 'Bomber', make: () => { const m = humanoid({ body: 0xb0302a, dark: 0x5a1612, head: 0xc8402c, eyes: 0xffd000, horns: 0x2a1a10, scale: .75 }); const f = sph(.1, lam(0xff6a00, 0xff4400)); f.position.y = 1.62; m.g.add(f); return m; } },
-  archer:   { hp: 22, dmg: 5, speed: 2.0, range: 1.2, cd: 2.0, r: .33, gold: 4, role: 'ranged', bolt: 0xd8c890, make: () => humanoid({ body: 0x3a5a34, dark: 0x22301e, head: 0xe6dfcc, eyes: 0xff3020, weapon: 0x6a4a2a, weaponLen: .5 }) },
-  healer:   { hp: 26, dmg: 3, speed: 1.8, range: 1.2, cd: 2.4, r: .33, gold: 6, role: 'ranged', bolt: 0x5fe39a, tells: ['heal'], label: 'Cultist', make: () => humanoid({ body: 0x4a2a6a, dark: 0x2a1640, head: 0x5fe39a, headE: 0x1a6a3a, eyes: 0xffffff }) },
-  shield:   { hp: 48, dmg: 6, speed: 1.6, range: 1.25, cd: 1.5, r: .42, gold: 5, shielded: true, label: 'Shield bearer', make: () => { const m = humanoid({ body: 0x6a6a7a, dark: 0x3a3a48, head: 0xd8d0b8, eyes: 0xff3020, helm: true, weapon: 0x8a8a8a, weaponLen: .6 }); const sh = box(.1, .8, .6, lam(0x8a7a50, 0x1a1408)); sh.position.set(-.05, -.25, .12); m.armL.add(sh); return m; } },
-  bat:      { hp: 9, dmg: 2, speed: 3.4, range: 1.0, cd: .8, r: .25, gold: 1, make: batModel },
-  charger:  { hp: 60, dmg: 9, speed: 1.9, range: 1.3, cd: 1.6, r: .5, gold: 8, tells: ['charge'], label: 'Charger', make: () => humanoid({ body: 0x6a3a22, dark: 0x3a2014, head: 0x7a4a2a, eyes: 0xff6a00, horns: 0xd8d0b8, scale: 1.15 }) },
-  brute:    { hp: 150, dmg: 12, speed: 1.6, range: 1.6, cd: 1.6, r: .55, gold: 15, elite: true, tells: ['slam', 'charge', 'enrage'], make: () => humanoid({ body: 0x6a5a3a, dark: 0x3a2e1e, head: 0x7a8a50, eyes: 0xffd23f, weapon: 0x5a5a5a, weaponLen: 1.1, helm: true, scale: 1.45 }) },
-  boss:     { hp: 520, dmg: 11, speed: 1.4, range: 2.2, cd: 2.3, r: .9, gold: 80, boss: true, tells: ['slam', 'charge', 'summon'], make: () => humanoid({ body: 0x2a2236, dark: 0x16121e, head: 0x3a2e4a, eyes: 0xff2bd6, weapon: 0xff2bd6, weaponE: 0x6a0050, weaponLen: 1.4, helm: true, horns: 0x111111, shield: 0x3a2e4a, scale: 2.3 }) },
-};
-
-export function spawnEnemy(type, x, z, room) {
-  const t = ETYPES[type], m = t.make(), fs = floorScale();
-  const e = Object.assign({ type, x, z, sx: x, sz: z, room, hp: t.hp * fs, maxHp: t.hp * fs, atkT: rand(.3, 1), swing: 0, walkT: rand(0, 6), active: false, flashT: 0, path: null, repathT: 0, face: 0, stun: 0, buff: null, buffT: 0, dashT: 0, tellCd: rand(2, 4), shootT: rand(1, 2) }, t);
-  if (t.boss || t.elite || Math.random() < .45) e.weak = pick(Object.keys(ELEM));
-  e.model = m; e.mats = collectMats(m.g); m.g.position.set(x, 0, z); scene.add(m.g);
-  if (t.boss) { e.shieldMax = 200 * fs; e.shield = e.shieldMax; e.slamT = 6; e.tele = 0; e.stagger = 0; }
-  const bar = document.createElement('div');
-  bar.innerHTML = (e.weak ? `<div class="wk" style="color:${ELEM[e.weak].col}">${ELEM[e.weak].icon}</div>` : '') + (t.boss ? '<div class="hpb sh"><i></i></div>' : '') + '<div class="hpb"><i></i></div>';
-  if (t.boss) bar.querySelectorAll('.hpb').forEach(b => b.style.width = '90px');
-  $('bars').appendChild(bar); e.bar = bar; bar.style.display = 'none';
-  S.enemies.push(e); return e;
+export function makePack(x, z) {
+  const sz = 1 + TIER.packSize * (G.tier - 1), mem = [];
+  for (const [t, n] of pick(PACKS)) for (let i = 0; i < Math.round(n * sz * rand(.85, 1.2)); i++) mem.push(t);
+  const p = { x, z, mem, magic: Math.random() < PACK.magicChance, rare: Math.random() < PACK.rareChance ? pick(PACK.rareTypes) : null, spawned: false, awake: false, list: [] };
+  G.mapTotal += mem.length + (p.rare ? 1 : 0);
+  return p;
 }
 
-const PACKS = [['skeleton', 'skeleton', 'archer'], ['bat', 'bat', 'bat', 'bat', 'bat', 'skeleton'], ['shield', 'shield', 'healer'], ['imp', 'imp', 'skeleton', 'slime'],
-  ['charger', 'bat', 'bat', 'bat'], ['skeleton', 'slime', 'slime', 'archer'], ['shield', 'archer', 'healer', 'skeleton'], ['charger', 'imp', 'archer']];
+// rar: 0 normal, 1 magic, 2 rare
+export function spawnEnemy(type, x, z, pack, rar = 0) {
+  const b = MT[type], mt = 1 + TIER.hp * (G.tier - 1), md = 1 + TIER.dmg * (G.tier - 1);
+  const e = { type, ...b, x, z, vx: 0, vz: 0, pack, rar, aff: [], hp: 0, atkT: rand(.2, 1.2), windup: 0, awake: false, freeze: 0, chill: 0, shock: 0, burnT: 0, burnDps: 0, burnTick: 0, flash: 0, deathT: 0, walk: rand(0, 6), shootT: rand(.5, 2), face: rand(0, 6), fuse: 0, sx: x, sz: z };
+  let hpm = mt, sc = b.scale || 1;
+  if (rar === 1) { hpm *= 1.8; e.dmg *= 1.15; e.spd *= 1.08; }
+  if (rar === 2) {
+    hpm *= 5; e.dmg *= 1.4; sc *= 1.4; e.r *= 1.35;
+    e.aff = Object.keys(RAREAFF).sort(() => Math.random() - .5).slice(0, G.tier >= 3 ? 3 : 2);
+    if (e.aff.includes('hasted')) { e.spd *= 1.5; e.cd *= .7; }
+    if (e.aff.includes('frenzied')) { e.cd *= .55; e.dmg *= 1.1; }
+    if (e.aff.includes('fortified')) { hpm *= 1.8; sc *= 1.12; }
+    e.name = pick(RN1) + pick(RN2);
+  }
+  e.hp = e.maxHp = b.hp * hpm; e.dmg *= md;
+  e.model = buildModel({ ...b, scale: sc }); e.h = b.h * sc / (b.scale || 1);
+  if (rar === 2) e.model.mats.forEach(m => m.emissive.setHex(0x221a00));
+  e.model.g.position.set(x, 0, z); e.model.g.rotation.y = e.face; scene.add(e.model.g);
+  if (rar) { e.aura = decal(rar === 2 ? 0xffd23f : 0x5a6aff, e.r * 5); e.model.g.add(e.aura); e.aura.scale.multiplyScalar(1 / sc); }
+  if (e.aff.includes('burning')) { e.fireAura = decal(0xff5a10, 5.5); e.model.g.add(e.fireAura); e.fireAura.scale.multiplyScalar(1 / sc); }
+  G.enemies.push(e); if (pack) pack.list.push(e);
+  return e;
+}
 
-export function populate(r) {
-  const cells = []; for (let y = r.y + 1; y < r.y + r.h - 1; y++) for (let x = r.x + 1; x < r.x + r.w - 1; x++) if (walk(x, y)) cells.push([x, y]);
-  const spot = () => cells.splice(Math.random() * cells.length | 0, 1)[0];
-  const put = t => { if (!cells.length) return; const [x, y] = spot(); spawnEnemy(t, x, y, r); };
-  if (r.type === 'combat') { const pk = pick(S.floorN > 1 ? PACKS : PACKS.slice(0, 6)); pk.forEach(put); if (S.floorN > 1) put(pick(['skeleton', 'bat', 'slime', 'archer'])); }
-  if (r.type === 'elite') { put('brute'); pick([['healer', 'skeleton'], ['archer', 'bat', 'bat'], ['shield', 'imp']]).forEach(put); }
-  if (r.type === 'boss') spawnEnemy('boss', r.cx + 1, r.cy, r);
+// Build packs only when the player gets near (keeps the scene small).
+export function materialize() {
+  for (const p of G.packs) {
+    if (p.spawned || dist(p.x, p.z, P.x, P.z) > PACK.spawnRange) continue;
+    p.spawned = true;
+    const place = (t, rar) => { let x, z, k = 0; do { x = p.x + rand(-2.6, 2.6); z = p.z + rand(-2.6, 2.6); } while (blocked(x, z, .5) && ++k < 20); spawnEnemy(t, x, z, p, rar); };
+    p.mem.forEach(t => place(t, p.magic ? 1 : 0)); if (p.rare) place(p.rare, 2);
+  }
+  const bs = G.bossSpec;
+  if (bs && !bs.spawned && dist(G.bossSpot.x, G.bossSpot.z, P.x, P.z) < PACK.spawnRange) {
+    bs.spawned = true; const b = spawnEnemy('boss', G.bossSpot.x, G.bossSpot.z, null, 0); b.abilT = 3; b.rot = 0; bs.e = b;
+  }
+}
+
+export function wake(e) {
+  if (e.awake) return;
+  if (e.pack) { if (!e.pack.awake) { e.pack.awake = true; if (e.pack.rare) SFX.roar(); } e.pack.list.forEach(o => o.awake = true); }
+  e.awake = true;
+  if (e.type === 'boss') { banner('THE PALE WARDEN', '#ff4fd8', 'Dodge the slams · it summons at range'); SFX.roar(); $('bossbar').style.display = 'block'; }
+}
+
+// ---- spatial hash for neighbour and area queries ----
+const CELL = 2, hash = new Map();
+export function buildHash() {
+  hash.clear();
+  for (const e of G.enemies) { if (e.deathT) continue; const k = ((e.x + 60) / CELL | 0) * 1000 + ((e.z + 60) / CELL | 0); let a = hash.get(k); if (!a) hash.set(k, a = []); a.push(e); }
+}
+// Calls cb for every living enemy whose body overlaps the circle (x, z, r).
+export function near(x, z, r, cb) {
+  const x0 = (x - r + 60) / CELL | 0, x1 = (x + r + 60) / CELL | 0, z0 = (z - r + 60) / CELL | 0, z1 = (z + r + 60) / CELL | 0;
+  for (let i = x0; i <= x1; i++) for (let j = z0; j <= z1; j++) { const a = hash.get(i * 1000 + j); if (a) for (const e of a) if (!e.deathT && (e.x - x) ** 2 + (e.z - z) ** 2 <= (r + e.r) ** 2) cb(e); }
+}
+
+// Steer toward a target, bending around rocks ahead.
+function steer(e, tx, tz) {
+  let dx = tx - e.x, dz = tz - e.z; const d = Math.hypot(dx, dz) || 1; dx /= d; dz /= d;
+  for (const o of G.obst) {
+    const ox = o.x - e.x, oz = o.z - e.z, along = ox * dx + oz * dz; if (along < 0 || along > 3.5) continue;
+    const perp = ox * dz - oz * dx, m = o.r + e.r + .25;
+    if (Math.abs(perp) < m) { const s = perp > 0 ? 1 : -1, w = (m - Math.abs(perp)) / m * 1.6, px = -dz * s, pz = dx * s; dx += px * w; dz += pz * w; }
+  }
+  const l = Math.hypot(dx, dz) || 1; return [dx / l, dz / l];
+}
+function moveE(e, tx, tz, spd, dt) { const [dx, dz] = steer(e, tx, tz); e.x += dx * spd * dt; e.z += dz * spd * dt; e.face = Math.atan2(dx, dz); e.walk += dt * spd * 2.6; e.moving = true; }
+function eShoot(e, ang, spd, dmg, col, size) {
+  const g = new T.Group();
+  if (col === 'arrow') { const m = new T.Mesh(GB, eyeMat(0xd8c890)); m.scale.set(.05, .05, .55); g.add(m); g.rotation.y = ang; }
+  else g.add(glowSprite(col, size));
+  g.position.set(e.x, 1.2, e.z); scene.add(g);
+  G.eproj.push({ x: e.x, z: e.z, vx: Math.sin(ang) * spd, vz: Math.cos(ang) * spd, dmg, life: 3, g, r: col === 'arrow' ? .3 : .45 });
+}
+export function updEnemyProjectiles(dt) {
+  for (const p of G.eproj) {
+    p.x += p.vx * dt; p.z += p.vz * dt; p.life -= dt; p.g.position.set(p.x, 1.2, p.z);
+    if (p.life <= 0 || blocked(p.x, p.z, .05)) p.dead = true;
+    else if (P.dead <= 0 && dist(p.x, p.z, P.x, P.z) < p.r + P.r) { p.dead = true; hurtP(p.dmg); burst(p.x, 1.2, p.z, 0xff6060, 6, 3); }
+    if (p.dead) scene.remove(p.g);
+  }
+  G.eproj = G.eproj.filter(p => !p.dead);
+}
+
+export function updEnemy(e, dt) {
+  const M = e.model;
+  if (e.deathT) {
+    e.deathT += dt; const k = Math.min(1, e.deathT * 5);
+    if (M.body) M.g.scale.setScalar((e.rar === 2 ? 1.4 : 1) * (1 - k * .6)); else M.g.rotation.x = -k * 1.45;
+    if (e.deathT > 1) M.g.position.y = -(e.deathT - 1) * 1.2;
+    if (e.deathT > 1.8) { scene.remove(M.g); M.mats.forEach(m => m.dispose()); e.gone = true; }
+    return;
+  }
+  e.moving = false;
+  const d = dist(e.x, e.z, P.x, P.z);
+  if (!e.awake && d < (e.type === 'boss' ? 13 : PACK.aggro) && P.dead <= 0) wake(e);
+  // status effects
+  if (e.flash > 0) e.flash -= dt;
+  if (e.shock > 0) { e.shock -= dt; if (Math.random() < dt * 8) emit(sparks, e.x + rand(-.3, .3), rand(.5, e.h), e.z + rand(-.3, .3), rand(-1, 1), rand(1, 2), rand(-1, 1), .25, 0xd0b0ff, 0, 1); }
+  if (e.burnT > 0) {
+    e.burnT -= dt; e.burnTick -= dt;
+    if (Math.random() < dt * 14) emit(sparks, e.x + rand(-.3, .3), rand(.3, 1.2), e.z + rand(-.3, .3), 0, rand(1, 2.5), 0, .4, 0xff5a10);
+    if (e.burnTick <= 0) {
+      e.burnTick = .5; e.hp -= e.burnDps * .5; e.lastElem = 'fire';
+      G.floats.push({ x: e.x, y: e.h, z: e.z, txt: Math.round(e.burnDps * .5), col: '#ff8a3c', size: 10, life: .6, max: .6 });
+      if (e.hp <= 0) { kill(e); return; }
+    }
+  } else e.burnDps = 0;
+  if (e.chill > 0) e.chill -= dt;
+  const frozen = e.freeze > 0; if (frozen) e.freeze -= dt;
+  for (const m of M.mats) {
+    if (frozen) { m.color.setHex(0xa8eaff); m.emissive.setHex(0x113344); }
+    else { m.color.setHex(m.userData.c); m.emissive.setHex(e.flash > 0 ? 0x888888 : e.shock > 0 && Math.sin(G.gt * 30) > .3 ? 0x2a1a44 : e.rar === 2 ? 0x221a00 : 0); }
+  }
+  if (Math.abs(e.vx) + Math.abs(e.vz) > .01) { e.x += e.vx * dt; e.z += e.vz * dt; const f = Math.exp(-8 * dt); e.vx *= f; e.vz *= f; }
+  if (!e.awake || frozen || P.dead > 0) { pushOut(e); return animE(e, dt); }
+  const spd = e.spd * (e.chill > 0 ? .5 : 1), cdm = e.chill > 0 ? 1.6 : 1;
+  if (e.fireAura && d < 2.75) { e.auraT = (e.auraT || 0) - dt; if (e.auraT <= 0) { e.auraT = .5; hurtP(3 * (1 + TIER.dmg * (G.tier - 1))); } }
+  if (e.ai === 'boss' && bossAI(e, dt)) { pushOut(e); return animE(e, dt); }
+  if (e.ai === 'melee' || e.ai === 'boss') {
+    if (e.windup > 0) {
+      e.windup -= dt; e.face = Math.atan2(P.x - e.x, P.z - e.z);
+      if (e.windup <= 0) { e.swing = 1; if (d < e.range + e.r + P.r + .45) { hurtP(e.dmg); if (e.type === 'boss') { shake(.3); SFX.slam(); } } e.atkT = e.cd * cdm; }
+    } else if (d < e.range + e.r + P.r) { e.face = Math.atan2(P.x - e.x, P.z - e.z); e.atkT -= dt; if (e.atkT <= 0) e.windup = e.type === 'boss' ? .55 : .32; }
+    else moveE(e, P.x, P.z, spd, dt);
+  } else if (e.ai === 'ranged') {
+    if (e.windup > 0) { e.windup -= dt; e.face = Math.atan2(P.x - e.x, P.z - e.z); if (e.windup <= 0) { e.swing = 1; eShoot(e, e.face + rand(-.05, .05), 11, e.dmg, 'arrow'); e.shootT = e.cd * cdm * rand(.85, 1.2); } }
+    else if (d < 4.5) { const [dx, dz] = steer(e, e.x - (P.x - e.x), e.z - (P.z - e.z)); e.x += dx * spd * dt; e.z += dz * spd * dt; e.walk += dt * spd * 2.6; e.moving = true; e.face = Math.atan2(P.x - e.x, P.z - e.z); }
+    else if (d > 9 || !los(e.x, e.z, P.x, P.z)) moveE(e, P.x, P.z, spd, dt);
+    else { e.face = Math.atan2(P.x - e.x, P.z - e.z); e.shootT -= dt; if (e.shootT <= 0) e.windup = .45; }
+  } else if (e.ai === 'bomb') {
+    if (e.fuse > 0) { e.fuse -= dt; if (e.fuse <= 0) kill(e); }
+    else if (d < 1.9) { e.fuse = .85; telegraph(e.x, e.z, 2.2, .85, 0x9ad060); }
+    else moveE(e, P.x, P.z, spd, dt);
+  }
+  pushOut(e); animE(e, dt);
+}
+
+// Returns true while the boss is busy with an ability (so it doesn't also walk or swing).
+function bossAI(e, dt) {
+  if (!e.phase2 && e.hp < e.maxHp * .5) { e.phase2 = true; e.spd *= 1.3; banner('THE WARDEN IS ENRAGED', '#ff4fd8', 'Faster slams · double nova'); SFX.roar(); }
+  if (e.cast) {
+    const c = e.cast; c.t -= dt; e.face = Math.atan2(P.x - e.x, P.z - e.z);
+    if (c.t > 0) return true;
+    e.cast = null; e.swing = 1;
+    if (c.kind === 'slam') {
+      ringFx(c.x, c.z, c.r, 0xff3030, .4, .5); burst(c.x, .4, c.z, 0xff4fd8, 50, 7); flashFx(c.x, .5, c.z, 0xff2bd6, c.r * 2.4, .3); SFX.slam(); shake(.7); stop(.08);
+      if (dist(P.x, P.z, c.x, c.z) < c.r + P.r) hurtP(e.dmg * 2);
+    }
+    if (c.kind === 'nova') for (let k = 0; k < (e.phase2 ? 2 : 1); k++) setTimeout(() => { if (e.deathT || e.gone) return; for (let i = 0; i < BOSS.novaBolts; i++) eShoot(e, i / BOSS.novaBolts * 6.283 + k * .22, 6.5, e.dmg * .7, 0xff2bd6, 1.1); SFX.arc(); }, k * 380);
+    if (c.kind === 'summon') for (let i = 0; i < (e.phase2 ? BOSS.summon2 : BOSS.summon); i++) {
+      const a = i * 1.26, x = e.x + Math.cos(a) * 2.5, z = e.z + Math.sin(a) * 2.5;
+      if (!blocked(x, z, .3)) { const r = spawnEnemy('runner', x, z, null, 0); r.awake = true; G.mapTotal++; burst(x, .5, z, 0xff4fd8, 10, 3); }
+    }
+    return true;
+  }
+  e.abilT -= dt;
+  if (e.abilT <= 0) {
+    const k = BOSS.rotation[e.rot++ % BOSS.rotation.length]; e.abilT = e.phase2 ? BOSS.abilGap2 : BOSS.abilGap;
+    if (k === 'slam') { e.cast = { kind: k, t: e.phase2 ? .75 : 1, x: P.x, z: P.z, r: BOSS.slamR }; telegraph(P.x, P.z, BOSS.slamR, e.cast.t); }
+    else if (k === 'nova') { e.cast = { kind: k, t: .6 }; flashFx(e.x, 3, e.z, 0xff2bd6, 5, .6); }
+    else { e.cast = { kind: k, t: .7 }; ringFx(e.x, e.z, 3, 0xff4fd8, .7, .2); }
+    return true;
+  }
+  return false;
+}
+
+function animE(e, dt) {
+  const M = e.model; M.g.position.set(e.x, 0, e.z);
+  const dr = ((e.face - M.g.rotation.y + Math.PI * 3) % (Math.PI * 2)) - Math.PI; M.g.rotation.y += dr * Math.min(1, dt * 10);
+  if (e.freeze > 0) return;
+  if (M.body) { const s = 1 + Math.sin(G.gt * 6 + e.sx) * .06 + (e.fuse > 0 ? Math.sin(G.gt * 40) * .12 : 0); M.body.scale.set(.62 * s, .55 / s, .62 * s); M.g.position.y = e.moving ? Math.abs(Math.sin(e.walk)) * .1 : 0; return; }
+  const w = e.moving ? Math.sin(e.walk) : 0;
+  M.legL.rotation.x = w * .7; M.legR.rotation.x = -w * .7;
+  if (e.swing > 0) e.swing = Math.max(0, e.swing - dt * 4);
+  const up = e.windup > 0 || (e.cast && e.cast.t > 0);
+  M.armR.rotation.x = up ? -2.6 : e.swing > 0 ? -2.6 + (1 - e.swing) * 3.2 : (e.type === 'zombie' && e.awake ? -1.3 : w * .5);
+  M.armL.rotation.x = up && e.type === 'boss' ? -2.6 : e.type === 'zombie' && e.awake ? -1.3 : e.type === 'archer' && e.awake ? -1.5 : -w * .5;
+  M.g.position.y = e.moving ? Math.abs(Math.cos(e.walk)) * .06 : 0;
+}
+
+// Push overlapping monsters apart; the horde also shoves the player a little.
+export function separate() {
+  for (const e of G.enemies) {
+    if (e.deathT) continue;
+    near(e.x, e.z, e.r + .6, o => { if (o === e) return; const dx = e.x - o.x, dz = e.z - o.z, dd = Math.hypot(dx, dz), m = e.r + o.r; if (dd < m && dd > .001) { const p = (m - dd) * .5; e.x += dx / dd * p; e.z += dz / dd * p; } });
+    const dx = e.x - P.x, dz = e.z - P.z, dd = Math.hypot(dx, dz), m = e.r + P.r;
+    if (dd < m && dd > .001 && P.dead <= 0) { const p = m - dd; e.x += dx / dd * p * .7; e.z += dz / dd * p * .7; P.x -= dx / dd * p * .3; P.z -= dz / dd * p * .3; }
+  }
 }

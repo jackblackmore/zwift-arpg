@@ -1,58 +1,64 @@
 # Watt Dungeon
 
-A Diablo-lite you pedal, for a Wahoo KICKR and a Zwift Ride. Effort is a currency, not a test: any riding banks kilojoules, so easy days still make progress. The hero explores and fights on its own. The rider picks the route at each fork, and that choice sets how hard the day is.
+An action RPG in the style of Path of Exile, built to be played on a Wahoo KICKR and Zwift Ride later. The game comes first: right now you control it with keyboard and mouse or touch. Bike controls come once the game is fun.
 
-**Play:** https://jackblackmore.github.io/zwift-arpg/ (once Pages is enabled, see below)
+**Play:** https://jackblackmore.github.io/zwift-arpg/
+**Original pedal demo** (auto-battler driven by power and cadence): https://jackblackmore.github.io/zwift-arpg/pedal/
 
 ## Run it
 
 ```sh
 npm install
-npm run dev      # local dev server
+npm run dev      # local dev server (ARPG at /, pedal demo at /pedal/)
 npm run build    # production build into dist/
-npm test         # headless playtest: two 12-minute simulated rides (needs Chrome)
+npm test         # headless playtest of both games (needs Chrome; run build first)
+SCREENSHOT=/tmp/shot.png npm test   # also saves an ARPG mid-fight screenshot
 ```
+
+## Controls
+
+- **Desktop:** WASD to move, mouse to aim. LMB is Fireball, RMB is Arc, Q is Frost Nova, Space is Flame Dash and F drinks a flask. I opens the bag, P the passives, Esc closes panels.
+- **Touch:** drag the left side to move. The skill buttons on the right auto-aim at the nearest enemy. Walk over loot to pick it up.
+
+## The ARPG
+
+- **Skills:** Fireball explodes in an area, Arc chains between enemies, Frost Nova freezes (2.2s cooldown), and Flame Dash uses charges and leaves a burning trail. The life flask refills its charges on kills.
+- **Monsters:** zombies, runners, archers and bloaters that explode. They come in packs of 6–14. Magic packs are blue. Rare leaders have yellow names and affixes: Hasted, Fortified, Burning, Splitting, Volatile or Frenzied.
+- **Boss:** The Pale Warden uses telegraphed slams, a bolt nova and summons, and enrages at 50%. Killing it opens a portal to the next map tier, where monsters have +45% HP per tier.
+- **Loot:** six gear slots in magic, rare and unique rarities. Each item has an implicit and 1–5 affixes. Drops show loot beams and labels. The bag compares an item against your current gear (Fireball DPS, life, move speed) and outlines upgrades in green. Uniques change how skills work: Wattbringer, Heart of the Storm, Emberstride, The Glass Crown, Frostbound Loop and Aegis of the Long Ride.
+- **Passives:** each level, pick 1 of 3. Notables include Twin Flame, Searing Lance, Forked Sky, Ignite, Shatter, Conduit and Chain Reaction. The keystone is Blood Magic.
+- **Save:** the character saves to localStorage on this device.
 
 ## Layout
 
 ```
-src/
-  main.js            boot, main loop, window.__dbg test hooks
-  core/              shared state, helpers, audio
-  data/              tuning tables: zones, workouts, elements, tells, boons, rooms, loot names
-  input/rider.js     rider input layer: manual sliders/keys and scripted riders
-  world/             dungeon generation and pathfinding (map.js), meshes and fog of war (build.js)
-  game/              rules: stats, combat, tells, enemies, loot, boons, path choices, floor setup, tick
-  render/            three.js scene, models, effects, per-frame drawing
-  ui/                HUD, ride summary, controls
-tests/sim.mjs        headless playtest
+index.html, src/          the ARPG
+  main.js                 boot, main loop, window.__dbg test hooks
+  core/                   shared state (G world, P player, S stats), helpers, audio
+  data/                   tuning tables: monsters, skills, items/affixes/uniques, passives
+  input/input.js          the input layer: `ctl` is all the game reads
+  input/devices.js        keyboard + mouse and touch devices that write into `ctl`
+  world/map.js            map generation, rock colliders, line of sight
+  game/                   rules: stats, combat, skills, enemies + AI, items, maps, save, tick
+  render/                 three.js scene, assets, models, effects, per-frame drawing + overlay
+  ui/                     HUD + minimap, panels (bag, passives, menu)
+pedal/                    the original pedal-driven demo (unchanged, its own src/)
+tests/sim.mjs             headless playtest for both
 ```
 
-The game reads power and cadence only from `rider` in `src/input/rider.js`. Each entry in `SOURCES` produces those numbers. Bluetooth (KICKR over FTMS, Zwift Ride buttons) gets added last, as one more source, without touching game code.
-
-## Systems
-
-- **Power and zones:** damage scales gently with %FTP. The zone sets the element: ❄ Frost below 87% FTP, 🔥 Fire at 87–105%, ⚡ Storm above 105%. Hitting a weakness does 2× damage.
-- **Cadence:** sets attack speed and picks treasure locks (100+ rpm).
-- **Sweet spot:** builds Strength stacks (+6% damage each, up to 10).
-- **Above FTP:** adds crit chance, charges Overload and drains W′ (18 kJ, which recovers below FTP).
-- **Cleave:** charged by total kJ.
-- **Tells:** SURGE above 120% FTP, EASE OFF below 75% FTP, SPIN at 105+ rpm, HOLD at 85–105% FTP.
-- **Rooms:** monster den, elite lair, treasure vault, campfire, and a boss (The Warden).
-- **Loot and boons:** loot covers weapon, armour and relic slots in four rarities. There are eight boons.
-- **Ride summary:** time, kJ, average power, NP, estimated TSS, time in zones, and the best drop.
+Game code reads player input only from `ctl` in `src/input/input.js`: movement, an optional aim point, held skills and one-shot presses. The Zwift Ride and KICKR will become one more device writing into `ctl`, without touching game code.
 
 ## Testing hooks
 
-`window.__dbg` exposes `S`, `hero`, `ride`, `rooms()`, `enemies()`, `floor()`, `sim(n)` (advance n × 50 ms), `start(mode)` (0 manual, 1 easy, 2 intervals), `metrics()`, `summary()` and `tell()`.
+`window.__dbg` exposes `G`, `P`, `S`, `ctl`, `start(fresh)`, `sim(n)` (advance n × 33 ms), `enemies()`, `packs()`, `items()`, `newMap(tier)`, `kill(e)`, `dropItem(x, z, boost)`, `equip(i)`, `openInv(v)`, `openPass()` and the `cast*` skill functions.
 
 ## Deploy
 
-Every push to `main` builds, runs the playtest and deploys to GitHub Pages. One-time setup: in the repo, go to Settings → Pages → Build and deployment → Source and choose **GitHub Actions**.
+Every push to `main` builds, runs the playtest and deploys to GitHub Pages (Settings → Pages → Source: **GitHub Actions**).
 
 ## Roadmap
 
-1. Polish the game using simulated rides: tell timings, room pacing, balance.
-2. Replace the primitive models with animated low-poly packs (KayKit or Quaternius; check the licences).
-3. Classes, elite affixes, more boss mechanics, a town and meta-progression, saved characters, .zwo workout import.
-4. Last: Bluetooth. KICKR via FTMS (Web Bluetooth, Chrome on Android/Windows) and Zwift Ride buttons for path and boon choice.
+1. Make the ARPG fun: more skills, with skill gems and supports to swap; more monster types and biomes; a town, stash and crafting currency.
+2. Swap the primitive models for animated low-poly packs (KayKit or Quaternius; check the licences).
+3. Design the bike mapping, for example: movement auto-paths toward the next pack or loot, Zwift Ride buttons cast skills and steer, effort feeds mana and cast speed, and a surge triggers dash.
+4. Last: Bluetooth. KICKR via FTMS (Web Bluetooth) and Zwift Ride buttons, added as a device in `src/input/`.

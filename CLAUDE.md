@@ -1,9 +1,10 @@
 # Watt Dungeon: notes for Claude
 
 - Vanilla JS ES modules, Vite, and three.js **pinned to r128** (0.128.0). The lighting and colours are tuned for r128's legacy lighting. Upgrade three.js only as its own deliberate change.
-- Shared mutable state lives in `src/core/state.js` (`S`, `hero`, `ride`) and `src/world/map.js` (`M`). Mutate fields on those objects; don't export reassignable `let`s.
-- Game code reads effort only via `rider` (`src/input/rider.js`). New input types (Bluetooth FTMS, Zwift Ride) go in as entries in `SOURCES`. Never read sensors directly from game code.
+- Two pages. The ARPG (`index.html`, `src/`) is the main game. The original pedal demo (`pedal/index.html`, `pedal/src/`) is kept as a reference and isn't being developed.
+- ARPG shared mutable state lives in `src/core/state.js`: `G` (world), `P` (player) and `S` (derived stats, refreshed by `recalc()`). Mutate fields on those objects; don't export reassignable `let`s.
+- ARPG game code reads input only via `ctl` (`src/input/input.js`). Devices (keyboard + mouse and touch today; Zwift Ride and KICKR later) live in `src/input/` and write into `ctl`. Never read DOM events or sensors from game code.
 - Tuning numbers live in `src/data/` where possible.
 - The owner builds from his phone, so changes are checked headless: run `npm run build && npm test` before every push. To look at the game, take a screenshot with `SCREENSHOT=/tmp/shot.png npm test`.
-- Bluetooth is deliberately last. The current focus is polishing the game loop with simulated rides.
+- Bluetooth is deliberately last. The current focus is making the ARPG fun with keyboard, mouse and touch.
 - Pushing to `main` deploys to GitHub Pages.

@@ -1,79 +1,72 @@
+// Per-frame drawing: hero animation, camera, and the 2D overlay (bars, rare names, loot labels, numbers).
 import * as T from 'three';
-import { S, hero } from '../core/state.js';
-import { $, rand } from '../core/util.js';
-import { ELEM, elemOf } from '../data/combat.js';
-import { renderer, scene, cam, CAMOFF, torch } from './scene.js';
-import { toScreen } from './fx.js';
-import { M, idx } from '../world/map.js';
-import { WB } from '../world/build.js';
-import { rel } from '../game/stats.js';
+import { G, P } from '../core/state.js';
+import { RAREAFF } from '../data/monsters.js';
+import { RCSS } from '../data/items.js';
+import { rand, $ } from '../core/util.js';
+import { renderer, scene, cam, CAM, V, plight, blight, ctx } from './scene.js';
+import { glows, emit } from './fx.js';
+import { joy } from '../input/devices.js';
 
-function animHumanoid(m, ent, moving, swing) {
-  const w = moving ? Math.sin(ent.walkT) : 0;
-  m.legL.rotation.x = w * .6; m.legR.rotation.x = -w * .6;
-  m.armL.rotation.x = -w * .4;
-  m.armR.rotation.x = swing > 0 ? -2.3 + (1 - swing) * 3.0 : w * .4;
-  m.g.position.y = moving ? Math.abs(Math.cos(ent.walkT)) * .05 : 0;
-}
+const TV = new T.Vector3();
+function toScreen(x, y, z) { TV.set(x, y, z).project(cam); return TV.z > 1 ? null : [(TV.x + 1) / 2 * V.W, (1 - TV.y) / 2 * V.H]; }
 
-const lastPos = new Map();
 export function draw(dt) {
-  const { time } = S, { revealed, rooms } = M;
+  const { W, H } = V, gt = G.gt;
   // hero
-  const hm = S.heroModel;
-  hm.g.visible = hero.dead <= 0;
-  const hp = lastPos.get(hero) || [hero.x, hero.z], moved = Math.hypot(hero.x - hp[0], hero.z - hp[1]) > .001; lastPos.set(hero, [hero.x, hero.z]);
-  hm.g.position.x = hero.x; hm.g.position.z = hero.z;
-  hm.g.rotation.y += ((hero.face - hm.g.rotation.y + Math.PI * 3) % (Math.PI * 2) - Math.PI) * Math.min(1, dt * 12);
-  animHumanoid(hm, hero, moved, hero.swing);
-  const zc = new T.Color(ELEM[elemOf(rel())].col);
-  hm.blade.material.emissive.copy(zc).multiplyScalar(.9);
-  torch.position.set(hero.x, 2.3, hero.z);
-  // enemies
-  for (const e of S.enemies) {
-    const m = e.model, lp = lastPos.get(e) || [e.x, e.z], mv = Math.hypot(e.x - lp[0], e.z - lp[1]) > .001; lastPos.set(e, [e.x, e.z]);
-    m.g.position.x = e.x; m.g.position.z = e.z;
-    m.g.rotation.y += ((e.face - m.g.rotation.y + Math.PI * 3) % (Math.PI * 2) - Math.PI) * Math.min(1, dt * 8);
-    if (e.type === 'bat') { const f = Math.sin(time * 22 + e.sx) * .7; m.wingL.rotation.z = f; m.wingR.rotation.z = -f; m.g.position.y = Math.sin(time * 4 + e.sz) * .12; }
-    else if (e.type === 'slime') { const s = 1 + Math.sin(time * 6 + e.sx) * .08; m.body.scale.set(1 / s, s, 1 / s); m.g.position.y = mv ? Math.abs(Math.sin(e.walkT)) * .15 : 0; }
-    else animHumanoid(m, e, mv, e.swing);
-    if ((e.boss && e.stagger > 0) || e.stun > 0) m.g.rotation.z = Math.sin(time * 10) * .08; else m.g.rotation.z = 0;
-    if (e.buff === 'frenzy' && !e.flashT) for (const mt of e.mats) if (mt.emissive) mt.emissive.setHex(Math.sin(time * 12) > 0 ? 0x661010 : mt.userData.e);
-    if (S.curTell && S.curTell.e === e && Math.sin(time * 18) > 0) for (const mt of e.mats) if (mt.emissive) mt.emissive.setHex(0x443344);
-    const on = e.active && revealed[idx(Math.round(e.x), Math.round(e.z))];
-    m.g.visible = !!revealed[idx(Math.round(e.x), Math.round(e.z))];
-    if (on) {
-      const [sx, sy] = toScreen(e.x, e.boss ? 4.4 : (e.elite ? 2.6 : e.type === 'bat' ? 1.5 : 1.85), e.z);
-      e.bar.style.display = ''; e.bar.style.left = sx + 'px'; e.bar.style.top = sy + 'px';
-      const bs = e.bar.querySelectorAll('i');
-      if (e.boss) { bs[0].style.width = (e.stagger > 0 ? 0 : e.shield / e.shieldMax * 100) + '%'; bs[1].style.width = (e.hp / e.maxHp * 100) + '%'; }
-      else bs[0].style.width = (e.hp / e.maxHp * 100) + '%';
-    } else e.bar.style.display = 'none';
-  }
-  // props
-  for (const r of rooms) {
-    const rv = !!revealed[idx(r.cx, r.cy)];
-    if (r.chest) r.chest.g.visible = rv;
-    if (r.fire) r.fire.g.visible = rv;
-    if (r.fire) { const f = 1 + Math.sin(time * 13 + r.cx) * .12 + Math.sin(time * 7) * .08; r.fire.fl.scale.set(1, f, 1); r.fire.fl2.scale.set(1, 2 - f, 1); }
-    if (r.entered && !r.done && r.populated && r.type !== 'treasure' && r.type !== 'campfire') r.marker.visible = !S.enemies.some(e => e.room === r && e.active && !e.dead);
-    else if (r.entered || (S.choices && S.choices.some(c => c.r === r))) r.marker.visible = true;
-    if (r.marker.visible) r.marker.position.y = 2.4 + Math.sin(time * 2 + r.cx) * .1;
-  }
-  for (const p of WB.props) p.m.visible = !!revealed[idx(p.x, p.y)];
-  WB.torches.forEach((t, i) => { const f = 1 + Math.sin(time * 15 + i * 2) * .15; t.scale.set(1, f, 1); });
-  S.campLights.forEach((L, i) => L.intensity = revealed[idx(Math.round(L.position.x), Math.round(L.position.z))] ? 1.3 + Math.sin(time * 11 + i) * .2 : 0);
-  if (S.stairs) S.stairs.children[1].scale.setScalar(1 + Math.sin(time * 4) * .06);
-  // choice tags
-  const tags = $('tags'); tags.innerHTML = '';
-  if (S.choices) S.choices.forEach((c, i) => { const [sx, sy] = toScreen(c.r.cx, 3.3, c.r.cy); const d = document.createElement('div'); d.innerHTML = `<div class="tag">${i + 1}</div>`; d.style.left = sx + 'px'; d.style.top = sy + 'px'; tags.appendChild(d); });
-  // floating text
-  for (const f of S.floats) { f.life -= dt; f.y += dt * 1.1; const [sx, sy] = toScreen(f.x, f.y, f.z); f.d.style.left = sx + 'px'; f.d.style.top = sy + 'px'; f.d.style.opacity = Math.min(1, f.life / f.max * 2); if (f.life <= 0) f.d.remove(); }
-  S.floats = S.floats.filter(f => f.life > 0);
+  const M = G.heroM; M.g.visible = P.dead <= 0; M.g.position.set(P.x, P.moving ? Math.abs(Math.cos(P.walkT)) * .05 : 0, P.z);
+  const dr = ((P.face - M.g.rotation.y + Math.PI * 3) % (Math.PI * 2)) - Math.PI; M.g.rotation.y += dr * Math.min(1, dt * 16);
+  const w = P.moving ? Math.sin(P.walkT) : 0; M.legL.rotation.x = w * .7; M.legR.rotation.x = -w * .7; M.armL.rotation.x = -w * .5;
+  M.armR.rotation.x = P.castAnim > 0 ? -1.5 : w * .4; M.orb.scale.setScalar(.55 + (P.castAnim > 0 ? .4 : 0) + Math.sin(gt * 5) * .05);
+  plight.position.set(P.x, 3, P.z);
+  G.torches.forEach((t, i) => { const f = 1.4 + Math.sin(gt * 11 + i) * .15 + Math.sin(gt * 23 + i * 3) * .08; t.f.scale.set(f, f * 1.15, 1); });
+  const boss = G.bossSpec && G.bossSpec.e;
+  if (G.portal) {
+    const pt = G.portal; pt.tor.rotation.y += dt * 1.5; blight.position.set(pt.x, 2, pt.z); blight.intensity = 2 + Math.sin(gt * 4) * .5;
+    if (Math.random() < .5) emit(glows, pt.x + rand(-1, 1), rand(.3, 2.3), pt.z + rand(-.3, .3), 0, rand(.5, 1.5), 0, .6, 0xb06bff);
+  } else if (boss && !boss.deathT && boss.awake) { blight.position.set(boss.x, 4, boss.z); blight.intensity = 1.2; }
+  else blight.intensity = 0;
+  for (const d of G.ground) if (d.g.children[1]) d.g.children[1].material.opacity = (d.it.rar === 3 ? .45 : .25) + Math.sin(gt * 3) * .08;
   // camera
-  const tx = hero.x + CAMOFF.x, tz = hero.z + CAMOFF.z;
-  cam.position.x += (tx - cam.position.x) * Math.min(1, dt * 5); cam.position.z += (tz - cam.position.z) * Math.min(1, dt * 5); cam.position.y = CAMOFF.y;
-  cam.lookAt(cam.position.x - CAMOFF.x, 0, cam.position.z - CAMOFF.z);
-  if (S.shakeAmt > .01) { cam.position.x += rand(-S.shakeAmt, S.shakeAmt) * .4; cam.position.z += rand(-S.shakeAmt, S.shakeAmt) * .4; S.shakeAmt *= Math.exp(-9 * dt); }
+  const k = V.camMul, cx = P.x + CAM.x * k, cz = P.z + CAM.z * k;
+  cam.position.x += (cx - cam.position.x) * Math.min(1, dt * 6); cam.position.z += (cz - cam.position.z) * Math.min(1, dt * 6); cam.position.y = CAM.y * k;
+  cam.lookAt(cam.position.x - CAM.x * k, 0, cam.position.z - CAM.z * k);
+  if (G.shakeA > .01) { cam.position.x += rand(-G.shakeA, G.shakeA) * .5; cam.position.y += rand(-G.shakeA, G.shakeA) * .5; G.shakeA *= Math.exp(-10 * dt); }
   renderer.render(scene, cam);
+
+  // ---- overlay ----
+  ctx.clearRect(0, 0, W, H); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  for (const e of G.enemies) {
+    if (e.deathT || e.type === 'boss' || !(e.hp < e.maxHp || e.rar)) continue;
+    const s = toScreen(e.x, e.h + .25, e.z); if (!s || s[0] < -50 || s[0] > W + 50 || s[1] < -50 || s[1] > H + 50) continue;
+    const bw = e.rar === 2 ? 60 : e.rar === 1 ? 38 : 28;
+    ctx.fillStyle = '#000c'; ctx.fillRect(s[0] - bw / 2 - 1, s[1] - 1, bw + 2, 6);
+    ctx.fillStyle = e.freeze > 0 ? '#7fd8ff' : '#c02020'; ctx.fillRect(s[0] - bw / 2, s[1], bw * Math.max(0, e.hp / e.maxHp), 4);
+    if (e.rar === 2) {
+      ctx.font = '800 13px Cinzel, serif'; ctx.fillStyle = '#ffd23f'; ctx.fillText(e.name, s[0], s[1] - 18);
+      ctx.font = '400 10px JetBrains Mono, monospace'; ctx.fillStyle = '#c8b070'; ctx.fillText(e.aff.map(a => RAREAFF[a]).join(' · '), s[0], s[1] - 7);
+    }
+  }
+  // loot labels, stacked so they don't overlap; their rects are clickable (input/devices.js)
+  G.labelRects = []; ctx.font = '700 11px JetBrains Mono, monospace';
+  const labs = [];
+  for (const d of G.ground) { if (!d.landed) continue; const s = toScreen(d.x, .3, d.z); if (s) labs.push([s, d]); }
+  labs.sort((a, b) => a[0][1] - b[0][1]);
+  const placed = [];
+  for (const [s, d] of labs) {
+    const tw = ctx.measureText(d.it.name).width + 12; const x = s[0] - tw / 2; let y = s[1] - 24;
+    for (let k2 = 0; k2 < 6; k2++) { if (placed.some(r => x < r[0] + r[2] && x + tw > r[0] && y < r[1] + r[3] && y + 16 > r[1])) y -= 18; else break; }
+    placed.push([x, y, tw, 16]); G.labelRects.push([x, y, tw, 16, d]);
+    ctx.fillStyle = '#000000d0'; ctx.fillRect(x, y, tw, 16); ctx.strokeStyle = RCSS[d.it.rar]; ctx.lineWidth = d.it.rar >= 2 ? 1.5 : 1; ctx.strokeRect(x + .5, y + .5, tw - 1, 15);
+    ctx.fillStyle = RCSS[d.it.rar]; ctx.fillText(d.it.name, x + tw / 2, y + 8.5);
+  }
+  for (const f of G.floats) {
+    const s = toScreen(f.x, f.y, f.z); if (!s) continue;
+    ctx.globalAlpha = Math.min(1, f.life / f.max * 2.2); ctx.font = `800 ${f.size}px Cinzel, serif`; ctx.lineWidth = 3; ctx.strokeStyle = '#000';
+    ctx.strokeText(f.txt, s[0], s[1]); ctx.fillStyle = f.col; ctx.fillText(f.txt, s[0], s[1]);
+  }
+  ctx.globalAlpha = 1;
+  const J = $('joy');
+  if (joy.on) { J.style.display = 'block'; J.style.left = joy.bx + 'px'; J.style.top = joy.by + 'px'; J.firstChild.style.transform = `translate(${joy.x * 32}px,${joy.y * 32}px)`; }
+  else J.style.display = 'none';
 }
