@@ -285,7 +285,15 @@ Ideas: deeper levels use more intense versions of the template; beats could be w
   - Parked for later: surge strength, efficiency (diesel), on surge start / end effects, keystones such as Redline, surging speeding up cooldowns.
 - **Movement speed is a stat** (gems, tree, gear): faster clears and better escapes. Cap around +50% so the autopilot and screen stay readable.
 - **Skills use cooldowns, not mana.** The Surge gauge is the only resource, and it's effort-based. Cooldown reduction is a stat, capped around 40%. Blood Magic becomes **Blood Rite**: no cooldowns, every cast costs life.
-- Trials work differently (the workout prescribes the effort; damage scales with hitting the target); the Surge gauge probably doesn't apply. Next layer.
+### Layer 2: Trials (shape settled, details deferred until we build them)
+
+- **A Trial is a short warm-up level** (~10–15 min, normal packs, no guardian), **then the boss arena**, where the fight is a structured workout with watt targets.
+- Win, workout types and replay with modifiers as in the Trials section above.
+- Simple defaults to start with:
+  - On target = full damage; under target = damage drops away; **over target = no extra damage** (no reason to overcook).
+  - Recovery: low damage; the boss attacks and you evade.
+  - No ERG in the first version; you ride the target yourself and the game shows how well you're hitting it.
+- The Surge gauge probably doesn't apply in Trials.
 
 ### Earlier ideas
 
