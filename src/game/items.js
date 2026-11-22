@@ -9,6 +9,9 @@ import { toast } from '../render/fx.js';
 import { SFX } from '../core/audio.js';
 import { save } from './save.js';
 import { blocked } from '../world/map.js';
+import { GEMS } from '../data/gems.js';
+import { GEM_DROP, poolOf } from '../data/supports.js';
+import { addGem } from './gems.js';
 
 const flatScale = il => 1 + .22 * (il - 1), pctScale = il => 1 + .07 * (il - 1);
 function rollVal(a, il) {
@@ -56,7 +59,24 @@ export function dropItem(x, z, boost) {
   if (it.rar >= 2) SFX.loot(it.rar);
   return d;
 }
+// A gem lying on the ground: d.gem = { id, lvl } (d.it is a stub so the item-only readers, the minimap and the beam, keep working). With no id
+// it rolls one from the region pool (data/supports.js); lvl defaults to the Crypt number. Picking it up never needs bag space.
+export function dropGem(x, z, id, lvl) {
+  if (!id) { const pool = poolOf(); let r = Math.random() * Object.values(pool).reduce((a, b) => a + b, 0); for (const k in pool) if ((r -= pool[k]) < 0) { id = k; break; } id = id || Object.keys(pool)[0]; }
+  lvl = lvl || Math.max(1, Math.round((G.crypt || 1) * GEM_DROP.gemLvlPerCrypt));
+  const def = GEMS[id], col = new T.Color(def.color), g = new T.Group();
+  const label = `◆ ${def.name}${def.kind === 'support' ? ' (support)' : ''}`;
+  const m = new T.Mesh(GEMGEO, new T.MeshBasicMaterial({ color: col })); m.scale.set(.2, .3, .2); m.position.y = .2; g.add(m);
+  const beam = new T.Mesh(GCY, new T.MeshBasicMaterial({ color: col, transparent: true, opacity: .3, blending: T.AdditiveBlending, depthWrite: false }));
+  beam.scale.set(.09, 7, .09); beam.position.y = 3.5; g.add(beam); g.add(decal(col.getHex(), 1.6));
+  const a = rand(0, 6.28), s = rand(.8, 2.2);
+  const d = { it: { name: label, rar: 2, gem: true }, gem: { id, lvl }, col: def.color, x, z, y: .4, vx: Math.cos(a) * s, vz: Math.sin(a) * s, vy: 5, g, t: 0, landed: false };
+  g.position.set(x, .4, z); scene.add(g); G.ground.push(d); SFX.loot(2);
+  return d;
+}
+const GEMGEO = new T.OctahedronGeometry(1);
 export function pickUp(d) {
+  if (d.gem) { addGem(d.gem.id, d.gem.lvl); scene.remove(d.g); d.gone = true; save(); return; }
   if (P.inv.length >= DROP.bagSize) { if (!d.full) { toast('<span style="color:#ff6a5a">Bag is full</span> · press I to clear space'); d.full = 1; } return; }
   P.inv.push(d.it); P.newItems++; scene.remove(d.g); d.gone = true;
   toast(`<span class="r${d.it.rar}">${d.it.name}</span>`); if (d.it.rar < 2) SFX.loot(1);
