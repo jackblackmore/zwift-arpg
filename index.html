@@ -3,72 +3,61 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<meta name="theme-color" content="#07060a">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E%E2%9A%94%3C/text%3E%3C/svg%3E">
+<meta name="theme-color" content="#050405">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E%E2%9C%B9%3C/text%3E%3C/svg%3E">
 <title>Watt Dungeon</title>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
 <div id="view"></div>
-<div id="bars"></div>
-<div id="tags"></div>
-<div id="flts"></div>
-
-<div id="hudL" class="hud">
-  <div id="pwr">0 W</div>
-  <div id="zone">—</div>
-  <div id="stats">—</div>
-  <div class="bar"><span>HEALTH</span><b><i id="bHp" style="background:#d23b3b"></i></b></div>
-  <div class="bar"><span>STAMINA W′</span><b><i id="bW" style="background:#4fd1a5"></i></b></div>
-  <div class="bar"><span>CLEAVE</span><b><i id="bC" style="background:#e8b960"></i></b></div>
-  <div class="bar"><span>OVERLOAD</span><b><i id="bO" style="background:#b06bff"></i></b></div>
-  <div id="str"><span>STRENGTH</span></div>
-  <div id="boons"></div>
-</div>
-<div id="hudR" class="hud">
-  <div id="floor">FLOOR 1</div>
-  <div id="gold">0 gold</div>
-  <div id="gear"></div>
-</div>
+<canvas id="o2d"></canvas>
+<div id="vign"></div>
+<div id="info" class="hud"><b id="iMap">MAP 1</b><br><span id="iLvl">Level 1</span> · <span id="iKill">0 slain</span></div>
+<div id="btns" class="hud"><button id="bInv">BAG <kbd>I</kbd><span class="badge" id="invBadge">0</span></button><button id="bPass">PASSIVES <kbd>P</kbd><span class="badge" id="passBadge">0</span></button><button id="bMute">♪</button><button id="bMenu">☰</button></div>
+<canvas id="mm" class="hud" width="300" height="300"></canvas>
+<div id="bossbar" class="hud"><span>THE PALE WARDEN</span><div><i id="bossHp"></i></div></div>
 <div id="toasts"></div>
 <div id="banner"><h2 id="bT"></h2><p id="bS"></p></div>
-<div id="prompt"><div class="pi"></div><div><b></b><span></span><div class="pb"><i></i></div><div class="pa"><i></i></div></div></div>
-<div id="choice"><div class="t" id="cT">CHOOSE YOUR PATH · Zwift Ride ◀ / ▶ (keys 1 / 2)</div><button id="c1"></button><button id="c2"></button></div>
-
-<div id="panel">
-  <div class="ctl"><label>POWER <b id="pwo">170 W</b></label><input id="pw" type="range" min="0" max="900" step="5" value="170"></div>
-  <div class="ctl"><label>CADENCE <b id="cdo">88 rpm</b></label><input id="cd" type="range" min="40" max="140" step="1" value="88"></div>
-  <div class="ctl small"><label>FTP</label><input id="ftp" type="number" min="100" max="500" value="250"></div>
-  <button id="sprint" class="hot">SPRINT</button>
-  <button id="auto">AUTO: OFF</button>
-  <button id="end">END RIDE</button>
-  <button id="mute">♪</button>
-  <button id="help">?</button>
+<div class="orb" id="orbL"><i id="lifeF"></i><span id="lifeT"></span></div>
+<div class="orb" id="orbR"><i id="manaF"></i><span id="manaT"></span></div>
+<div id="xp"><i id="xpF"></i></div>
+<div id="skills">
+  <div class="sk" id="sFb" style="color:#ff8a3c"><span class="k">LMB</span><span class="ic">✹</span><span class="n">6</span><div class="cd"></div></div>
+  <div class="sk" id="sAr" style="color:#c98bff"><span class="k">RMB</span><span class="ic">ϟ</span><span class="n">9</span><div class="cd"></div></div>
+  <div class="sk" id="sNv" style="color:#7fd8ff"><span class="k">Q</span><span class="ic">❄</span><span class="n">14</span><div class="cd"></div></div>
+  <div class="sk" id="sDs" style="color:#ff5a2a"><span class="k">SPACE</span><span class="ic">➶</span><span class="n">1</span><div class="cd"></div></div>
+  <div class="sk" id="sFl" style="color:#ff4a5a"><span class="k">F</span><span class="ic">♥</span><span class="n">3</span><div class="cd"></div></div>
 </div>
-<div id="sum" class="hide"><div class="card" id="sumC"></div></div>
+<div id="joy"><i></i></div>
 
-<div id="ov">
-  <div class="card">
-    <h1>WATT DUNGEON</h1>
-    <div class="sub">A Diablo-lite you pedal · engine demo with simulated power &amp; cadence</div>
-    <ul>
-      <li>Your hero explores and fights automatically. <b>You choose the path</b>, so you choose how hard the day is.</li>
-      <li style="--c:#e8b960"><b>Any riding</b> banks kilojoules that charge <b>Cleave</b>. Easy rides still progress.</li>
-      <li style="--c:#ffd23f"><b>Sweet spot</b> held builds Strength. <b>Cadence</b> sets attack speed and picks treasure locks.</li>
-      <li style="--c:#b06bff"><b>Above FTP</b> charges <b>Overload</b> and adds crit chance, but drains your W′ stamina.</li>
-      <li style="--c:#ff4fd8"><b>Enemies telegraph moves you answer with your legs:</b> SURGE to dodge charges and bombs, EASE OFF to brace slams, SPIN to interrupt casters, HOLD sweet spot to outlast a frenzy.</li>
-      <li style="--c:#7fd8ff"><b>Your zone sets your element:</b> ❄ Frost (easy to tempo), 🔥 Fire (sweet spot to threshold), ⚡ Storm (VO2 and sprint). Hit a weakness for double damage.</li>
-      <li style="--c:#6fd3ff"><b>Know your foes:</b> shield bearers block all but crits, healers mend allies, archers keep their distance, bats swarm (Cleave them).</li>
-      <li style="--c:#ff7a4a"><b>Campfires</b> heal faster when you spin easy. Dying costs some gold, never the run.</li>
-    </ul>
-    <div class="keys">Path choice <kbd>1</kbd>/<kbd>2</kbd> · Power <kbd>Q</kbd>/<kbd>E</kbd> · Cadence <kbd>Z</kbd>/<kbd>C</kbd> · Sprint hold <kbd>Space</kbd> · Auto mode <kbd>A</kbd></div>
-    <div class="row">
-      <button id="goEnd" class="on">EASY DAY<small>auto endurance ride</small></button>
-      <button id="goInt">GOOD DAY<small>auto interval workout</small></button>
-      <button id="goMan">MANUAL<small>you set the sliders</small></button>
-    </div>
+<div class="modal" id="mInv"><div class="card">
+  <h3>INVENTORY <button id="invClose">✕</button></h3>
+  <div id="invWrap">
+    <div><div id="gearGrid"></div><div id="tip"><span style="color:var(--dim)">Select an item to inspect it.</span></div></div>
+    <div><div id="invGrid"></div><div class="row" style="margin-top:8px"><button id="junkMagic">DISCARD ALL MAGIC</button></div></div>
   </div>
-</div>
+</div></div>
+
+<div class="modal" id="mPass"><div class="card">
+  <h3>PASSIVE SKILLS <button id="passClose">✕</button></h3>
+  <div class="sub" id="passSub"></div>
+  <div id="passCards"></div>
+  <div id="taken"></div>
+</div></div>
+
+<div class="modal show" id="mMenu"><div class="card" style="max-width:600px">
+  <h1>WATT DUNGEON</h1>
+  <div class="sub">ARPG prototype · Path of Exile style · bike controls come later · <a href="./pedal/" style="color:var(--gold)">original pedal demo</a></div>
+  <ul>
+    <li><b>Mow down hordes.</b> Fireball explodes, Arc chains, Frost Nova freezes, Flame Dash leaves a burning trail.</li>
+    <li><b>Hunt rare monsters</b> (yellow names) with affixes like Hasted, Splitting or Volatile.</li>
+    <li><b>Loot drops with beams.</b> Magic (blue), rare (yellow) and unique (orange) gear with affixes that change your skills.</li>
+    <li><b>Level up and pick passives</b> to build: chain lightning, shatter, ignite, Blood Magic.</li>
+    <li><b>Kill the map boss</b> and step through the portal into a harder map. Progress saves on this device.</li>
+  </ul>
+  <div class="keys">Desktop: move <kbd>WASD</kbd> · aim with mouse · <kbd>LMB</kbd> Fireball · <kbd>RMB</kbd> Arc · <kbd>Q</kbd> Frost Nova · <kbd>Space</kbd> Flame Dash · <kbd>F</kbd> flask · <kbd>I</kbd> bag · <kbd>P</kbd> passives<br>Touch: drag the left side to move · skills on the right auto-aim at the nearest enemy · walk over loot to pick it up</div>
+  <div class="row"><button id="goCont" class="pri" style="display:none">CONTINUE</button><button id="goNew">NEW CHARACTER</button></div>
+</div></div>
 
 <script type="module" src="/src/main.js"></script>
 </body>
