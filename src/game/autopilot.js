@@ -1,13 +1,18 @@
-// Autopilot for RIDE mode: steer toward the nearest fight, then loot, then the next pack, then the boss / portal.
+// Autopilot for RIDE mode: steer toward the nearest fight, then loot, then wherever levelGoal() says (next pack, beat, guardian, portal).
 // Holds at casting range and backs off when monsters get too close, so the rider only pedals and casts.
 import { G, P } from '../core/state.js';
 import { RIDE } from '../data/ride.js';
 import { dist } from '../core/util.js';
 import { steer } from './enemies.js';
+import { levelGoal } from './level.js';
 import { los } from '../world/map.js';
+import { mainRange } from './skills.js';
 
 // Stuck detection: if we've been trying to move but haven't, sidestep for a moment.
 const ST = { x: 0, z: 0, t: 0, side: 0, sideT: 0 };
+
+// Hold distance and back-off distance follow the Main skill's range, so snipers hang back and short-range builds close in.
+export const autopilotRanges = () => ({ keep: RIDE.autopilot.keepF * mainRange(), kite: RIDE.autopilot.kiteF * mainRange() });
 
 const toward = (x, z) => steer(P, x, z);
 const away = (x, z) => steer(P, P.x * 2 - x, P.z * 2 - z);
@@ -22,7 +27,7 @@ export function autopilot(dt = .033) {
 }
 
 function pick() {
-  const A = RIDE.autopilot;
+  const A = { ...RIDE.autopilot, ...autopilotRanges() };
   let best = null, bd = A.engage;
   for (const e of G.enemies) { if (e.deathT) continue; const d = dist(e.x, e.z, P.x, P.z); if (d < bd) { bd = d; best = e; } }
   if (best) {
@@ -33,11 +38,7 @@ function pick() {
   let loot = null, ld = A.loot;
   for (const d of G.ground) { if (!d.landed || d.gone) continue; const dd = dist(d.x, d.z, P.x, P.z); if (dd < ld) { ld = dd; loot = d; } }
   if (loot) return toward(loot.x, loot.z);
-  if (G.portal) return toward(G.portal.x, G.portal.z);
-  let pack = null, pd = 1e9;
-  for (const p of G.packs) { if (p.spawned && !p.list.some(e => !e.deathT)) continue; const d = dist(p.x, p.z, P.x, P.z); if (d < pd) { pd = d; pack = p; } }
-  if (pack) return toward(pack.x, pack.z);
-  const boss = G.bossSpec && G.bossSpec.e;
-  if (!boss || !boss.deathT) return toward(G.bossSpot.x, G.bossSpot.z);
+  const g = levelGoal();
+  if (g && dist(P.x, P.z, g.x, g.z) > g.r) return toward(g.x, g.z);
   return [0, 0];
 }

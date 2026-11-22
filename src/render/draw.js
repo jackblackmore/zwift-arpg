@@ -8,12 +8,13 @@ import { cam, CAM, V, plight, blight, ctx } from './scene.js';
 import { render } from './post.js';
 import { glows, emit } from './fx.js';
 import { joy } from '../input/devices.js';
+import { levelLight } from '../game/level.js';
 
 const TV = new T.Vector3();
 function toScreen(x, y, z) { TV.set(x, y, z).project(cam); return TV.z > 1 ? null : [(TV.x + 1) / 2 * V.W, (1 - TV.y) / 2 * V.H]; }
 
 // Hero clips: a cast plays once (fast) and hands back to run/idle; death holds until respawn.
-const HERO = { shoot: ['Ranged_Magic_Shoot', 2], arc: ['Ranged_Magic_Spellcasting', 1.6], nova: ['Ranged_Magic_Raise', 3.2], dash: ['Dodge_Forward', 1.4] };
+const HERO = { shoot: ['Ranged_Magic_Shoot', 2], nova: ['Ranged_Magic_Raise', 3.2], ward: ['Ranged_Magic_Spellcasting', 1.6], dash: ['Dodge_Forward', 1.8] };
 function animHero(M, dt) {
   M.lock = (M.lock || 0) - dt;
   if (P.dead > 0) { if (M.cur !== 'Death_A') M.play('Death_A', { once: true, fade: .1 }); }
@@ -32,12 +33,12 @@ export function draw(dt) {
   if (M.orb) M.orb.scale.setScalar(.55 + (P.castAnim > 0 ? .4 : 0) + Math.sin(gt * 5) * .05);
   plight.position.set(P.x, 3, P.z);
   G.torches.forEach((t, i) => { const f = (t.s || 1.4) * (1 + Math.sin(gt * 11 + i) * .11 + Math.sin(gt * 23 + i * 3) * .06); t.f.scale.set(f, f * 1.15, 1); });
-  const boss = G.bossSpec && G.bossSpec.e;
   if (G.portal) {
-    const pt = G.portal; pt.tor.rotation.y += dt * 1.5; blight.position.set(pt.x, 2, pt.z); blight.intensity = 2 + Math.sin(gt * 4) * .5;
+    const pt = G.portal; pt.tor.rotation.y += dt * 1.5;
     if (Math.random() < .5) emit(glows, pt.x + rand(-1, 1), rand(.3, 2.3), pt.z + rand(-.3, .3), 0, rand(.5, 1.5), 0, .6, 0xb06bff);
-  } else if (boss && !boss.deathT && boss.awake) { blight.position.set(boss.x, 4, boss.z); blight.intensity = 1.2; }
-  else blight.intensity = 0;
+  }
+  const lt = levelLight(); // the one story light: portal, awake guardian, else the next beat
+  if (lt) { blight.position.set(lt.x, lt.y, lt.z); blight.color.setHex(lt.col); blight.intensity = lt.i ? lt.i + Math.sin(gt * 4) * .25 : 0; } else blight.intensity = 0;
   for (const d of G.ground) if (d.g.children[1]) d.g.children[1].material.opacity = (d.it.rar === 3 ? .45 : .25) + Math.sin(gt * 3) * .08;
   // camera
   const k = V.camMul, cx = P.x + CAM.x * k, cz = P.z + CAM.z * k;
@@ -49,7 +50,7 @@ export function draw(dt) {
   // ---- overlay ----
   ctx.clearRect(0, 0, W, H); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   for (const e of G.enemies) {
-    if (e.deathT || e.type === 'boss' || !(e.hp < e.maxHp || e.rar)) continue;
+    if (e.deathT || e.ai === 'boss' || !(e.hp < e.maxHp || e.rar)) continue;
     const s = toScreen(e.x, e.h + .25, e.z); if (!s || s[0] < -50 || s[0] > W + 50 || s[1] < -50 || s[1] > H + 50) continue;
     const bw = e.rar === 2 ? 60 : e.rar === 1 ? 38 : 28;
     ctx.fillStyle = '#000c'; ctx.fillRect(s[0] - bw / 2 - 1, s[1] - 1, bw + 2, 6);

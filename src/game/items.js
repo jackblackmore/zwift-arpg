@@ -1,7 +1,7 @@
 // Item generation, ground drops and pickup.
 import * as T from 'three';
 import { G, P } from '../core/state.js';
-import { SLOTS, BASES, IMPL, AFF, AFFBY, EXTRA, UNIQ, RAREN1, RAREN2, RCOL, DROP } from '../data/items.js';
+import { SLOTS, BASES, IMPL, AFF, AFFBY, EXTRA, UNIQ, RAREN1, RAREN2, RCOL, DROP, RETIRED } from '../data/items.js';
 import { rand, randi, pick } from '../core/util.js';
 import { scene } from '../render/scene.js';
 import { GB, GCY, decal } from '../render/assets.js';
@@ -23,7 +23,7 @@ export function rollItem(il, boost = 0) {
     return { id: G.itemId++, slot, rar: 3, name: u.name, base: u.base, uid: u.id, il, fl: u.fl, mods: u.mods.map(([st, v]) => [st, (st === 'spell' || st === 'lifeF') ? Math.round(v * flatScale(il)) : v]) };
   }
   const [ist, iv] = IMPL[slot];
-  const it = { id: G.itemId++, slot, rar, base: pick(BASES[slot]), il, mods: [[ist, ist === 'ms' || ist === 'dmg' ? iv : Math.round(iv * flatScale(il))]], impl: 1 };
+  const it = { id: G.itemId++, slot, rar, base: pick(BASES[slot]), il, mods: [[ist, ist === 'ms' || ist === 'dmg' || ist === 'cdr' ? iv : Math.round(iv * flatScale(il))]], impl: 1 };
   const pool = AFF.filter(a => !a.slots || a.slots.includes(slot)).sort(() => Math.random() - .5);
   const n = rar === 1 ? randi(1, 2) : randi(3, 5);
   for (const a of pool) { if (it.mods.length - 1 >= n) break; if (a.rare && Math.random() < (rar === 2 ? .4 : .85)) continue; it.mods.push([a.st, rollVal(a, il)]); }
@@ -31,13 +31,20 @@ export function rollItem(il, boost = 0) {
   return it;
 }
 export function modText(st, v) {
+  if (RETIRED.has(st)) return '';
   const a = AFFBY[st] || EXTRA[st]; if (!a) return st;
   if (a.flag) return a.t;
   const val = a.pct ? (a.sign && v > 0 ? '+' : '') + Math.round(v * 100) : a.dec ? v.toFixed(1) : v;
   return a.t.replace('#', val);
 }
+// Old saves: drop mods that no longer exist (a retired implicit becomes a small cooldown reduction).
+export function cleanItem(it) {
+  if (!it || !it.mods) return it;
+  it.mods = it.mods.flatMap(([st, v], i) => !RETIRED.has(st) ? [[st, v]] : i === 0 && it.impl ? [['cdr', .04]] : []);
+  return it;
+}
 export function dropItem(x, z, boost) {
-  const it = rollItem(G.tier, boost), g = new T.Group();
+  const it = rollItem(G.depth, boost), g = new T.Group();
   const m = new T.Mesh(GB, new T.MeshLambertMaterial({ color: RCOL[it.rar], emissive: RCOL[it.rar], emissiveIntensity: .35 })); m.scale.set(.32, .14, .42); g.add(m);
   if (it.rar >= 2) {
     const beam = new T.Mesh(GCY, new T.MeshBasicMaterial({ color: RCOL[it.rar], transparent: true, opacity: it.rar === 3 ? .5 : .3, blending: T.AdditiveBlending, depthWrite: false }));

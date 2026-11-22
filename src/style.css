@@ -5,13 +5,17 @@ html,body{margin:0;height:100%;background:#050405;overflow:hidden;touch-action:n
 .hud{position:fixed;z-index:3}
 #info{left:10px;top:10px;font-size:11px;line-height:1.5;text-shadow:0 1px 2px #000;pointer-events:none}
 #info b{font:800 15px Cinzel,serif;color:var(--gold);letter-spacing:.06em}
-#btns{left:10px;top:62px;display:flex;gap:6px}
+#btns{left:10px;top:84px;display:flex;gap:6px}
 button{font:800 11px Cinzel,serif;letter-spacing:.08em;color:var(--ink);background:#1a120ccc;border:1px solid var(--line);border-radius:5px;padding:7px 10px;cursor:pointer;position:relative}
 button:hover{border-color:var(--gold)}
 button .badge{position:absolute;top:-7px;right:-7px;background:#c03020;color:#fff;font:700 10px 'JetBrains Mono';border-radius:9px;padding:1px 5px;display:none}
 button.glow{border-color:#ffd23f;box-shadow:0 0 12px #ffd23f99;animation:gl 1s ease-in-out infinite alternate}
 @keyframes gl{to{box-shadow:0 0 22px #ffd23fcc}}
 #mm{right:10px;top:10px;width:150px;height:150px;border:1px solid var(--line);border-radius:6px;background:#000a;pointer-events:none}
+#mmL{right:11px;top:11px;width:150px;height:150px;pointer-events:none}
+#surv{left:50%;top:58px;transform:translateX(-50%);display:none;flex-direction:column;align-items:center;pointer-events:none;text-shadow:0 0 12px #000,0 2px 4px #000}
+#surv span{font:800 12px Cinzel,serif;letter-spacing:.16em;color:var(--ink)}
+#surv b{font:800 34px Cinzel,serif;letter-spacing:.06em;line-height:1.1}
 #bossbar{left:50%;top:12px;transform:translateX(-50%);width:min(440px,60vw);display:none;pointer-events:none;text-align:center}
 #bossbar span{font:800 14px Cinzel,serif;color:#ff6ad5;letter-spacing:.1em;text-shadow:0 0 10px #ff2bd6}
 #bossbar div{height:10px;border:1px solid #6a2a5a;background:#200a1a;margin-top:3px;border-radius:2px;overflow:hidden}
@@ -20,8 +24,6 @@ button.glow{border-color:#ffd23f;box-shadow:0 0 12px #ffd23f99;animation:gl 1s e
 .orb i{position:absolute;left:0;right:0;bottom:0;height:100%}
 .orb span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:700 13px 'JetBrains Mono';text-shadow:0 1px 3px #000,0 0 4px #000}
 #orbL{left:14px}#orbL i{background:radial-gradient(circle at 40% 30%,#ff6a5a,#a01010 55%,#500404)}
-#orbR{right:14px}#orbR i{background:radial-gradient(circle at 40% 30%,#6a9aff,#1030b0 55%,#040a50)}
-#orbL.blood i{background:radial-gradient(circle at 40% 30%,#ff9a5a,#c02010 55%,#600404)}
 #xp{position:fixed;left:50%;transform:translateX(-50%);bottom:4px;width:min(420px,50vw);height:5px;background:#1a1208;border:1px solid #3a2a1a;border-radius:3px;overflow:hidden;z-index:3;pointer-events:none}
 #xp i{display:block;height:100%;background:linear-gradient(90deg,#8a6a20,#ffd23f);width:0}
 #skills{position:fixed;left:50%;transform:translateX(-50%);bottom:16px;display:flex;gap:6px;z-index:3}
@@ -30,13 +32,22 @@ button.glow{border-color:#ffd23f;box-shadow:0 0 12px #ffd23f99;animation:gl 1s e
 .sk .k{position:absolute;left:3px;top:1px;font:700 9px 'JetBrains Mono';color:var(--dim);z-index:2}
 .sk .n{position:absolute;right:3px;bottom:1px;font:700 10px 'JetBrains Mono';color:var(--ink);z-index:2}
 .sk .cd{position:absolute;left:0;right:0;bottom:0;background:#000b;z-index:1;height:0}
-.sk.nomana{filter:saturate(.2) brightness(.6)}
+.sk.oncd{filter:saturate(.35) brightness(.65)}
+.sk .gem{position:absolute;left:0;right:0;bottom:0;top:0;z-index:2;pointer-events:none}
+.sk .gem b{position:absolute;left:3px;bottom:6px;font:700 10px/1 'JetBrains Mono';color:#ffd23f;text-shadow:0 1px 2px #000,0 0 3px #000}
+.sk .gem i{position:absolute;left:0;right:0;bottom:0;height:4px;background:#000a}
+.sk .gem u{display:block;height:100%;width:0;background:#7fb8ff;transition:width .15s}
+.sk.gmax .gem u{background:#ffd23f}
+.sk .gem:empty{display:none}
+.sk{transition:box-shadow .12s,border-color .12s}
+.sk.fire{border-color:var(--gold);box-shadow:inset 0 0 12px #000,0 0 10px #ff8a3c88}
+.sk.ready:not(.oncd){border-color:#6a5030}
 .sk.act{border-color:var(--gold)}
 #vign{position:fixed;inset:0;pointer-events:none;z-index:2;box-shadow:inset 0 0 140px #c00000;opacity:0;transition:opacity .15s}
 #banner{position:fixed;left:0;right:0;top:24%;text-align:center;pointer-events:none;opacity:0;transition:opacity .3s;z-index:4}
 #banner h2{margin:0;font:800 clamp(26px,6vw,50px) Cinzel,serif;letter-spacing:.06em;text-shadow:0 0 20px currentColor,0 2px 4px #000}
 #banner p{margin:6px 0 0;font-size:13px;text-shadow:0 1px 3px #000}
-#toasts{position:fixed;left:10px;top:100px;display:flex;flex-direction:column;gap:4px;pointer-events:none;z-index:3}
+#toasts{position:fixed;left:10px;top:124px;display:flex;flex-direction:column;gap:4px;pointer-events:none;z-index:3}
 .toast{background:#0d0907dd;border:1px solid var(--line);border-radius:4px;padding:4px 8px;font-size:11px;animation:tin .25s}
 @keyframes tin{from{transform:translateX(-14px);opacity:0}}
 .r1{color:var(--magic)}.r2{color:var(--rare)}.r3{color:var(--uniq)}
@@ -80,22 +91,25 @@ button.pri{background:var(--gold);color:#1a1008;border-color:var(--gold)}
 #taken{font-size:11px;color:var(--dim);line-height:1.6}
 #joy{position:fixed;width:110px;height:110px;margin:-55px 0 0 -55px;border-radius:50%;border:2px solid #ffffff30;background:#ffffff0c;display:none;z-index:5;pointer-events:none}
 #joy i{position:absolute;left:50%;top:50%;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;background:#c8a25a66;border:2px solid #c8a25a}
-body.touch .orb{width:64px;height:64px;bottom:auto;top:96px}
-body.touch #orbL{left:10px}body.touch #orbR{left:80px;right:auto}
-body.touch .orb span{font-size:10px}
-body.touch #skills{left:auto;right:12px;transform:none;bottom:16px;display:grid;grid-template-columns:repeat(3,72px);grid-template-areas:"fl nv ar" ". ds fb";gap:8px;justify-items:center;align-items:center}
+body.touch .orb{width:64px;height:64px;bottom:auto;top:122px}
+body.touch #orbL{left:10px}body.touch body.touch .orb span{font-size:10px}
+body.touch #skills{left:auto;right:12px;transform:none;bottom:16px;display:grid;grid-template-columns:repeat(3,72px);grid-template-areas:"fl fa gd" ". ev mn";gap:8px;justify-items:center;align-items:center}
 body.touch .sk .k{display:none}
+body.touch .sk .n{right:auto;left:50%;transform:translateX(-50%);bottom:7px;font-size:8px}
 body.touch .sk{width:64px;height:64px;border-radius:50%}
-body.touch #sFb{grid-area:fb;width:72px;height:72px;font-size:32px}
-body.touch #sAr{grid-area:ar}body.touch #sNv{grid-area:nv}body.touch #sDs{grid-area:ds}body.touch #sFl{grid-area:fl}
-body.touch #toasts{top:170px}
+body.touch .sk .gem b{left:0;right:0;text-align:center;font-size:11px;top:8px;bottom:auto}
+body.touch #sMain{grid-area:mn;width:72px;height:72px;font-size:32px}
+body.touch #sFlexA{grid-area:fa}body.touch #sGuard{grid-area:gd}body.touch #sEvade{grid-area:ev}body.touch #sFl{grid-area:fl}
+body.touch #toasts,body.ride #toasts{top:196px}
 body.touch #mm{width:110px;height:110px}
+body.touch #mmL{width:110px;height:110px}
 
 /* ---- RIDE mode (simulated Zwift Ride + KICKR) ---- */
 .ridepad,#rideTop{display:none}
 body.ride .ridepad{display:grid;position:fixed;bottom:16px;grid-template-columns:repeat(3,54px);grid-template-rows:repeat(3,54px) 38px;gap:5px;z-index:3}
 body.ride #rideL{left:14px}body.ride #rideR{right:14px}
-body.ride #skills,body.ride #joy{display:none}
+body.ride #joy{display:none}
+body.ride #skills{bottom:150px} /* above the power readout, so the gem badges and cooldowns stay visible while riding */
 .rb{border:2px solid #4a3a2a;border-radius:50%;background:#140e0acc;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;cursor:pointer;touch-action:none;color:var(--ink);box-shadow:inset 0 0 10px #000;user-select:none}
 .rb.wide{border-radius:10px;flex-direction:row;gap:6px}
 .rb .ic{font-size:20px;line-height:1;text-shadow:0 0 8px currentColor}
@@ -108,14 +122,28 @@ body.ride #rideTop{display:block;left:50%;transform:translateX(-50%);bottom:14px
 #rideTop .rt span{font:600 10px Cinzel,serif;letter-spacing:.1em;color:var(--dim)}
 #rideTop input[type=range]{width:100%;accent-color:var(--gold);margin:1px 0 3px}
 #rideTop input[type=number]{width:56px;background:#1a120c;border:1px solid var(--line);color:var(--ink);font:700 11px 'JetBrains Mono';padding:2px 4px;border-radius:3px}
-body.ride .orb{width:64px;height:64px;bottom:auto;top:96px}
-body.ride #orbL{left:10px}body.ride #orbR{left:80px;right:auto}
-body.ride .orb span{font-size:10px}
+body.ride .orb{width:64px;height:64px;bottom:auto;top:122px}
+#surgeW{display:none;position:fixed;right:10px;top:176px;width:78px;flex-direction:column;align-items:center;gap:1px;z-index:3;pointer-events:none;text-shadow:0 1px 3px #000}
+body.ride #surgeW{display:flex}
+#surgeW b{font:800 10px Cinzel,serif;letter-spacing:.14em;color:#8fd8ff}
+#surgeW em{font:700 10px 'JetBrains Mono';font-style:normal;color:var(--ink)}
+#sorb{position:relative;width:64px;height:64px;border-radius:50%;border:3px solid #1a3a4a;box-shadow:inset 0 0 14px #000,0 0 0 2px #3a6a80,0 4px 14px #000;overflow:hidden;background:#06101a}
+#sorb i{position:absolute;left:0;right:0;bottom:0;height:100%;background:radial-gradient(circle at 40% 30%,#bff0ff,#2a9be0 55%,#0a3a78);transition:height .12s}
+#sorb span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:700 10px 'JetBrains Mono';text-shadow:0 1px 3px #000,0 0 4px #000}
+#sorb.surging{box-shadow:inset 0 0 14px #000,0 0 0 2px #8fe0ff,0 0 18px #4ac0ff;animation:surgePulse .5s ease-in-out infinite alternate}
+#sorb.empty{filter:grayscale(.8) brightness(.6)}
+#sorb.empty span{color:#ff8a7a}
+@keyframes surgePulse{from{box-shadow:inset 0 0 14px #000,0 0 0 2px #8fe0ff,0 0 8px #4ac0ff}to{box-shadow:inset 0 0 14px #000,0 0 0 2px #cff4ff,0 0 24px #6ad0ff}}
+body.ride #orbL{left:10px}body.ride body.ride .orb span{font-size:10px}
 body.ride #xp{bottom:4px}
 @media (max-width:720px){
   body.ride .ridepad{grid-template-columns:repeat(3,44px);grid-template-rows:repeat(3,44px) 32px;gap:4px}
-  body.ride #rideTop{left:auto;right:10px;transform:none;top:128px;bottom:auto;width:150px}
+  body.ride #rideTop{width:min(240px,calc(100vw - 330px))}
   .rb .ic{font-size:17px}
+}
+/* portrait phones: no room between the two pads, so the readout sits above them across the full width */
+@media (max-width:720px) and (orientation:portrait){
+  body.ride #rideTop{left:10px;right:10px;transform:none;width:auto;bottom:206px}
 }
 
 /* ---- narrow screens: wrap the top buttons ---- */
@@ -123,6 +151,7 @@ body.ride #xp{bottom:4px}
   #btns{flex-wrap:wrap;max-width:calc(100vw - 140px);gap:4px}
   #btns button{padding:5px 7px;font-size:9.5px}
   #btns kbd{display:none}
-  body.touch .orb,body.ride .orb{top:128px}
-  body.touch #toasts,body.ride #toasts{top:200px}
+  body.touch .orb,body.ride .orb{top:146px}
+  body.touch #toasts,body.ride #toasts{top:220px}
+  body.ride #skills{display:none} /* too narrow: the pad buttons stand in for it */
 }
