@@ -6,6 +6,43 @@ Two ideas sit underneath everything:
 - **Easy rides build your character; boss rides test it.** Progress is about stats and clears, never about collecting tokens to open things.
 - **No ride is wasted.** If you die, quit early or fail a boss, you keep the XP, gear and other rewards you earned.
 
+## Slice 1: built
+
+What the first playable slice contains. It tests the feel and the rhythm, not the full progression.
+
+- **One level, Crypt Halls,** rerolled every visit. It runs a fixed rhythm of beats: warm-up packs, a small beat (treasure chest or blood-altar gamble), an elite, a breather (fountain), an ambush (the room seals and three waves come out of coffins), a big beat (75 s survival or a double elite), a release (loot cache), then the guardian, Ossric the Hollow Knight.
+- **Beat signals.** Every beat has a beacon in the world and on the minimap, a banner when you come near, and a short wind-up before it starts.
+- **Clearing.** Killing the guardian clears the level and opens a portal that rerolls a fresh Crypt Halls. Clears are counted and saved.
+- **Dying** respawns you at the last completed beat. A beat in progress resets.
+- **Skill bar.** Main is Fireball, which auto-attacks: elites first, then the nearest enemy in range and line of sight. Flex A is Frost Nova. Guard is Ward, which absorbs 35% of max life for 5 s. Evade is Blink, a non-aimed jump away from the nearest threats. All skills use cooldowns, not mana.
+- **Cooldown reduction** is a stat from gear affixes, the ring implicit and the Clarity passive, capped at 40%.
+- **Zwift Ride mapping:** A is Flex A, B is Guard, right shifter is Evade, left shifter is flask, Y is autopilot, and Z is a spare for Flex B later.
+- **RIDE, layer 1 (movement and power).** Below 1 W you stand still. Below 35% FTP you walk slowly. Above that you move at a fixed speed. Power sets Main's attack rate: 35% at 0 W, 50% at 40% FTP, 100% at 65–70%, up to 180% at 130% FTP while the Surge gauge has charge.
+- **Surge gauge.** Holds 22.5 × FTP joules for everyone. It drains above 70% FTP and refills below 65%; the 65–70% band is neutral. That is about 45 s at 120% FTP, 28 s at 150%, and about 2 minutes to refill at 50%.
+- **Autopilot (Y)** follows the level route: next pack, next beat, guardian, then portal. It holds at 75% of Main's range and backs off inside 35%.
+- **Gems.** The four bar gems start at level 1 and earn AP from kills (1 normal, 3 magic, 10 rare, 50 guardian) and from time (0.1 per second). Unequipped gems earn 10%. Tier I caps at level 10.
+- **Gem behaviour.** Fireball at level 5 pierces one enemy; at level 10 it leaves burning ground. Fireball and Nova base damage go from 10 at level 1 to 30 at level 10. Damage is (gem base + flat from gear) × (1 + increased) × more × crit. Character level no longer adds damage.
+- **Saved and shown.** Gem levels and AP are saved and shown on the skill bar. Tuning lives in `src/data/gems.js`; level tuning in `src/data/levels.js`.
+
+Deviations from the design, and why:
+- A level plays in roughly 8–12 minutes, not 30. The slice tunes the rhythm, not the length. The design's par minutes are kept as notes in `levels.js`.
+- The two medium slots are fixed as elite then ambush, as the slice asked. The small and big slots do reroll.
+- Map tiers and the Pale Warden boss are gone. There is one depth for now.
+- Removed with mana: Blood Magic (Blood Rite is deferred), Flame Dash and its charges, Arc as a button (it survives only as the Heart of the Storm unique's effect), and the Forked Sky, Conduit and Ember Step passives. Mana affixes became cooldown reduction.
+- Cadence no longer affects anything. It is shown, but power is the only dial.
+- The Surge gauge's neutral band (65–70% FTP) means steady endurance riding neither drains nor refills it.
+- No shrines yet: you start with all four gems. Flex B is not built.
+- With the starting weapon's flat damage, a level 10 Fireball hits about 2.3× a level 1 one, not 3×, because gear flat damage does not grow with the gem.
+- The pick-1-of-3 passives are a placeholder. Two of them (Twin Flame, Searing Lance) still change Fireball, which the final tree should not do.
+
+**Questions for next session**
+- Should a 30-minute level come from more packs or from tougher ones?
+- Holding Main (left mouse or 1) aims it by hand and overrides auto-targeting. Keep that, or make Main fully automatic?
+- Does the Surge neutral band feel right on a real bike?
+- Is the gem AP pace right? Level 5 in about 2–3 levels, level 10 in about 13.
+- Should the guardian preview the region's Trial workout?
+- How should the ambush and survival beats feel in RIDE mode? They ask for a surge.
+
 ---
 
 ## Character

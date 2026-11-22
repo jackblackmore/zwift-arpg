@@ -69,7 +69,8 @@ export function initDevices(ui) {
     const k = e.key.toLowerCase(); if (k === ' ') e.preventDefault();
     if (e.repeat && !'wasd'.includes(k)) return;
     keys[k] = true; audio();
-    if (k === 'i' || k === 'b') { if (G.started) UI.toggleInv(); return; }
+    if ((k === 'i' && !ride.on) || k === 'b') // in RIDE mode I is the Y (autopilot) stand-in; B still opens the bag
+      { if (G.started) UI.toggleInv(); return; }
     if (k === 'p') { if (G.started) UI.togglePass(); return; }
     if (k === 'escape') { UI.closeAll(); return; }
     if (rideKey(k, true)) return;
