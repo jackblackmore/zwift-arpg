@@ -20,15 +20,28 @@ import { update } from './game/update.js';
 import { recalc } from './game/stats.js';
 import { newMap } from './game/maps.js';
 import { save, load } from './game/save.js';
-import { kill } from './game/combat.js';
-import { castFireball, castArc, castNova, castDash } from './game/skills.js';
-import { dropItem } from './game/items.js';
+import { kill, hurtP } from './game/combat.js';
+import { castSlot, castFireball, castNova, castWard, castBlink, mainTarget, mainRange, endWard } from './game/skills.js';
+import { spawnEnemy } from './game/enemies.js';
+import { blocked, los } from './world/map.js';
+import { dropItem, cleanItem } from './game/items.js';
+import { PASS } from './data/passives.js';
+import { BAR } from './data/skills.js';
 import { hud } from './ui/hud.js';
 import { initPanels, syncPause, openInv, openPass, toggleInv, togglePass, closeAll, equip } from './ui/panels.js';
 
+// Fresh skill state: default bar, no cooldowns, no ward.
+function resetSkills() { endWard(); P.bar = { ...BAR }; P.cd = { main: 0, flexA: 0, guard: 0, evade: 0 }; }
+// Old saves: drop retired passives and mods (mana, Flame Dash charges, Arc chains, Blood Magic ...).
+function cleanSave(sv) {
+  for (const k of Object.keys(sv.passives || {})) if (!PASS[k]) delete sv.passives[k];
+  Object.values(sv.gear || {}).forEach(cleanItem); (sv.inv || []).forEach(cleanItem);
+  return sv;
+}
+
 function begin(fresh) {
-  audio();
-  const sv = load();
+  audio(); resetSkills();
+  const sv = load(); if (sv) cleanSave(sv);
   if (fresh || !sv) {
     Object.assign(P, { lvl: 1, xp: 0, gear: {}, inv: [], passives: {}, pts: 0, offer: null, newItems: 0, kills: 0 });
     P.gear.weapon = { id: G.itemId++, slot: 'weapon', rar: 1, base: 'Ashwood Staff', name: 'Smouldering Ashwood Staff', il: 1, impl: 1, mods: [['spell', 5], ['fire', .12]] };
@@ -98,5 +111,5 @@ window.__dbg = {
   start: fresh => begin(fresh !== false),
   sim: n => { for (let i = 0; i < n; i++) { update(.033); updFx(.033); } },
   enemies: () => G.enemies, packs: () => G.packs, items: () => G.ground,
-  newMap, kill, dropItem, castFireball, castArc, castNova, castDash, openInv, openPass, equip,
+  newMap, kill, dropItem, spawnEnemy, blocked, los, recalc, hurtP, castSlot, castFireball, castNova, castWard, castBlink, mainTarget, mainRange, openInv, openPass, equip,
 };

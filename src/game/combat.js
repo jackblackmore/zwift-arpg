@@ -12,17 +12,17 @@ import { near, wake, spawnEnemy } from './enemies.js';
 import { dropItem } from './items.js';
 import { gainXp, xpNeed } from './stats.js';
 import { makePortal } from './maps.js';
-import { castArc } from './skills.js';
+import { castArc, endWard } from './skills.js';
 
 const ECOL = { fire: '#ffb070', cold: '#bff0ff', light: '#e0c8ff' };
 
-// Hit an enemy with `mult` × base spell damage of an element. src.kx/kz = knockback direction, src.dot = no number/sound.
+// Hit an enemy with mult x base spell damage of an element. src.sk = the skill that dealt it (for gem damage), src.kx/kz = knockback direction, src.dot = no number/sound.
 export function hit(e, mult, elem, src = {}) {
   if (e.deathT) return 0;
   wake(e);
   let d = S.base * mult * (S.dmg + (S[elem] || 0)) * rand(.88, 1.12);
   const crit = Math.random() < S.crit; if (crit) d *= 1.75;
-  if (e.shock > 0) d *= S.conduit ? 1.35 : 1.2;
+  if (e.shock > 0) d *= 1.2;
   e.hp -= d; e.flash = .07; e.lastElem = elem; e.lastHit = Math.max(e.lastHit || 0, d);
   if (!src.dot) {
     floatT(e.x, e.h + .3, e.z, Math.round(d), crit ? '#ffe060' : ECOL[elem] || '#fff', crit ? 17 : 12);
@@ -41,7 +41,7 @@ export function kill(e) {
   burst(e.x, 1, e.z, col, e.type === 'boss' ? 120 : e.rar === 2 ? 40 : 12, e.type === 'boss' ? 9 : 4);
   if (e.aura) e.aura.visible = false; if (e.fireAura) e.fireAura.visible = false;
   gainXp(e.xp * (e.rar === 2 ? 8 : e.rar === 1 ? 2 : 1) * (1 + TIER.xp * (G.tier - 1)));
-  P.life = Math.min(S.maxLife, P.life + S.lok); P.mana = Math.min(S.maxMana, P.mana + S.mok);
+  P.life = Math.min(S.maxLife, P.life + S.lok);
   P.flask = Math.min(SK.flask.max, P.flask + (e.rar === 2 ? SK.flask.perRare : SK.flask.perKill));
   if (e.rar === 2) { dropItem(e.x, e.z, .15); if (Math.random() < .5) dropItem(e.x, e.z, .1); stop(.06); shake(.3); }
   else if (e.type !== 'boss' && Math.random() < (e.rar === 1 ? .1 : .04)) dropItem(e.x, e.z, 0);
@@ -58,7 +58,14 @@ export function kill(e) {
 
 export function hurtP(d) {
   if (P.dead > 0 || P.invuln > 0) return;
-  d *= 1 - S.dr; P.life -= d;
+  d *= 1 - S.dr;
+  const w = P.ward; // the Ward soaks damage first
+  if (w) {
+    const a = Math.min(w.hp, d); w.hp -= a; d -= a; w.flash = .15;
+    floatT(P.x, 2.4, P.z, Math.round(a), '#8fe0ff', 12); if (w.hp <= 0) { ringFx(P.x, P.z, 2, 0x8fe0ff, .3, .5); endWard(); }
+    if (d < .5) { SFX.hit(); return; }
+  }
+  P.life -= d;
   floatT(P.x, 2.1, P.z, Math.round(d), '#ff5050', 13); G.vign = Math.min(.9, G.vign + .35); SFX.hurt();
   if (P.life <= 0) {
     P.life = 0; P.dead = 2.6; banner('YOU HAVE DIED', '#ff3030', 'Respawning at the map entrance');
@@ -66,17 +73,11 @@ export function hurtP(d) {
   }
 }
 
-// Spend mana (or life with Blood Magic). Returns false if the player can't afford it.
-export function pay(cost) {
-  if (S.blood) { if (P.life <= cost + 1) return false; P.life -= cost; return true; }
-  if (P.mana < cost) return false; P.mana -= cost; return true;
-}
-
 export function explode(x, z, mult = 1, storm = false, small = false) {
   const r = (small ? 1.4 : SK.fireball.radius) * S.aoe;
   near(x, z, r, e => {
     const dd = dist(e.x, e.z, x, z) || 1;
-    const d = hit(e, mult, 'fire', { kx: (e.x - x) / dd, kz: (e.z - z) / dd });
+    const d = hit(e, mult, 'fire', { kx: (e.x - x) / dd, kz: (e.z - z) / dd, sk: 'fireball' });
     if (S.ignite && !e.deathT) { e.burnT = 3; e.burnDps = Math.max(e.burnDps, d * .2); }
   });
   flashFx(x, 1, z, 0xff7a2a, r * 2.4, .28); flashFx(x, 1, z, 0xffe0a0, r * 1.1, .15); ringFx(x, z, r, 0xff8a3c, .3, .4);
@@ -92,7 +93,7 @@ export function updPatches(dt) {
   for (const f of G.patches) {
     f.t -= dt; f.tick -= dt; f.g.scale.setScalar(.6 + .4 * Math.min(1, f.t / f.max * 3));
     if (Math.random() < dt * 18) emit(glows, f.x + rand(-f.r, f.r) * .7, .3, f.z + rand(-f.r, f.r) * .7, 0, rand(1, 2.5), 0, rand(.3, .6), pick([0xff5a10, 0xff8a20]));
-    if (f.tick <= 0) { f.tick = SK.burn.tick; near(f.x, f.z, f.r, e => { hit(e, SK.burn.mult, 'fire', { dot: 1 }); }); }
+    if (f.tick <= 0) { f.tick = SK.burn.tick; near(f.x, f.z, f.r, e => { hit(e, SK.burn.mult, 'fire', { dot: 1, sk: 'burn' }); }); }
     if (f.t <= 0) { f.dead = true; scene.remove(f.g); }
   }
   G.patches = G.patches.filter(f => !f.dead);

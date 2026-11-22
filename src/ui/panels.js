@@ -16,7 +16,7 @@ export function syncPause() { G.paused = !G.started || ['mInv', 'mPass', 'mMenu'
 const ui = { sel: null };
 function itemHTML(it) {
   let h = `<div class="nm r${it.rar}">${it.name}</div><div class="base">${it.rar >= 2 ? it.base + ' · ' : ''}${it.slot} · item level ${it.il}</div>`;
-  it.mods.forEach(([st, v], i) => { h += `<div class="${i === 0 && it.impl ? 'impl' : 'mod' + (it.rar === 3 ? ' u' : '')}">${modText(st, v)}</div>`; });
+  it.mods.forEach(([st, v], i) => { if (modText(st, v)) h += `<div class="${i === 0 && it.impl ? 'impl' : 'mod' + (it.rar === 3 ? ' u' : '')}">${modText(st, v)}</div>`; });
   if (it.fl) h += `<div class="fl">${it.fl}</div>`;
   return h;
 }

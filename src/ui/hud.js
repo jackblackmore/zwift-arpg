@@ -1,6 +1,6 @@
-// Life/mana orbs, skill bar, XP, map info, boss bar, minimap, vignette, banner timer.
+// Life orb, skill bar, XP, map info, boss bar, minimap, vignette, banner timer.
 import { G, P, S } from '../core/state.js';
-import { SK } from '../data/skills.js';
+import { SK, SLOT_ORDER } from '../data/skills.js';
 import { RCSS } from '../data/items.js';
 import { ctl } from '../input/input.js';
 import { $ } from '../core/util.js';
@@ -17,15 +17,20 @@ export function hud(dt) {
   $('vign').style.opacity = G.vign + (P.life < S.maxLife * .3 && P.dead <= 0 ? .25 + Math.sin(G.gt * 6) * .1 : 0);
   T.hud -= dt; if (T.hud > 0) return; T.hud = .07;
   $('lifeF').style.height = (P.life / S.maxLife * 100) + '%'; $('lifeT').textContent = `${Math.ceil(P.life)}/${S.maxLife}`;
-  $('manaF').style.height = S.blood ? '0%' : (P.mana / S.maxMana * 100) + '%'; $('manaT').textContent = S.blood ? 'BLOOD' : `${Math.floor(P.mana)}/${S.maxMana}`;
   $('xpF').style.width = (P.xp / xpNeed(P.lvl) * 100) + '%';
   $('iMap').textContent = 'MAP ' + G.tier; $('iLvl').textContent = 'Level ' + P.lvl; $('iKill').textContent = `${G.mapKills}/${G.mapTotal} slain`;
-  const res = S.blood ? P.life : P.mana;
-  [['sFb', SK.fireball.cost], ['sAr', SK.arc.cost], ['sNv', SK.nova.cost], ['sDs', SK.dash.cost]].forEach(([id, c]) => $(id).classList.toggle('nomana', res < c));
-  $('sNv').querySelector('.cd').style.height = Math.max(0, P.novaCd / SK.nova.cd * 100) + '%';
-  $('sDs').querySelector('.n').textContent = P.dashCh; $('sDs').querySelector('.cd').style.height = P.dashCh < 1 ? (100 - P.dashT / SK.dash.recharge * 100) + '%' : '0%';
+  // skill bar: Main auto-attacks (pulses when it fires); the others show a cooldown sweep and dim while recharging
+  const SLOTS = { main: 'sMain', flexA: 'sFlexA', guard: 'sGuard', evade: 'sEvade' };
+  for (const k of SLOT_ORDER) {
+    const el = $(SLOTS[k]), id = P.bar[k], cd = P.cd[k];
+    if (k === 'main') { el.classList.toggle('fire', cd > SK[id].rate / S.cast * .55); continue; }
+    const full = SK[id].cd * (1 - S.cdr);
+    el.querySelector('.cd').style.height = cd > 0 ? Math.min(100, cd / full * 100) + '%' : '0%';
+    el.querySelector('.n').textContent = cd > 0 ? cd.toFixed(cd < 10 ? 1 : 0) : ''; el.classList.toggle('oncd', cd > 0);
+  }
+  $('sGuard').classList.toggle('act', !!P.ward);
   $('sFl').querySelector('.n').textContent = Math.floor(P.flask); $('sFl').querySelector('.cd').style.height = P.flask < SK.flask.max ? (100 - (P.flask % 1) * 100) + '%' : '0%';
-  $('sFb').classList.toggle('act', ctl.fb); $('sAr').classList.toggle('act', ctl.arc);
+  $('sMain').classList.toggle('act', ctl.main);
   const ib = $('invBadge'); ib.style.display = P.newItems ? 'block' : 'none'; ib.textContent = P.newItems;
   const pb = $('passBadge'); pb.style.display = P.pts ? 'block' : 'none'; pb.textContent = P.pts; $('bPass').classList.toggle('glow', P.pts > 0);
   const boss = G.bossSpec && G.bossSpec.e; if (boss && !boss.deathT) $('bossHp').style.width = (boss.hp / boss.maxHp * 100) + '%';

@@ -36,13 +36,13 @@ export function newMap(t) {
     G.packs.push(makePack(x, z));
   }
   G.bossSpec = { spawned: false }; G.mapTotal++;
-  P.x = G.start.x; P.z = G.start.z; P.dead = 0; P.life = S.maxLife; P.mana = S.maxMana; P.flask = SK.flask.max;
+  P.x = G.start.x; P.z = G.start.z; P.dead = 0; P.life = S.maxLife; P.flask = SK.flask.max;
   banner('MAP ' + t, '#c8a25a', t === 1 ? 'The Ashen Crypt · the boss waits in the far corner' : `Monsters are ${Math.round(TIER.hp * 100 * (t - 1))}% tougher · better loot`);
 }
 
 // After death: back to the entrance at full health. Monsters keep their damage; the boss resets.
 export function respawn() {
-  P.x = G.start.x; P.z = G.start.z; P.life = S.maxLife; P.mana = S.maxMana; P.flask = SK.flask.max; P.invuln = 2;
+  P.x = G.start.x; P.z = G.start.z; P.life = S.maxLife; P.flask = SK.flask.max; P.invuln = 2;
   G.eproj.forEach(o => scene.remove(o.g)); G.eproj = [];
   for (const e of G.enemies) if (!e.deathT && e.type === 'boss') { e.hp = e.maxHp; e.awake = false; e.x = e.sx; e.z = e.sz; e.cast = null; e.phase2 = false; $('bossbar').style.display = 'none'; }
 }

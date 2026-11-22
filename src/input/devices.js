@@ -45,7 +45,7 @@ export function initDevices(ui) {
     if (ride.on) return; // RIDE mode uses its own pad
     if (e.pointerType === 'touch') { if (e.clientX < V.W * .55 && !joy.on) Object.assign(joy, { on: true, id: e.pointerId, bx: e.clientX, by: e.clientY, x: 0, y: 0 }); return; }
     mouse.has = true; setMouse(e);
-    if (e.button === 0) ctl.fb = true; if (e.button === 2) ctl.arc = true;
+    if (e.button === 0) ctl.main = true; if (e.button === 2) ctl.flexA = true;
   });
   addEventListener('pointermove', e => {
     if (joy.on && e.pointerId === joy.id) { let dx = (e.clientX - joy.bx) / 50, dy = (e.clientY - joy.by) / 50; const l = Math.hypot(dx, dy); if (l > 1) { dx /= l; dy /= l; } joy.x = dx; joy.y = dy; }
@@ -53,7 +53,7 @@ export function initDevices(ui) {
   });
   const endPtr = e => {
     if (joy.on && e.pointerId === joy.id) { joy.on = false; joy.x = joy.y = 0; }
-    if (e.pointerType === 'mouse') { if (e.button === 0) ctl.fb = false; if (e.button === 2) ctl.arc = false; }
+    if (e.pointerType === 'mouse') { if (e.button === 0) ctl.main = false; }
   };
   addEventListener('pointerup', endPtr); addEventListener('pointercancel', endPtr);
 
@@ -62,8 +62,8 @@ export function initDevices(ui) {
     el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); audio(); if (G.paused) return; try { el.setPointerCapture(e.pointerId); } catch (_) {} down(); });
     ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(ev => el.addEventListener(ev, () => up && up()));
   };
-  skillBtn('sFb', () => ctl.fb = true, () => ctl.fb = false); skillBtn('sAr', () => ctl.arc = true, () => ctl.arc = false);
-  skillBtn('sNv', () => ctl.nova = true); skillBtn('sDs', () => ctl.dash = true); skillBtn('sFl', () => ctl.flask = true);
+  skillBtn('sMain', () => ctl.main = true, () => ctl.main = false); skillBtn('sFlexA', () => ctl.flexA = true);
+  skillBtn('sGuard', () => ctl.guard = true); skillBtn('sEvade', () => ctl.evade = true); skillBtn('sFl', () => ctl.flask = true);
 
   addEventListener('keydown', e => {
     const k = e.key.toLowerCase(); if (k === ' ') e.preventDefault();
@@ -74,9 +74,9 @@ export function initDevices(ui) {
     if (k === 'escape') { UI.closeAll(); return; }
     if (rideKey(k, true)) return;
     if (G.paused) return;
-    if (k === 'q' || k === '3') ctl.nova = true; if (k === ' ' || k === '4') ctl.dash = true; if (k === 'f' || k === '5') ctl.flask = true;
-    if (k === '1') ctl.fb = true; if (k === '2' || k === 'e') ctl.arc = true;
+    if (k === 'q' || k === '2') ctl.flexA = true; if (k === 'e' || k === '3') ctl.guard = true; if (k === ' ' || k === '4') ctl.evade = true;
+    if (k === 'f' || k === '5') ctl.flask = true; if (k === '1') ctl.main = true;
   });
-  addEventListener('keyup', e => { const k = e.key.toLowerCase(); keys[k] = false; if (rideKey(k, false)) return; if (k === '1') ctl.fb = false; if (k === '2' || k === 'e') ctl.arc = false; });
-  addEventListener('blur', () => { for (const k in keys) keys[k] = false; ctl.fb = ctl.arc = false; });
+  addEventListener('keyup', e => { const k = e.key.toLowerCase(); keys[k] = false; if (rideKey(k, false)) return; if (k === '1') ctl.main = false; });
+  addEventListener('blur', () => { for (const k in keys) keys[k] = false; ctl.main = false; });
 }
