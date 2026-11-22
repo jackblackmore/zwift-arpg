@@ -7,6 +7,7 @@ import { rand, pick, dist } from '../core/util.js';
 import { loadGLB, linearise } from '../render/characters.js';
 import { glowSprite, decal } from '../render/assets.js';
 import { DUNGEON } from '../data/graphics.js';
+import { inClear } from './map.js';
 import { FLOOR, WALL, BANNERS, OBSTACLES, OBSTACLE_COUNT, CLUTTER, BRAZIERS } from '../data/dungeon.js';
 
 export const dun = { ready: false, tpl: {} };
@@ -64,7 +65,7 @@ const turn = (ox, oz, rot, s) => [(ox * Math.cos(rot) + oz * Math.sin(rot)) * s,
 // Builds the dungeon into G.world and fills G.obst / G.torches. half: the walkable area is -half..half on x and z.
 export function buildDungeon(half) {
   const s = DUNGEON.scale, tile = 4 * s, floor = batch(), solid = batch();
-  const start = G.start, boss = G.bossSpot;
+  const boss = G.bossSpot;
 
   // Floor tiles, a ring wider than the walls so no edge shows.
   const n = Math.ceil((half + tile) / tile);
@@ -102,18 +103,19 @@ export function buildDungeon(half) {
     const x = rand(-half + 3, half - 3), z = rand(-half + 3, half - 3), rot = rand(0, Math.PI * 2);
     const circles = ob.circles.map(([ox, oz, cr]) => { const [dx, dz] = turn(ox, oz, rot, s); return { x: x + dx, z: z + dz, r: cr * s }; });
     const R = Math.max(...circles.map(c => dist(c.x, c.z, x, z) + c.r));
-    if (dist(x, z, start.x, start.z) < 7 + R || dist(x, z, boss.x, boss.z) < 10 + R) continue;
+    if (inClear(x, z, R)) continue;
     if (circles.some(c => Math.abs(c.x) > half - c.r - .5 || Math.abs(c.z) > half - c.r - .5)) continue;
     if (feats.some(f => dist(f.x, f.z, x, z) < f.R + R + 2.2)) continue;
     feats.push({ x, z, R }); solid.add(ob.name, x, z, rot, s);
     G.obst.push(...circles);
   }
   const free = (x, z, r) => !G.obst.some(o => (x - o.x) ** 2 + (z - o.z) ** 2 < (o.r + r) ** 2);
-  const spot = (r, edge = 1) => { for (let t = 0; t < 40; t++) { const x = rand(-half + edge, half - edge), z = rand(-half + edge, half - edge); if (free(x, z, r)) return [x, z]; } return null; };
+  // solid: also stay out of the clearings (braziers and chests are colliders; floor clutter may sit anywhere)
+  const spot = (r, edge = 1, solid = false) => { for (let t = 0; t < 40; t++) { const x = rand(-half + edge, half - edge), z = rand(-half + edge, half - edge); if (free(x, z, r) && !(solid && inClear(x, z, r))) return [x, z]; } return null; };
 
   // Braziers: candles on a short column, glowing.
   for (let k = 0; k < BRAZIERS; k++) {
-    const p = spot(.8, 2); if (!p) continue; const [x, z] = p;
+    const p = spot(.8, 2, true); if (!p) continue; const [x, z] = p;
     solid.add('column', x, z, rand(0, 6), s);
     solid.add('candle_triple', x, z, rand(0, 6), s * DUNGEON.torch, 1.4 * s);
     const f = glowSprite(0xff8a30, 1.4); f.position.set(x, 1.4 * s + .95 * s * DUNGEON.torch, z);
@@ -133,7 +135,7 @@ export function buildDungeon(half) {
   for (const [name, count] of CLUTTER) for (let k = 0; k < count; k++) { const p = spot(.3); if (p) floor.add(name, p[0], p[1], rand(0, 6), s); }
   for (let k = 0; k < 4; k++) {
     const x = rand(-half + 3, half - 3), z = -half + 1.2;
-    if (free(x, z, .9)) { solid.add('chest', x, z, 0, s); G.obst.push({ x, z, r: .7 }); }
+    if (free(x, z, .9) && !inClear(x, z, .9)) { solid.add('chest', x, z, 0, s); G.obst.push({ x, z, r: .7 }); }
   }
 
   floor.flush(G.world, { cast: false, tint: DUNGEON.floor }); solid.flush(G.world);

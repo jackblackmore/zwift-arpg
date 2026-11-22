@@ -5,13 +5,17 @@ html,body{margin:0;height:100%;background:#050405;overflow:hidden;touch-action:n
 .hud{position:fixed;z-index:3}
 #info{left:10px;top:10px;font-size:11px;line-height:1.5;text-shadow:0 1px 2px #000;pointer-events:none}
 #info b{font:800 15px Cinzel,serif;color:var(--gold);letter-spacing:.06em}
-#btns{left:10px;top:62px;display:flex;gap:6px}
+#btns{left:10px;top:84px;display:flex;gap:6px}
 button{font:800 11px Cinzel,serif;letter-spacing:.08em;color:var(--ink);background:#1a120ccc;border:1px solid var(--line);border-radius:5px;padding:7px 10px;cursor:pointer;position:relative}
 button:hover{border-color:var(--gold)}
 button .badge{position:absolute;top:-7px;right:-7px;background:#c03020;color:#fff;font:700 10px 'JetBrains Mono';border-radius:9px;padding:1px 5px;display:none}
 button.glow{border-color:#ffd23f;box-shadow:0 0 12px #ffd23f99;animation:gl 1s ease-in-out infinite alternate}
 @keyframes gl{to{box-shadow:0 0 22px #ffd23fcc}}
 #mm{right:10px;top:10px;width:150px;height:150px;border:1px solid var(--line);border-radius:6px;background:#000a;pointer-events:none}
+#mmL{right:11px;top:11px;width:150px;height:150px;pointer-events:none}
+#surv{left:50%;top:58px;transform:translateX(-50%);display:none;flex-direction:column;align-items:center;pointer-events:none;text-shadow:0 0 12px #000,0 2px 4px #000}
+#surv span{font:800 12px Cinzel,serif;letter-spacing:.16em;color:var(--ink)}
+#surv b{font:800 34px Cinzel,serif;letter-spacing:.06em;line-height:1.1}
 #bossbar{left:50%;top:12px;transform:translateX(-50%);width:min(440px,60vw);display:none;pointer-events:none;text-align:center}
 #bossbar span{font:800 14px Cinzel,serif;color:#ff6ad5;letter-spacing:.1em;text-shadow:0 0 10px #ff2bd6}
 #bossbar div{height:10px;border:1px solid #6a2a5a;background:#200a1a;margin-top:3px;border-radius:2px;overflow:hidden}
@@ -90,6 +94,7 @@ body.touch #sFb{grid-area:fb;width:72px;height:72px;font-size:32px}
 body.touch #sAr{grid-area:ar}body.touch #sNv{grid-area:nv}body.touch #sDs{grid-area:ds}body.touch #sFl{grid-area:fl}
 body.touch #toasts{top:170px}
 body.touch #mm{width:110px;height:110px}
+body.touch #mmL{width:110px;height:110px}
 
 /* ---- RIDE mode (simulated Zwift Ride + KICKR) ---- */
 .ridepad,#rideTop{display:none}

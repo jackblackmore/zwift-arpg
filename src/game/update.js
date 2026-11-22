@@ -8,7 +8,7 @@ import { materialize, buildHash, updEnemy, separate, updEnemyProjectiles } from 
 import { castFireball, castArc, castNova, castDash, useFlask, updProjectiles } from './skills.js';
 import { explode, updPatches, processQueue } from './combat.js';
 import { pickUp, updItems } from './items.js';
-import { newMap, respawn } from './maps.js';
+import { updLevel, respawn } from './level.js';
 import { save } from './save.js';
 import { autopilot } from './autopilot.js';
 import { RIDE } from '../data/ride.js';
@@ -48,13 +48,12 @@ function updPlayer(dt) {
   if (ctl.flask) { ctl.flask = false; useFlask(); }
   if (S.autoNova) { P.autoNovaT -= dt; if (P.autoNovaT <= 0) { P.autoNovaT = 5; castNova(true); } }
   for (const d of G.ground) if (d.landed && !d.gone && dist(d.x, d.z, P.x, P.z) < 1.3) pickUp(d);
-  if (G.portal && dist(P.x, P.z, G.portal.x, G.portal.z) < 1.3) { save(G.tier + 1); newMap(G.tier + 1); }
 }
 
 export function update(dt) {
   G.gt += dt;
   if (P.dead > 0) { P.dead -= dt; if (P.dead <= 0) respawn(); } else updPlayer(dt);
-  materialize(); buildHash();
+  materialize(); buildHash(); updLevel(dt);
   for (const e of G.enemies) updEnemy(e, dt);
   separate();
   updProjectiles(dt, explode);

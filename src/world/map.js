@@ -21,6 +21,8 @@ export function pushOut(e) {
   e.x = clamp(e.x, -HALF + e.r, HALF - e.r); e.z = clamp(e.z, -HALF + e.r, HALF - e.r);
 }
 export const blocked = (x, z, r) => x < -HALF + r || x > HALF - r || z < -HALF + r || z > HALF - r || G.obst.some(o => (x - o.x) ** 2 + (z - o.z) ** 2 < (o.r + r) ** 2);
+// True when a circle (x, z, r) touches a clearing (start, beat sites, route points, the guardian's arena).
+export const inClear = (x, z, r = 0) => G.clear.some(c => (x - c.x) ** 2 + (z - c.z) ** 2 < (c.r + r) ** 2);
 export function los(ax, az, bx, bz) {
   const dx = bx - ax, dz = bz - az, L = Math.hypot(dx, dz) || 1;
   for (const o of G.obst) { const t = clamp(((o.x - ax) * dx + (o.z - az) * dz) / (L * L), 0, 1); if (dist(ax + dx * t, az + dz * t, o.x, o.z) < o.r - .1) return false; }
@@ -33,19 +35,19 @@ function rock(x, z, r, solid) {
 
 export function buildMap() {
   scene.remove(G.world); G.world = new T.Group(); scene.add(G.world); G.obst = []; G.torches = [];
-  const start = G.start = { x: -HALF + 5, z: HALF - 5 }, boss = G.bossSpot = { x: HALF - 8, z: -HALF + 8 };
+  // game/level.js has already set G.start, G.bossSpot and the G.clear circles for this level
   G.dressed = dun.ready;
-  if (dun.ready) buildDungeon(HALF); else primitiveMap(start, boss);
+  if (dun.ready) buildDungeon(HALF); else primitiveMap();
   // minimap base layer
   const c = G.mmBase = document.createElement('canvas'); c.width = c.height = 300; const m = c.getContext('2d'), k = 300 / (HALF * 2);
   m.fillStyle = '#16110e'; m.fillRect(0, 0, 300, 300); m.fillStyle = '#4a4048';
   for (const o of G.obst) { m.beginPath(); m.arc((o.x + HALF) * k, (o.z + HALF) * k, Math.max(2, o.r * k), 0, 7); m.fill(); }
 }
 
-function primitiveMap(start, boss) {
+function primitiveMap() {
   for (let t = 0; t < 600 && G.obst.length < 52; t++) {
     const r = rand(.8, 2.4), x = rand(-HALF + 3, HALF - 3), z = rand(-HALF + 3, HALF - 3);
-    if (dist(x, z, start.x, start.z) < 7 || dist(x, z, boss.x, boss.z) < 10) continue;
+    if (inClear(x, z, r)) continue;
     if (G.obst.some(o => dist(o.x, o.z, x, z) < o.r + r + 2.2)) continue;
     rock(x, z, r, true); if (Math.random() < .7) rock(x + rand(-r, r), z + rand(-r, r), r * rand(.3, .5), false);
   }
@@ -58,7 +60,8 @@ function primitiveMap(start, boss) {
     g.position.set(x, 0, z); G.world.add(g);
   }
   for (let k = 0; k < 14; k++) {
-    let x, z, tries = 0; do { x = rand(-HALF + 2, HALF - 2); z = rand(-HALF + 2, HALF - 2); } while (blocked(x, z, .8) && ++tries < 30);
+    let x, z, tries = 0; do { x = rand(-HALF + 2, HALF - 2); z = rand(-HALF + 2, HALF - 2); } while ((blocked(x, z, .8) || inClear(x, z, .8)) && ++tries < 30);
+    if (inClear(x, z, .8)) continue;
     const g = new T.Group(); const p = new T.Mesh(GCY, woodMat); p.scale.set(.12, 1.2, .12); p.position.y = .6; g.add(p);
     const bowl = new T.Mesh(GCY, rockMat); bowl.scale.set(.3, .15, .3); bowl.position.y = 1.25; g.add(bowl);
     const f = glowSprite(0xff8a30, 1.4); f.position.y = 1.55; g.add(f); g.add(decal(0xff7020, 4));
