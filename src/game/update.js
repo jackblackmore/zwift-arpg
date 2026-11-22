@@ -11,6 +11,8 @@ import { pickUp, updItems } from './items.js';
 import { updLevel, respawn } from './level.js';
 import { updCorpses } from './corpses.js';
 import { updPools } from './hazards.js';
+import { updAllies } from './allies.js';
+import { tickers } from './tick.js';
 import { save } from './save.js';
 import { gemsTick } from './gems.js';
 import { autopilot } from './autopilot.js';
@@ -48,6 +50,7 @@ export function update(dt) {
   updProjectiles(dt, explode); updWard(dt);
   updEnemyProjectiles(dt);
   updPatches(dt); updCorpses(dt); updPools(dt);
+  updAllies(dt); for (const f of tickers) f(dt);
   updItems(dt);
   processQueue(dt);
   G.enemies = G.enemies.filter(e => !e.gone);

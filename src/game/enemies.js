@@ -12,6 +12,7 @@ import { chars, makeChar } from '../render/characters.js';
 import { sparks, emit, burst, ringFx, flashFx, telegraph, banner } from '../render/fx.js';
 import { pushOut, blocked, los } from '../world/map.js';
 import { hurtP, kill } from './combat.js';
+import { enemyTarget, hurtTarget, allyHitBy } from './allies.js';
 import { necroAI, beginRaise, tickRaise, finishRaise, corpsesNear } from './corpses.js';
 import { addPool } from './hazards.js';
 
@@ -113,6 +114,7 @@ export function updEnemyProjectiles(dt) {
     p.x += p.vx * dt; p.z += p.vz * dt; p.life -= dt; p.g.position.set(p.x, 1.2, p.z);
     if (p.life <= 0 || blocked(p.x, p.z, .05)) p.dead = true;
     else if (P.dead <= 0 && dist(p.x, p.z, P.x, P.z) < p.r + P.r) { p.dead = true; hurtP(p.dmg); burst(p.x, 1.2, p.z, 0xff6060, 6, 3); }
+    else { const a = allyHitBy(p.x, p.z, p.r); if (a) { p.dead = true; hurtTarget(a, p.dmg); burst(p.x, 1.2, p.z, 0xff6060, 6, 3); } }
     if (p.dead) scene.remove(p.g);
   }
   G.eproj = G.eproj.filter(p => !p.dead);
@@ -162,22 +164,24 @@ export function updEnemy(e, dt) {
   const spd = e.spd * (e.chill > 0 ? .5 : 1), cdm = e.chill > 0 ? 1.6 : 1;
   if (e.fireAura && d < 2.75) { e.auraT = (e.auraT || 0) - dt; if (e.auraT <= 0) { e.auraT = .5; hurtP(3 * lvScale().dmg); } }
   if (e.ai === 'boss' && bossAI(e, dt)) { pushOut(e); return animE(e, dt); }
+  // Who it fights: the hero, or an ally (a nearer minion, or a taunting decoy). Bosses always go for the hero.
+  const t = e.ai === 'boss' ? P : enemyTarget(e, dt), td = dist(e.x, e.z, t.x, t.z);
   if (e.ai === 'melee' || e.ai === 'boss') {
     if (e.windup > 0) {
-      e.windup -= dt; e.face = Math.atan2(P.x - e.x, P.z - e.z);
-      if (e.windup <= 0) { e.swing = 1; if (d < e.range + e.r + P.r + .45) { hurtP(e.dmg); if (e.ai === 'boss') { shake(.3); SFX.slam(); } } e.atkT = e.cd * cdm; }
-    } else if (d < e.range + e.r + P.r) { e.face = Math.atan2(P.x - e.x, P.z - e.z); e.atkT -= dt; if (e.atkT <= 0) { e.windup = e.ai === 'boss' ? .55 : .32; e.atkSeq = (e.atkSeq || 0) + 1; } }
-    else moveE(e, P.x, P.z, spd, dt);
+      e.windup -= dt; e.face = Math.atan2(t.x - e.x, t.z - e.z);
+      if (e.windup <= 0) { e.swing = 1; if (td < e.range + e.r + t.r + .45) { hurtTarget(t, e.dmg); if (e.ai === 'boss') { shake(.3); SFX.slam(); } } e.atkT = e.cd * cdm; }
+    } else if (td < e.range + e.r + t.r) { e.face = Math.atan2(t.x - e.x, t.z - e.z); e.atkT -= dt; if (e.atkT <= 0) { e.windup = e.ai === 'boss' ? .55 : .32; e.atkSeq = (e.atkSeq || 0) + 1; } }
+    else moveE(e, t.x, t.z, spd, dt);
   } else if (e.ai === 'ranged') {
-    if (e.windup > 0) { e.windup -= dt; e.face = Math.atan2(P.x - e.x, P.z - e.z); if (e.windup <= 0) { e.swing = 1; eShoot(e, e.face + rand(-.05, .05), 11, e.dmg, 'arrow'); e.shootT = e.cd * cdm * rand(.85, 1.2); } }
-    else if (d < 4.5) { const [dx, dz] = steer(e, e.x - (P.x - e.x), e.z - (P.z - e.z)); e.x += dx * spd * dt; e.z += dz * spd * dt; e.walk += dt * spd * 2.6; e.moving = true; e.face = Math.atan2(P.x - e.x, P.z - e.z); }
-    else if (d > 9 || !los(e.x, e.z, P.x, P.z)) moveE(e, P.x, P.z, spd, dt);
-    else { e.face = Math.atan2(P.x - e.x, P.z - e.z); e.shootT -= dt; if (e.shootT <= 0) { e.windup = .45; e.atkSeq = (e.atkSeq || 0) + 1; } }
+    if (e.windup > 0) { e.windup -= dt; e.face = Math.atan2(t.x - e.x, t.z - e.z); if (e.windup <= 0) { e.swing = 1; eShoot(e, e.face + rand(-.05, .05), 11, e.dmg, 'arrow'); e.shootT = e.cd * cdm * rand(.85, 1.2); } }
+    else if (td < 4.5) { const [dx, dz] = steer(e, e.x - (t.x - e.x), e.z - (t.z - e.z)); e.x += dx * spd * dt; e.z += dz * spd * dt; e.walk += dt * spd * 2.6; e.moving = true; e.face = Math.atan2(t.x - e.x, t.z - e.z); }
+    else if (td > 9 || !los(e.x, e.z, t.x, t.z)) moveE(e, t.x, t.z, spd, dt);
+    else { e.face = Math.atan2(t.x - e.x, t.z - e.z); e.shootT -= dt; if (e.shootT <= 0) { e.windup = .45; e.atkSeq = (e.atkSeq || 0) + 1; } }
   } else if (e.ai === 'necro') necroAI(e, dt, d, spd, cdm, moveE);
   else if (e.ai === 'bomb') {
     if (e.fuse > 0) { e.fuse -= dt; if (e.fuse <= 0) kill(e); }
-    else if (d < 1.9) { e.fuse = .85; telegraph(e.x, e.z, 2.2, .85, 0x9ad060); }
-    else moveE(e, P.x, P.z, spd, dt);
+    else if (td < 1.9) { e.fuse = .85; telegraph(e.x, e.z, 2.2, .85, 0x9ad060); }
+    else moveE(e, t.x, t.z, spd, dt);
   }
   pushOut(e); animE(e, dt);
 }

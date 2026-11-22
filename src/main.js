@@ -35,6 +35,14 @@ import { SLOT_ORDER } from './data/gems.js';
 import { gainAP, gemBase, gemHas } from './game/gems.js';
 import { hud } from './ui/hud.js';
 import './ui/waypoint.js';
+// Feature modules that register skills, ticks, hooks and panels when loaded.
+import './game/minions.js';
+import './game/spells.js';
+import './game/supports.js';
+import './game/shrines.js';
+import './game/tree.js';
+import './ui/shrine.js';
+import './ui/tree.js';
 import { initGemBag, toggleGems } from './ui/gembag.js';
 import { initPanels, syncPause, openInv, openPass, toggleInv, togglePass, closeAll, equip } from './ui/panels.js';
 
