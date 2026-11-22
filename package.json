@@ -6,7 +6,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node tests/sim.mjs"
+    "test": "node scripts/balance.mjs --quiet --no-write && node tests/sim.mjs",
+    "balance": "node scripts/balance.mjs"
   },
   "repository": {
     "type": "git",

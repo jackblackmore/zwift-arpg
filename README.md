@@ -12,7 +12,8 @@ An action RPG in the style of Path of Exile, built to be played on a Wahoo KICKR
 npm install
 npm run dev      # local dev server (ARPG at /, pedal demo at /pedal/, gallery at /gallery/)
 npm run build    # production build into dist/
-npm test         # headless playtest of both games and the gallery (needs Chrome; run build first)
+npm test         # design check + headless playtest of both games and the gallery (needs Chrome; run build first)
+npm run balance  # rerun the balance sim on src/design and rewrite docs/BALANCE.md
 SCREENSHOT=/tmp/shot.png npm test   # also saves an ARPG mid-fight screenshot
 ```
 
@@ -39,6 +40,7 @@ SCREENSHOT=/tmp/shot.png npm test   # also saves an ARPG mid-fight screenshot
 index.html, src/          the ARPG
   main.js                 boot, main loop, window.__dbg test hooks
   core/                   shared state (G world, P player, S stats), helpers, audio
+  design/                 the full game design as data + its maths and a par-player sim (see src/design/README.md); `npm run balance` writes docs/BALANCE.md
   data/                   tuning tables: monsters (+ their clips), skills, items/affixes/uniques, passives, dungeon layout, look
   input/input.js          the input layer: `ctl` is all the game reads
   input/devices.js        keyboard + mouse and touch devices that write into `ctl`
@@ -53,6 +55,7 @@ gallery/, src/gallery/    asset gallery page: characters × both animation sets,
 public/gallery/           gallery files: KayKit Adventurers, Skeletons, Character Animations 1.1, Dungeon Remastered, Halloween Bits, Medieval Hexagon, Forest Nature, Resource Bits (rebuild with scripts/prep-gallery.mjs)
 pedal/                    the original pedal-driven demo (unchanged, its own src/)
 tests/sim.mjs             headless playtest for both games and the gallery
+scripts/balance.mjs       balance report: plays src/design as a typical player and checks it against its targets
 ```
 
 Game code reads player input only from `ctl` in `src/input/input.js`: movement, an optional aim point, held skills and one-shot presses. The Zwift Ride and KICKR will become one more device writing into `ctl`, without touching game code.

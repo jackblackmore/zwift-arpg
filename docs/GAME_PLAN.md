@@ -2,6 +2,8 @@
 
 Status: proposal, November 2026. Nothing here is built yet.
 
+**The numbers now live in [`src/design/`](../src/design/README.md)**: stats, levels, skills, gear, passives, monsters, zones, loot and crafting, balanced by `npm run balance` ([`docs/BALANCE.md`](BALANCE.md)). Where this doc and `src/design/` disagree, `src/design/` wins. For example, the campaign is now 17 zones (5 + 6 + 6), about 2 hours of par play.
+
 ## Where we are
 
 A good-feeling combat core sits inside a very thin game:
