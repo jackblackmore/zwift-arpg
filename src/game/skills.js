@@ -160,7 +160,10 @@ registerSkill('ward', { cast: () => castWard() });
 registerSkill('blink', { cast: () => castBlink() });
 
 // Cooldown of a skill in seconds before cdr: its cd, else its rate (so Fireball works in a Flex slot).
+// Flex / Guard / Evade wait skillCd (cd, else rate); Main paces by skillRate (rate, else cd), so a skill can auto-fire quickly from Main
+// and still have a real cooldown on a button (Arc: rate .7 in Main, cd 3 elsewhere).
 export const skillCd = id => { const k = SK[id] || {}; return k.cd || k.rate || 1; };
+export const skillRate = id => { const k = SK[id] || {}; return k.rate || k.cd || 1; };
 // Cast whatever skill sits in a bar slot. Main is paced by its attack rate (and the effort modifier); the others by cooldowns, or by
 // life with the Blood Rite keystone (S.bloodRite): no cooldown, each cast costs life, refused when it would kill.
 export function castSlot(slot) {
@@ -168,7 +171,7 @@ export function castSlot(slot) {
   if (slot === 'main') {
     if (P.cd.main > 0) return false;
     if (def.main ? !def.main(slot) : !(mainTarget() && def.cast(slot))) return false;
-    P.cd.main = skillCd(id) * swiftCd(id) / (S.cast * P.eff.atk); return true;
+    P.cd.main = skillRate(id) * swiftCd(id) / (S.cast * P.eff.atk); return true;
   }
   const rite = S.bloodRite ? S.bloodRite * S.maxLife * skillCd(id) / BLOOD.cdRef : 0;
   if (rite ? rite >= P.life : P.cd[slot] > 0) return false;
@@ -199,4 +202,4 @@ export function updProjectiles(dt, explode) {
   G.proj = G.proj.filter(p => !p.dead);
 }
 
-Object.assign(dbg, { castArc, SKILLS, registerSkill, mainRange, mainTarget, castSlot, skillCd });
+Object.assign(dbg, { castArc, SKILLS, registerSkill, mainRange, mainTarget, castSlot, skillCd, skillRate });

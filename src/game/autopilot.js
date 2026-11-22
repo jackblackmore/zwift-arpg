@@ -36,8 +36,9 @@ function pick() {
     if (bd < A.kite) return away(best.x, best.z);
     return [0, 0];
   }
-  let loot = null, ld = A.loot; // a full bag can't pick loot up, so don't chase it
-  if (P.inv.length < DROP.bagSize) for (const d of G.ground) { if (!d.landed || d.gone) continue; const dd = dist(d.x, d.z, P.x, P.z); if (dd < ld) { ld = dd; loot = d; } }
+  let loot = null, ld = A.loot; // a full item bag can't pick items up, so don't chase them (gems always fit: the gem bag is unlimited)
+  const full = P.inv.length >= DROP.bagSize;
+  for (const d of G.ground) { if (!d.landed || d.gone || (full && !d.gem)) continue; const dd = dist(d.x, d.z, P.x, P.z); if (dd < ld) { ld = dd; loot = d; } }
   if (loot) return toward(loot.x, loot.z);
   const g = levelGoal();
   if (g && dist(P.x, P.z, g.x, g.z) > g.r) return toward(g.x, g.z);

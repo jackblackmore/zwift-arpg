@@ -17,7 +17,7 @@ export const SK = {
   // --- end C1 skills ---
   // --- C2 skills (Flame Totem, Arc, Meteor, Ice Trap, Corpse Explosion) ---
   // arc has a rate and no cd so that Main paces it quickly (castSlot uses cd before rate); in a Flex slot that is its cooldown too.
-  arc: { rate: .7, mult: .9, range: 11, chainRange: 5.5, shockChance: .3, shockT: 3, chains: 3 }, // also cast free by Heart of the Storm
+  arc: { cd: 3, rate: .7, mult: .9, range: 11, chainRange: 5.5, shockChance: .3, shockT: 3, chains: 3 }, // rate: Main's pace; cd: on a Flex button. Also cast free by Heart of the Storm
   // totem: plants `plant` ahead toward the aim point, lasts `life` s, hp = hpFrac x max life; fires a bolt every `rate` s at range
   flameTotem: { cd: 8, range: 10, plant: 2.5, life: 10, hpFrac: .6, rate: .5, mult: .45, speed: 15, boltLife: .9, r: .5 },
   // meteor: telegraph circle for `delay` s, then a radius x S.aoe blast and burning ground (patch = share of radius, patchT seconds)

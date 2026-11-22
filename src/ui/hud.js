@@ -9,7 +9,7 @@ import { HALF } from '../world/map.js';
 import { xpNeed } from '../game/stats.js';
 import { GEMS, BAR_SLOTS, SLOT_ORDER, apNeed } from '../data/gems.js';
 import { slotGem, slotUnlocked, socketList } from '../game/gems.js';
-import { skillCd } from '../game/skills.js';
+import { skillCd, skillRate } from '../game/skills.js';
 import { rideHud } from '../input/ridesim.js';
 import { surgeHud } from './surgehud.js';
 import { levelHud } from './levelhud.js';
@@ -37,7 +37,7 @@ export function hud(dt) {
     gemBadge(el, g); pips(el, k);
     const n = el.querySelector('.n'), cdEl = el.querySelector('.cd');
     if (!g) { cdEl.style.height = '0%'; n.textContent = ''; el.classList.remove('oncd', 'fire'); continue; }
-    if (k === 'main') { n.textContent = 'AUTO'; el.classList.toggle('fire', cd > skillCd(id) / S.cast * .55); continue; }
+    if (k === 'main') { n.textContent = 'AUTO'; el.classList.toggle('fire', cd > skillRate(id) / S.cast * .55); continue; }
     const full = skillCd(id) * (1 - S.cdr);
     cdEl.style.height = cd > 0 ? Math.min(100, cd / full * 100) + '%' : '0%';
     n.textContent = cd > 0 ? cd.toFixed(cd < 10 ? 1 : 0) : ''; el.classList.toggle('oncd', cd > 0);
