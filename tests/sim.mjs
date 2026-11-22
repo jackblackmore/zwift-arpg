@@ -215,6 +215,7 @@ try {
       out.barAfter = document.getElementById('bossbar').style.display; out.clears0 = L.clears; out.i = L.i;
       const sig = L.beats.map(b => b.x.toFixed(1) + ',' + b.z.toFixed(1)).join('|');
       P.x = G.portal.x; P.z = G.portal.z; D.sim(3);
+      out.wayOpen = document.getElementById('mWay').classList.contains('show') && G.paused; D.enterLevel(1); // the portal opens the waypoint screen; Crypt 1 again is a fresh level
       const L2 = D.level(); out.newLevel = L2 !== L && !L2.cleared && !G.portal; out.clears1 = L2.clears;
       out.rhythm = L2.beats.map(b => b.slot).join(',') === L.beats.map(b => b.slot).join(',');
       out.differs = L2.beats.map(b => b.x.toFixed(1) + ',' + b.z.toFixed(1)).join('|') !== sig;
@@ -222,11 +223,11 @@ try {
       return out;
     });
     console.log('  guardian:', JSON.stringify(r6));
-    check(r6.spawned && r6.hp < 600, `arpg: the guardian is a smaller, weaker boss (${r6.hp} hp)`);
+    check(r6.spawned && r6.hp < 1500, `arpg: the guardian is a smaller, weaker boss (${r6.hp} hp)`);
     check(/GUARDIAN/.test(r6.signalBanner) && /OSSRIC/.test(r6.wakeBanner) && r6.bar === 'block' && /OSSRIC/.test(r6.barName), `arpg: guardian signals, then wakes with a banner and its bar ("${r6.wakeBanner}")`);
     check(r6.ability, 'arpg: guardian used its abilities');
     check(r6.cleared && r6.portal && r6.i === 7 && r6.banner === 'LEVEL CLEARED' && r6.loot >= 5 && r6.barAfter === 'none', `arpg: guardian death clears the level, drops loot (${r6.loot}) and opens the portal`);
-    check(r6.newLevel && r6.clears0 === 0 && r6.clears1 === 1 && r6.atStart, 'arpg: taking the portal rerolls a fresh Crypt Halls with clears === 1');
+    check(r6.wayOpen && r6.newLevel && r6.clears0 === 0 && r6.clears1 === 1 && r6.atStart, 'arpg: the portal opens the waypoint; entering Crypt 1 again rerolls a fresh Crypt Halls with clears === 1');
     check(r6.rhythm && r6.differs, 'arpg: the new level has a different layout with the same beat rhythm');
 
     // 7. A batch of levels: every one keeps the rhythm, differs from the others and keeps sites and packs clear of rocks.

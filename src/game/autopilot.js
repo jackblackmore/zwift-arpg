@@ -2,6 +2,7 @@
 // Holds at casting range and backs off when monsters get too close, so the rider only pedals and casts.
 import { G, P } from '../core/state.js';
 import { RIDE } from '../data/ride.js';
+import { DROP } from '../data/items.js';
 import { dist } from '../core/util.js';
 import { steer } from './enemies.js';
 import { levelGoal } from './level.js';
@@ -35,8 +36,8 @@ function pick() {
     if (bd < A.kite) return away(best.x, best.z);
     return [0, 0];
   }
-  let loot = null, ld = A.loot;
-  for (const d of G.ground) { if (!d.landed || d.gone) continue; const dd = dist(d.x, d.z, P.x, P.z); if (dd < ld) { ld = dd; loot = d; } }
+  let loot = null, ld = A.loot; // a full bag can't pick loot up, so don't chase it
+  if (P.inv.length < DROP.bagSize) for (const d of G.ground) { if (!d.landed || d.gone) continue; const dd = dist(d.x, d.z, P.x, P.z); if (dd < ld) { ld = dd; loot = d; } }
   if (loot) return toward(loot.x, loot.z);
   const g = levelGoal();
   if (g && dist(P.x, P.z, g.x, g.z) > g.r) return toward(g.x, g.z);

@@ -25,7 +25,7 @@ export function aim() {
 
 // ---- Main: auto-target ----
 export const mainRange = () => SK[P.bar.main].range;
-const isElite = e => e.rar === 2 || e.guardian || e.ai === 'boss';
+const isElite = e => e.rar === 2 || e.guardian || e.ai === 'boss' || e.priority;
 // Elites first, then the nearest enemy; within range and in line of sight.
 export function mainTarget() {
   const R = mainRange(); let elite = null, ed = 1e9, norm = null, nd = 1e9;
