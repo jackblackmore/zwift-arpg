@@ -1,6 +1,6 @@
 // One game tick: player, monsters, projectiles, ground effects, loot.
 import { G, P, S } from '../core/state.js';
-import { SLOT_ORDER } from '../data/skills.js';
+import { SLOT_ORDER } from '../data/gems.js';
 import { ctl } from '../input/input.js';
 import { dist } from '../core/util.js';
 import { pushOut } from '../world/map.js';

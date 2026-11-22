@@ -62,7 +62,7 @@ export function initDevices(ui) {
     el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); audio(); if (G.paused) return; try { el.setPointerCapture(e.pointerId); } catch (_) {} down(); });
     ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(ev => el.addEventListener(ev, () => up && up()));
   };
-  skillBtn('sMain', () => ctl.main = true, () => ctl.main = false); skillBtn('sFlexA', () => ctl.flexA = true);
+  skillBtn('sMain', () => ctl.main = true, () => ctl.main = false); skillBtn('sFlexA', () => ctl.flexA = true); skillBtn('sFlexB', () => ctl.flexB = true);
   skillBtn('sGuard', () => ctl.guard = true); skillBtn('sEvade', () => ctl.evade = true); skillBtn('sFl', () => ctl.flask = true);
 
   addEventListener('keydown', e => {
@@ -72,10 +72,11 @@ export function initDevices(ui) {
     if ((k === 'i' && !ride.on) || k === 'b') // in RIDE mode I is the Y (autopilot) stand-in; B still opens the bag
       { if (G.started) UI.toggleInv(); return; }
     if (k === 'p') { if (G.started) UI.togglePass(); return; }
+    if (k === 'g') { if (G.started) UI.toggleGems(); return; }
     if (k === 'escape') { UI.closeAll(); return; }
     if (rideKey(k, true)) return;
     if (G.paused) return;
-    if (k === 'q' || k === '2') ctl.flexA = true; if (k === 'e' || k === '3') ctl.guard = true; if (k === ' ' || k === '4') ctl.evade = true;
+    if (k === 'q' || k === '2') ctl.flexA = true; if (k === 'r') ctl.flexB = true; if (k === 'e' || k === '3') ctl.guard = true; if (k === ' ' || k === '4') ctl.evade = true;
     if (k === 'f' || k === '5') ctl.flask = true; if (k === '1') ctl.main = true;
   });
   addEventListener('keyup', e => { const k = e.key.toLowerCase(); keys[k] = false; if (rideKey(k, false)) return; if (k === '1') ctl.main = false; });

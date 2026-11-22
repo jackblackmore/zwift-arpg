@@ -1,4 +1,4 @@
-// Modal panels: inventory (bag), passive picker, main menu. Opening any of them pauses the game.
+// Modal panels: inventory (bag), passive picker, main menu (the gem bag is ui/gembag.js). Any visible .modal pauses the game.
 import { G, P, S } from '../core/state.js';
 import { SLOTS, GLY, DROP } from '../data/items.js';
 import { PASS } from '../data/passives.js';
@@ -8,9 +8,12 @@ import { SFX } from '../core/audio.js';
 import { computeStats, recalc, estimate } from '../game/stats.js';
 import { modText } from '../game/items.js';
 import { save } from '../game/save.js';
+import { GEMS } from '../data/gems.js';
+import { slotSkill } from '../game/gems.js';
 
 const isOpen = id => $(id).classList.contains('show');
-export function syncPause() { G.paused = !G.started || ['mInv', 'mPass', 'mMenu'].some(isOpen); clearHeld(); }
+// Paused until the game starts, and while any .modal is showing (add data-sticky to one Escape must not close).
+export function syncPause() { G.paused = !G.started || !!document.querySelector('.modal.show'); clearHeld(); }
 
 // ================= INVENTORY =================
 const ui = { sel: null };
@@ -27,7 +30,7 @@ function cmpHTML(it) {
     const p = a ? Math.round(d / a * 100) : 0;
     return `<div>${n}: ${f(a)} → <span class="${d >= 0 ? 'up' : 'dn'}">${f(b)} (${d >= 0 ? '+' : ''}${p}%)</span></div>`;
   };
-  return `<div class="cmp"><div style="color:var(--dim)">If equipped${P.gear[it.slot] ? ' (replaces ' + P.gear[it.slot].name + ')' : ''}:</div>${line('Fireball DPS', cur.dps, nx.dps)}${line('Max life', cur.life, nx.life)}${line('Move speed', cur.ms, nx.ms, v => v.toFixed(1))}</div>`;
+  return `<div class="cmp"><div style="color:var(--dim)">If equipped${P.gear[it.slot] ? ' (replaces ' + P.gear[it.slot].name + ')' : ''}:</div>${line((slotSkill('main') ? GEMS[slotSkill('main')].name : 'Fireball') + ' DPS', cur.dps, nx.dps)}${line('Max life', cur.life, nx.life)}${line('Move speed', cur.ms, nx.ms, v => v.toFixed(1))}</div>`;
 }
 const isUpgrade = it => { const cur = estimate(S), nx = estimate(computeStats({ ...P.gear, [it.slot]: it })); return nx.dps > cur.dps * 1.02 || (nx.life > cur.life + 5 && nx.dps >= cur.dps * .98); };
 
@@ -56,7 +59,7 @@ export function equip(i) {
   P.gear[it.slot] = it; P.inv.splice(i, 1); if (prev) P.inv.push(prev);
   ui.sel = null; recalc(); renderInv(); save(); SFX.loot(1);
 }
-export function openInv(v) { $('mInv').classList.toggle('show', v); if (v) { P.newItems = 0; ui.sel = null; renderInv(); $('mPass').classList.remove('show'); } syncPause(); }
+export function openInv(v) { $('mInv').classList.toggle('show', v); if (v) { P.newItems = 0; ui.sel = null; renderInv(); $('mPass').classList.remove('show'); $('mGems').classList.remove('show'); } syncPause(); }
 export const toggleInv = () => openInv(!isOpen('mInv'));
 
 // ================= PASSIVES =================
@@ -79,10 +82,11 @@ function renderPass() {
   const tk = Object.entries(P.passives);
   $('taken').innerHTML = tk.length ? 'Allocated: ' + tk.map(([k, n]) => `<span style="color:${PASS[k].c}">${PASS[k].n}${PASS[k].max > 1 ? ' ×' + n : ''}</span>`).join(' · ') : 'Nothing allocated yet.';
 }
-export function openPass() { $('mPass').classList.add('show'); $('mInv').classList.remove('show'); renderPass(); syncPause(); }
+export function openPass() { $('mPass').classList.add('show'); $('mInv').classList.remove('show'); $('mGems').classList.remove('show'); renderPass(); syncPause(); }
 export function closePass() { $('mPass').classList.remove('show'); syncPause(); }
 export const togglePass = () => isOpen('mPass') ? closePass() : openPass();
-export function closeAll() { $('mInv').classList.remove('show'); closePass(); }
+// Escape: close every panel except sticky ones (the main menu).
+export function closeAll() { document.querySelectorAll('.modal.show:not([data-sticky])').forEach(m => m.classList.remove('show')); syncPause(); }
 
 export function initPanels() {
   $('gearGrid').addEventListener('click', e => { const c = e.target.closest('.cell'); if (c) { ui.sel = { g: c.dataset.g }; renderInv(); } });

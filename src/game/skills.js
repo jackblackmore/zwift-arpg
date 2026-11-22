@@ -1,8 +1,9 @@
-// Player skills. The skill bar (P.bar) maps slots to skills: Main (Fireball, auto-attacks), Flex A (Frost Nova),
-// Guard (Ward), Evade (Blink), plus the life flask. No mana: Flex / Guard / Evade run on cooldowns (P.cd).
+// Player skills. The skill bar (P.bar, game/gems.js) maps five slots to gems: Main (auto-attacks), Flex A, Flex B, Guard, Evade,
+// plus the life flask. Each skill registers its behaviour in SKILLS (registerSkill); castSlot() runs whatever sits in a slot.
+// No mana: Flex / Guard / Evade run on cooldowns (P.cd).
 import * as T from 'three';
 import { G, P, S, shake } from '../core/state.js';
-import { SK } from '../data/skills.js';
+import { SK, MAIN_RANGE, BLOOD } from '../data/skills.js';
 import { ctl } from '../input/input.js';
 import { rand, pick, dist } from '../core/util.js';
 import { SFX } from '../core/audio.js';
@@ -12,7 +13,7 @@ import { sparks, glows, emit, ringFx, flashFx, boltFx } from '../render/fx.js';
 import { blocked, los } from '../world/map.js';
 import { near } from './enemies.js';
 import { hit } from './combat.js';
-import { gemMile, gemScale } from './gems.js';
+import { gemMile, gemScale, slotSkill } from './gems.js';
 
 // Where the player is aiming: the device's aim point, else the nearest awake enemy, else straight ahead.
 export function aim() {
@@ -24,7 +25,8 @@ export function aim() {
 }
 
 // ---- Main: auto-target ----
-export const mainRange = () => SK[P.bar.main].range;
+// The Main skill's range (its def.range(), else SK[id].range), a default with nothing in Main.
+export const mainRange = () => { const id = slotSkill('main'), d = id && SKILLS[id]; return (d && d.range && d.range()) || (id && SK[id] && SK[id].range) || MAIN_RANGE; };
 const isElite = e => e.rar === 2 || e.guardian || e.ai === 'boss';
 // Elites first, then the nearest enemy; within range and in line of sight.
 export function mainTarget() {
@@ -52,15 +54,13 @@ export function castFireball(ax, az) {
   SFX.fire(); return true;
 }
 
-// Main attack: holding ctl.main fires toward the aim point, otherwise it auto-fires at mainTarget(). Paced by attack rate.
-function castMain() {
-  if (P.cd.main > 0) return false;
+// Fireball as Main: holding ctl.main fires toward the aim point, otherwise it auto-fires at mainTarget(). castSlot paces it.
+function fireballMain() {
   let t = null;
   if (ctl.main && ctl.aim) t = ctl.aim;
   else { const e = mainTarget(); if (e) t = [e.x, e.z]; else if (ctl.main) t = aim(); }
   if (!t) return false;
-  castFireball(t[0], t[1]);
-  P.cd.main = SK[P.bar.main].rate / (S.cast * P.eff.atk); return true;
+  return castFireball(t[0], t[1]);
 }
 
 // Arc: instant chain lightning, only cast by effects (Heart of the Storm) from fx/fz. `free` stays for the call sites.
@@ -144,13 +144,35 @@ export function castBlink() {
   SFX.dash(); return true;
 }
 
-// Cast whatever skill sits in a bar slot. Flex / Guard / Evade are gated by their cooldown; Main by its attack timer.
-const CAST = { fireball: castMain, nova: () => castNova(), ward: castWard, blink: castBlink };
+// ---- the casting registry ----
+// registerSkill(id, def): def = { cast(slot) -> bool, main?(slot) -> bool, range?: () -> number, target?: () -> enemy|null }.
+//   cast: one press of the button; return false when nothing happened (no cooldown is spent).
+//   main: the skill's own auto-attack when it sits in Main (Fireball: fire at mainTarget() or the aim point). Without it, Main calls
+//         cast() whenever the skill is off cooldown and mainTarget() finds something.
+// Supports and effects find the skill by its gem id; damage goes through combat.hit(e, mult, elem, { sk: id }).
+export const SKILLS = {};
+export const registerSkill = (id, def) => { SKILLS[id] = def; };
+registerSkill('fireball', { cast: () => castFireball(), main: fireballMain, range: () => SK.fireball.range });
+registerSkill('nova', { cast: () => castNova() });
+registerSkill('ward', { cast: () => castWard() });
+registerSkill('blink', { cast: () => castBlink() });
+
+// Cooldown of a skill in seconds before cdr: its cd, else its rate (so Fireball works in a Flex slot).
+export const skillCd = id => { const k = SK[id] || {}; return k.cd || k.rate || 1; };
+// Cast whatever skill sits in a bar slot. Main is paced by its attack rate (and the effort modifier); the others by cooldowns, or by
+// life with the Blood Rite keystone (S.bloodRite): no cooldown, each cast costs life, refused when it would kill.
 export function castSlot(slot) {
-  const id = P.bar[slot]; if (!id || P.dead > 0) return false;
-  if (slot === 'main') return castMain();
-  if (P.cd[slot] > 0 || !CAST[id]()) return false;
-  P.cd[slot] = SK[id].cd * (1 - S.cdr); return true;
+  const id = slotSkill(slot), def = id && SKILLS[id]; if (!def || P.dead > 0) return false;
+  if (slot === 'main') {
+    if (P.cd.main > 0) return false;
+    if (def.main ? !def.main(slot) : !(mainTarget() && def.cast(slot))) return false;
+    P.cd.main = skillCd(id) / (S.cast * P.eff.atk); return true;
+  }
+  const rite = S.bloodRite ? S.bloodRite * S.maxLife * skillCd(id) / BLOOD.cdRef : 0;
+  if (rite ? rite >= P.life : P.cd[slot] > 0) return false;
+  if (!def.cast(slot)) return false;
+  if (rite) P.life -= rite; else P.cd[slot] = skillCd(id) * (1 - S.cdr);
+  return true;
 }
 
 export function useFlask() {
