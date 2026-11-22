@@ -104,4 +104,4 @@ export function initGemBag() {
     else if ($(SLOT_ID[slot]).classList.contains('locked')) toast(`${BAR_SLOTS[slot].name} unlocks at level ${BAR_SLOTS[slot].unlock}`);
   });
 }
-Object.assign(dbg, { openGems, gemUi: ui });
+Object.assign(dbg, { openGems, gemUi: ui, renderGems });

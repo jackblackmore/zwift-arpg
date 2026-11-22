@@ -30,8 +30,8 @@ export function hud(dt) {
   for (const k of SLOT_ORDER) {
     const el = $(SLOTS[k]), g = slotGem(k), id = g && g.id, d = id && GEMS[id], cd = P.cd[k], locked = !g && !slotUnlocked(k);
     el.classList.toggle('locked', locked); el.classList.toggle('empty', !g && !locked);
-    if (el.dataset.gem !== String(id)) { // the gem in the slot changed: icon, colour and the lock text
-      el.dataset.gem = id; el.querySelector('.ic').textContent = d ? d.icon : '+'; el.style.color = d ? d.color : '';
+    if (el.dataset.gem !== id + ':' + locked) { // the gem in the slot (or its lock) changed: icon, colour, lock text, tooltip
+      el.dataset.gem = id + ':' + locked; el.querySelector('.ic').textContent = d ? d.icon : '+'; el.style.color = d ? d.color : '';
       el.querySelector('.lk em').textContent = 'L' + BAR_SLOTS[k].unlock; el.title = d ? d.name : locked ? `Unlocks at level ${BAR_SLOTS[k].unlock}` : BAR_SLOTS[k].name + ' (empty): tap to choose a gem';
     }
     gemBadge(el, g); pips(el, k);

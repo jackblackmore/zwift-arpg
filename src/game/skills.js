@@ -14,6 +14,7 @@ import { blocked, los } from '../world/map.js';
 import { near } from './enemies.js';
 import { hit } from './combat.js';
 import { gemMile, gemScale, slotSkill } from './gems.js';
+import { dbg } from '../core/dbg.js';
 
 // Where the player is aiming: the device's aim point, else the nearest awake enemy, else straight ahead.
 export function aim() {
@@ -196,3 +197,5 @@ export function updProjectiles(dt, explode) {
   }
   G.proj = G.proj.filter(p => !p.dead);
 }
+
+Object.assign(dbg, { SKILLS, registerSkill, mainRange, mainTarget, castSlot, skillCd });

@@ -92,7 +92,7 @@ const sv = load(); if (sv) { $('goCont').style.display = ''; $('goCont').dataset
 
 let last = performance.now();
 function frame(now) {
-  const dt = Math.min(.05, (now - last) / 1000); last = now;
+  const dt = Math.max(0, Math.min(.05, (now - last) / 1000)); last = now; // never negative: the first rAF timestamp can predate script start
   pollInput(dt);
   if (!G.paused) { if (G.hitStop > 0) G.hitStop -= dt; else update(dt); }
   updFx(G.paused ? 0 : dt); draw(dt); hud(dt);
