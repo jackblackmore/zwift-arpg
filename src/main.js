@@ -31,14 +31,15 @@ import { castSlot, castFireball, castNova, castWard, castBlink, mainTarget, main
 import { spawnEnemy } from './game/enemies.js';
 import { blocked, los } from './world/map.js';
 import { dropItem } from './game/items.js';
-import { BAR } from './data/skills.js';
+import { SLOT_ORDER } from './data/gems.js';
 import { gainAP, gemBase, gemHas } from './game/gems.js';
 import { hud } from './ui/hud.js';
 import './ui/waypoint.js';
+import { initGemBag, toggleGems } from './ui/gembag.js';
 import { initPanels, syncPause, openInv, openPass, toggleInv, togglePass, closeAll, equip } from './ui/panels.js';
 
-// Fresh skill state: default bar, no cooldowns, no ward.
-function resetSkills() { endWard(); P.bar = { ...BAR }; P.cd = { main: 0, flexA: 0, guard: 0, evade: 0 }; }
+// Fresh skill state: no cooldowns, no ward (the gems and bar come from initCharacter).
+function resetSkills() { endWard(); P.cd = Object.fromEntries(SLOT_ORDER.map(k => [k, 0])); }
 
 // Start (fresh) or continue a character: restore it (game/character.js), then enter the world (game/waypoint.js).
 function begin(fresh) {
@@ -78,8 +79,8 @@ $('bFx').onclick = () => { $('bFx').textContent = 'FX: ' + cycleQuality().toUppe
 $('bLook').textContent = 'LOOK: ' + STYLES[Q.style].name.toUpperCase();
 $('bLook').onclick = () => { $('bLook').textContent = 'LOOK: ' + cycleStyle().toUpperCase(); };
 recalc(); resize(); buildMap(); P.x = G.start.x; P.z = G.start.z; cam.position.set(P.x + CAM.x, CAM.y, P.z + CAM.z);
-initPanels();
-initDevices({ toggleInv, togglePass, closeAll });
+initPanels(); initGemBag();
+initDevices({ toggleInv, togglePass, toggleGems, closeAll });
 initRide(); setRide(storedRide());
 const modeLabel = () => { $('bMode').textContent = ride.on ? 'MODE: RIDE' : 'MODE: KEYS'; $('bMode').classList.toggle('glow', ride.on); };
 modeLabel(); $('bMode').onclick = () => { setRide(!ride.on); modeLabel(); };
@@ -91,7 +92,7 @@ const sv = load(); if (sv) { $('goCont').style.display = ''; $('goCont').dataset
 
 let last = performance.now();
 function frame(now) {
-  const dt = Math.min(.05, (now - last) / 1000); last = now;
+  const dt = Math.max(0, Math.min(.05, (now - last) / 1000)); last = now; // never negative: the first rAF timestamp can predate script start
   pollInput(dt);
   if (!G.paused) { if (G.hitStop > 0) G.hitStop -= dt; else update(dt); }
   updFx(G.paused ? 0 : dt); draw(dt); hud(dt);

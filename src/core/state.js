@@ -1,5 +1,6 @@
 // Shared mutable game state. Modules import these objects and mutate their fields.
-import { BAR } from '../data/skills.js';
+import { SLOT_ORDER } from '../data/gems.js';
+const bySlot = v => Object.fromEntries(SLOT_ORDER.map(k => [k, v]));
 
 // G: the world and everything in it.
 export const G = {
@@ -18,9 +19,10 @@ export const G = {
 export const P = {
   x: 0, z: 0, r: .4, face: 0, life: 100, lvl: 1, xp: 0, kills: 0,
   castAnim: 0, flask: 3, flaskT: 0, flaskRate: 0,
-  bar: { ...BAR }, gems: {}, cd: { main: 0, flexA: 0, guard: 0, evade: 0 }, ward: null, eff: { move: 1, atk: 1, surging: false }, surge: { v: 1, max: 1 },
+  gems: [], bar: bySlot(null), cd: bySlot(0), newGems: 0, ward: null, eff: { move: 1, atk: 1, surging: false }, surge: { v: 1, max: 1 },
   inv: [], gear: {}, passives: {}, pts: 0, offer: null, newItems: 0,
-  clears: 0, waypoint: 0, shrines: {}, tree: {}, sockets: {}, // levels cleared, furthest Crypt level cleared, shrines taken, passive tree nodes, support sockets
+  clears: 0, waypoint: 0, shrines: {}, tree: {}, sockets: {}, // levels cleared, furthest Crypt level cleared, shrines taken, passive tree nodes, support sockets { slot: [uid|null] }
+  // gems: instances { uid, id, lvl, ap }; bar: slot -> gem uid | null; newGems: gems gained since the bag was last opened (UI badge, not saved)
   dead: 0, walkT: 0, moving: false, invuln: 0, fbN: 0, autoNovaT: 5, moveX: 0, moveZ: 1, castSeq: 0, lastCast: null,
 };
 

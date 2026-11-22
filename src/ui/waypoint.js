@@ -1,5 +1,5 @@
 // The waypoint screen: a modal (#mWay) listing Crypt levels 1..5 with their par character level, a CLEARED mark and a lock until the one before
-// is cleared. Tapping an unlocked row enters it. It pauses the game like the other panels (ui/panels.js syncPause lists #mWay). Also adds the
+// is cleared. Tapping an unlocked row enters it. It pauses the game like the other panels (ui/panels.js syncPause pauses on any open .modal). Also adds the
 // menu's LEAVE LEVEL button (next to RESUME). Built here in JS so index.html stays untouched.
 import { G, P } from '../core/state.js';
 import { LEVELS } from '../data/levels.js';
@@ -25,7 +25,7 @@ css.textContent = `
 document.head.appendChild(css);
 
 const modal = document.createElement('div');
-modal.className = 'modal'; modal.id = 'mWay';
+modal.className = 'modal'; modal.id = 'mWay'; modal.dataset.sticky = ''; // Escape must not close it: there'd be no level to return to
 modal.innerHTML = '<div class="card"><h3>WAYPOINT</h3><div class="sub" id="wpSub"></div><div id="wpTrial"></div><div id="wpList"></div><div class="row" id="wpBack"></div></div>';
 document.body.appendChild(modal);
 

@@ -413,7 +413,7 @@ try {
       const D = window.__dbg, P = D.P, S = D.S, G = D.G, out = {};
       const clear = () => { G.enemies.forEach(e => { e.gone = true; e.deathT = 1; }); G.enemies = []; };
       const free = (x, z) => !D.blocked(x, z, .6);
-      D.start(true);
+      D.start(true); D.kit();
       // Main auto-attacks: hero near a pack, no input held.
       const pk = D.packs()[0]; let ok = false;
       for (let k = 0; k < 16 && !ok; k++) { const a = k * .4; const x = pk.x + Math.cos(a) * 6, z = pk.z + Math.sin(a) * 6; if (free(x, z) && D.los(x, z, pk.x, pk.z)) { P.x = x; P.z = z; ok = true; } }
@@ -424,7 +424,7 @@ try {
       out.autoFired = P.fbN - fb0; out.autoDamage = dummies.reduce((a, e) => a + e.maxHp - e.hp, 0);
       out.autoHeld = D.ctl.main;
       // mainTarget prefers an elite over a nearer normal enemy, and respects range.
-      D.start(true); clear();
+      D.start(true); D.kit(); clear();
       for (let k = 0; k < 400; k++) { const x = (Math.random() - .5) * 50, z = (Math.random() - .5) * 50; if (free(x, z) && free(x + 2, z - 1) && free(x + 7, z - 1) && D.los(x, z, x + 2, z - 1) && D.los(x, z, x + 7, z - 1)) { P.x = x; P.z = z; break; } }
       const norm = D.spawnEnemy('runner', P.x + 2, P.z - 1, null, 0), elite = D.spawnEnemy('runner', P.x + 7, P.z - 1, null, 2);
       out.losOk = D.los(P.x, P.z, norm.x, norm.z) && D.los(P.x, P.z, elite.x, elite.z);
@@ -445,7 +445,7 @@ try {
       D.hurtP(10); out.wardLife = P.life === S.maxLife; out.wardHp = w ? wmax - w.hp : -1; out.wardVisible = !!(w && w.g.parent);
       D.hurtP(S.maxLife * .6); out.wardBroke = P.ward === null && P.life < S.maxLife && P.life > 0;
       // Blink: away from the nearest enemy, never into an obstacle.
-      D.start(true); clear(); P.invuln = 0;
+      D.start(true); D.kit(); clear(); P.invuln = 0;
       const foe = D.spawnEnemy('runner', 0, 0, null, 0); foe.awake = true;
       let trials = 0, moved = 0, bad = 0, nocast = 0;
       for (let i = 0; i < 80; i++) {
@@ -464,7 +464,7 @@ try {
       clear(); P.x = G.start.x + 8; P.z = G.start.z - 8; P.face = Math.PI / 2; P.cd.evade = 0; const bx = P.x; out.blinkFree = D.castSlot('evade') && Math.hypot(P.x - bx, 0) > 2;
       // No mana.
       out.noMana = P.mana === undefined && S.maxMana === undefined && !document.getElementById('orbR');
-      out.slots = ['sMain', 'sFlexA', 'sGuard', 'sEvade', 'sFl'].every(id => document.getElementById(id) && document.querySelector('#' + id + ' .gem') && document.querySelector('#' + id + ' .cd'));
+      out.slots = ['sMain', 'sFlexA', 'sFlexB', 'sGuard', 'sEvade', 'sFl'].every(id => document.getElementById(id) && document.querySelector('#' + id + ' .gem') && document.querySelector('#' + id + ' .cd'));
       return out;
     });
     console.log('  skill bar:', JSON.stringify(r));
@@ -487,47 +487,48 @@ try {
       const D = window.__dbg, P = D.P, S = D.S, G = D.G, out = {};
       const clear = () => { G.enemies.forEach(e => { e.gone = true; e.deathT = 1; }); G.enemies = []; };
       const free = (x, z) => !D.blocked(x, z, .6);
-      const resetGems = () => { for (const id in P.gems) P.gems[id] = { lvl: 1, ap: 0 }; };
-      D.start(true); clear(); P.cd.main = 1e6; // no auto-fire in these tests
-      out.start = Object.entries(P.gems).map(([k, g]) => k + ':' + g.lvl).join(',');
+      const gm = id => P.gems.find(g => g.id === id);
+      const resetGems = () => { for (const g of P.gems) { g.lvl = 1; g.ap = 0; } };
+      D.start(true); D.kit(); clear(); P.cd.main = 1e6; // no auto-fire in these tests
+      out.start = P.gems.map(g => g.id + ':' + g.lvl).join(',');
       // Kills grant AP to equipped gems; an unequipped gem (Blink, with Nova on the Evade slot) gets 10%.
-      const bar0 = { ...P.bar }; P.bar.evade = 'nova'; resetGems();
+      const bar0 = { ...P.bar }; D.unequip('evade'); resetGems();
       D.kill(D.spawnEnemy('runner', P.x + 3, P.z, null, 0));
-      out.killAp = [P.gems.fireball.ap, P.gems.blink.ap];
-      D.kill(D.spawnEnemy('runner', P.x + 3, P.z, null, 2)); out.rareAp = P.gems.fireball.ap - out.killAp[0];
-      P.bar = bar0;
+      out.killAp = [gm('fireball').ap, gm('blink').ap];
+      D.kill(D.spawnEnemy('runner', P.x + 3, P.z, null, 2)); out.rareAp = gm('fireball').ap - out.killAp[0];
+      D.equipGem('evade', bar0.evade);
       // Time grants AP.
-      resetGems(); clear(); G.packs = []; D.sim(300); out.timeAp = P.gems.fireball.ap;
+      resetGems(); clear(); G.packs = []; D.sim(300); out.timeAp = gm('fireball').ap;
       // Level 5 pierces: a line of two enemies, 4 apart (outside one explosion's radius).
       let spot = null;
       for (let k = 0; k < 600 && !spot; k++) { const x = (Math.random() - .5) * 50, z = (Math.random() - .5) * 50; if (free(x, z) && free(x + 3, z) && free(x + 7, z) && D.los(x, z, x + 3, z) && D.los(x, z, x + 7, z) && D.los(x + 3, z, x + 7, z)) spot = [x, z]; }
       const line = lvl => {
-        resetGems(); P.gems.fireball.lvl = lvl; clear(); P.x = spot[0]; P.z = spot[1]; G.proj.forEach(p => { p.dead = true; }); G.proj = [];
+        resetGems(); gm('fireball').lvl = lvl; clear(); P.x = spot[0]; P.z = spot[1]; G.proj.forEach(p => { p.dead = true; }); G.proj = [];
         const a = D.spawnEnemy('runner', spot[0] + 3, spot[1], null, 0), b = D.spawnEnemy('runner', spot[0] + 7, spot[1], null, 0);
         for (const e of [a, b]) { e.hp = e.maxHp = 1e6; e.awake = false; }
         D.castFireball(spot[0] + 7, spot[1]); D.sim(20);
         return [a.hp < 1e6, b.hp < 1e6];
       };
       out.line1 = line(1);
-      resetGems(); D.gainAP(580); out.lvl5 = P.gems.fireball.lvl; out.has5 = D.gemHas('fireball', 'pierce'); out.has10a = D.gemHas('fireball', 'burn');
-      const fire5 = P.gems.fireball.lvl; out.line5 = line(fire5);
+      resetGems(); D.gainAP(580); out.lvl5 = gm('fireball').lvl; out.has5 = D.gemHas('fireball', 'pierce'); out.has10a = D.gemHas('fireball', 'burn');
+      const fire5 = gm('fireball').lvl; out.line5 = line(fire5);
       // Level 10 caps, leaves burning ground, and AP can't push past it.
-      resetGems(); D.gainAP(1e6); out.lvl10 = P.gems.fireball.lvl; D.gainAP(5000); out.capLvl = P.gems.fireball.lvl; out.capAp = P.gems.fireball.ap; out.has10 = D.gemHas('fireball', 'burn');
+      resetGems(); D.gainAP(1e6); out.lvl10 = gm('fireball').lvl; D.gainAP(5000); out.capLvl = gm('fireball').lvl; out.capAp = gm('fireball').ap; out.has10 = D.gemHas('fireball', 'burn');
       clear(); G.patches = []; P.x = spot[0]; P.z = spot[1]; P.dead = 0; P.life = S.maxLife;
       const e = D.spawnEnemy('runner', spot[0] + 3, spot[1], null, 0); e.hp = e.maxHp = 1e6; e.awake = false;
       D.castFireball(spot[0] + 3, spot[1]); D.sim(40); out.patches = G.patches.length;
       // Gem base drives damage: lv10 hit ~3x a lv1 hit with the same gear (no gear flat, no crit).
       const gear = P.gear; P.gear = {}; D.recalc(); const crit = S.crit; S.crit = 0; clear();
       const t = D.spawnEnemy('runner', spot[0] + 3, spot[1], null, 0); t.hp = t.maxHp = 1e9; t.awake = false;
-      const avg = lvl => { P.gems.fireball.lvl = lvl; let s = 0; for (let i = 0; i < 60; i++) s += D.hit(t, 1, 'fire', { sk: 'fireball', dot: 1 }); return s / 60; };
+      const avg = lvl => { gm('fireball').lvl = lvl; let s = 0; for (let i = 0; i < 60; i++) s += D.hit(t, 1, 'fire', { sk: 'fireball', dot: 1 }); return s / 60; };
       out.dmgRatio = avg(10) / avg(1); P.gear = gear; D.recalc(); S.crit = crit;
       // Gems survive save -> load; old saves with no gems start at lv1.
-      resetGems(); P.gems.fireball = { lvl: 7, ap: 33 }; P.gems.blink.lvl = 3; D.save();
-      D.start(false); out.loaded = [P.gems.fireball.lvl, Math.round(P.gems.fireball.ap), P.gems.blink.lvl];
+      resetGems(); Object.assign(gm('fireball'), { lvl: 7, ap: 33 }); gm('blink').lvl = 3; D.save();
+      D.start(false); out.loaded = [gm('fireball').lvl, Math.round(gm('fireball').ap), gm('blink').lvl];
       const sv = JSON.parse(localStorage.getItem('wd-arpg-1')); delete sv.gems; localStorage.setItem('wd-arpg-1', JSON.stringify(sv));
-      D.start(false); out.oldSave = Object.values(P.gems).every(g => g.lvl === 1 && g.ap === 0);
+      D.start(false); out.oldSave = P.gems.length >= 4 && P.gems.every(g => g.lvl === 1 && g.ap === 0);
       // HUD: the badge and AP bar render in each slot.
-      P.gems.fireball.lvl = 4; P.gems.fireball.ap = 50; P.gems.nova.lvl = 10;
+      D.kit(); gm('fireball').lvl = 4; gm('fireball').ap = 50; gm('nova').lvl = 10;
       for (let i = 0; i < 40 && !document.querySelector('#sMain .gem b'); i++) await new Promise(r => setTimeout(r, 100));
       await new Promise(r => setTimeout(r, 300));
       out.badge = document.querySelector('#sMain .gem b').textContent; out.badgeMax = document.querySelector('#sFlexA .gem b').textContent;
@@ -535,7 +536,7 @@ try {
       return out;
     });
     console.log('  gems:', JSON.stringify(r));
-    check(r.start === 'fireball:1,nova:1,ward:1,blink:1', 'gems: all four start at level 1');
+    check(r.start === 'fireball:1,nova:1,ward:1,blink:1', 'gems: the kit makes all four at level 1');
     check(r.killAp[0] === 1 && Math.abs(r.killAp[1] - .1) < 1e-9 && r.rareAp === 10, `gems: kills give AP (rare 10x); unequipped gem gets 10% (${r.killAp})`);
     check(r.timeAp > .5 && r.timeAp < 2, `gems: time grants AP (${r.timeAp.toFixed(2)} in 10 s)`);
     check(r.line1[0] && !r.line1[1], `gems: lv1 Fireball explodes on the first enemy (${r.line1})`);
