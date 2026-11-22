@@ -1,5 +1,6 @@
 // Animated characters from the KayKit packs (CC0, Kay Lousberg), trimmed by scripts/prep-models.mjs.
 // All characters share one rig, so the enemy clips ship once (in skel_minion.glb) and drive every skeleton.
+// anims_new.glb adds clips from Character Animations 1.1 (same rig) for hero and monsters alike.
 // If loading fails the game falls back to the primitive models in render/models.js.
 import * as T from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -8,7 +9,7 @@ import { BufferGeometryUtils } from 'three/examples/jsm/utils/BufferGeometryUtil
 import { CHAR_BRIGHTNESS } from '../data/graphics.js';
 
 export const chars = { ready: false, failed: false, tpl: {}, clips: {}, weapons: {} };
-const BASE = (import.meta.env.BASE_URL || './') + 'models/';
+export const BASE = (import.meta.env.BASE_URL || './') + 'models/';
 
 const FILES = { minion: 'skel_minion.glb', warrior: 'skel_warrior.glb', rogue: 'skel_rogue.glb', mage: 'skel_mage.glb', hero: 'hero_mage.glb' };
 const WEAPONS = { blade: 'w_blade.glb', axe: 'w_axe.glb', crossbow: 'w_crossbow.glb', shield: 'w_shield_large_a.glb', staff: 'w_staff.glb' };
@@ -44,15 +45,18 @@ function mergeSkinned(root) {
   }
 }
 // The renderer works in linear space (lighting is tuned for r128's legacy lighting), so show textures as authored.
-function linearise(root) { root.traverse(o => { if (o.material) { const m = o.material; if (m.map) { m.map.encoding = T.LinearEncoding; m.map.needsUpdate = true; } } }); }
+export function linearise(root) { root.traverse(o => { if (o.material) { const m = o.material; if (m.map) { m.map.encoding = T.LinearEncoding; m.map.needsUpdate = true; } } }); }
+
+const loader = new GLTFLoader();
+export const loadGLB = f => new Promise((res, rej) => loader.load(BASE + f, res, undefined, rej));
 
 export async function loadCharacters() {
-  const loader = new GLTFLoader();
-  const load = f => new Promise((res, rej) => loader.load(BASE + f, res, undefined, rej));
+  const load = loadGLB;
   try {
-    const [tpl, wpn] = await Promise.all([
+    const [tpl, wpn, extra] = await Promise.all([
       Promise.all(Object.entries(FILES).map(async ([k, f]) => [k, await load(f)])),
       Promise.all(Object.entries(WEAPONS).map(async ([k, f]) => [k, await load(f)])),
+      load('anims_new.glb'),
     ]);
     for (const [k, g] of tpl) {
       linearise(g.scene); mergeSkinned(g.scene);
@@ -62,6 +66,7 @@ export async function loadCharacters() {
       if (k === 'hero') chars.heroClips = Object.fromEntries(g.animations.map(c => [c.name, c]));
     }
     for (const [k, g] of wpn) { linearise(g.scene); chars.weapons[k] = g.scene; }
+    for (const c of extra.animations) chars.clips[c.name] = chars.heroClips[c.name] = c;
     chars.ready = true;
   } catch (e) { console.warn('Character models failed to load, using primitive models: ' + (e && (e.stack || e.message || e))); chars.failed = true; }
   return chars.ready;

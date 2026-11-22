@@ -1,9 +1,11 @@
-// The map: an open crypt floor with rock obstacles (circle colliders), braziers and bones.
+// The map: an open crypt floor with obstacles (circle colliders), braziers and bones.
+// With the KayKit dungeon models loaded it's built by world/dungeon.js; otherwise from primitive rocks here.
 import * as T from 'three';
 import { scene } from '../render/scene.js';
 import { groundTex, GB, GS, GCY, GROCK, glowSprite, decal } from '../render/assets.js';
 import { G } from '../core/state.js';
 import { rand, clamp, dist } from '../core/util.js';
+import { dun, buildDungeon } from './dungeon.js';
 
 export const HALF = 34; // map spans -HALF..HALF on x and z
 
@@ -32,6 +34,15 @@ function rock(x, z, r, solid) {
 export function buildMap() {
   scene.remove(G.world); G.world = new T.Group(); scene.add(G.world); G.obst = []; G.torches = [];
   const start = G.start = { x: -HALF + 5, z: HALF - 5 }, boss = G.bossSpot = { x: HALF - 8, z: -HALF + 8 };
+  G.dressed = dun.ready;
+  if (dun.ready) buildDungeon(HALF); else primitiveMap(start, boss);
+  // minimap base layer
+  const c = G.mmBase = document.createElement('canvas'); c.width = c.height = 300; const m = c.getContext('2d'), k = 300 / (HALF * 2);
+  m.fillStyle = '#16110e'; m.fillRect(0, 0, 300, 300); m.fillStyle = '#4a4048';
+  for (const o of G.obst) { m.beginPath(); m.arc((o.x + HALF) * k, (o.z + HALF) * k, Math.max(2, o.r * k), 0, 7); m.fill(); }
+}
+
+function primitiveMap(start, boss) {
   for (let t = 0; t < 600 && G.obst.length < 52; t++) {
     const r = rand(.8, 2.4), x = rand(-HALF + 3, HALF - 3), z = rand(-HALF + 3, HALF - 3);
     if (dist(x, z, start.x, start.z) < 7 || dist(x, z, boss.x, boss.z) < 10) continue;
@@ -53,8 +64,4 @@ export function buildMap() {
     const f = glowSprite(0xff8a30, 1.4); f.position.y = 1.55; g.add(f); g.add(decal(0xff7020, 4));
     g.position.set(x, 0, z); G.world.add(g); G.torches.push({ f, x, z }); G.obst.push({ x, z, r: .3 });
   }
-  // minimap base layer
-  const c = G.mmBase = document.createElement('canvas'); c.width = c.height = 300; const m = c.getContext('2d'), k = 300 / (HALF * 2);
-  m.fillStyle = '#16110e'; m.fillRect(0, 0, 300, 300); m.fillStyle = '#4a4048';
-  for (const o of G.obst) { m.beginPath(); m.arc((o.x + HALF) * k, (o.z + HALF) * k, Math.max(2, o.r * k), 0, 7); m.fill(); }
 }

@@ -1,11 +1,24 @@
-// Monster types. look: which KayKit character and weapon to use (render/characters.js); bloaters stay procedural.
+// Monster types. look: which KayKit character and weapon to use (render/characters.js) and its clips; bloaters stay procedural.
+//   walk/idle: looping clips; attacks: [clip, speed] picked at random per swing; rise: how it wakes (RISE below).
 // Monster types. hp/dmg are tier-1 values; maps scale them per tier (TIER below).
 export const MT = {
-  zombie: { hp: 16, dmg: 6, spd: 1.8, r: .38, cd: 1.4, range: .75, ai: 'melee', xp: 3, col: 0x5f6f4a, head: 0x8a9a6a, eye: 0xff3020, h: 1.8, look: { kind: 'warrior', weapon: 'blade', walk: 'Walking_A' } },
-  runner: { hp: 8, dmg: 3, spd: 4.0, r: .3, cd: .8, range: .6, ai: 'melee', xp: 2, col: 0x7a2a24, head: 0x9a3a2a, eye: 0xffd000, h: 1.35, scale: .75, look: { kind: 'minion', walk: 'Running_A' } },
-  archer: { hp: 12, dmg: 7, spd: 2.3, r: .34, cd: 2.2, range: 8, ai: 'ranged', xp: 3, col: 0xb8ae96, head: 0xe6dfcc, eye: 0xff3020, h: 1.8, bow: 1, look: { kind: 'rogue', weapon: 'crossbow', walk: 'Running_A' } },
+  zombie: { hp: 16, dmg: 6, spd: 1.8, r: .38, cd: 1.4, range: .75, ai: 'melee', xp: 3, col: 0x5f6f4a, head: 0x8a9a6a, eye: 0xff3020, h: 1.8, look: { kind: 'warrior', weapon: 'blade', walk: 'Skeletons_Walking', idle: 'Skeletons_Idle', rise: 'floor', attacks: [['Melee_1H_Attack_Chop', 1.7], ['Melee_1H_Attack_Slice_Diagonal', 1.6], ['Melee_1H_Attack_Slice_Horizontal', 2.1]] } },
+  runner: { hp: 8, dmg: 3, spd: 4.0, r: .3, cd: .8, range: .6, ai: 'melee', xp: 2, col: 0x7a2a24, head: 0x9a3a2a, eye: 0xffd000, h: 1.35, scale: .75, look: { kind: 'minion', walk: 'Running_A', idle: 'Skeletons_Idle', rise: 'standing', attacks: [['Melee_Unarmed_Attack_Punch_A', 2.2], ['Melee_Unarmed_Attack_Kick', 1.8]] } },
+  archer: { hp: 12, dmg: 7, spd: 2.3, r: .34, cd: 2.2, range: 8, ai: 'ranged', xp: 3, col: 0xb8ae96, head: 0xe6dfcc, eye: 0xff3020, h: 1.8, bow: 1, look: { kind: 'rogue', weapon: 'crossbow', walk: 'Running_A', idle: 'Skeletons_Idle', rise: 'standing', attacks: [['Ranged_2H_Shoot', 1.3]] } },
   bloater: { hp: 28, dmg: 22, spd: 1.6, r: .6, cd: 0, ai: 'bomb', xp: 4, col: 0x6aa040, head: 0x9ad060, eye: 0xffff60, h: 1.6, blob: 1 },
-  boss: { hp: 1200, dmg: 16, spd: 2.4, r: 1.1, cd: 1.7, range: 1.8, ai: 'boss', xp: 160, col: 0x2a2236, head: 0x5a4a70, eye: 0xff2bd6, h: 5.6, scale: 2.6, horns: 1, look: { kind: 'warrior', weapon: 'axe', offhand: 'shield', walk: 'Walking_A', tint: 0xb090d0 } },
+  boss: { hp: 1200, dmg: 16, spd: 2.4, r: 1.1, cd: 1.7, range: 1.8, ai: 'boss', xp: 160, col: 0x2a2236, head: 0x5a4a70, eye: 0xff2bd6, h: 5.6, scale: 2.6, horns: 1, look: { kind: 'warrior', weapon: 'axe', offhand: 'shield', walk: 'Walking_A', idle: 'Melee_2H_Idle', rise: 'taunt', tint: 0xb090d0, attacks: [['Melee_2H_Attack_Chop', 1.6], ['Melee_2H_Attack_Slice', 1.1]] } },
+};
+
+// Waking up. Until a pack is woken, its skeletons hold `pose`; on waking they play `clip` and can't act for its length.
+export const RISE = {
+  floor: { pose: 'Skeletons_Inactive_Floor_Pose', clip: 'Skeletons_Awaken_Floor', speed: 2 },
+  standing: { pose: 'Skeletons_Inactive_Standing_Pose', clip: 'Skeletons_Awaken_Standing', speed: 1.5 },
+  taunt: { clip: 'Skeletons_Taunt', speed: 1 },
+};
+// Other clips: deaths (picked at random), hit reactions (when a hit takes at least `minHit` of max life), boss casts.
+export const ANIM = {
+  deaths: ['Death_A', 'Death_B', 'Skeletons_Death'], hits: ['Hit_A', 'Hit_B'], hitSpeed: 1.6, minHit: .12,
+  bossCast: { slam: ['Melee_2H_Attack_Spin', 1], nova: ['Ranged_Magic_Shoot', .8], summon: ['Ranged_Magic_Summon', 1.8] },
 };
 
 // Per-tier scaling: each map tier adds this fraction on top of tier 1.

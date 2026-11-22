@@ -13,7 +13,7 @@ const TV = new T.Vector3();
 function toScreen(x, y, z) { TV.set(x, y, z).project(cam); return TV.z > 1 ? null : [(TV.x + 1) / 2 * V.W, (1 - TV.y) / 2 * V.H]; }
 
 // Hero clips: a cast plays once (fast) and hands back to run/idle; death holds until respawn.
-const HERO = { shoot: ['Spellcast_Shoot', 2.4], nova: ['Spellcast_Raise', 2.2], dash: ['Dodge_Forward', 1.8] };
+const HERO = { shoot: ['Ranged_Magic_Shoot', 2], arc: ['Ranged_Magic_Spellcasting', 1.6], nova: ['Ranged_Magic_Raise', 3.2], dash: ['Dodge_Forward', 1.4] };
 function animHero(M, dt) {
   M.lock = (M.lock || 0) - dt;
   if (P.dead > 0) { if (M.cur !== 'Death_A') M.play('Death_A', { once: true, fade: .1 }); }
@@ -31,7 +31,7 @@ export function draw(dt) {
   else { const w = P.moving ? Math.sin(P.walkT) : 0; M.legL.rotation.x = w * .7; M.legR.rotation.x = -w * .7; M.armL.rotation.x = -w * .5; M.armR.rotation.x = P.castAnim > 0 ? -1.5 : w * .4; }
   if (M.orb) M.orb.scale.setScalar(.55 + (P.castAnim > 0 ? .4 : 0) + Math.sin(gt * 5) * .05);
   plight.position.set(P.x, 3, P.z);
-  G.torches.forEach((t, i) => { const f = 1.4 + Math.sin(gt * 11 + i) * .15 + Math.sin(gt * 23 + i * 3) * .08; t.f.scale.set(f, f * 1.15, 1); });
+  G.torches.forEach((t, i) => { const f = (t.s || 1.4) * (1 + Math.sin(gt * 11 + i) * .11 + Math.sin(gt * 23 + i * 3) * .06); t.f.scale.set(f, f * 1.15, 1); });
   const boss = G.bossSpec && G.bossSpec.e;
   if (G.portal) {
     const pt = G.portal; pt.tor.rotation.y += dt * 1.5; blight.position.set(pt.x, 2, pt.z); blight.intensity = 2 + Math.sin(gt * 4) * .5;

@@ -94,7 +94,9 @@ async function showChar(keepCam) {
   mixer = new T.AnimationMixer(root);
   const clip = a.animations.find(c => c.name === st.clip) || a.animations.find(c => c.name === idleOf(lib.clips));
   st.clip = clip.name;
-  const act = mixer.clipAction(clip); act.timeScale = st.speed; act.play();
+  const act = mixer.clipAction(clip); act.timeScale = st.speed;
+  if (clip.duration < .05) { act.setLoop(T.LoopOnce); act.clampWhenFinished = true; } // poses: hold the single frame
+  act.play();
   R = { root, clip };
   shown.name = `${ch.name} · ${clip.name} (${clip.duration.toFixed(2)}s)`;
   frameStage(keepCam); label();

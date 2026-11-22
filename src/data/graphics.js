@@ -16,3 +16,8 @@ export const STYLES = {
   retro: { name: 'Retro', sat: .85, contrast: 1.1, tint: [1.02, .98, .92], lift: 0, pixel: 3, posterize: 14, dither: 1, toon: 0, vig: .5, fog: [16, 34, 0x08060a], light: .6, bloom: .8 },
   toon: { name: 'Toon', sat: 1.2, contrast: 1.05, tint: [1, 1, 1], lift: .02, pixel: 1, posterize: 0, bands: 4, dither: 0, toon: 1, vig: .35, fog: [26, 48, 0x0c0912], light: .8, bloom: .7 },
 };
+
+// Dungeon dressing (world/dungeon.js). KayKit dungeon pieces are on a 4-unit grid sized for KayKit characters;
+// `scale` fits them to ours. `bright` darkens their textures to sit with the crypt lighting; the floor gets `floor` on top.
+// `torch`: extra scale for torches and brazier candles.
+export const DUNGEON = { scale: .8, bright: .72, floor: .55, torch: 1.3 };
