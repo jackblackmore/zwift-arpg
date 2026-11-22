@@ -9,7 +9,7 @@ import { SLOTS, BASES, IMPL, AFF } from '../data/items.js';
 export const flatScale = il => 1 + .22 * (il - 1), pctScale = il => 1 + .07 * (il - 1);
 
 export function computeStats(gear, passives = {}, lvl = 1) {
-  const s = { lifeF: 0, lifePct: 0, manaF: 0, lregen: 0, mregen: 0, dmg: 0, fire: 0, cold: 0, light: 0, cast: 0, ms: 0, crit: 0, aoe: 0, proj: 0, chains: 0, lok: 0, mok: 0, spell: 0, pierce: 0, dashCh: 0, freeze: 0, dr: 0 };
+  const s = { lifeF: 0, lifePct: 0, manaF: 0, lregen: 0, mregen: 0, dmg: 0, fire: 0, cold: 0, light: 0, cast: 0, ms: 0, crit: 0, aoe: 0, proj: 0, chains: 0, lok: 0, mok: 0, spell: 0, pierce: 0, dashCh: 0, shieldPct: 0, freeze: 0, dr: 0 };
   for (const k in gear) { const it = gear[k]; if (it) for (const [st, v] of it.mods) s[st] = (s[st] || 0) + v; }
   for (const id in passives) if (PASS[id]) PASS[id].fn(s, passives[id]);
   const H = HERO, l = lvl - 1;
@@ -17,7 +17,7 @@ export function computeStats(gear, passives = {}, lvl = 1) {
     maxLife: Math.max(20, Math.round((H.life + H.lifePer * l + s.lifeF) * (1 + s.lifePct))), maxMana: Math.round(H.mana + H.manaPer * l + s.manaF),
     lregen: H.lregen + s.lregen, mregen: H.mregen + s.mregen, base: H.spell + H.spellPer * l + s.spell, dmg: 1 + s.dmg, fire: s.fire, cold: s.cold, light: s.light,
     cast: 1 + s.cast, ms: H.ms * (1 + s.ms), crit: H.crit + s.crit, aoe: 1 + s.aoe, proj: 1 + s.proj, chains: H.chains + s.chains, lok: s.lok, mok: s.mok, pierce: s.pierce,
-    dashMax: 1 + s.dashCh, freeze: 1 + s.freeze, dr: Math.min(.6, s.dr), blood: !!s.blood, ignite: !!s.ignite, shatter: !!s.shatter, conduit: !!s.conduit, chainboom: !!s.chainboom,
+    dashMax: 1 + s.dashCh, shieldMul: 1 + s.shieldPct, freeze: 1 + s.freeze, dr: Math.min(.6, s.dr), blood: !!s.blood, ignite: !!s.ignite, shatter: !!s.shatter, conduit: !!s.conduit, chainboom: !!s.chainboom,
     burnGround: !!s.burnGround, storm: !!s.storm, autoNova: !!s.autoNova,
   };
 }

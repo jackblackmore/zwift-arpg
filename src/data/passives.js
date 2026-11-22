@@ -15,7 +15,7 @@ export const PASS = {
   multi: { n: 'Twin Flame', d: 'Fireball fires +1 projectile', max: 2, note: 1, c: '#ff8a3c', fn: (s, n) => s.proj += n },
   pierce: { n: 'Searing Lance', d: 'Fireball pierces +1 enemy before exploding', max: 2, note: 1, c: '#ff8a3c', fn: (s, n) => s.pierce += n },
   chain: { n: 'Forked Sky', d: 'Arc chains +2 more times', max: 3, note: 1, c: '#c98bff', fn: (s, n) => s.chains += 2 * n },
-  blink: { n: 'Ember Step', d: 'Flame Dash gains +1 charge', max: 2, note: 1, c: '#ff5a2a', fn: (s, n) => s.dashCh += n },
+  ward: { n: 'Warding', d: 'Magic Shield absorbs 30% more', max: 2, note: 1, c: '#7fb8ff', fn: (s, n) => s.shieldPct += .3 * n },
   ignite: { n: 'Ignite', d: 'Fireball explosions burn enemies for 60% of the hit over 3s', max: 1, note: 1, c: '#ff5a2a', fn: s => s.ignite = 1 },
   shatter: { n: 'Shatter', d: 'Frozen enemies explode on death, freezing and damaging foes nearby', max: 1, note: 1, c: '#7fd8ff', fn: s => s.shatter = 1 },
   conduit: { n: 'Conduit', d: 'Arc always shocks. Shocked enemies take 35% more damage', max: 1, note: 1, c: '#c98bff', fn: s => s.conduit = 1 },

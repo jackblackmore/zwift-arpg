@@ -33,14 +33,14 @@ export const AFF = [
 export const AFFBY = Object.fromEntries(AFF.map(a => [a.st, a]));
 // Mods that only uniques carry.
 export const EXTRA = {
-  lifePct: { t: '#% to maximum life', pct: 1, sign: 1 }, dr: { t: '#% less damage taken', pct: 1 }, dashCh: { t: 'Flame Dash has +# charges', int: 1 },
+  lifePct: { t: '#% to maximum life', pct: 1, sign: 1 }, dr: { t: '#% less damage taken', pct: 1 }, dashCh: { t: 'Flame Dash has +# charges', int: 1 }, shieldPct: { t: 'Magic Shield absorbs #% more', pct: 1 },
   burnGround: { t: 'Fireball explosions leave burning ground', flag: 1 }, storm: { t: 'Every 4th Fireball also casts Arc where it explodes', flag: 1 },
   autoNova: { t: 'Casts Frost Nova automatically every 5 seconds', flag: 1 },
 };
 export const UNIQ = [
   { id: 'watt', slot: 'weapon', name: 'Wattbringer', base: 'Ember Sceptre', mods: [['spell', 9], ['fire', .3], ['proj', 1], ['burnGround', 1]], fl: 'Every turn of the crank feeds the flame.' },
   { id: 'storm', slot: 'amulet', name: 'Heart of the Storm', base: 'Onyx Amulet', mods: [['light', .3], ['cast', .08], ['storm', 1]], fl: 'It hums at a steady ninety.' },
-  { id: 'ember', slot: 'boots', name: 'Emberstride', base: 'Iron Greaves', mods: [['ms', .22], ['dashCh', 2], ['fire', .15]], fl: 'Never the same road twice.' },
+  { id: 'ember', slot: 'boots', name: 'Emberstride', base: 'Iron Greaves', mods: [['ms', .22], ['shieldPct', .4], ['fire', .15]], fl: 'Never the same road twice.' },
   { id: 'glass', slot: 'helm', name: 'The Glass Crown', base: 'Bone Circlet', mods: [['dmg', .6], ['lifePct', -.35], ['crit', .05]], fl: 'Everything hits harder. Including them.' },
   { id: 'frost', slot: 'ring', name: 'Frostbound Loop', base: 'Coral Ring', mods: [['cold', .35], ['freeze', .3], ['autoNova', 1]], fl: 'Cold comes in waves.' },
   { id: 'aegis', slot: 'chest', name: 'Aegis of the Long Ride', base: 'Plate Cuirass', mods: [['lifeF', 90], ['dr', .15], ['lregen', 4]], fl: 'Zone two forever.' },

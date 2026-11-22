@@ -16,14 +16,14 @@ export function hud(dt) {
   G.vign = Math.max(0, G.vign - dt * 1.5);
   $('vign').style.opacity = G.vign + (P.life < S.maxLife * .3 && P.dead <= 0 ? .25 + Math.sin(G.gt * 6) * .1 : 0);
   T.hud -= dt; if (T.hud > 0) return; T.hud = .07;
-  $('lifeF').style.height = (P.life / S.maxLife * 100) + '%'; $('lifeT').textContent = `${Math.ceil(P.life)}/${S.maxLife}`;
+  $('lifeF').style.height = (P.life / S.maxLife * 100) + '%'; $('lifeT').textContent = `${Math.ceil(P.life)}/${S.maxLife}` + (P.shield > 0 ? ` +${Math.ceil(P.shield)}` : ''); $('orbL').classList.toggle('shielded', P.shield > 0);
   $('manaF').style.height = S.blood ? '0%' : (P.mana / S.maxMana * 100) + '%'; $('manaT').textContent = S.blood ? 'BLOOD' : `${Math.floor(P.mana)}/${S.maxMana}`;
   $('xpF').style.width = (P.xp / xpNeed(P.lvl) * 100) + '%';
   $('iMap').textContent = 'MAP ' + G.tier; $('iLvl').textContent = 'Level ' + P.lvl; $('iKill').textContent = `${G.mapKills}/${G.mapTotal} slain`;
   const res = S.blood ? P.life : P.mana;
-  [['sFb', SK.fireball.cost], ['sAr', SK.arc.cost], ['sNv', SK.nova.cost], ['sDs', SK.dash.cost]].forEach(([id, c]) => $(id).classList.toggle('nomana', res < c));
+  [['sFb', SK.fireball.cost], ['sAr', SK.arc.cost], ['sNv', SK.nova.cost], ['sSh', SK.shield.cost]].forEach(([id, c]) => { $(id).classList.toggle('nomana', res < c); $(id).querySelector('.n').textContent = c; });
   $('sNv').querySelector('.cd').style.height = Math.max(0, P.novaCd / SK.nova.cd * 100) + '%';
-  $('sDs').querySelector('.n').textContent = P.dashCh; $('sDs').querySelector('.cd').style.height = P.dashCh < 1 ? (100 - P.dashT / SK.dash.recharge * 100) + '%' : '0%';
+  $('sSh').querySelector('.cd').style.height = Math.max(0, P.shieldCd / SK.shield.cd * 100) + '%';
   $('sFl').querySelector('.n').textContent = Math.floor(P.flask); $('sFl').querySelector('.cd').style.height = P.flask < SK.flask.max ? (100 - (P.flask % 1) * 100) + '%' : '0%';
   $('sFb').classList.toggle('act', ctl.fb); $('sAr').classList.toggle('act', ctl.arc);
   const ib = $('invBadge'); ib.style.display = P.newItems ? 'block' : 'none'; ib.textContent = P.newItems;
