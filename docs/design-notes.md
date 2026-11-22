@@ -33,6 +33,31 @@ Two ideas sit underneath everything:
   - Any gem can be fused for some AP; mastered gems give a bonus. Duplicate drops become fuel. Support gems work the same way.
 - **Open:** whether fusion replaces the FF7 "mastered gem spawns a copy" idea (leaning yes, to keep one clear ending for a mastered gem).
 
+### Stats
+
+- **Today** (`src/game/stats.js`): one flat pool. Level gives base life, mana and spell damage; gear and passives all add into it; skill behaviour (projectiles, chains, pierce) sits in the same pool; defence is just life plus a little damage reduction; no attributes.
+- **Leaning:** one stat sheet fed by the three systems, each owning different parts:
+
+| | Gems | Passive tree | Gear |
+|---|---|---|---|
+| Damage | Base damage (gem tier and level) | % increases | Flat spell power + % affixes |
+| Behaviour | All skill-specific behaviour | Rule-changing keystones | Rule-changing uniques |
+| Survival | n/a | % life, regen, defensive keystones | Most defence: armour, resistances, flat life |
+| Character level | n/a | One point per level | n/a |
+
+- **Damage comes from the gem, not character level.** Being behind on gems means slow kills (longer clears); being behind on level or gear means more deaths.
+- **Leaning: "increased" vs "more"** (PoE). `damage = (gem base + flat from gear) × (1 + sum of increased) × each more multiplier × crit`. "Increased" adds together (tree, affixes; common). "More" multiplies (keystones, gem milestones, uniques; rare). Controls power creep.
+- **Leaning: no attributes** (Strength/Dex/Int) for now. Revisit if classes arrive.
+- **Leaning: defence.** Life + armour (reduces hits) + elemental resistances, mostly from gear. Each region's enemies lean toward an element, so resistances matter and gear changes by region.
+
+### Skill variety
+
+- **Problem:** three skills that differ only by element get boring fast.
+- **How others solve it:** D3 runes transform skills; Last Epoch per-skill trees; PoE hundreds of skills plus supports and triggers; D4 aspects rewrite skills; Hades god boons twist the same attacks; Vampire Survivors evolutions. Variety comes from **how a skill delivers damage, not its element**.
+- **Open (proposal):** skill families by delivery (projectile, chain, nova, ground, channel, minion, totem, aura/orbit, melee); **element comes from supports and the tree**, not the skill (e.g. a Cold Infusion support); gem milestones transform skills; uniques rewrite them.
+- **Bike angle:** minion, totem and aura builds are nearly hands-free (easy rides, tired days); channel fits the Ride's hold buttons; projectile and ground are more active. Free gem swaps let you change style per ride.
+- **Open:** first families to build. Suggestion: projectile, chain, nova, ground, minion, then channel and totem.
+
 ## Regions and levels
 
 - **Leaning:** the world is a set of regions (the Crypt first, then the Forest, and so on). Each region has **4–5 dungeon levels**, then a **Trial boss**.
