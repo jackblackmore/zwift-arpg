@@ -18,8 +18,28 @@ export const OBSTACLES = [
   { name: 'rubble_half', w: 1, circles: [[1, 0, 1.4], [2.9, 0, 1.2]] },
   { name: 'coffin', w: 1, circles: [[0, -.75, 1], [0, .75, 1]] },
 ];
-export const OBSTACLE_COUNT = 46;
 
 // Loose clutter on the floor (no colliders), and how many of each.
 export const CLUTTER = [['bone_A', 22], ['bone_B', 18], ['bone_C', 12], ['skull', 14], ['ribcage', 8], ['coin_stack_small', 5], ['candle_triple', 8], ['candle_lit', 10]];
-export const BRAZIERS = 14;
+
+// ---- Level layout (world/gen.js) ----
+// The level is a zones × zones grid of zones, each zoneCells × zoneCells cells and holding at most one room.
+// A random route of zones runs from the entrance (bottom-left) to the guardian arena (top-right); a few side
+// rooms hang off it as dead ends. Rooms are joined by Z-shaped corridors laid along the gaps between zones.
+export const GEN = {
+  cell: 3.2, // world units per grid cell: one floor tile (4 × DUNGEON.scale in data/graphics.js)
+  zones: 4, zoneCells: 11, // 44 × 44 cells = 141 units across
+  route: [9, 13], // main route length in rooms, entrance and guardian included (odd numbers only fit the grid)
+  room: [4, 7], // ordinary room width and height in cells (at most zoneCells − 4: two wall cells each side)
+  startRoom: [4, 5], bossRoom: 7,
+  side: [4, 6], // side rooms
+  corridor: 2, // corridor width in cells
+  notchChance: .35, // chance a room of 5+ cells loses a corner block (an L shape)
+};
+// Dressing density (world/dungeon.js): props per floor cell in ordinary rooms, wall torches (one per this many wall
+// segments, at most `max`), and braziers (at most one per room, `max` in all).
+export const OBSTACLE_DENSITY = .09;
+export const WALL_TORCH = { every: 7, max: 34 };
+export const BRAZIER_MAX = 16;
+// Packs: how far apart (units) packs sit, and how far from the entrance.
+export const PACK_SPACING = { room: 7, relaxed: 5, fromStart: 13, fromBoss: 9 };

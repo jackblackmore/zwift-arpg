@@ -32,7 +32,7 @@ export const PACKS = [
   [['runner', 3], ['archer', 1], ['bloater', 1]], [['archer', 2], ['zombie', 2]], [['zombie', 2], ['runner', 3]],
 ];
 // count: packs per map = min(max, base + perTier × tier).
-export const PACK = { count: [18, 2, 28], magicChance: .25, rareChance: .25, rareTypes: ['zombie', 'archer', 'bloater', 'zombie'], aggro: 11.5, spawnRange: 27 };
+export const PACK = { count: [18, 2, 28], magicChance: .25, rareChance: .25, rareTypes: ['zombie', 'archer', 'bloater', 'zombie'], aggro: 9, aggroNear: 3.5, spawnRange: 27 };
 
 export const RAREAFF = { hasted: 'Hasted', fortified: 'Fortified', burning: 'Burning', splitting: 'Splitting', volatile: 'Volatile', frenzied: 'Frenzied' };
 export const RN1 = ['Gut', 'Rot', 'Grim', 'Bile', 'Ash', 'Hollow', 'Mire', 'Dread', 'Blight', 'Cinder', 'Gloom', 'Wretch'];

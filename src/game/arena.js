@@ -18,7 +18,7 @@ const DT = .033;
 
 export function arena(spec) {
   const tier = spec.tier || 1, lvl = spec.lvl || parLevel(tier);
-  clearMap(); G.tier = tier; G.packs = []; G.bossSpec = null; G.obst = []; G.mapKills = 0;
+  clearMap(); G.tier = tier; G.packs = []; G.bossSpec = null; G.obst = []; G.layout = null; G.mapKills = 0;
   Object.assign(P, { lvl, passives: {}, gear: gearProfile(spec.gear || PAR_GEAR(tier), tier), dead: 0, invuln: 0, novaCd: 0, shield: 0, shieldT: 0, shieldCd: 0, castT: 0, dashT: 0, flaskT: 0, kills: 0, taken: 0 });
   recalc(); P.life = S.maxLife; P.mana = S.maxMana; P.flask = SK.flask.max; P.dashCh = S.dashMax;
   P.x = -8; P.z = 0; // about where a pack wakes in a room

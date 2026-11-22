@@ -2,11 +2,12 @@
 import * as T from 'three';
 import { G, P, S } from '../core/state.js';
 import { SK } from '../data/skills.js';
-import { rand, dist, $ } from '../core/util.js';
+import { dist, $ } from '../core/util.js';
 import { scene } from '../render/scene.js';
 import { glowSprite, decal } from '../render/assets.js';
 import { banner } from '../render/fx.js';
-import { HALF, buildMap, blocked } from '../world/map.js';
+import { buildMap, blocked } from '../world/map.js';
+import { PACK_SPACING } from '../data/dungeon.js';
 import { makePack } from './enemies.js';
 import { packCount, tierHp } from './formulas.js';
 
@@ -27,14 +28,23 @@ export function clearMap() {
   $('bossbar').style.display = 'none';
 }
 
+// Packs go in rooms (one each first, then more in the big ones) and at chokepoints (corridor midpoints on the way).
+// Each pack carries `rank`, its place along the route (side rooms count as their parent + .5), for the autopilot.
+function placePacks(n) {
+  const L = G.layout, PS = PACK_SPACING, { start, boss } = L;
+  const ok = (x, z, gap) => dist(x, z, start.x, start.z) >= PS.fromStart && dist(x, z, boss.x, boss.z) >= PS.fromBoss && !blocked(x, z, 1.5) && !G.packs.some(p => dist(p.x, p.z, x, z) < gap);
+  const add = (x, z, rank) => { const p = makePack(x, z); p.rank = rank; G.packs.push(p); return p; };
+  const rooms = L.rooms.filter(r => r.kind !== 'start' && r.kind !== 'boss').sort(() => Math.random() - .5);
+  const inRoom = (r, gap) => { for (let k = 0; k < 30; k++) { const x = -L.half + (r.i0 + 1 + Math.random() * (r.w - 2)) * L.cell, z = -L.half + (r.j0 + 1 + Math.random() * (r.h - 2)) * L.cell; if (ok(x, z, gap)) return add(x, z, r.rank); } };
+  for (const r of rooms) if (G.packs.length < n) inRoom(r, PS.room);
+  for (const e of [...L.edges].sort(() => Math.random() - .5).slice(0, Math.ceil(n / 6))) if (G.packs.length < n && ok(e.mid.x, e.mid.z, PS.relaxed)) add(e.mid.x, e.mid.z, e.rank);
+  const big = [...rooms].sort((a, b) => b.w * b.h - a.w * a.h);
+  for (let pass = 0; pass < 6 && G.packs.length < n; pass++) for (const r of big) if (G.packs.length < n) inRoom(r, pass < 2 ? PS.room : PS.relaxed);
+}
+
 export function newMap(t) {
   G.tier = t; clearMap(); buildMap(); G.mapKills = 0; G.mapTotal = 0; G.packs = [];
-  const n = packCount(t);
-  for (let k = 0; k < 800 && G.packs.length < n; k++) {
-    const x = rand(-HALF + 3, HALF - 3), z = rand(-HALF + 3, HALF - 3);
-    if (dist(x, z, G.start.x, G.start.z) < 13 || dist(x, z, G.bossSpot.x, G.bossSpot.z) < 9 || blocked(x, z, 1.5) || G.packs.some(p => dist(p.x, p.z, x, z) < 7)) continue;
-    G.packs.push(makePack(x, z));
-  }
+  placePacks(packCount(t));
   G.bossSpec = { spawned: false }; G.mapTotal++;
   P.x = G.start.x; P.z = G.start.z; P.dead = 0; P.life = S.maxLife; P.mana = S.maxMana; P.flask = SK.flask.max;
   banner('MAP ' + t, '#c8a25a', t === 1 ? 'The Ashen Crypt · the boss waits in the far corner' : `Monsters are ${Math.round((tierHp(t) - 1) * 100)}% tougher · better loot`);
