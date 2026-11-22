@@ -4,14 +4,15 @@ An action RPG in the style of Path of Exile, built to be played on a Wahoo KICKR
 
 **Play:** https://jackblackmore.github.io/zwift-arpg/
 **Original pedal demo** (auto-battler driven by power and cadence): https://jackblackmore.github.io/zwift-arpg/pedal/
+**Asset gallery** (every KayKit character, animation and prop we've imported, to pick from): https://jackblackmore.github.io/zwift-arpg/gallery/
 
 ## Run it
 
 ```sh
 npm install
-npm run dev      # local dev server (ARPG at /, pedal demo at /pedal/)
+npm run dev      # local dev server (ARPG at /, pedal demo at /pedal/, gallery at /gallery/)
 npm run build    # production build into dist/
-npm test         # headless playtest of both games (needs Chrome; run build first)
+npm test         # headless playtest of both games and the gallery (needs Chrome; run build first)
 SCREENSHOT=/tmp/shot.png npm test   # also saves an ARPG mid-fight screenshot
 ```
 
@@ -47,8 +48,10 @@ index.html, src/          the ARPG
   render/                 three.js scene, assets, primitive + KayKit characters, post-processing, effects, drawing + overlay
   ui/                     HUD + minimap, panels (bag, passives, menu)
 public/models/            trimmed KayKit .glb files (rebuild with scripts/prep-models.mjs)
+gallery/, src/gallery/    asset gallery page: characters × both animation sets, held gear, prop packs
+public/gallery/           gallery files: KayKit Adventurers, Skeletons, Dungeon Remastered, Halloween Bits, Medieval Hexagon (rebuild with scripts/prep-gallery.mjs)
 pedal/                    the original pedal-driven demo (unchanged, its own src/)
-tests/sim.mjs             headless playtest for both
+tests/sim.mjs             headless playtest for both games and the gallery
 ```
 
 Game code reads player input only from `ctl` in `src/input/input.js`: movement, an optional aim point, held skills and one-shot presses. The Zwift Ride and KICKR will become one more device writing into `ctl`, without touching game code.

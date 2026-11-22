@@ -1,7 +1,9 @@
 // Headless playtest. Builds nothing itself: run `npm run build` first. Serves dist/, then:
 //   1. ARPG (/): a scripted player clears packs, loots, equips, spends passives, kills the boss and takes the portal.
 //   2. Pedal demo (/pedal/): two 12-minute simulated rides, as before.
-// Usage: npm test  (needs Chrome; set CHROME_PATH if not found). SCREENSHOT=/tmp/shot.png saves an ARPG mid-fight shot.
+//   3. Asset gallery (/gallery/): every character, animation set and model pack loads and shows.
+// Usage: npm test  (needs Chrome; set CHROME_PATH if not found). SCREENSHOT=/tmp/shot.png saves an ARPG mid-fight shot
+// (and /tmp/shot-gallery-*.png, gallery views).
 import { preview } from 'vite';
 import puppeteer from 'puppeteer-core';
 import { existsSync } from 'node:fs';
@@ -20,7 +22,7 @@ async function open(path) {
   page.on('console', m => { if (m.type() === 'error' && !m.text().startsWith('Failed to load resource')) errors.push(m.text()); });
   await page.setViewport({ width: 1100, height: 700 });
   await page.goto('http://localhost:4173' + path, { waitUntil: 'load' });
-  await page.waitForFunction(() => window.__dbg && (!window.__dbg.ready || window.__dbg.ready()), { timeout: 20000 });
+  await page.waitForFunction(() => window.__gal || (window.__dbg && (!window.__dbg.ready || window.__dbg.ready())), { timeout: 20000 });
   return { page, errors };
 }
 
@@ -116,6 +118,35 @@ try {
       check(r.kj > 50, `pedal ${name}: kilojoules banked (${Math.round(r.kj)})`);
     }
     check(errors.length === 0, `pedal: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
+  }
+  // ---------- Asset gallery ----------
+  {
+    const { page, errors } = await open('/gallery/');
+    await page.waitForFunction(() => window.__gal.ready() || /Failed/.test(document.getElementById('status').textContent), { timeout: 30000 });
+    const shots = [];
+    const view = async (name) => {
+      await page.waitForFunction(() => window.__gal.ready(), { timeout: 30000 });
+      const r = await page.evaluate(() => ({ ...window.__gal.onStage(), label: window.__gal.shown.name }));
+      if (process.env.SCREENSHOT) { await new Promise(r => setTimeout(r, 400)); const f = process.env.SCREENSHOT.replace(/\.png$/, `-gallery-${name}.png`); await page.screenshot({ path: f }); shots.push(f); }
+      return r;
+    };
+    const idx = await page.evaluate(() => window.__gal.idx());
+    const res = {};
+    res.first = await view('character');
+    // Every character on the other animation set, then an attack clip.
+    let charsOk = 0;
+    for (let i = 0; i < idx.chars.length; i++) { await page.evaluate(i => window.__gal.act('char', i), i); const r = await view('c' + i).catch(() => null); if (r && r.meshes > 0 && r.playing) charsOk++; }
+    await page.evaluate(() => window.__gal.act('set', 'adventurers'));
+    await page.evaluate(() => window.__gal.act('clip', '2H_Melee_Attack_Spin'));
+    res.adv = await view('attack');
+    let packsOk = 0;
+    for (const p of idx.packs) { await page.evaluate(id => window.__gal.act('tab', id), p.id); const r = await view(p.id); if (r.top === p.items.length && r.meshes > 0) packsOk++; else console.log('  pack', p.id, JSON.stringify(r), p.items.length); }
+    console.log('  gallery:', JSON.stringify({ chars: idx.chars.length, packs: idx.packs.map(p => p.id + ':' + p.items.length), charsOk, packsOk, adv: res.adv.label }), shots.length ? 'shots: ' + shots.join(' ') : '');
+    check(res.first.meshes > 0 && res.first.playing, 'gallery: first character shows and animates');
+    check(charsOk === idx.chars.length, `gallery: all characters load (${charsOk}/${idx.chars.length})`);
+    check(/2H Melee Attack Spin|2H_Melee_Attack_Spin/.test(res.adv.label) && res.adv.playing, 'gallery: switching animation set and clip plays it');
+    check(packsOk === idx.packs.length, `gallery: every model pack shows all its models (${packsOk}/${idx.packs.length})`);
+    check(errors.length === 0, `gallery: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   }
 } finally {
   await browser.close();
