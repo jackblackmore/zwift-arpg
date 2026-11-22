@@ -11,7 +11,7 @@ import { sparks, glows, emit, burst, ringFx, flashFx, floatT, banner } from '../
 import { near, wake, spawnEnemy } from './enemies.js';
 import { dropItem } from './items.js';
 import { gainXp, xpNeed } from './stats.js';
-import { makePortal } from './maps.js';
+import { onKill } from './level.js';
 import { castArc, endWard } from './skills.js';
 
 const ECOL = { fire: '#ffb070', cold: '#bff0ff', light: '#e0c8ff' };
@@ -26,7 +26,7 @@ export function hit(e, mult, elem, src = {}) {
   e.hp -= d; e.flash = .07; e.lastElem = elem; e.lastHit = Math.max(e.lastHit || 0, d);
   if (!src.dot) {
     floatT(e.x, e.h + .3, e.z, Math.round(d), crit ? '#ffe060' : ECOL[elem] || '#fff', crit ? 17 : 12);
-    if (src.kx !== undefined && e.type !== 'boss') { const k = (crit ? 5 : 3) / (e.rar === 2 ? 3 : 1); e.vx += src.kx * k; e.vz += src.kz * k; }
+    if (src.kx !== undefined && e.ai !== 'boss') { const k = (crit ? 5 : 3) / (e.rar === 2 ? 3 : 1); e.vx += src.kx * k; e.vz += src.kz * k; }
     SFX.hit(); if (crit) shake(.08);
   }
   if (e.hp <= 0) kill(e);
@@ -35,25 +35,25 @@ export function hit(e, mult, elem, src = {}) {
 
 export function kill(e) {
   if (e.deathT) return;
-  e.deathT = .001; G.mapKills++; P.kills++;
+  e.deathT = .001;
+  if (e.noLoot) { burst(e.x, 1, e.z, 0x9a2a1a, 8, 3); if (e.aura) e.aura.visible = false; return; } // collapsed when a beat ended: no kill, drops or blasts
+  G.mapKills++; P.kills++;
   SFX.kill();
-  const col = e.freeze > 0 ? 0xbff0ff : e.type === 'bloater' ? 0x9ad060 : e.type === 'boss' ? 0xff4fd8 : 0x9a2a1a;
-  burst(e.x, 1, e.z, col, e.type === 'boss' ? 120 : e.rar === 2 ? 40 : 12, e.type === 'boss' ? 9 : 4);
+  const bossy = e.ai === 'boss';
+  const col = e.freeze > 0 ? 0xbff0ff : e.type === 'bloater' ? 0x9ad060 : bossy ? 0xff4fd8 : 0x9a2a1a;
+  burst(e.x, 1, e.z, col, bossy ? 120 : e.rar === 2 ? 40 : 12, bossy ? 9 : 4);
   if (e.aura) e.aura.visible = false; if (e.fireAura) e.fireAura.visible = false;
-  gainXp(e.xp * (e.rar === 2 ? 8 : e.rar === 1 ? 2 : 1) * (1 + TIER.xp * (G.tier - 1)));
+  gainXp(e.xp * (e.rar === 2 ? 8 : e.rar === 1 ? 2 : 1) * (1 + TIER.xp * (G.depth - 1)));
   P.life = Math.min(S.maxLife, P.life + S.lok);
   P.flask = Math.min(SK.flask.max, P.flask + (e.rar === 2 ? SK.flask.perRare : SK.flask.perKill));
   if (e.rar === 2) { dropItem(e.x, e.z, .15); if (Math.random() < .5) dropItem(e.x, e.z, .1); stop(.06); shake(.3); }
-  else if (e.type !== 'boss' && Math.random() < (e.rar === 1 ? .1 : .04)) dropItem(e.x, e.z, 0);
+  else if (!bossy && Math.random() < (e.rar === 1 ? .1 : .04)) dropItem(e.x, e.z, 0);
   if (S.shatter && e.freeze > 0) G.queue.push({ k: 'shatter', x: e.x, z: e.z, hp: e.maxHp });
   if (S.chainboom && e.lastElem === 'fire' && Math.random() < .3) G.queue.push({ k: 'boom', x: e.x, z: e.z });
   if (e.type === 'bloater' || e.aff.includes('volatile')) G.queue.push({ k: 'bloat', x: e.x, z: e.z, t: e.type === 'bloater' ? .15 : .9, dmg: e.dmg * (e.type === 'bloater' ? .7 : 1.2), small: e.type !== 'bloater' });
-  if (e.aff.includes('splitting')) for (let i = 0; i < 3; i++) { const r = spawnEnemy('runner', e.x + rand(-1, 1), e.z + rand(-1, 1), null, 1); r.awake = true; G.mapTotal++; }
-  if (e.type === 'boss') {
-    banner('THE WARDEN FALLS', '#ff4fd8', 'A portal opens · step through for a harder map'); shake(1); stop(.3); $('bossbar').style.display = 'none';
-    for (let i = 0; i < 5; i++) setTimeout(() => dropItem(e.x, e.z, i === 0 ? .6 : .25), i * 120);
-    makePortal(e.x - 2, e.z + 2);
-  }
+  if (e.aff.includes('splitting')) for (let i = 0; i < 3; i++) { const r = spawnEnemy('runner', e.x + rand(-1, 1), e.z + rand(-1, 1), null, 1); r.awake = true; r.beat = e.beat; }
+  if (bossy) { shake(1); stop(.3); }
+  onKill(e);
 }
 
 export function hurtP(d) {
@@ -68,7 +68,7 @@ export function hurtP(d) {
   P.life -= d;
   floatT(P.x, 2.1, P.z, Math.round(d), '#ff5050', 13); G.vign = Math.min(.9, G.vign + .35); SFX.hurt();
   if (P.life <= 0) {
-    P.life = 0; P.dead = 2.6; banner('YOU HAVE DIED', '#ff3030', 'Respawning at the map entrance');
+    P.life = 0; P.dead = 2.6; banner('YOU HAVE DIED', '#ff3030', 'Respawning at the last checkpoint');
     burst(P.x, 1, P.z, 0xff2020, 50, 5); P.xp = Math.max(0, P.xp - xpNeed(P.lvl) * .1);
   }
 }
@@ -106,7 +106,7 @@ export function processQueue(dt) {
     q.done = true;
     if (q.k === 'shatter') {
       const r = 2.4 * S.aoe;
-      near(q.x, q.z, r, e => { e.hp -= q.hp * .3; floatT(e.x, e.h, e.z, Math.round(q.hp * .3), '#bff0ff', 12); if (e.type !== 'boss') e.freeze = Math.max(e.freeze, .9); if (e.hp <= 0) kill(e); });
+      near(q.x, q.z, r, e => { e.hp -= q.hp * .3; floatT(e.x, e.h, e.z, Math.round(q.hp * .3), '#bff0ff', 12); if (e.ai !== 'boss') e.freeze = Math.max(e.freeze, .9); if (e.hp <= 0) kill(e); });
       ringFx(q.x, q.z, r, 0xbff0ff, .3, .3); burst(q.x, .8, q.z, 0xbff0ff, 24, 6);
     }
     if (q.k === 'boom') explode(q.x, q.z, .6, false, true);
@@ -114,7 +114,7 @@ export function processQueue(dt) {
       const r = q.small ? 2.6 : 2.2;
       ringFx(q.x, q.z, r, 0x9ad060, .35, .5); flashFx(q.x, .8, q.z, 0x9ad060, r * 2.5, .3); burst(q.x, .6, q.z, 0x9ad060, 30, 6); burst(q.x, .6, q.z, 0x5a8a20, 15, 4); SFX.boom(); shake(.15);
       if (dist(P.x, P.z, q.x, q.z) < r + P.r) hurtP(q.dmg);
-      near(q.x, q.z, r, e => { e.hp -= 20 * (1 + TIER.hp * (G.tier - 1)); if (e.hp <= 0) kill(e); });
+      near(q.x, q.z, r, e => { e.hp -= 20 * (1 + TIER.hp * (G.depth - 1)); if (e.hp <= 0) kill(e); });
     }
   }
   G.queue = G.queue.filter(q => !q.done);

@@ -44,7 +44,7 @@ export function cleanItem(it) {
   return it;
 }
 export function dropItem(x, z, boost) {
-  const it = rollItem(G.tier, boost), g = new T.Group();
+  const it = rollItem(G.depth, boost), g = new T.Group();
   const m = new T.Mesh(GB, new T.MeshLambertMaterial({ color: RCOL[it.rar], emissive: RCOL[it.rar], emissiveIntensity: .35 })); m.scale.set(.32, .14, .42); g.add(m);
   if (it.rar >= 2) {
     const beam = new T.Mesh(GCY, new T.MeshBasicMaterial({ color: RCOL[it.rar], transparent: true, opacity: it.rar === 3 ? .5 : .3, blending: T.AdditiveBlending, depthWrite: false }));

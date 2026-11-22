@@ -21,9 +21,10 @@ import { autopilotRanges } from './game/autopilot.js';
 import { initSurge } from './game/surge.js';
 import { SK } from './data/skills.js';
 import { recalc } from './game/stats.js';
-import { newMap } from './game/maps.js';
+import { newLevel, levelGoal, currentBeat, startBeat } from './game/level.js';
+import { LEVEL } from './data/levels.js';
 import { save, load } from './game/save.js';
-import { kill, hurtP } from './game/combat.js';
+import { kill, hit, hurtP } from './game/combat.js';
 import { castSlot, castFireball, castNova, castWard, castBlink, mainTarget, mainRange, endWard } from './game/skills.js';
 import { spawnEnemy } from './game/enemies.js';
 import { blocked, los } from './world/map.js';
@@ -48,10 +49,10 @@ function begin(fresh) {
   if (fresh || !sv) {
     Object.assign(P, { lvl: 1, xp: 0, gear: {}, inv: [], passives: {}, pts: 0, offer: null, newItems: 0, kills: 0 });
     P.gear.weapon = { id: G.itemId++, slot: 'weapon', rar: 1, base: 'Ashwood Staff', name: 'Smouldering Ashwood Staff', il: 1, impl: 1, mods: [['spell', 5], ['fire', .12]] };
-    recalc(); newMap(1); save();
+    recalc(); newLevel(0); save();
   } else {
     Object.assign(P, { lvl: sv.lvl, xp: sv.xp, gear: sv.gear || {}, inv: sv.inv || [], passives: sv.passives || {}, pts: sv.pts || 0, offer: null });
-    G.itemId = sv.itemId || 100; recalc(); newMap(sv.tier || 1);
+    G.itemId = sv.itemId || 100; recalc(); newLevel(sv.clears ?? Math.max(0, (sv.tier || 1) - 1));
   }
   G.started = true; $('mMenu').classList.remove('show'); syncPause();
 }
@@ -95,7 +96,7 @@ $('bMute').onclick = () => { audio(); $('bMute').style.opacity = toggleMute() ? 
 $('bMenu').onclick = () => { $('mMenu').classList.add('show'); $('goCont').style.display = ''; $('goCont').textContent = 'RESUME'; syncPause(); };
 $('goNew').onclick = () => begin(true);
 $('goCont').onclick = () => { if (G.started && $('goCont').textContent === 'RESUME') { $('mMenu').classList.remove('show'); syncPause(); } else begin(false); };
-const sv = load(); if (sv) { $('goCont').style.display = ''; $('goCont').dataset.label = `CONTINUE · LV ${sv.lvl} · MAP ${sv.tier}`; if (!$('goCont').disabled) $('goCont').textContent = $('goCont').dataset.label; }
+const sv = load(); if (sv) { $('goCont').style.display = ''; $('goCont').dataset.label = `CONTINUE · LV ${sv.lvl} · ${LEVEL.name.toUpperCase()} · ${sv.clears ?? Math.max(0, (sv.tier || 1) - 1)} CLEARED`; if (!$('goCont').disabled) $('goCont').textContent = $('goCont').dataset.label; }
 
 let last = performance.now();
 function frame(now) {
@@ -111,8 +112,8 @@ requestAnimationFrame(frame);
 window.__dbg = {
   G, P, S, SK, ctl, Q, chars, ride, setRide, effortMods, pollRide, autopilotRanges, surge: () => P.surge,
   ready: () => (chars.ready || chars.failed) && G.loaded, cycleQuality, cycleStyle,
-  start: fresh => begin(fresh !== false),
+  start: fresh => begin(fresh !== false), hurt: d => hurtP(d), hud: () => { hud(.1); hud(.1); },
   sim: n => { for (let i = 0; i < n; i++) { update(.033); updFx(.033); } },
   enemies: () => G.enemies, packs: () => G.packs, items: () => G.ground,
-  newMap, kill, dropItem, spawnEnemy, blocked, los, recalc, hurtP, castSlot, castFireball, castNova, castWard, castBlink, mainTarget, mainRange, openInv, openPass, equip,
+  newLevel, level: () => G.level, levelGoal, beat: currentBeat, startBeat, hit, kill, dropItem, spawnEnemy, blocked, los, recalc, hurtP, castSlot, castFireball, castNova, castWard, castBlink, mainTarget, mainRange, openInv, openPass, equip,
 };

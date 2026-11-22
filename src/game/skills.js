@@ -24,7 +24,7 @@ export function aim() {
 
 // ---- Main: auto-target ----
 export const mainRange = () => SK[P.bar.main].range;
-const isElite = e => e.rar === 2 || e.guardian || e.type === 'boss';
+const isElite = e => e.rar === 2 || e.guardian || e.ai === 'boss';
 // Elites first, then the nearest enemy; within range and in line of sight.
 export function mainTarget() {
   const R = mainRange(); let elite = null, ed = 1e9, norm = null, nd = 1e9;
@@ -88,7 +88,7 @@ export function castNova(free = false) {
   const r = N.radius * S.aoe;
   near(P.x, P.z, r, e => {
     const d = dist(e.x, e.z, P.x, P.z) || 1; hit(e, N.mult, 'cold', { kx: (e.x - P.x) / d, kz: (e.z - P.z) / d, sk: 'nova' });
-    if (!e.deathT) { if (e.type === 'boss') e.chill = 3; else e.freeze = N.freeze * S.freeze; }
+    if (!e.deathT) { if (e.ai === 'boss') e.chill = 3; else e.freeze = N.freeze * S.freeze; }
   });
   ringFx(P.x, P.z, r, 0x9fe8ff, .45, .1); ringFx(P.x, P.z, r * .7, 0xffffff, .3, .1); flashFx(P.x, .6, P.z, 0x7fd8ff, r * 2.2, .35);
   for (let i = 0; i < 60; i++) { const a = rand(0, 6.28), s = rand(5, 11) * S.aoe; emit(sparks, P.x, rand(.3, 1.2), P.z, Math.cos(a) * s, rand(0, 2), Math.sin(a) * s, rand(.35, .5), pick([0xbff0ff, 0xffffff, 0x7fd8ff]), 2, 3); }

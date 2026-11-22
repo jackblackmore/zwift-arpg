@@ -3,10 +3,11 @@ import { BAR } from '../data/skills.js';
 
 // G: the world and everything in it.
 export const G = {
-  tier: 1, mapKills: 0, mapTotal: 0, gt: 0, paused: true, started: false,
+  depth: 1, level: null, mapKills: 0, gt: 0, paused: true, started: false,
   enemies: [], proj: [], eproj: [], patches: [], ground: [], floats: [], queue: [], effects: [],
-  packs: [], obst: [], torches: [], portal: null, bossSpec: null,
-  start: { x: 0, z: 0 }, bossSpot: { x: 0, z: 0 },
+  packs: [], obst: [], torches: [], portal: null,
+  // start: where the hero enters; bossSpot: the guardian's arena; clear: circles { x, z, r } kept free of obstacles
+  start: { x: -29, z: 29 }, bossSpot: { x: 26, z: -26 }, clear: [{ x: -29, z: 29, r: 7 }, { x: 26, z: -26, r: 11 }],
   world: null, mmBase: null, heroM: null,
   vign: 0, shakeA: 0, hitStop: 0, saveT: 30, bannerT: 0, labelRects: [], itemId: 1,
 };
