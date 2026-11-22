@@ -16,11 +16,16 @@ export const SK = {
   decoy: { cd: 12 },
   // --- end C1 skills ---
   // --- C2 skills (Flame Totem, Arc, Meteor, Ice Trap, Corpse Explosion) ---
-  arc: { cd: 4, rate: .6, mult: .9, range: 11, chainRange: 5.5, shockChance: .3, shockT: 3, chains: 3 }, // also cast free by Heart of the Storm
-  flameTotem: { cd: 8, range: 10 },
-  meteor: { cd: 9, range: 12 },
-  iceTrap: { cd: 7, range: 10 },
-  corpseExplosion: { cd: 5, range: 10 },
+  // arc has a rate and no cd so that Main paces it quickly (castSlot uses cd before rate); in a Flex slot that is its cooldown too.
+  arc: { rate: .7, mult: .9, range: 11, chainRange: 5.5, shockChance: .3, shockT: 3, chains: 3 }, // also cast free by Heart of the Storm
+  // totem: plants `plant` ahead toward the aim point, lasts `life` s, hp = hpFrac x max life; fires a bolt every `rate` s at range
+  flameTotem: { cd: 8, range: 10, plant: 2.5, life: 10, hpFrac: .6, rate: .5, mult: .45, speed: 15, boltLife: .9, r: .5 },
+  // meteor: telegraph circle for `delay` s, then a radius x S.aoe blast and burning ground (patch = share of radius, patchT seconds)
+  meteor: { cd: 9, range: 12, delay: 1, radius: 3.2, mult: 4.5, packR: 3, patch: .75, patchT: 4 },
+  // trap: thrown to a spot, arms after `arm` s, bursts when an enemy is within `trigger`; max `max` out, each lasts `life` s
+  iceTrap: { cd: 2.5, range: 10, arm: .6, life: 20, max: 3, trigger: 1.3, radius: 3.4, mult: 1.6, freeze: 2 },
+  // corpse explosion: mult x gem base + frac x the corpse's max hp, radius x S.aoe; aimR = how close to the aim point a corpse must be
+  corpseExplosion: { cd: 5, range: 10, mult: 1.2, frac: .6, radius: 3.2, aimR: 3.5 },
   // --- end C2 skills ---
   flask: { heal: .6, dur: 2.5, max: 3, perKill: .1, perRare: 1 },
 };

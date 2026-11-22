@@ -64,7 +64,7 @@ function fireballMain() {
   return castFireball(t[0], t[1]);
 }
 
-// Arc: instant chain lightning, only cast by effects (Heart of the Storm) from fx/fz. `free` stays for the call sites.
+// Arc: instant chain lightning from fx/fz (the Arc skill in game/spells.js and Heart of the Storm's free arcs; both use the Arc gem's level). `free` stays for the call sites.
 export function castArc(fx = P.x, fz = P.z, free = true) {
   const A = SK.arc, tx = fx, tz = fz;
   let first = null, bd = 1e9;
@@ -72,7 +72,7 @@ export function castArc(fx = P.x, fz = P.z, free = true) {
   const pts = [{ x: fx, z: fz }];
   if (!first) return true;
   const hitS = new Set(); let cur = first;
-  for (let k = 0; k <= A.chains && cur; k++) {
+  for (let k = 0; k <= A.chains + gemMile('arc', 'chain', 'chains') && cur; k++) {
     hitS.add(cur); pts.push({ x: cur.x, z: cur.z });
     hit(cur, A.mult, 'light', { sk: 'arc' }); if (Math.random() < A.shockChance) cur.shock = A.shockT;
     for (let i = 0; i < 4; i++) emit(sparks, cur.x, 1.1, cur.z, rand(-4, 4), rand(1, 4), rand(-4, 4), .3, 0xe0c8ff, 4, 2);
