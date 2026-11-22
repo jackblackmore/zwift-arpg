@@ -15,15 +15,16 @@ import { makePortal } from './maps.js';
 import { castArc } from './skills.js';
 import { HERO } from '../data/balance.js';
 import { DROP } from '../data/items.js';
-import { tierHp } from './formulas.js';
+import { tierHp, hitBase } from './formulas.js';
 
 const ECOL = { fire: '#ffb070', cold: '#bff0ff', light: '#e0c8ff' };
 
-// Hit an enemy with `mult` × base spell damage of an element. src.kx/kz = knockback direction, src.dot = no number/sound.
+// Hit an enemy with `mult` × (gem base + flat spell) of an element. src.gem = the skill gem it came from (sets the base),
+// src.kx/kz = knockback direction, src.dot = no number/sound.
 export function hit(e, mult, elem, src = {}) {
   if (e.deathT) return 0;
   wake(e);
-  let d = S.base * mult * (S.dmg + (S[elem] || 0)) * rand(.88, 1.12);
+  let d = hitBase(S, src.gem || 'fireball') * mult * (S.dmg + (S[elem] || 0)) * rand(.88, 1.12);
   const crit = Math.random() < S.crit; if (crit) d *= HERO.critMult;
   if (e.shock > 0) d *= S.conduit ? 1.35 : 1.2;
   e.hp -= d; e.flash = .07; e.lastElem = elem; e.lastHit = Math.max(e.lastHit || 0, d);
@@ -81,23 +82,23 @@ export function explode(x, z, mult = 1, storm = false, small = false) {
   const r = (small ? 1.4 : SK.fireball.radius) * S.aoe;
   near(x, z, r, e => {
     const dd = dist(e.x, e.z, x, z) || 1;
-    const d = hit(e, mult, 'fire', { kx: (e.x - x) / dd, kz: (e.z - z) / dd });
+    const d = hit(e, mult, 'fire', { gem: 'fireball', kx: (e.x - x) / dd, kz: (e.z - z) / dd });
     if (S.ignite && !e.deathT) { e.burnT = 3; e.burnDps = Math.max(e.burnDps, d * .2); }
   });
   flashFx(x, 1, z, 0xff7a2a, r * 2.4, .28); flashFx(x, 1, z, 0xffe0a0, r * 1.1, .15); ringFx(x, z, r, 0xff8a3c, .3, .4);
   for (let i = 0; i < 22; i++) { const a = rand(0, 6.28), s = rand(2, 7); emit(sparks, x, 1, z, Math.cos(a) * s, rand(1, 5), Math.sin(a) * s, rand(.3, .7), pick([0xff8a3c, 0xffd060, 0xff4a10]), 8, 2); }
   for (let i = 0; i < 5; i++) emit(glows, x + rand(-.5, .5), .8, z + rand(-.5, .5), rand(-1, 1), rand(1, 3), rand(-1, 1), rand(.3, .6), 0xff5a10, 0, 2);
   flashLight(x, z, 0xff7a2a, 3.5, .25); SFX.boom(); shake(.05);
-  if (S.burnGround) addPatch(x, z, r * .8, 2.5);
+  if (S.burnGround) addPatch(x, z, r * .8, 2.5, 'fireball');
   if (storm) castArc(x, z, true);
 }
 
-export function addPatch(x, z, r, t) { const g = new T.Group(); g.add(decal(0xff4a10, r * 2.6)); g.position.set(x, 0, z); scene.add(g); G.patches.push({ x, z, r, t, max: t, tick: 0, g }); }
+export function addPatch(x, z, r, t, gem = 'fireball') { const g = new T.Group(); g.add(decal(0xff4a10, r * 2.6)); g.position.set(x, 0, z); scene.add(g); G.patches.push({ x, z, r, t, max: t, tick: 0, g, gem }); }
 export function updPatches(dt) {
   for (const f of G.patches) {
     f.t -= dt; f.tick -= dt; f.g.scale.setScalar(.6 + .4 * Math.min(1, f.t / f.max * 3));
     if (Math.random() < dt * 18) emit(glows, f.x + rand(-f.r, f.r) * .7, .3, f.z + rand(-f.r, f.r) * .7, 0, rand(1, 2.5), 0, rand(.3, .6), pick([0xff5a10, 0xff8a20]));
-    if (f.tick <= 0) { f.tick = SK.burn.tick; near(f.x, f.z, f.r, e => { hit(e, SK.burn.mult, 'fire', { dot: 1 }); }); }
+    if (f.tick <= 0) { f.tick = SK.burn.tick; near(f.x, f.z, f.r, e => { hit(e, SK.burn.mult, 'fire', { gem: f.gem, dot: 1 }); }); }
     if (f.t <= 0) { f.dead = true; scene.remove(f.g); }
   }
   G.patches = G.patches.filter(f => !f.dead);

@@ -13,7 +13,7 @@
 <canvas id="o2d"></canvas>
 <div id="vign"></div>
 <div id="info" class="hud"><b id="iMap">MAP 1</b><br><span id="iLvl">Level 1</span> · <span id="iKill">0 slain</span></div>
-<div id="btns" class="hud"><button id="bInv">BAG <kbd>I</kbd><span class="badge" id="invBadge">0</span></button><button id="bPass">PASSIVES <kbd>P</kbd><span class="badge" id="passBadge">0</span></button><button id="bMode">MODE</button><button id="bLook">LOOK</button><button id="bFx">FX</button><button id="bMute">♪</button><button id="bMenu">☰</button></div>
+<div id="btns" class="hud"><button id="bInv">BAG <kbd>I</kbd><span class="badge" id="invBadge">0</span></button><button id="bGems">GEMS <kbd>G</kbd></button><button id="bPass">PASSIVES <kbd>P</kbd><span class="badge" id="passBadge">0</span></button><button id="bMode">MODE</button><button id="bLook">LOOK</button><button id="bFx">FX</button><button id="bMute">♪</button><button id="bMenu">☰</button></div>
 <canvas id="mm" class="hud" width="300" height="300"></canvas>
 <div id="bossbar" class="hud"><span>THE PALE WARDEN</span><div><i id="bossHp"></i></div></div>
 <div id="toasts"></div>
@@ -22,10 +22,11 @@
 <div class="orb" id="orbR"><i id="manaF"></i><span id="manaT"></span></div>
 <div id="xp"><i id="xpF"></i></div>
 <div id="skills">
-  <div class="sk" id="sFb" style="color:#ff8a3c"><span class="k">LMB</span><span class="ic">✹</span><span class="n"></span><div class="cd"></div></div>
-  <div class="sk" id="sAr" style="color:#c98bff"><span class="k">RMB</span><span class="ic">ϟ</span><span class="n"></span><div class="cd"></div></div>
-  <div class="sk" id="sNv" style="color:#7fd8ff"><span class="k">Q</span><span class="ic">❄</span><span class="n"></span><div class="cd"></div></div>
-  <div class="sk" id="sSh" style="color:#7fb8ff"><span class="k">SPACE</span><span class="ic">◎</span><span class="n"></span><div class="cd"></div></div>
+  <div class="sk" id="sk-main"><span class="k">LMB</span><span class="ic"></span><span class="lv"></span><span class="n"></span><div class="cd"></div></div>
+  <div class="sk" id="sk-flexA"><span class="k">RMB</span><span class="ic"></span><span class="lv"></span><span class="n"></span><div class="cd"></div></div>
+  <div class="sk" id="sk-flexB"><span class="k">Q</span><span class="ic"></span><span class="lv"></span><span class="n"></span><div class="cd"></div></div>
+  <div class="sk" id="sk-guard"><span class="k">SPACE</span><span class="ic"></span><span class="lv"></span><span class="n"></span><div class="cd"></div></div>
+  <div class="sk" id="sk-evade"><span class="k">E</span><span class="ic"></span><span class="lv"></span><span class="n"></span><div class="cd"></div></div>
   <div class="sk" id="sFl" style="color:#ff4a5a"><span class="k">F</span><span class="ic">♥</span><span class="n">3</span><div class="cd"></div></div>
 </div>
 <div id="joy"><i></i></div>
@@ -52,20 +53,36 @@
   <div id="taken"></div>
 </div></div>
 
+<div class="modal" id="mShrine"><div class="card">
+  <h3><span id="shrineT">SHRINE</span> <button id="shrineClose">✕</button></h3>
+  <div class="sub" id="shrineSub"></div>
+  <div id="shrineCards" class="cards3"></div>
+</div></div>
+
+<div class="modal" id="mGems"><div class="card">
+  <h3>SKILL GEMS <button id="gemClose">✕</button></h3>
+  <div class="sub">Your skill bar. Main, Flex A and Flex B take attack gems, Guard takes Magic Shield, Evade takes Flame Dash.</div>
+  <div id="gemBar"></div>
+  <div class="sub" style="margin:10px 0 4px">Gem bag</div>
+  <div id="gemBag"></div>
+  <div id="gemTip"></div>
+</div></div>
+
 <div class="modal show" id="mMenu"><div class="card" style="max-width:600px">
   <h1>WATT DUNGEON</h1>
   <div id="build" class="build"></div>
   <div class="sub">ARPG prototype · Path of Exile style · bike controls come later · <a href="./pedal/" style="color:var(--gold)">original pedal demo</a> · <a href="./gallery/" style="color:var(--gold)">asset gallery</a><br>Characters, animations and dungeon: KayKit by Kay Lousberg (CC0)</div>
   <ul>
-    <li><b>Mow down hordes.</b> Fireball explodes, Arc chains, Frost Nova freezes, Magic Shield soaks up hits.</li>
+    <li><b>Start with one skill.</b> Pick Fireball, Arc or Frost Nova at the first shrine; Magic Shield soaks up hits. Shrines at levels 5, 8 and 12 add more skills.</li>
+    <li><b>Skill gems level up</b> as you kill (up to 10) and change at level 5: Fireball pierces, Arc chains further, Nova grows. Swap them with <kbd>G</kbd>.</li>
     <li><b>Hunt rare monsters</b> (yellow names) with affixes like Hasted, Splitting or Volatile.</li>
     <li><b>Loot drops with beams.</b> Magic (blue), rare (yellow) and unique (orange) gear with affixes that change your skills.</li>
     <li><b>Level up and pick passives</b> to build: chain lightning, shatter, ignite, Blood Magic.</li>
     <li><b>FX</b> switches graphics quality (high: bloom + shadows, medium: bloom, low: plain) if your device struggles.</li>
     <li><b>Kill the map boss</b> and step through the portal into a harder map. Progress saves on this device.</li>
   </ul>
-  <div class="keys">Desktop: move <kbd>WASD</kbd> · aim with mouse · <kbd>LMB</kbd> Fireball · <kbd>RMB</kbd> Arc · <kbd>Q</kbd> Frost Nova · <kbd>Space</kbd> Magic Shield · <kbd>F</kbd> flask · <kbd>I</kbd> bag · <kbd>P</kbd> passives<br>Touch: drag the left side to move · skills on the right auto-aim at the nearest enemy · walk over loot to pick it up</div>
-  <div class="keys"><b style="color:var(--gold)">RIDE mode</b> (MODE button) plays with only what a Zwift Ride + KICKR give you: pedal to move (power slider, <kbd>W</kbd>/<kbd>S</kbd>; cadence <kbd>A</kbd>/<kbd>D</kbd>), D-pad steers (<kbd>arrows</kbd>), <b>A</b> Fireball <kbd>K</kbd>, <b>B</b> Arc <kbd>L</kbd>, <b>Z</b> Frost Nova <kbd>J</kbd>, <b>Y</b> autopilot <kbd>I</kbd>, right shifter Magic Shield <kbd>E</kbd>, left shifter flask <kbd>Q</kbd>. Harder pedalling refills mana faster; high cadence casts faster.</div>
+  <div class="keys">Desktop: move <kbd>WASD</kbd> · aim with mouse · skill bar: <kbd>LMB</kbd> Main · <kbd>RMB</kbd> Flex A · <kbd>Q</kbd> Flex B · <kbd>Space</kbd> Guard · <kbd>E</kbd> Evade (or <kbd>1</kbd>–<kbd>5</kbd>) · <kbd>F</kbd> flask · <kbd>I</kbd> bag · <kbd>G</kbd> gems · <kbd>P</kbd> passives<br>Touch: drag the left side to move · skills on the right auto-aim at the nearest enemy · walk over loot to pick it up</div>
+  <div class="keys"><b style="color:var(--gold)">RIDE mode</b> (MODE button) plays with only what a Zwift Ride + KICKR give you: pedal to move (power slider, <kbd>W</kbd>/<kbd>S</kbd>; cadence <kbd>A</kbd>/<kbd>D</kbd>), D-pad steers (<kbd>arrows</kbd>), <b>A</b> Main <kbd>K</kbd>, <b>B</b> Flex A <kbd>L</kbd>, <b>Z</b> Flex B <kbd>J</kbd>, <b>Y</b> autopilot <kbd>I</kbd>, right shifter Guard <kbd>E</kbd>, left power-up button Evade <kbd>U</kbd>, left shifter flask <kbd>Q</kbd>. Harder pedalling refills mana faster; high cadence casts faster.</div>
   <div class="row"><button id="goCont" class="pri" style="display:none">CONTINUE</button><button id="goNew">NEW CHARACTER</button></div>
 </div></div>
 

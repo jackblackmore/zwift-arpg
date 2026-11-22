@@ -1,7 +1,7 @@
 // RIDE mode device: a simulated Zwift Ride (on-screen pad + keyboard stand-ins) and simulated KICKR
 // (power / cadence sliders). Writes into `ctl` like any other device. The real Bluetooth devices will
 // replace the button presses and slider values; the mapping to `ctl` stays the same.
-import { ctl, clearHeld } from './input.js';
+import { ctl, clearHeld, slotInput } from './input.js';
 import { RIDE, RIDE_BUTTONS } from '../data/ride.js';
 import { $, clamp } from '../core/util.js';
 import { audio } from '../core/audio.js';
@@ -15,6 +15,7 @@ function press(b, down) {
   if (down && G.paused) return;
   ride.held[b.id] = down;
   if (!b.act) return;
+  if (b.slot) { slotInput(b.act, down); return; }
   if (b.hold) { ctl[b.act] = down; return; }
   if (!down) return;
   if (b.act === 'auto') ctl.auto = !ctl.auto; else ctl[b.act] = true;
@@ -57,7 +58,7 @@ export function initRide() {
       el.className = 'rb' + (b.wide ? ' wide' : ''); el.id = 'rb-' + b.id;
       el.style.gridColumn = b.wide ? '1 / span 3' : String(b.at[0] + 1); el.style.gridRow = String(b.at[1] + 1);
       if (b.col) el.style.color = b.col;
-      el.innerHTML = `${b.icon ? `<span class="ic">${b.icon}</span>` : ''}<span class="lb">${b.label}</span><span class="k">${b.key.replace('arrow', '').toUpperCase().slice(0, 2)}</span>`;
+      el.innerHTML = `${b.icon || b.slot ? `<span class="ic">${b.icon || ''}</span>` : ''}<span class="lb">${b.label}</span><span class="k">${b.key.replace('arrow', '').toUpperCase().slice(0, 2)}</span>`;
       el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); audio(); try { el.setPointerCapture(e.pointerId); } catch (_) {} press(b, true); });
       ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(ev => el.addEventListener(ev, () => { if (ride.held[b.id]) press(b, false); }));
       pad.appendChild(el);
@@ -69,9 +70,10 @@ export function initRide() {
   $('rftp').value = ride.ftp;
 }
 
-// HUD bits for RIDE mode.
-export function rideHud() {
+// HUD bits for RIDE mode. slotLook(slot) → { icon, col } of the gem in that slot, or null (supplied by ui/hud.js).
+export function rideHud(slotLook) {
   if (!ride.on) return;
+  for (const b of RIDE_BUTTONS) if (b.slot) { const el = $('rb-' + b.id), L = slotLook(b.act); if (!el) continue; el.style.color = L ? L.col : '#5a4a3a'; el.querySelector('.ic').textContent = L ? L.icon : '·'; }
   $('rpw').value = Math.round(ride.pw); $('rcd').value = Math.round(ride.cad);
   $('rpwV').textContent = Math.round(ride.pw) + ' W · ' + Math.round(ride.pw / ride.ftp * 100) + '%'; $('rcdV').textContent = Math.round(ride.cad) + ' rpm';
   for (const b of RIDE_BUTTONS) { const el = $('rb-' + b.id); if (el) el.classList.toggle('on', b.act === 'auto' ? ctl.auto : !!ride.held[b.id]); }

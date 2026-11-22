@@ -9,6 +9,7 @@ import { banner } from '../render/fx.js';
 import { HALF, buildMap, blocked } from '../world/map.js';
 import { makePack } from './enemies.js';
 import { packCount, tierHp } from './formulas.js';
+import { refreshShrine, readySlots } from './gems.js';
 
 export function makePortal(x, z) {
   const g = new T.Group();
@@ -24,6 +25,7 @@ export function clearMap() {
   G.proj = []; G.eproj = []; G.patches = []; G.ground = [];
   G.effects.forEach(f => scene.remove(f.mesh)); G.effects = []; G.queue = []; G.floats = [];
   if (G.portal) { scene.remove(G.portal.g); G.portal = null; }
+  if (G.shrine) { scene.remove(G.shrine.g); G.shrine = null; }
   $('bossbar').style.display = 'none';
 }
 
@@ -36,7 +38,8 @@ export function newMap(t) {
     G.packs.push(makePack(x, z));
   }
   G.bossSpec = { spawned: false }; G.mapTotal++;
-  P.x = G.start.x; P.z = G.start.z; P.dead = 0; P.life = S.maxLife; P.mana = S.maxMana; P.flask = SK.flask.max;
+  P.x = G.start.x; P.z = G.start.z; P.dead = 0; P.life = S.maxLife; P.mana = S.maxMana; P.flask = SK.flask.max; readySlots();
+  refreshShrine();
   banner('MAP ' + t, '#c8a25a', t === 1 ? 'The Ashen Crypt · the boss waits in the far corner' : `Monsters are ${Math.round((tierHp(t) - 1) * 100)}% tougher · better loot`);
 }
 

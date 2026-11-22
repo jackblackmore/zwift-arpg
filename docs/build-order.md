@@ -9,8 +9,8 @@ Status: ✅ done · ▶ next · ☐ later
 | # | Step | Status |
 |---|---|---|
 | 0 | First balance pass and balance tools (`npm run balance`, `npm run arena`) | ✅ |
-| 1 | Gems v1: skill bar, gem-only skills, shrines, gem levels | ▶ |
-| 2 | More skills: Frost Lance, Raise Skeletons, Blink, Flex and Guard options | ☐ |
+| 1 | Gems v1: skill bar, gem-only skills, shrines, gem levels | ✅ |
+| 2 | More skills: Frost Lance, Raise Skeletons, Blink, Flex and Guard options | ▶ |
 | 3 | Gems v2: support gems, sockets, guardian gem drops, feeding | ☐ |
 | 4 | Passive tree (replaces the level-up card draft) | ☐ |
 | 5 | Defence: armour, resistances, typed monster damage | ☐ |
@@ -24,7 +24,9 @@ Status: ✅ done · ▶ next · ☐ later
 
 ---
 
-## Step 1: Gems v1 ▶
+## Step 1: Gems v1 ✅
+
+**Done (Nov 2026).** What was built and the decisions made are under "Built: gems v1" in the design notes. The brief below is kept for reference.
 
 **Goal:** a new character starts with **one attack and Magic Shield**. More skills arrive as gems from shrines when slots unlock at levels 5, 8 and 12. Skills level up as you use them. Design: "Gem model in detail" in `docs/design-notes.md`.
 
@@ -115,7 +117,7 @@ Status: ✅ done · ▶ next · ☐ later
 
 ---
 
-## Step 2: More skills ☐
+## Step 2: More skills ▶
 
 **Goal:** enough gems that every shrine is a real 1-of-3 choice, and the design's three starting builds exist. Design: "Skill variety" in the design notes.
 

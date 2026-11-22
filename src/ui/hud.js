@@ -7,6 +7,8 @@ import { $ } from '../core/util.js';
 import { HALF } from '../world/map.js';
 import { xpNeed } from '../game/stats.js';
 import { rideHud } from '../input/ridesim.js';
+import { GEMS, SLOT_DEFS, BAR } from '../data/gems.js';
+import { barGem, unlocked } from '../game/gems.js';
 
 const mmc = $('mm').getContext('2d');
 const T = { hud: 0, mm: 0 };
@@ -21,17 +23,34 @@ export function hud(dt) {
   $('xpF').style.width = (P.xp / xpNeed(P.lvl) * 100) + '%';
   $('iMap').textContent = 'MAP ' + G.tier; $('iLvl').textContent = 'Level ' + P.lvl; $('iKill').textContent = `${G.mapKills}/${G.mapTotal} slain`;
   const res = S.blood ? P.life : P.mana;
-  [['sFb', SK.fireball.cost], ['sAr', SK.arc.cost], ['sNv', SK.nova.cost], ['sSh', SK.shield.cost]].forEach(([id, c]) => { $(id).classList.toggle('nomana', res < c); $(id).querySelector('.n').textContent = c; });
-  $('sNv').querySelector('.cd').style.height = Math.max(0, P.novaCd / SK.nova.cd * 100) + '%';
-  $('sSh').querySelector('.cd').style.height = Math.max(0, P.shieldCd / SK.shield.cd * 100) + '%';
+  for (const s of BAR) skillSlot(s, res);
   $('sFl').querySelector('.n').textContent = Math.floor(P.flask); $('sFl').querySelector('.cd').style.height = P.flask < SK.flask.max ? (100 - (P.flask % 1) * 100) + '%' : '0%';
-  $('sFb').classList.toggle('act', ctl.fb); $('sAr').classList.toggle('act', ctl.arc);
   const ib = $('invBadge'); ib.style.display = P.newItems ? 'block' : 'none'; ib.textContent = P.newItems;
+  $('bGems').classList.toggle('glow', BAR.some(s => unlocked(s) && !barGem(s)) && P.gems.some(g => !BAR.some(s => P.bar[s] === g.id)));
   const pb = $('passBadge'); pb.style.display = P.pts ? 'block' : 'none'; pb.textContent = P.pts; $('bPass').classList.toggle('glow', P.pts > 0);
   const boss = G.bossSpec && G.bossSpec.e; if (boss && !boss.deathT) $('bossHp').style.width = (boss.hp / boss.maxHp * 100) + '%';
-  rideHud();
+  rideHud(slotLook);
   T.mm -= .07; if (T.mm > 0 || !G.mmBase) return; T.mm = .2;
   minimap();
+}
+
+// One skill bar button: the gem's icon, cost, cooldown (or charges) and gem level; a padlock until the slot unlocks.
+const slotLook = s => { const g = barGem(s); return g ? GEMS[g.gem] : null; };
+function skillSlot(s, res) {
+  const el = $('sk-' + s), g = barGem(s), D = g && GEMS[g.gem], K = D && SK[D.sk], st = P.cd[s] || {};
+  const lock = !unlocked(s), key = lock ? 'lock' : D ? g.gem + g.lvl : 'empty';
+  if (el.dataset.key !== key) {
+    el.dataset.key = key; el.classList.toggle('locked', lock); el.classList.toggle('empty', !lock && !D);
+    el.style.color = D ? D.col : '';
+    el.querySelector('.ic').textContent = lock ? '🔒' : D ? D.icon : '+';
+    el.querySelector('.lv').textContent = lock ? 'Lv ' + SLOT_DEFS[s].unlock : D ? 'L' + g.lvl : '';
+    el.title = lock ? `${SLOT_DEFS[s].n}: unlocks at level ${SLOT_DEFS[s].unlock}` : D ? `${D.n} · gem level ${g.lvl}` : `${SLOT_DEFS[s].n}: empty · press G for gems`;
+  }
+  if (!D) { el.querySelector('.n').textContent = ''; el.querySelector('.cd').style.height = '0%'; el.classList.remove('nomana', 'act'); return; }
+  el.classList.toggle('nomana', res < K.cost); el.classList.toggle('act', !!ctl[s]);
+  el.querySelector('.n').textContent = g.gem === 'dash' ? `${st.ch || 0}×` : K.cost;
+  const cd = g.gem === 'dash' ? (st.ch >= 1 ? 0 : 1 - (st.t || 0) / K.recharge) : K.cd ? Math.max(0, st.cd || 0) / K.cd : 0;
+  el.querySelector('.cd').style.height = (cd * 100) + '%';
 }
 
 function minimap() {

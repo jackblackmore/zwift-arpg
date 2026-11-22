@@ -14,6 +14,7 @@ export const RIDE = {
 };
 
 // Zwift Ride controls and what they do. `key` is the keyboard stand-in in RIDE mode.
+// slot: a skill bar button (held while down; the icon and colour come from the gem in that slot).
 // Left hand: D-pad and the left shifter. Right hand: Y/Z/A/B and the right shifter.
 // (Layout follows the Zwift Play/Ride button set; adjust once tested on the real controllers.)
 export const RIDE_BUTTONS = [
@@ -22,9 +23,11 @@ export const RIDE_BUTTONS = [
   { id: 'right', side: 'L', at: [2, 1], key: 'arrowright', label: '▶' },
   { id: 'down', side: 'L', at: [1, 2], key: 'arrowdown', label: '▼' },
   { id: 'lshift', side: 'L', at: [0, 3], key: 'q', label: 'SHIFT −', act: 'flask', icon: '♥', col: '#ff4a5a', wide: 1 },
+  // Evade: the left controller's power-up button (top-left of the pad here). Move it once tested on the real controllers.
+  { id: 'lpow', side: 'L', at: [0, 0], key: 'u', label: 'PWR', act: 'evade', slot: 1, col: '#ff6a1a' },
   { id: 'Y', side: 'R', at: [1, 0], key: 'i', label: 'Y', act: 'auto', icon: '⟳', col: '#5fe39a' },
-  { id: 'Z', side: 'R', at: [0, 1], key: 'j', label: 'Z', act: 'nova', icon: '❄', col: '#7fd8ff' },
-  { id: 'B', side: 'R', at: [2, 1], key: 'l', label: 'B', act: 'arc', icon: 'ϟ', col: '#c98bff', hold: 1 },
-  { id: 'A', side: 'R', at: [1, 2], key: 'k', label: 'A', act: 'fb', icon: '✹', col: '#ff8a3c', hold: 1 },
-  { id: 'rshift', side: 'R', at: [0, 3], key: 'e', label: 'SHIFT +', act: 'shield', icon: '◎', col: '#7fb8ff', wide: 1 },
+  { id: 'Z', side: 'R', at: [0, 1], key: 'j', label: 'Z', act: 'flexB', slot: 1 },
+  { id: 'B', side: 'R', at: [2, 1], key: 'l', label: 'B', act: 'flexA', slot: 1 },
+  { id: 'A', side: 'R', at: [1, 2], key: 'k', label: 'A', act: 'main', slot: 1 },
+  { id: 'rshift', side: 'R', at: [0, 3], key: 'e', label: 'SHIFT +', act: 'guard', slot: 1, wide: 1 },
 ];

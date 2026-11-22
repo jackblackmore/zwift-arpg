@@ -27,7 +27,9 @@ import { kill } from './game/combat.js';
 import { castFireball, castArc, castNova, castDash, castShield } from './game/skills.js';
 import { dropItem } from './game/items.js';
 import { hud } from './ui/hud.js';
-import { initPanels, syncPause, openInv, openPass, toggleInv, togglePass, closeAll, equip } from './ui/panels.js';
+import { initPanels, syncPause, openInv, openPass, toggleInv, togglePass, toggleGems, openGems, openShrine, closeAll, equip } from './ui/panels.js';
+import { freshGems, readySlots, takeShrine, shrineDue, refreshShrine, placeGem, addGem } from './game/gems.js';
+import { GEMS, SLOT_DEFS } from './data/gems.js';
 
 function begin(fresh) {
   audio();
@@ -35,12 +37,20 @@ function begin(fresh) {
   if (fresh || !sv) {
     Object.assign(P, { lvl: 1, xp: 0, gear: {}, inv: [], passives: {}, pts: 0, offer: null, newItems: 0, kills: 0 });
     P.gear.weapon = { ...START_WEAPON, id: G.itemId++, mods: START_WEAPON.mods.map(m => [...m]) };
-    recalc(); newMap(1); save();
+    freshGems(); newMap(1); save();
   } else {
     Object.assign(P, { lvl: sv.lvl, xp: sv.xp, gear: sv.gear || {}, inv: sv.inv || [], passives: Object.fromEntries(Object.entries(sv.passives || {}).filter(([k]) => PASS[k])), pts: sv.pts || 0, offer: null });
-    G.itemId = sv.itemId || 100; recalc(); newMap(sv.tier || 1);
+    G.itemId = sv.itemId || 100;
+    // Saves from before gems have none: treat them as a fresh character for gems (the Main shrine is offered now).
+    if (Array.isArray(sv.gems) && sv.gems.length) {
+      Object.assign(P, { gems: sv.gems.filter(g => GEMS[g.gem]), bar: {}, cd: {}, shrined: sv.shrined || {} });
+      for (const s in sv.bar || {}) if (SLOT_DEFS[s] && P.gems.some(g => g.id === sv.bar[s])) P.bar[s] = sv.bar[s];
+      recalc(); readySlots();
+    } else freshGems();
+    newMap(sv.tier || 1);
   }
   G.started = true; $('mMenu').classList.remove('show'); syncPause();
+  if (shrineDue().includes('main')) openShrine('main');
 }
 
 // ---- boot ----
@@ -74,7 +84,7 @@ $('bLook').textContent = 'LOOK: ' + STYLES[Q.style].name.toUpperCase();
 $('bLook').onclick = () => { $('bLook').textContent = 'LOOK: ' + cycleStyle().toUpperCase(); };
 recalc(); resize(); buildMap(); P.x = G.start.x; P.z = G.start.z; cam.position.set(P.x + CAM.x, CAM.y, P.z + CAM.z);
 initPanels();
-initDevices({ toggleInv, togglePass, closeAll });
+initDevices({ toggleInv, togglePass, toggleGems, closeAll });
 initRide(); setRide(storedRide());
 const modeLabel = () => { $('bMode').textContent = ride.on ? 'MODE: RIDE' : 'MODE: KEYS'; $('bMode').classList.toggle('glow', ride.on); };
 modeLabel(); $('bMode').onclick = () => { setRide(!ride.on); modeLabel(); };
@@ -89,6 +99,7 @@ function frame(now) {
   const dt = Math.min(.05, (now - last) / 1000); last = now;
   pollInput(dt);
   if (!G.paused) { if (G.hitStop > 0) G.hitStop -= dt; else update(dt); }
+  if (G.shrineAsk) { const s = G.shrineAsk; G.shrineAsk = null; openShrine(s); }
   updFx(G.paused ? 0 : dt); draw(dt); hud(dt);
   requestAnimationFrame(frame);
 }
@@ -105,5 +116,6 @@ window.__dbg = {
   start: fresh => begin(fresh !== false),
   sim: n => { for (let i = 0; i < n; i++) { update(.033); updFx(.033); } },
   enemies: () => G.enemies, packs: () => G.packs, items: () => G.ground,
-  arena, parLevel, parGear: PAR_GEAR, newMap, kill, dropItem, castFireball, castArc, castNova, castDash, castShield, openInv, openPass, equip,
+  arena, parLevel, parGear: PAR_GEAR, newMap, kill, dropItem, castFireball, castArc, castNova, castDash, castShield, openInv, openPass, openGems, openShrine, equip,
+  takeShrine, shrineDue, placeGem, addGem, recalc, save, load, begin,
 };
