@@ -98,7 +98,7 @@ try {
     check(r1.slots === slotOrder.join(',') && r1.types.every((t, k) => ALLOWED[slotOrder[k]].includes(t)), `arpg: full beat sequence in order (${r1.types.join(' > ')})`);
     check(r1.routeOrdered && r1.guardSpot, 'arpg: beats sit in order along the route and the guardian holds the arena');
     check(r1.sitesClear, 'arpg: no obstacles on the beat sites or the entrance');
-    check(r1.routeDist > 90 && r1.packs >= 8 && r1.noPacksNearBreather, `arpg: a long route with packs along it (${Math.round(r1.routeDist)} units, ${r1.packs} packs), none near the breather`);
+    check(r1.routeDist > 90 && r1.packs >= 9 && r1.noPacksNearBreather, `arpg: a long route with packs along it (${Math.round(r1.routeDist)} units, ${r1.packs} packs), none near the breather`);
     check(r1.goal0 && r1.goal0.kind === 'pack', `arpg: levelGoal starts with the warm-up packs (${r1.goal0 && r1.goal0.kind})`);
     check(r1.kinds.includes('pack') && r1.kinds.includes('beat') && r1.seen.join('>') === 'idle>signal>active>done', `arpg: the autopilot walked levelGoal through packs to beat 1 (${r1.b0}: ${r1.seen.join('>')})`);
     check(r1.signalFirst && r1.i === 1, 'arpg: beat 1 showed its signal before going active, and the level moved on to beat 2');
@@ -432,7 +432,7 @@ try {
       D.kill(D.spawnEnemy('runner', P.x + 3, P.z, null, 2)); out.rareAp = P.gems.fireball.ap - out.killAp[0];
       P.bar = bar0;
       // Time grants AP.
-      resetGems(); clear(); D.sim(300); out.timeAp = P.gems.fireball.ap;
+      resetGems(); clear(); G.packs = []; D.sim(300); out.timeAp = P.gems.fireball.ap;
       // Level 5 pierces: a line of two enemies, 4 apart (outside one explosion's radius).
       let spot = null;
       for (let k = 0; k < 600 && !spot; k++) { const x = (Math.random() - .5) * 50, z = (Math.random() - .5) * 50; if (free(x, z) && free(x + 3, z) && free(x + 7, z) && D.los(x, z, x + 3, z) && D.los(x, z, x + 7, z) && D.los(x + 3, z, x + 7, z)) spot = [x, z]; }

@@ -13,7 +13,9 @@ export const LEVEL = {
   respawnGrace: 4, // seconds after a respawn before a nearby beat may signal again (so the hero can step away or ready up)
   // Packs along the route: min distance between packs, how far off the line they sit, how far from any beat site.
   // min: if the template's stretches can't fit enough packs (short or tightly folded routes), top up to this many.
-  packs: { gap: 7, lateral: 3.2, fromSite: 3, magicChance: .3, rareChance: .12, min: 9 },
+  packs: { gap: 7, lateral: 3.2, fromSite: 3, magicChance: .3, rareChance: .12, min: 9,
+    // The top-up pass (when the stretches couldn't fit `min` packs) is looser: wider spread off the line, closer together, and nearer the beat sites (never inside their clearings or the breather's no-pack radius).
+    top: { lateral: 8, gap: 5.5, fromSite: 1 } },
   // The template, in order. `at`: how far along the route the beat sits (0..1). `packs`: normal packs on the stretch
   // BEFORE it (the first stretch is the warm-up; `size` scales their headcount). `par`: minutes into a 30-minute
   // level, from the design notes (documentation only; clear time comes from kill speed and movement).

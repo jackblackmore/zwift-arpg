@@ -95,11 +95,12 @@ function placePacks(L) {
       }
     }
   });
-  // Top up: free spots anywhere along the route, outside the beat sites, each joining the stretch it falls in.
-  const end = spots[spots.length - 1].s;
-  for (let tries = 0; tries < 400 && G.packs.length < C.min; tries++) {
-    const s = rand(spots[0].r, end - spots[spots.length - 1].r), p = routeAt(L.route, s), off = rand(-C.lateral, C.lateral), x = p.x - p.dz * off, z = p.z + p.dx * off;
-    if (blocked(x, z, 1.5) || sites.some(c => dist(x, z, c.x, c.z) < c.r) || G.packs.some(q => dist(q.x, q.z, x, z) < C.gap)) continue;
+  // Top up: free spots anywhere along the route, outside the beat sites, each joining the stretch it falls in. Looser than the
+  // main pass (C.top), so folded routes whose beat radii eat most of the line still reach LEVEL.packs.min.
+  const end = spots[spots.length - 1].s, T2 = C.top, tsites = [{ x: L.start.x, z: L.start.z, r: LEVEL.start.clear + T2.fromSite }, ...L.beats.map(b => { const D = BEATS[b.type]; return { x: b.x, z: b.z, r: Math.max(D.noPacks, D.clear + T2.fromSite) }; })];
+  for (let tries = 0; tries < 1500 && G.packs.length < C.min; tries++) {
+    const wide = tries > 300, s = rand(spots[0].r, end - spots[spots.length - 1].r), p = routeAt(L.route, s), lat = wide ? T2.lateral : C.lateral, off = rand(-lat, lat), x = p.x - p.dz * off, z = p.z + p.dx * off;
+    if (blocked(x, z, 1.5) || tsites.some(c => dist(x, z, c.x, c.z) < c.r) || G.packs.some(q => dist(q.x, q.z, x, z) < (wide ? T2.gap : C.gap))) continue;
     const j = Math.max(0, spots.findIndex(sp => sp.s > s) - 1), slot = LEVEL.template[j];
     const pk = makePack(x, z, { size: slot.size, magicChance: slot.size ? 0 : C.magicChance, rareChance: slot.size ? 0 : C.rareChance });
     pk.seg = j; pk.order = s; G.packs.push(pk);
