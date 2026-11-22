@@ -33,6 +33,89 @@ Two ideas sit underneath everything:
   - Any gem can be fused for some AP; mastered gems give a bonus. Duplicate drops become fuel. Support gems work the same way.
 - **Open:** whether fusion replaces the FF7 "mastered gem spawns a copy" idea (leaning yes, to keep one clear ending for a mastered gem).
 
+### Gem model in detail (leaning)
+
+Terms:
+
+| Term | Meaning |
+|---|---|
+| Skill | An action on a button (Fireball, Raise Skeletons, Blink) |
+| Skill gem | An item that gives a skill. **The only way to get a skill.** Has a tier, level and AP |
+| Support gem | Modifies the skill it is socketed with (Split: fires three) |
+| Skill bar | 5 slots: Main, Flex A, Flex B, Guard, Evade |
+| Socket | A space on a slot for a support gem |
+| Main gem | The skill gem in the Main slot (a special slot, not a special item) |
+| Gem bag | All gems you own; unlimited; separate from the item bag |
+| AP | Points gems earn from riding; level gems up |
+| Gem level / milestone | 1 to the tier cap; milestone levels change how the skill works |
+| Tier | I, II, III: better versions of the same gem |
+| Character level | From XP; 1 tree point per level |
+| Keystone | Rare tree node that changes rules, sometimes slot types |
+
+Skill bar:
+
+| Slot | Accepts | Unlocks | Max sockets |
+|---|---|---|---|
+| Main | Any attack skill gem | Level 1 | 4 (1 at L1, 2 at L15, 3 at L30, 4 at L45) |
+| Flex A | Any attack or support skill gem | Level 5 | 2 (1 on unlock, 2 at L25) |
+| Flex B | Any attack or support skill gem | Level 12 | 2 (1 on unlock, 2 at L25) |
+| Guard | Guard skill gems (shields, wards, decoys) | Level 8 | 1 |
+| Evade | Evade gems (Blink, Phase, Smoke, Decoy Swap) | Level 1 | 1 |
+
+- Main is "main" because it has the most sockets and is always on the primary button; nothing else.
+- Gems can be moved between any slots that accept them at any time outside a Trial.
+
+Where skill gems come from (they drop as loot):
+- **Shrines: four, once per character, only in the first world (Crypt).** Ride 1: choose 1 of 3 Main gems (Fireball, Frost Lance, Raise Skeletons) plus Blink. Level 5: Flex A. Level 8: Guard. Level 12: Flex B. Each is 1 of 3 options for that slot and appears at the entrance of the next level so it can't be missed.
+- **Shrine gems for Flex slots start at Main gem level − 2** (only shrine gems).
+- Guardians: 1 guaranteed gem (skill or support) from the region pool.
+- Trial bosses: their own signature gems.
+- Random drops from beats and elites (heat raises the chance).
+
+Levelling:
+- Equipped gems earn full AP (kills and time riding); unequipped gems earn 10%.
+- Tier caps: I = 10, II = 20, III = 30. Example milestones: Fireball I lv5 pierces, lv10 leaves burning ground; Fireball II lv15 explodes twice, lv20 explosions split.
+- **Feeding:** any gem can be consumed to give its AP to another gem:
+
+| Fed into | AP transferred |
+|---|---|
+| Same gem (duplicate or lower tier) | 100%, plus mastery bonus if mastered |
+| Same type (attack→attack, support→support) | 50% |
+| Different type | 25% |
+
+- Feeding destroys the gem, so it's a choice. Tune spare-gem drop rates so feeding is a boost, not a shortcut.
+
+Who does what (damage = (gem base + flat from gear) × (1 + increased) × each more × crit):
+
+| | Main job | Growth through one region (illustrative) |
+|---|---|---|
+| Gems | Base damage and skill behaviour (kill speed) | Base ×3 (Fireball I: 10 at lv1, 30 at lv10) |
+| Tree | Multipliers, survival, identity | ~13 points: ~+60% to your element, plus life |
+| Gear | Flat and % damage; all defence | ~×1.5 damage, plus armour and resistances |
+
+Example: Pyromancer through the Crypt (illustrative numbers):
+
+| Ride | Level | Char lvl | Unlocks | Skill bar | Notes |
+|---|---|---|---|---|---|
+| 1 | Crypt 1 | 1→4 | Main, Evade | Fireball I lv1→3, Blink I | Choose Fireball. Guardian drops Split |
+| 2 | Crypt 2 | 4→7 | Flex A | Fireball lv5 (pierces), Flame Totem I | Shrine: Totem over Frost Nova/Arc |
+| 3 | Crypt 3 | 7→10 | Guard | Fireball lv7, Totem, Fire Ward I | First armour boots |
+| 4 | Crypt 4 | 10→12 | Flex B | Fireball lv9, Totem, Ward, Meteor I | First rare wand; Frost Lance I to the gem bag |
+| 5 | Crypt 5 | 12→14 | n/a | Fireball lv10 (mastered: burning ground) | Fire resistance chest |
+| 6 | Ashen King | 14 | n/a | Same | Win: Forest, Wattbringer, modifier hand unlocks |
+| 7+ | Forest 1 | 14→17 | Main socket 2 | Fireball II (fused, starts lv6) | Crafting unlocks |
+
+- **Open:** whether random gem drops still feel exciting enough; the numbers above are untuned and the proportions are what matter.
+
+### Evade gems
+
+| Evade | Effect | Suits |
+|---|---|---|
+| Blink | Teleport away from the nearest threat | All-rounders |
+| Phase | Briefly intangible; attacks pass through | Melee, close range |
+| Smoke | Invisible; enemies lose track of you | Snipers, Glass Cannon |
+| Decoy Swap | Leave a decoy that draws aggro | Minions, turrets |
+
 ### Stats
 
 - **Today** (`src/game/stats.js`): one flat pool. Level gives base life, mana and spell damage; gear and passives all add into it; skill behaviour (projectiles, chains, pierce) sits in the same pool; defence is just life plus a little damage reduction; no attributes.
