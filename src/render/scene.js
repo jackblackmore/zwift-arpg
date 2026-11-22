@@ -18,9 +18,12 @@ export const plight = new T.PointLight(0xffb070, 1.5, 16, 1.5); scene.add(plight
 export const blight = new T.PointLight(0xff3ad0, 0, 14, 1.5); scene.add(blight);
 
 // A small fixed pool of flash lights (a fixed light count avoids shader recompiles).
-const flashL = [0, 1, 2, 3].map(() => { const l = new T.PointLight(0xff8030, 0, 9, 2); scene.add(l); return { l, t: 0, max: 1, i: 0 }; });
+// Lights sit well above the floor with a gentle falloff: close to the floor an inverse-square light
+// blows out into a hard-edged yellow disc, especially when several flashes overlap.
+const flashL = [0, 1, 2, 3].map(() => { const l = new T.PointLight(0xff8030, 0, 11, 1); scene.add(l); return { l, t: 0, max: 1, i: 0 }; });
 const fl = { next: 0 };
-export function flashLight(x, z, col, inten, life) { const f = flashL[fl.next++ % flashL.length]; f.l.color.setHex(col); f.l.position.set(x, 1.6, z); f.t = f.max = life; f.i = inten; }
+const FLASH_GAIN = .45;
+export function flashLight(x, z, col, inten, life) { const f = flashL[fl.next++ % flashL.length]; f.l.color.setHex(col); f.l.position.set(x, 3.6, z); f.t = f.max = life; f.i = inten * FLASH_GAIN; }
 export function updLights(dt) { for (const f of flashL) { if (f.t > 0) { f.t -= dt; f.l.intensity = f.i * Math.max(0, f.t / f.max); } else f.l.intensity = 0; } }
 
 // 2D overlay canvas for health bars, item labels and damage numbers.
