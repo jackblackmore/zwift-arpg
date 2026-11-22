@@ -76,6 +76,29 @@ try {
     check(errors.length === 0, `arpg: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   }
 
+  // ---------- ARPG in RIDE mode (simulated Zwift Ride + KICKR) ----------
+  {
+    const { page, errors } = await open('/');
+    const r = await page.evaluate(() => {
+      const D = window.__dbg, P = D.P, out = {};
+      D.setRide(true); D.start(true);
+      // Not pedalling: the hero must not move even with the D-pad held.
+      D.ride.pw = 0; D.ride.held.right = true; const x0 = P.x; D.sim(60); out.stillAt0W = Math.abs(P.x - x0) < .01;
+      D.ride.held.right = false;
+      // Pedalling at ~80% FTP with autopilot on and A (Fireball) held: the hero should go and clear packs alone.
+      D.ride.pw = 200; D.ctl.auto = true; D.ctl.fb = true;
+      for (let i = 0; i < 60; i++) { P.life = Math.max(P.life, 60); D.sim(15); if (i % 6 === 0) D.ctl.nova = true; }
+      out.kills = P.kills; out.travelled = Math.hypot(P.x - D.G.start.x, P.z - D.G.start.z);
+      D.setRide(false);
+      return out;
+    });
+    console.log('  ride:', JSON.stringify(r));
+    check(r.stillAt0W, 'ride: hero stands still at 0 W');
+    check(r.travelled > 8, `ride: autopilot moves the hero (${r.travelled.toFixed(1)} units)`);
+    check(r.kills > 15, `ride: autopilot + held Fireball clears monsters (${r.kills} kills)`);
+    check(errors.length === 0, `ride: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
+  }
+
   // ---------- Pedal demo ----------
   {
     const { page, errors } = await open('/pedal/');

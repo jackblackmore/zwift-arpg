@@ -18,7 +18,7 @@ function animHero(M, dt) {
   M.lock = (M.lock || 0) - dt;
   if (P.dead > 0) { if (M.cur !== 'Death_A') M.play('Death_A', { once: true, fade: .1 }); }
   else if (P.castSeq !== M.seq) { M.seq = P.castSeq; const [n, sp] = HERO[P.lastCast] || HERO.shoot; M.lock = M.play(n, { once: true, speed: sp, fade: .06 }) / sp * .7; }
-  else if (M.lock <= 0) { if (P.moving) M.play('Running_A', { speed: S.ms / 5 }); else M.play('Idle'); }
+  else if (M.lock <= 0) { if (P.moving) M.play('Running_A', { speed: S.ms * ((P.eff && P.eff.move) || 1) / 5 }); else M.play('Idle'); }
   M.mixer.update(dt);
 }
 
