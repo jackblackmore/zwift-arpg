@@ -11,11 +11,27 @@ Two ideas sit underneath everything:
 ## Character
 
 - **Leaning:** one main character, with room to add more later. If we add classes, do it the Path of Exile way: a different starting point on the same passive tree, with a different KayKit model.
-- **Open:** how the character grows. Ideas so far:
-  - A shared passive tree (~80 nodes: fire, cold and lightning regions, defence and utility, a few keystones such as Blood Magic) to replace the pick-1-of-3 draft.
-  - Materia-style skill gems (FF7): skill gems go in the 4–5 button slots and support gems in linked sockets. Gems earn AP from riding, level into new behaviour (Fireball lv5 splits, lv10 leaves burning ground), and a mastered gem spawns a copy. Gems also drop as loot.
-  - Where sockets live: on the skill bar (keeps swapping gear painless) or on gear (more authentic, but fiddly).
-  - Cheap respecs, so one character can try different builds.
+- **Leaning:** three growth systems, each with its own job and no overlap:
+
+| System | Fed by | Answers | Owns |
+|---|---|---|---|
+| Passive tree | XP (a point per level) | "What kind of hero am I?" | Broad stats (fire damage, life, cast speed) and rule-changing keystones. Never changes a specific skill |
+| Gems (Materia-style) | AP from riding | "How do my buttons play?" | Behaviour of their own skill only. Never general stats |
+| Gear | Drops, crafting, boss uniques | "How strong am I, and what rules do I break?" | Stat affixes; uniques that bend rules |
+
+- **Why it fits the loop:** character level is the main measure of being ready for deeper levels (par levels); AP means every easy ride grows something even without a drop; gear makes beats and bosses exciting; free gem swaps and cheap respecs give one character PoE-style flexibility; few bike buttons means depth comes from supports, not more skills.
+- **Leaning: passive tree.** Small and readable on a phone (~60–80 nodes): fire, cold and lightning regions around a core of defence and utility, 3–4 keystones (Blood Magic moves here). Cheap respecs.
+- **Leaning: soft level cap.** Past a point, levels get slower rather than stopping.
+- **Leaning: gems.** 4 skill slots plus dash. Each slot starts with 1 support socket and unlocks up to 3 with level. Sockets live on the **skill bar**, not gear (a rare gear affix could add "+1 support socket").
+  - Equipped gems earn full AP; **unequipped gems earn a small trickle**.
+  - Gems level into new behaviour, not just numbers (Fireball lv5 splits, lv10 leaves burning ground; Freeze support at max adds Shatter).
+  - The current pick-1-of-3 level-up draft is retired; its notables become support gems (Twin Flame, Shatter, Conduit).
+- **Leaning: gem tiers.** The same gem comes in better tiers (Fireball I, II, III), each with higher base power, a higher level cap and a new top milestone. Behaviour carries forward, so a build keeps working.
+  - **Tiers come mostly from regions** (Tier II from the Forest onward), with **rare jackpot drops** of a higher tier anywhere. Heat could raise those odds.
+- **Leaning: fusing.** Fuse a gem into a better tier of the same gem for a head start (e.g. mastered Fireball I makes Fireball II start at level 6 of 20). Never a full transfer, so there's always room to grow.
+  - **Rule: an upgrade never feels like a downgrade.** A fused gem is always at least as strong as the gem put in.
+  - Any gem can be fused for some AP; mastered gems give a bonus. Duplicate drops become fuel. Support gems work the same way.
+- **Open:** whether fusion replaces the FF7 "mastered gem spawns a copy" idea (leaning yes, to keep one clear ending for a mastered gem).
 
 ## Regions and levels
 
