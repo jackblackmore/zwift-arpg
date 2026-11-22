@@ -81,7 +81,7 @@ export function near(x, z, r, cb) {
 }
 
 // Steer toward a target, bending around rocks ahead.
-function steer(e, tx, tz) {
+export function steer(e, tx, tz) {
   let dx = tx - e.x, dz = tz - e.z; const d = Math.hypot(dx, dz) || 1; dx /= d; dz /= d;
   for (const o of G.obst) {
     const ox = o.x - e.x, oz = o.z - e.z, along = ox * dx + oz * dz; if (along < 0 || along > 3.5) continue;

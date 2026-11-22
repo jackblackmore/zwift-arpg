@@ -18,11 +18,12 @@ SCREENSHOT=/tmp/shot.png npm test   # also saves an ARPG mid-fight screenshot
 ## Controls
 
 - **Desktop:** WASD to move, mouse to aim. LMB is Fireball, RMB is Arc, Q is Frost Nova, Space is Flame Dash and F drinks a flask. I opens the bag, P the passives, Esc closes panels.
+- **RIDE mode** (MODE button): plays with only what a Zwift Ride and KICKR give you. You pedal to move: set power with the slider or <kbd>W</kbd>/<kbd>S</kbd>, and cadence with <kbd>A</kbd>/<kbd>D</kbd>; below 30% FTP you stand still. The D-pad steers (arrows). A is Fireball (<kbd>K</kbd>, hold), B is Arc (<kbd>L</kbd>, hold), Z is Frost Nova (<kbd>J</kbd>), and Y toggles autopilot (<kbd>I</kbd>), which walks you to the next fight, loot or pack and kites at casting range. The right shifter is Flame Dash (<kbd>E</kbd>) and the left shifter drinks a flask (<kbd>Q</kbd>). Pedalling harder refills mana faster, and cadence above 80 rpm casts faster (up to +15%). The on-screen pad works on touch too.
 - **Touch:** drag the left side to move. The skill buttons on the right auto-aim at the nearest enemy. Walk over loot to pick it up.
 
 ## The ARPG
 
-- **Graphics:** the hero and the skeletons are animated KayKit characters (CC0, by Kay Lousberg) in `public/models/`, trimmed by `scripts/prep-models.mjs`. The skeletons share one rig, so a single set of enemy clips drives them all. Bloom, a vignette and soft shadows run through `src/render/post.js`. The **FX** button cycles quality: high (bloom + shadows), medium (bloom, the default on touch devices) and low (plain). If the models fail to load, the game falls back to the primitive models.
+- **Graphics:** the hero and the skeletons are animated KayKit characters (CC0, by Kay Lousberg) in `public/models/`, trimmed by `scripts/prep-models.mjs`. The skeletons share one rig, so a single set of enemy clips drives them all. Bloom, a vignette and soft shadows run through `src/render/post.js`. The **LOOK** button cycles four styles on the same models: Classic, Grim (desaturated, crushed blacks, heavy fog), Retro (PS1-style pixels, posterize, dither) and Toon (ink outlines, banded lighting). The **FX** button cycles quality: high (bloom + shadows), medium (bloom, the default on touch devices) and low (plain). If the models fail to load, the game falls back to the primitive models.
 
 - **Skills:** Fireball explodes in an area, Arc chains between enemies, Frost Nova freezes (2.2s cooldown), and Flame Dash uses charges and leaves a burning trail. The life flask refills its charges on kills.
 - **Monsters:** zombies, runners, archers and bloaters that explode. They come in packs of 6–14. Magic packs are blue. Rare leaders have yellow names and affixes: Hasted, Fortified, Burning, Splitting, Volatile or Frenzied.
@@ -40,6 +41,7 @@ index.html, src/          the ARPG
   data/                   tuning tables: monsters, skills, items/affixes/uniques, passives
   input/input.js          the input layer: `ctl` is all the game reads
   input/devices.js        keyboard + mouse and touch devices that write into `ctl`
+  input/ridesim.js        RIDE mode: simulated Zwift Ride pad + KICKR power/cadence, writes into `ctl`
   world/map.js            map generation, rock colliders, line of sight
   game/                   rules: stats, combat, skills, enemies + AI, items, maps, save, tick
   render/                 three.js scene, assets, primitive + KayKit characters, post-processing, effects, drawing + overlay
@@ -63,5 +65,5 @@ Every push to `main` builds, runs the playtest and deploys to GitHub Pages (Sett
 
 1. Make the ARPG fun: more skills, with skill gems and supports to swap; more monster types and biomes; a town, stash and crafting currency.
 2. More art: build the dungeon from KayKit Dungeon Remastered (walls, doors, props), give bloaters and the boss their own models (Quaternius), and add sprite-sheet spell effects.
-3. Design the bike mapping, for example: movement auto-paths toward the next pack or loot, Zwift Ride buttons cast skills and steer, effort feeds mana and cast speed, and a surge triggers dash.
-4. Last: Bluetooth. KICKR via FTMS (Web Bluetooth) and Zwift Ride buttons, added as a device in `src/input/`.
+3. Tune RIDE mode on a real bike: the movement and mana curves are in `src/data/ride.js`, and the button map is in `RIDE_BUTTONS`.
+4. Last: Bluetooth. The KICKR via FTMS (Web Bluetooth) feeds `ride.pw`/`ride.cad`, and the Zwift Ride buttons call the same `press()` as the on-screen pad (`src/input/ridesim.js`).

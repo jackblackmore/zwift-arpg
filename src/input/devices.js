@@ -7,6 +7,7 @@ import { $, dist } from '../core/util.js';
 import { audio } from '../core/audio.js';
 import { pickUp } from '../game/items.js';
 import { toast } from '../render/fx.js';
+import { ride, rideKey, pollRide } from './ridesim.js';
 
 const keys = {};
 const mouse = { ndc: new T.Vector2(), has: false };
@@ -18,7 +19,8 @@ export function setTouch(v) { if (ctl.touch === v) return; ctl.touch = v; docume
 if (matchMedia('(pointer:coarse)').matches) setTouch(true);
 
 // Called once per frame before the game update.
-export function pollInput() {
+export function pollInput(dt) {
+  if (ride.on) { pollRide(dt); return; }
   let mx = 0, mz = 0;
   if (keys.w || keys.arrowup) mz -= 1; if (keys.s || keys.arrowdown) mz += 1; if (keys.a || keys.arrowleft) mx -= 1; if (keys.d || keys.arrowright) mx += 1;
   if (joy.on) { mx += joy.x; mz += joy.y; }
@@ -40,6 +42,7 @@ export function initDevices(ui) {
       if (dist(d.x, d.z, P.x, P.z) < 5) pickUp(d); else toast('Walk closer to pick that up');
       return;
     }
+    if (ride.on) return; // RIDE mode uses its own pad
     if (e.pointerType === 'touch') { if (e.clientX < V.W * .55 && !joy.on) Object.assign(joy, { on: true, id: e.pointerId, bx: e.clientX, by: e.clientY, x: 0, y: 0 }); return; }
     mouse.has = true; setMouse(e);
     if (e.button === 0) ctl.fb = true; if (e.button === 2) ctl.arc = true;
@@ -69,10 +72,11 @@ export function initDevices(ui) {
     if (k === 'i' || k === 'b') { if (G.started) UI.toggleInv(); return; }
     if (k === 'p') { if (G.started) UI.togglePass(); return; }
     if (k === 'escape') { UI.closeAll(); return; }
+    if (rideKey(k, true)) return;
     if (G.paused) return;
     if (k === 'q' || k === '3') ctl.nova = true; if (k === ' ' || k === '4') ctl.dash = true; if (k === 'f' || k === '5') ctl.flask = true;
     if (k === '1') ctl.fb = true; if (k === '2' || k === 'e') ctl.arc = true;
   });
-  addEventListener('keyup', e => { const k = e.key.toLowerCase(); keys[k] = false; if (k === '1') ctl.fb = false; if (k === '2' || k === 'e') ctl.arc = false; });
+  addEventListener('keyup', e => { const k = e.key.toLowerCase(); keys[k] = false; if (rideKey(k, false)) return; if (k === '1') ctl.fb = false; if (k === '2' || k === 'e') ctl.arc = false; });
   addEventListener('blur', () => { for (const k in keys) keys[k] = false; ctl.fb = ctl.arc = false; });
 }

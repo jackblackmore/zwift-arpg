@@ -7,12 +7,14 @@ import * as T from 'three';
 import { buildModel } from './render/models.js';
 import { chars, loadCharacters, makeChar } from './render/characters.js';
 import { glowSprite } from './render/assets.js';
-import { Q, applyQuality, cycleQuality } from './render/post.js';
+import { Q, applyQuality, cycleQuality, cycleStyle } from './render/post.js';
+import { STYLES } from './data/graphics.js';
 import { updFx } from './render/fx.js';
 import { draw } from './render/draw.js';
 import { buildMap } from './world/map.js';
 import { ctl } from './input/input.js';
 import { pollInput, initDevices } from './input/devices.js';
+import { ride, initRide, setRide, storedRide } from './input/ridesim.js';
 import { update } from './game/update.js';
 import { recalc } from './game/stats.js';
 import { newMap } from './game/maps.js';
@@ -62,9 +64,14 @@ loadCharacters().then(ok => {
 });
 $('bFx').textContent = 'FX: ' + Q.level.toUpperCase();
 $('bFx').onclick = () => { $('bFx').textContent = 'FX: ' + cycleQuality().toUpperCase(); };
+$('bLook').textContent = 'LOOK: ' + STYLES[Q.style].name.toUpperCase();
+$('bLook').onclick = () => { $('bLook').textContent = 'LOOK: ' + cycleStyle().toUpperCase(); };
 recalc(); resize(); buildMap(); P.x = G.start.x; P.z = G.start.z; cam.position.set(P.x + CAM.x, CAM.y, P.z + CAM.z);
 initPanels();
 initDevices({ toggleInv, togglePass, closeAll });
+initRide(); setRide(storedRide());
+const modeLabel = () => { $('bMode').textContent = ride.on ? 'MODE: RIDE' : 'MODE: KEYS'; $('bMode').classList.toggle('glow', ride.on); };
+modeLabel(); $('bMode').onclick = () => { setRide(!ride.on); modeLabel(); };
 $('bMute').onclick = () => { audio(); $('bMute').style.opacity = toggleMute() ? .4 : 1; };
 $('bMenu').onclick = () => { $('mMenu').classList.add('show'); $('goCont').style.display = ''; $('goCont').textContent = 'RESUME'; syncPause(); };
 $('goNew').onclick = () => begin(true);
@@ -74,7 +81,7 @@ const sv = load(); if (sv) { $('goCont').style.display = ''; $('goCont').dataset
 let last = performance.now();
 function frame(now) {
   const dt = Math.min(.05, (now - last) / 1000); last = now;
-  pollInput();
+  pollInput(dt);
   if (!G.paused) { if (G.hitStop > 0) G.hitStop -= dt; else update(dt); }
   updFx(G.paused ? 0 : dt); draw(dt); hud(dt);
   requestAnimationFrame(frame);
@@ -83,8 +90,8 @@ requestAnimationFrame(frame);
 
 // Testing hooks (used by tests/sim.mjs and handy in the console).
 window.__dbg = {
-  G, P, S, ctl, Q, chars,
-  ready: () => chars.ready || chars.failed, cycleQuality,
+  G, P, S, ctl, Q, chars, ride, setRide,
+  ready: () => chars.ready || chars.failed, cycleQuality, cycleStyle,
   start: fresh => begin(fresh !== false),
   sim: n => { for (let i = 0; i < n; i++) { update(.033); updFx(.033); } },
   enemies: () => G.enemies, packs: () => G.packs, items: () => G.ground,
