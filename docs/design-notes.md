@@ -43,6 +43,14 @@ Deviations from the design, and why:
 - Should the guardian preview the region's Trial workout?
 - How should the ambush and survival beats feel in RIDE mode? They ask for a surge.
 
+**Known issue: damage is far too high (balance pass deferred)**
+- Playtest: by gem level 5 everything dies in one shot and the guardian dies in seconds.
+- Why:
+  - Monster HP is still the old tier-1 numbers. A zombie has 16 HP, and a level 1 Fireball already does about 17 across its whole explosion.
+  - The guardian has 400 HP against about 65 DPS from a level 5 Fireball, before pierce and burning ground.
+  - With map tiers gone (depth fixed at 1), monsters never scale while gems, gear and passives all grow.
+- Likely fix: tune monster HP against gem base damage (a lv1 gem should need 2–3 hits on a normal monster), and bring back scaling through Crypt levels 1–5 with par character levels. Tuning lives in `src/data/monsters.js`, `src/data/gems.js` and `src/data/levels.js`.
+
 ---
 
 ## Character
