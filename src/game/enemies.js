@@ -1,7 +1,8 @@
 // Monster packs, spawning, AI (melee, ranged, bomber, boss) and crowd separation.
 import * as T from 'three';
 import { G, P, shake, stop } from '../core/state.js';
-import { MT, TIER, PACKS, PACK, RAREAFF, RN1, RN2, BOSS, RISE, ANIM } from '../data/monsters.js';
+import { MT, PACK, RAREAFF, RN1, RN2, BOSS, RISE, ANIM } from '../data/monsters.js';
+import { LEVEL, POOL, lvDef, lvScale } from '../data/levels.js';
 import { rand, pick, dist } from '../core/util.js';
 import { SFX } from '../core/audio.js';
 import { scene } from '../render/scene.js';
@@ -11,18 +12,21 @@ import { chars, makeChar } from '../render/characters.js';
 import { sparks, emit, burst, ringFx, flashFx, telegraph, banner } from '../render/fx.js';
 import { pushOut, blocked, los } from '../world/map.js';
 import { hurtP, kill } from './combat.js';
+import { necroAI, beginRaise, tickRaise, finishRaise, corpsesNear } from './corpses.js';
+import { addPool } from './hazards.js';
 
-// opts: size scales the headcount; magicChance / rareChance override the PACK defaults (levels.js sets them).
+// A pack from the current Crypt's templates (LEVELS[n].mix) and rare types. opts: size scales the headcount; magicChance / rareChance
+// override the level's pack settings (level.js passes the merged ones).
 export function makePack(x, z, opts = {}) {
-  const sz = (1 + TIER.packSize * (G.depth - 1)) * (opts.size || 1), mem = [];
-  const mc = opts.magicChance ?? PACK.magicChance, rc = opts.rareChance ?? PACK.rareChance;
-  for (const [t, n] of pick(PACKS)) for (let i = 0; i < Math.max(1, Math.round(n * sz * rand(.85, 1.2))); i++) mem.push(t);
-  return { x, z, mem, magic: Math.random() < mc, rare: Math.random() < rc ? pick(PACK.rareTypes) : null, spawned: false, awake: false, list: [] };
+  const lv = lvDef(), PK = { ...LEVEL.packs, ...lv.packs }, sz = lv.packSize * (opts.size || 1), mem = [];
+  const mc = opts.magicChance ?? PK.magicChance, rc = opts.rareChance ?? PK.rareChance;
+  for (const [t, n] of pick(lv.mix)) for (let i = 0; i < Math.max(1, Math.round(n * sz * rand(.85, 1.2))); i++) mem.push(t);
+  return { x, z, mem, magic: Math.random() < mc, rare: Math.random() < rc ? pick(lv.rareTypes) : null, spawned: false, awake: false, list: [] };
 }
 
 // rar: 0 normal, 1 magic, 2 rare
 export function spawnEnemy(type, x, z, pack, rar = 0) {
-  const b = MT[type], mt = 1 + TIER.hp * (G.depth - 1), md = 1 + TIER.dmg * (G.depth - 1);
+  const b = MT[type], mt = lvScale().hp, md = lvScale().dmg; // the current Crypt's multipliers (data/levels.js)
   const e = { type, ...b, x, z, vx: 0, vz: 0, pack, rar, aff: [], hp: 0, atkT: rand(.2, 1.2), windup: 0, awake: false, freeze: 0, chill: 0, shock: 0, burnT: 0, burnDps: 0, burnTick: 0, flash: 0, deathT: 0, walk: rand(0, 6), shootT: rand(.5, 2), face: rand(0, 6), fuse: 0, sx: x, sz: z };
   let hpm = mt, sc = b.scale || 1;
   if (rar === 1) { hpm *= 1.8; e.dmg *= 1.15; e.spd *= 1.08; }
@@ -37,11 +41,15 @@ export function spawnEnemy(type, x, z, pack, rar = 0) {
   e.hp = e.maxHp = b.hp * hpm; e.dmg *= md;
   e.h = b.h * sc / (b.scale || 1);
   const L = b.look, rigged = chars.ready && L;
-  e.model = rigged ? makeChar(L.kind, e.h, { weapon: L.weapon, offhand: L.offhand, tint: L.tint }) : buildModel({ ...b, scale: sc });
+  e.model = rigged ? makeChar(L.kind, e.h, { weapon: L.weapon, offhand: L.offhand, tint: L.tint }) : buildModel({ ...b, scale: sc }, { hood: b.hood, staff: b.staffy });
   if (rar === 2) e.model.mats.forEach(m => m.emissive.setHex(0x221a00));
   e.model.g.position.set(x, 0, z); e.model.g.rotation.y = e.face; scene.add(e.model.g);
   const inv = rigged ? 1 : 1 / sc; // primitive models scale the whole group; rigged ones scale an inner node
   if (rar) { e.aura = aura(rar === 2 ? 0xffd23f : 0x5a6aff, e.r * 5, .35); e.model.g.add(e.aura); e.aura.scale.multiplyScalar(inv); }
+  if (b.glow) { // a halo (the necromancer): a flat aura and a glow above its head
+    if (!e.aura) { e.aura = aura(b.glow, e.r * 6, .4); e.model.g.add(e.aura); e.aura.scale.multiplyScalar(inv); }
+    e.glowS = glowSprite(b.glow, 1.3); e.glowS.position.y = (e.h + .45) * (rigged ? 1 : inv); e.model.g.add(e.glowS);
+  }
   if (e.aff.includes('burning')) { e.fireAura = aura(0xd8400c, 5.5, .35); e.model.g.add(e.fireAura); e.fireAura.scale.multiplyScalar(inv); }
   G.enemies.push(e); if (pack) pack.list.push(e);
   return e;
@@ -58,7 +66,7 @@ export function materialize() {
 }
 
 // Rigged skeletons get up when woken: they play their rise clip and don't act until it's done.
-function rouse(o) {
+export function rouse(o) {
   if (o.awake) return; o.awake = true;
   const R = o.model.rigged && o.look && RISE[o.look.rise], clip = R && chars.clips[R.clip];
   if (clip && !o.deathT) { o.rise = clip.duration / R.speed * .85; o.riseAnim = R; }
@@ -92,8 +100,8 @@ export function steer(e, tx, tz) {
   }
   const l = Math.hypot(dx, dz) || 1; return [dx / l, dz / l];
 }
-function moveE(e, tx, tz, spd, dt) { const [dx, dz] = steer(e, tx, tz); e.x += dx * spd * dt; e.z += dz * spd * dt; e.face = Math.atan2(dx, dz); e.walk += dt * spd * 2.6; e.moving = true; }
-function eShoot(e, ang, spd, dmg, col, size) {
+export function moveE(e, tx, tz, spd, dt) { const [dx, dz] = steer(e, tx, tz); e.x += dx * spd * dt; e.z += dz * spd * dt; e.face = Math.atan2(dx, dz); e.walk += dt * spd * 2.6; e.moving = true; }
+export function eShoot(e, ang, spd, dmg, col, size) {
   const g = new T.Group();
   if (col === 'arrow') { const m = new T.Mesh(GB, eyeMat(0xd8c890)); m.scale.set(.05, .05, .55); g.add(m); g.rotation.y = ang; }
   else g.add(glowSprite(col, size));
@@ -152,7 +160,7 @@ export function updEnemy(e, dt) {
   if (!e.awake || frozen || P.dead > 0) { pushOut(e); return animE(e, dt); }
   if (e.rise > 0) { e.rise -= dt; e.face = Math.atan2(P.x - e.x, P.z - e.z); pushOut(e); return animE(e, dt); }
   const spd = e.spd * (e.chill > 0 ? .5 : 1), cdm = e.chill > 0 ? 1.6 : 1;
-  if (e.fireAura && d < 2.75) { e.auraT = (e.auraT || 0) - dt; if (e.auraT <= 0) { e.auraT = .5; hurtP(3 * (1 + TIER.dmg * (G.depth - 1))); } }
+  if (e.fireAura && d < 2.75) { e.auraT = (e.auraT || 0) - dt; if (e.auraT <= 0) { e.auraT = .5; hurtP(3 * lvScale().dmg); } }
   if (e.ai === 'boss' && bossAI(e, dt)) { pushOut(e); return animE(e, dt); }
   if (e.ai === 'melee' || e.ai === 'boss') {
     if (e.windup > 0) {
@@ -165,7 +173,8 @@ export function updEnemy(e, dt) {
     else if (d < 4.5) { const [dx, dz] = steer(e, e.x - (P.x - e.x), e.z - (P.z - e.z)); e.x += dx * spd * dt; e.z += dz * spd * dt; e.walk += dt * spd * 2.6; e.moving = true; e.face = Math.atan2(P.x - e.x, P.z - e.z); }
     else if (d > 9 || !los(e.x, e.z, P.x, P.z)) moveE(e, P.x, P.z, spd, dt);
     else { e.face = Math.atan2(P.x - e.x, P.z - e.z); e.shootT -= dt; if (e.shootT <= 0) { e.windup = .45; e.atkSeq = (e.atkSeq || 0) + 1; } }
-  } else if (e.ai === 'bomb') {
+  } else if (e.ai === 'necro') necroAI(e, dt, d, spd, cdm, moveE);
+  else if (e.ai === 'bomb') {
     if (e.fuse > 0) { e.fuse -= dt; if (e.fuse <= 0) kill(e); }
     else if (d < 1.9) { e.fuse = .85; telegraph(e.x, e.z, 2.2, .85, 0x9ad060); }
     else moveE(e, P.x, P.z, spd, dt);
@@ -175,10 +184,11 @@ export function updEnemy(e, dt) {
 
 // Returns true while the boss is busy with an ability (so it doesn't also walk or swing).
 function bossAI(e, dt) {
-  const B = e.abil || BOSS;
-  if (!e.phase2 && e.hp < e.maxHp * .5) { e.phase2 = true; e.spd *= 1.3; banner((e.name || 'BOSS').toUpperCase() + ' IS ENRAGED', '#ff4fd8', 'Faster slams · double nova'); SFX.roar(); }
+  const B = e.abil || BOSS, d = dist(e.x, e.z, P.x, P.z), n2 = (a, b) => e.phase2 ? b : a;
+  if (!e.phase2 && e.hp < e.maxHp * .5) { e.phase2 = true; e.spd *= 1.3; banner((e.name || 'BOSS').toUpperCase() + ' IS ENRAGED', '#ff4fd8', 'Faster casts · doubled attacks'); SFX.roar(); }
   if (e.cast) {
     const c = e.cast; c.t -= dt; e.face = Math.atan2(P.x - e.x, P.z - e.z);
+    if (c.kind === 'raise') tickRaise(e);
     if (c.t > 0) return true;
     e.cast = null; e.swing = 1;
     if (c.kind === 'slam') {
@@ -186,19 +196,53 @@ function bossAI(e, dt) {
       if (dist(P.x, P.z, c.x, c.z) < c.r + P.r) hurtP(e.dmg * 2);
     }
     if (c.kind === 'nova') for (let k = 0; k < (e.phase2 ? 2 : 1); k++) setTimeout(() => { if (e.deathT || e.gone) return; for (let i = 0; i < B.novaBolts; i++) eShoot(e, i / B.novaBolts * 6.283 + k * .22, 6.5, e.dmg * .7, 0xff2bd6, 1.1); SFX.arc(); }, k * 380);
-    if (c.kind === 'summon') for (let i = 0; i < (e.phase2 ? B.summon2 : B.summon); i++) {
+    if (c.kind === 'volley') for (let k = 0; k < (e.phase2 ? 2 : 1); k++) setTimeout(() => {
+      if (e.deathT || e.gone) return;
+      for (let i = 0; i < B.volleyN; i++) eShoot(e, c.ang + (i / (B.volleyN - 1) - .5) * B.volleySpread, B.volleySpeed, e.dmg * .8, 'arrow');
+      SFX.arc();
+    }, k * 450);
+    if (c.kind === 'summon') for (let i = 0; i < n2(B.summon, B.summon2); i++) {
       const a = i * 1.26, x = e.x + Math.cos(a) * 2.5, z = e.z + Math.sin(a) * 2.5;
-      if (!blocked(x, z, .3)) { const r = spawnEnemy('runner', x, z, null, 0); r.awake = true; r.beat = e.beat; burst(x, .5, z, 0xff4fd8, 10, 3); }
+      if (!blocked(x, z, .3)) { const r = spawnEnemy(B.summonType || 'runner', x, z, null, 0); r.awake = true; r.beat = e.beat; burst(x, .5, z, 0xff4fd8, 10, 3); }
     }
+    if (c.kind === 'raise') { // the corpses rise, and a few fresh adds fill in for the ones that were missing
+      finishRaise(e, c, .9);
+      for (const [x, z] of c.fill) { const r = spawnEnemy(B.fill, x, z, null, 0); r.awake = true; r.beat = e.beat; r.rise = .9; r.xp = 0; r.revived = true; burst(x, .5, z, 0xb060ff, 12, 3); }
+    }
+    if (c.kind === 'pools') for (const [x, z] of c.spots) { addPool(x, z, { r: B.poolR, life: B.poolLife }); burst(x, .3, z, 0x8be04a, 14, 3); }
     return true;
   }
   e.abilT -= dt;
   if (e.abilT <= 0) {
-    const k = B.rotation[e.rot++ % B.rotation.length]; e.abilT = e.phase2 ? B.abilGap2 : B.abilGap;
+    const k = B.rotation[e.rot++ % B.rotation.length]; e.abilT = n2(B.abilGap, B.abilGap2);
     if (k === 'slam') { e.cast = { kind: k, t: e.phase2 ? .75 : 1, x: P.x, z: P.z, r: B.slamR }; telegraph(P.x, P.z, B.slamR, e.cast.t); }
     else if (k === 'nova') { e.cast = { kind: k, t: .6 }; flashFx(e.x, 3, e.z, 0xff2bd6, 5, .6); }
+    else if (k === 'volley') { // the arrow fan aims where you stand now: three discs mark its lane
+      const ang = Math.atan2(P.x - e.x, P.z - e.z); e.cast = { kind: k, t: n2(.9, .7), ang };
+      for (const r of [3.5, 7, 10.5]) telegraph(e.x + Math.sin(ang) * r, e.z + Math.cos(ang) * r, 1 + r * .08, e.cast.t, 0xffa020);
+      flashFx(e.x, 2, e.z, 0xffa020, 3, e.cast.t);
+    }
+    else if (k === 'raise') {
+      const n = n2(B.raise, B.raise2), list = corpsesNear(e.x, e.z, B.raiseRange, n), fill = [];
+      for (let i = 0; i < Math.ceil((n - list.length) / 2); i++) { const a = i * 2.1 + rand(0, 1), x = e.x + Math.cos(a) * 3, z = e.z + Math.sin(a) * 3; if (!blocked(x, z, .4)) { fill.push([x, z]); telegraph(x, z, 1, 1.5, 0xb060ff); } }
+      beginRaise(e, list, 1.5, { fill });
+    }
+    else if (k === 'pools') { // one under you, the rest scattered around you
+      const n = n2(B.poolN, B.poolN2), spots = [[P.x, P.z]], R = B.poolR || POOL.r;
+      for (let tries = 0; spots.length < n && tries < 30; tries++) { const a = rand(0, 6.283), r = rand(2.5, B.poolSpread), x = P.x + Math.cos(a) * r, z = P.z + Math.sin(a) * r; if (!blocked(x, z, R * .6)) spots.push([x, z]); }
+      e.cast = { kind: k, t: .9, spots }; for (const [x, z] of spots) telegraph(x, z, R, e.cast.t, 0x6ac040);
+    }
     else { e.cast = { kind: k, t: .7 }; ringFx(e.x, e.z, 3, 0xff4fd8, .7, .2); }
     return true;
+  }
+  if (B.kite) { // casters back off when you close in (for a spell of seconds, then stand and fight) and otherwise hold their ground
+    e.kiteCd = (e.kiteCd || 0) - dt;
+    if (e.kiteCd <= 0 && d < B.kite) {
+      e.kiteRun = (e.kiteRun || 0) + dt; const [dx, dz] = steer(e, e.x - (P.x - e.x), e.z - (P.z - e.z)); e.x += dx * e.spd * dt; e.z += dz * e.spd * dt; e.walk += dt * e.spd * 2.6; e.moving = true; e.face = Math.atan2(P.x - e.x, P.z - e.z);
+      if (e.kiteRun > 1.4) { e.kiteRun = 0; e.kiteCd = 3.5; }
+      return true;
+    }
+    if (e.kiteCd <= 0 && d < B.hold) { e.face = Math.atan2(P.x - e.x, P.z - e.z); return true; }
   }
   return false;
 }

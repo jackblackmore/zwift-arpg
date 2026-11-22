@@ -8,7 +8,8 @@ import { loadGLB, linearise } from '../render/characters.js';
 import { glowSprite, decal } from '../render/assets.js';
 import { DUNGEON } from '../data/graphics.js';
 import { inClear } from './map.js';
-import { FLOOR, WALL, BANNERS, OBSTACLES, OBSTACLE_COUNT, CLUTTER, BRAZIERS } from '../data/dungeon.js';
+import { FLOOR, WALL, BANNERS, OBSTACLES, OBSTACLE_SETS, CLUTTER, BRAZIERS } from '../data/dungeon.js';
+import { mapParams } from './map.js';
 
 export const dun = { ready: false, tpl: {} };
 
@@ -95,17 +96,17 @@ export function buildDungeon(half) {
   for (const [x, z] of [[-off, -off], [off, -off]]) solid.add('pillar', x, z, 0, s * 1.15);
 
   // Obstacles, each with one or more circle colliders.
-  const feats = [];
-  const total = OBSTACLES.reduce((a, o) => a + o.w, 0);
-  for (let t = 0; t < 900 && feats.length < OBSTACLE_COUNT; t++) {
-    let r = Math.random() * total, ob = OBSTACLES[0];
-    for (const o of OBSTACLES) if ((r -= o.w) <= 0) { ob = o; break; }
+  const feats = [], M = mapParams(), pool = M.set ? OBSTACLES.filter(o => OBSTACLE_SETS[M.set].includes(o.name)) : OBSTACLES;
+  const total = pool.reduce((a, o) => a + o.w, 0);
+  for (let t = 0; t < 900 + M.obstacles * 12 && feats.length < M.obstacles; t++) {
+    let r = Math.random() * total, ob = pool[0];
+    for (const o of pool) if ((r -= o.w) <= 0) { ob = o; break; }
     const x = rand(-half + 3, half - 3), z = rand(-half + 3, half - 3), rot = rand(0, Math.PI * 2);
     const circles = ob.circles.map(([ox, oz, cr]) => { const [dx, dz] = turn(ox, oz, rot, s); return { x: x + dx, z: z + dz, r: cr * s }; });
     const R = Math.max(...circles.map(c => dist(c.x, c.z, x, z) + c.r));
     if (inClear(x, z, R)) continue;
     if (circles.some(c => Math.abs(c.x) > half - c.r - .5 || Math.abs(c.z) > half - c.r - .5)) continue;
-    if (feats.some(f => dist(f.x, f.z, x, z) < f.R + R + 2.2)) continue;
+    if (feats.some(f => dist(f.x, f.z, x, z) < f.R + R + M.gap)) continue;
     feats.push({ x, z, R }); solid.add(ob.name, x, z, rot, s);
     G.obst.push(...circles);
   }

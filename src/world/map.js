@@ -6,8 +6,11 @@ import { groundTex, GB, GS, GCY, GROCK, glowSprite, decal } from '../render/asse
 import { G } from '../core/state.js';
 import { rand, clamp, dist } from '../core/util.js';
 import { dun, buildDungeon } from './dungeon.js';
+import { LEVEL, lvDef } from '../data/levels.js';
 
 export const HALF = 34; // map spans -HALF..HALF on x and z
+// This level's dressing: obstacle count, gap between obstacles, obstacle set (data/levels.js LEVEL.map + the level's own map).
+export const mapParams = () => ({ ...LEVEL.map, ...lvDef().map });
 
 const ground = new T.Mesh(new T.PlaneGeometry(HALF * 2 + 30, HALF * 2 + 30), new T.MeshLambertMaterial({ map: groundTex, color: 0xb0a090 }));
 ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; groundTex.repeat.set(16, 16); scene.add(ground);
@@ -45,10 +48,11 @@ export function buildMap() {
 }
 
 function primitiveMap() {
-  for (let t = 0; t < 600 && G.obst.length < 52; t++) {
+  const M = mapParams();
+  for (let t = 0; t < 600 + M.obstacles * 6 && G.obst.length < M.obstacles + 6; t++) {
     const r = rand(.8, 2.4), x = rand(-HALF + 3, HALF - 3), z = rand(-HALF + 3, HALF - 3);
     if (inClear(x, z, r)) continue;
-    if (G.obst.some(o => dist(o.x, o.z, x, z) < o.r + r + 2.2)) continue;
+    if (G.obst.some(o => dist(o.x, o.z, x, z) < o.r + r + M.gap)) continue;
     rock(x, z, r, true); if (Math.random() < .7) rock(x + rand(-r, r), z + rand(-r, r), r * rand(.3, .5), false);
   }
   for (let a = -HALF - 1; a <= HALF + 1; a += 2.4) for (const [x, z] of [[a, -HALF - 1.4], [a, HALF + 1.4], [-HALF - 1.4, a], [HALF + 1.4, a]]) rock(x + rand(-.4, .4), z + rand(-.4, .4), rand(1.4, 2.4), false);

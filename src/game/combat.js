@@ -1,7 +1,8 @@
 // Damage, deaths, player damage, explosions, burning ground and delayed effects (shatter, bloater blasts).
 import * as T from 'three';
 import { G, P, S, shake, stop } from '../core/state.js';
-import { TIER } from '../data/monsters.js';
+import { MT } from '../data/monsters.js';
+import { lvDef, lvScale } from '../data/levels.js';
 import { SK } from '../data/skills.js';
 import { rand, pick, dist, $ } from '../core/util.js';
 import { SFX } from '../core/audio.js';
@@ -12,6 +13,8 @@ import { near, wake, spawnEnemy } from './enemies.js';
 import { dropItem } from './items.js';
 import { gainXp, xpNeed } from './stats.js';
 import { onKill } from './level.js';
+import { addCorpse, endChannel } from './corpses.js';
+import { addPool } from './hazards.js';
 import { castArc, endWard } from './skills.js';
 import { gemBase, gemHas, gemsOnKill } from './gems.js';
 
@@ -36,15 +39,16 @@ export function hit(e, mult, elem, src = {}) {
 
 export function kill(e) {
   if (e.deathT) return;
-  e.deathT = .001;
-  if (e.noLoot) { burst(e.x, 1, e.z, 0x9a2a1a, 8, 3); if (e.aura) e.aura.visible = false; return; } // collapsed when a beat ended: no kill, drops or blasts
+  e.deathT = .001; endChannel(e); // a necromancer killed mid-channel revives nothing
+  if (e.noLoot) { burst(e.x, 1, e.z, 0x9a2a1a, 8, 3); if (e.aura) e.aura.visible = false; if (e.glowS) e.glowS.visible = false; return; } // collapsed when a beat ended: no kill, drops or blasts
   G.mapKills++; P.kills++;
   SFX.kill(); gemsOnKill(e);
   const bossy = e.ai === 'boss';
   const col = e.freeze > 0 ? 0xbff0ff : e.type === 'bloater' ? 0x9ad060 : bossy ? 0xff4fd8 : 0x9a2a1a;
   burst(e.x, 1, e.z, col, bossy ? 120 : e.rar === 2 ? 40 : 12, bossy ? 9 : 4);
-  if (e.aura) e.aura.visible = false; if (e.fireAura) e.fireAura.visible = false;
-  gainXp(e.xp * (e.rar === 2 ? 8 : e.rar === 1 ? 2 : 1) * (1 + TIER.xp * (G.depth - 1)));
+  if (e.aura) e.aura.visible = false; if (e.fireAura) e.fireAura.visible = false; if (e.glowS) e.glowS.visible = false;
+  if (!bossy && !e.noCorpse && !e.revived) addCorpse(e); // a bone pile for CORPSE.life seconds: the necromancer's raw material
+  gainXp(e.xp * (e.rar === 2 ? 8 : e.rar === 1 ? 2 : 1) * lvScale().xp);
   P.life = Math.min(S.maxLife, P.life + S.lok);
   P.flask = Math.min(SK.flask.max, P.flask + (e.rar === 2 ? SK.flask.perRare : SK.flask.perKill));
   if (e.rar === 2) { dropItem(e.x, e.z, .15); if (Math.random() < .5) dropItem(e.x, e.z, .1); stop(.06); shake(.3); }
@@ -115,7 +119,8 @@ export function processQueue(dt) {
       const r = q.small ? 2.6 : 2.2;
       ringFx(q.x, q.z, r, 0x9ad060, .35, .5); flashFx(q.x, .8, q.z, 0x9ad060, r * 2.5, .3); burst(q.x, .6, q.z, 0x9ad060, 30, 6); burst(q.x, .6, q.z, 0x5a8a20, 15, 4); SFX.boom(); shake(.15);
       if (dist(P.x, P.z, q.x, q.z) < r + P.r) hurtP(q.dmg);
-      near(q.x, q.z, r, e => { e.hp -= 20 * (1 + TIER.hp * (G.depth - 1)); if (e.hp <= 0) kill(e); });
+      near(q.x, q.z, r, e => { e.hp -= MT.bloater.blast * lvScale().hp; if (e.hp <= 0) kill(e); });
+      const bp = lvDef().hazards && lvDef().hazards.pools && lvDef().hazards.pools.bloat; if (bp && !q.small) addPool(q.x, q.z, bp); // the burst leaves a poison pool where levels have them
     }
   }
   G.queue = G.queue.filter(q => !q.done);

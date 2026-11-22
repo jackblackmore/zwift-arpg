@@ -10,7 +10,7 @@ import { modText } from '../game/items.js';
 import { save } from '../game/save.js';
 
 const isOpen = id => $(id).classList.contains('show');
-export function syncPause() { G.paused = !G.started || ['mInv', 'mPass', 'mMenu'].some(isOpen); clearHeld(); }
+export function syncPause() { G.paused = !G.started || ['mInv', 'mPass', 'mMenu', 'mWay'].some(isOpen); clearHeld(); }
 
 // ================= INVENTORY =================
 const ui = { sel: null };

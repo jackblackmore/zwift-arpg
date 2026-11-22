@@ -22,7 +22,6 @@ import { initSurge } from './game/surge.js';
 import { SK } from './data/skills.js';
 import { recalc } from './game/stats.js';
 import { newLevel, levelGoal, currentBeat, startBeat } from './game/level.js';
-import { LEVEL } from './data/levels.js';
 import { save, load } from './game/save.js';
 import { initCharacter } from './game/character.js';
 import { startRun } from './game/waypoint.js';
@@ -35,6 +34,7 @@ import { dropItem } from './game/items.js';
 import { BAR } from './data/skills.js';
 import { gainAP, gemBase, gemHas } from './game/gems.js';
 import { hud } from './ui/hud.js';
+import './ui/waypoint.js';
 import { initPanels, syncPause, openInv, openPass, toggleInv, togglePass, closeAll, equip } from './ui/panels.js';
 
 // Fresh skill state: default bar, no cooldowns, no ward.
@@ -87,7 +87,7 @@ $('bMute').onclick = () => { audio(); $('bMute').style.opacity = toggleMute() ? 
 $('bMenu').onclick = () => { $('mMenu').classList.add('show'); $('goCont').style.display = ''; $('goCont').textContent = 'RESUME'; syncPause(); };
 $('goNew').onclick = () => begin(true);
 $('goCont').onclick = () => { if (G.started && $('goCont').textContent === 'RESUME') { $('mMenu').classList.remove('show'); syncPause(); } else begin(false); };
-const sv = load(); if (sv) { $('goCont').style.display = ''; $('goCont').dataset.label = `CONTINUE · LV ${sv.lvl} · ${LEVEL.name.toUpperCase()} · ${sv.clears ?? Math.max(0, (sv.tier || 1) - 1)} CLEARED`; if (!$('goCont').disabled) $('goCont').textContent = $('goCont').dataset.label; }
+const sv = load(); if (sv) { $('goCont').style.display = ''; $('goCont').dataset.label = `CONTINUE · LV ${sv.lvl} · ${sv.waypoint ? 'CRYPT ' + sv.waypoint + ' REACHED' : 'NO CRYPT CLEARED'}`; if (!$('goCont').disabled) $('goCont').textContent = $('goCont').dataset.label; }
 
 let last = performance.now();
 function frame(now) {
