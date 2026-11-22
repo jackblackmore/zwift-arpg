@@ -11,9 +11,9 @@ export const scene = new T.Scene();
 scene.background = new T.Color(0x060405);
 scene.fog = new T.Fog(0x060405, 24, 44);
 export const cam = new T.PerspectiveCamera(40, 1, .1, 140);
-export const CAM = new T.Vector3(0, 19, 12.5); // camera offset from the player
+export const CAM = new T.Vector3(0, 15, 10.5); // camera offset from the player
 scene.add(new T.HemisphereLight(0x9a8fc0, 0x2a2018, .65));
-const moon = new T.DirectionalLight(0x8fa0ff, .35); moon.position.set(-10, 20, 6); scene.add(moon);
+export const moon = new T.DirectionalLight(0x9fb0ff, .45); moon.position.set(-10, 20, 6); scene.add(moon);
 export const plight = new T.PointLight(0xffb070, 1.5, 16, 1.5); scene.add(plight);
 export const blight = new T.PointLight(0xff3ad0, 0, 14, 1.5); scene.add(blight);
 
@@ -28,7 +28,7 @@ export const o2d = $('o2d'), ctx = o2d.getContext('2d');
 
 export function resize() {
   V.W = innerWidth; V.H = innerHeight; const dpr = Math.min(2, devicePixelRatio || 1);
-  renderer.setSize(V.W, V.H); cam.aspect = V.W / V.H; V.camMul = V.W < V.H ? 1.45 : V.W < 800 ? 1.15 : 1; cam.updateProjectionMatrix();
+  renderer.setSize(V.W, V.H); cam.aspect = V.W / V.H; V.camMul = V.W < V.H ? 1.35 : V.W < 800 ? 1.1 : 1; cam.updateProjectionMatrix();
   o2d.width = V.W * dpr; o2d.height = V.H * dpr; o2d.style.width = V.W + 'px'; o2d.style.height = V.H + 'px'; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
 addEventListener('resize', resize);

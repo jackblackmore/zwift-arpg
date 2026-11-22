@@ -20,6 +20,8 @@
     "three": "^0.128.0"
   },
   "devDependencies": {
+    "@gltf-transform/core": "^4.5.1",
+    "@gltf-transform/functions": "^4.5.1",
     "puppeteer-core": "^23.11.1",
     "vite": "^6.4.6"
   },

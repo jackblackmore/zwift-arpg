@@ -3,7 +3,11 @@ import { G, P, S } from './core/state.js';
 import { $ } from './core/util.js';
 import { audio, toggleMute } from './core/audio.js';
 import { scene, cam, CAM, resize } from './render/scene.js';
+import * as T from 'three';
 import { buildModel } from './render/models.js';
+import { chars, loadCharacters, makeChar } from './render/characters.js';
+import { glowSprite } from './render/assets.js';
+import { Q, applyQuality, cycleQuality } from './render/post.js';
 import { updFx } from './render/fx.js';
 import { draw } from './render/draw.js';
 import { buildMap } from './world/map.js';
@@ -34,7 +38,30 @@ function begin(fresh) {
 }
 
 // ---- boot ----
+// Primitive hero until the KayKit models arrive (or if they fail to load).
 G.heroM = buildModel({ col: 0x2a3a6a, head: 0xd9b08c, eye: 0x1a1a1a, h: 1.8 }, { staff: 1, hood: 1 }); scene.add(G.heroM.g);
+function rigHero() {
+  const M = makeChar('hero', 1.95);
+  // A glowing orb on the staff tip (blooms nicely). The staff ships inside the mage model.
+  M.g.traverse(o => {
+    if (o.name !== '2H_Staff' || !o.isMesh || M.orb) return;
+    o.geometry.computeBoundingBox(); const b = o.geometry.boundingBox, sz = new T.Vector3(); b.getSize(sz);
+    const tip = new T.Vector3((b.min.x + b.max.x) / 2, (b.min.y + b.max.y) / 2, (b.min.z + b.max.z) / 2);
+    const ax = sz.x > sz.y && sz.x > sz.z ? 'x' : sz.y > sz.z ? 'y' : 'z'; tip[ax] = b.max[ax];
+    M.orb = glowSprite(0x7fd8ff, .55); M.orb.position.copy(tip); M.orb.scale.setScalar(.55); o.add(M.orb);
+    M.orb.scale.divideScalar(o.getWorldScale(new T.Vector3()).x || 1);
+  });
+  scene.remove(G.heroM.g); G.heroM = M; scene.add(M.g);
+}
+const menuBtns = ['goNew', 'goCont'].map($);
+menuBtns.forEach(b => { b.disabled = true; b.dataset.label = b.textContent; b.textContent = 'LOADING…'; });
+loadCharacters().then(ok => {
+  if (ok) rigHero();
+  applyQuality();
+  menuBtns.forEach(b => { b.disabled = false; b.textContent = b.dataset.label; });
+});
+$('bFx').textContent = 'FX: ' + Q.level.toUpperCase();
+$('bFx').onclick = () => { $('bFx').textContent = 'FX: ' + cycleQuality().toUpperCase(); };
 recalc(); resize(); buildMap(); P.x = G.start.x; P.z = G.start.z; cam.position.set(P.x + CAM.x, CAM.y, P.z + CAM.z);
 initPanels();
 initDevices({ toggleInv, togglePass, closeAll });
@@ -42,7 +69,7 @@ $('bMute').onclick = () => { audio(); $('bMute').style.opacity = toggleMute() ? 
 $('bMenu').onclick = () => { $('mMenu').classList.add('show'); $('goCont').style.display = ''; $('goCont').textContent = 'RESUME'; syncPause(); };
 $('goNew').onclick = () => begin(true);
 $('goCont').onclick = () => { if (G.started && $('goCont').textContent === 'RESUME') { $('mMenu').classList.remove('show'); syncPause(); } else begin(false); };
-const sv = load(); if (sv) { $('goCont').style.display = ''; $('goCont').textContent = `CONTINUE · LV ${sv.lvl} · MAP ${sv.tier}`; }
+const sv = load(); if (sv) { $('goCont').style.display = ''; $('goCont').dataset.label = `CONTINUE · LV ${sv.lvl} · MAP ${sv.tier}`; if (!$('goCont').disabled) $('goCont').textContent = $('goCont').dataset.label; }
 
 let last = performance.now();
 function frame(now) {
@@ -56,7 +83,8 @@ requestAnimationFrame(frame);
 
 // Testing hooks (used by tests/sim.mjs and handy in the console).
 window.__dbg = {
-  G, P, S, ctl,
+  G, P, S, ctl, Q, chars,
+  ready: () => chars.ready || chars.failed, cycleQuality,
   start: fresh => begin(fresh !== false),
   sim: n => { for (let i = 0; i < n; i++) { update(.033); updFx(.033); } },
   enemies: () => G.enemies, packs: () => G.packs, items: () => G.ground,

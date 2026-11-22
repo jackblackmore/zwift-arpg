@@ -8,7 +8,7 @@ import { rand, clamp, dist } from '../core/util.js';
 export const HALF = 34; // map spans -HALF..HALF on x and z
 
 const ground = new T.Mesh(new T.PlaneGeometry(HALF * 2 + 30, HALF * 2 + 30), new T.MeshLambertMaterial({ map: groundTex, color: 0xb0a090 }));
-ground.rotation.x = -Math.PI / 2; groundTex.repeat.set(16, 16); scene.add(ground);
+ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; groundTex.repeat.set(16, 16); scene.add(ground);
 G.world = new T.Group(); scene.add(G.world);
 
 const rockMat = new T.MeshLambertMaterial({ color: 0x4a4048, flatShading: true }), rockMat2 = new T.MeshLambertMaterial({ color: 0x3a3238, flatShading: true });
@@ -25,7 +25,7 @@ export function los(ax, az, bx, bz) {
   return true;
 }
 function rock(x, z, r, solid) {
-  const m = new T.Mesh(GROCK, Math.random() < .5 ? rockMat : rockMat2); m.scale.set(r, r * rand(.7, 1.3), r); m.rotation.set(rand(0, 3), rand(0, 3), rand(0, 3)); m.position.set(x, r * .45, z); G.world.add(m);
+  const m = new T.Mesh(GROCK, Math.random() < .5 ? rockMat : rockMat2); m.scale.set(r, r * rand(.7, 1.3), r); m.rotation.set(rand(0, 3), rand(0, 3), rand(0, 3)); m.position.set(x, r * .45, z); m.castShadow = m.receiveShadow = true; G.world.add(m);
   if (solid) G.obst.push({ x, z, r: r * .92 });
 }
 

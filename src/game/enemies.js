@@ -7,6 +7,7 @@ import { SFX } from '../core/audio.js';
 import { scene } from '../render/scene.js';
 import { GB, eyeMat, glowSprite, decal } from '../render/assets.js';
 import { buildModel } from '../render/models.js';
+import { chars, makeChar } from '../render/characters.js';
 import { sparks, emit, burst, ringFx, flashFx, telegraph, banner } from '../render/fx.js';
 import { pushOut, blocked, los } from '../world/map.js';
 import { hurtP, kill } from './combat.js';
@@ -34,11 +35,14 @@ export function spawnEnemy(type, x, z, pack, rar = 0) {
     e.name = pick(RN1) + pick(RN2);
   }
   e.hp = e.maxHp = b.hp * hpm; e.dmg *= md;
-  e.model = buildModel({ ...b, scale: sc }); e.h = b.h * sc / (b.scale || 1);
+  e.h = b.h * sc / (b.scale || 1);
+  const L = b.look, rigged = chars.ready && L;
+  e.model = rigged ? makeChar(L.kind, e.h, { weapon: L.weapon, offhand: L.offhand, tint: L.tint }) : buildModel({ ...b, scale: sc });
   if (rar === 2) e.model.mats.forEach(m => m.emissive.setHex(0x221a00));
   e.model.g.position.set(x, 0, z); e.model.g.rotation.y = e.face; scene.add(e.model.g);
-  if (rar) { e.aura = decal(rar === 2 ? 0xffd23f : 0x5a6aff, e.r * 5); e.model.g.add(e.aura); e.aura.scale.multiplyScalar(1 / sc); }
-  if (e.aff.includes('burning')) { e.fireAura = decal(0xff5a10, 5.5); e.model.g.add(e.fireAura); e.fireAura.scale.multiplyScalar(1 / sc); }
+  const inv = rigged ? 1 : 1 / sc; // primitive models scale the whole group; rigged ones scale an inner node
+  if (rar) { e.aura = decal(rar === 2 ? 0xffd23f : 0x5a6aff, e.r * 5); e.model.g.add(e.aura); e.aura.scale.multiplyScalar(inv); }
+  if (e.aff.includes('burning')) { e.fireAura = decal(0xff5a10, 5.5); e.model.g.add(e.fireAura); e.fireAura.scale.multiplyScalar(inv); }
   G.enemies.push(e); if (pack) pack.list.push(e);
   return e;
 }
@@ -106,6 +110,14 @@ export function updEnemyProjectiles(dt) {
 
 export function updEnemy(e, dt) {
   const M = e.model;
+  if (e.deathT && M.rigged) {
+    // Play a death clip, leave the body a moment, then sink it into the floor.
+    if (!e.deathAnim) { e.deathAnim = 1; M.play(pick(['Death_A', 'Death_B']), { once: true, fade: .08, speed: 1.3 }); }
+    e.deathT += dt; if (e.freeze <= 0) M.mixer.update(dt);
+    if (e.deathT > 2.2) M.g.position.y = -(e.deathT - 2.2) * 1.2;
+    if (e.deathT > 3) { scene.remove(M.g); M.mats.forEach(m => m.dispose()); e.gone = true; }
+    return;
+  }
   if (e.deathT) {
     e.deathT += dt; const k = Math.min(1, e.deathT * 5);
     if (M.body) M.g.scale.setScalar((e.rar === 2 ? 1.4 : 1) * (1 - k * .6)); else M.g.rotation.x = -k * 1.45;
@@ -191,6 +203,7 @@ function animE(e, dt) {
   const M = e.model; M.g.position.set(e.x, 0, e.z);
   const dr = ((e.face - M.g.rotation.y + Math.PI * 3) % (Math.PI * 2)) - Math.PI; M.g.rotation.y += dr * Math.min(1, dt * 10);
   if (e.freeze > 0) return;
+  if (M.rigged) return animRig(e, M, dt);
   if (M.body) { const s = 1 + Math.sin(G.gt * 6 + e.sx) * .06 + (e.fuse > 0 ? Math.sin(G.gt * 40) * .12 : 0); M.body.scale.set(.62 * s, .55 / s, .62 * s); M.g.position.y = e.moving ? Math.abs(Math.sin(e.walk)) * .1 : 0; return; }
   const w = e.moving ? Math.sin(e.walk) : 0;
   M.legL.rotation.x = w * .7; M.legR.rotation.x = -w * .7;
@@ -199,6 +212,21 @@ function animE(e, dt) {
   M.armR.rotation.x = up ? -2.6 : e.swing > 0 ? -2.6 + (1 - e.swing) * 3.2 : (e.type === 'zombie' && e.awake ? -1.3 : w * .5);
   M.armL.rotation.x = up && e.type === 'boss' ? -2.6 : e.type === 'zombie' && e.awake ? -1.3 : e.type === 'archer' && e.awake ? -1.5 : -w * .5;
   M.g.position.y = e.moving ? Math.abs(Math.cos(e.walk)) * .06 : 0;
+}
+
+// Clip choice for KayKit characters. `lock` keeps a one-shot clip (attack, cast) playing to the end.
+const ATTACK = { zombie: ['1H_Melee_Attack_Chop', 1.7], runner: ['1H_Melee_Attack_Chop', 2.2], archer: ['2H_Ranged_Shoot', 1.3], boss: ['2H_Melee_Attack_Chop', 1.1] };
+const BOSSCAST = { slam: ['2H_Melee_Attack_Spin', 1], nova: ['Spellcast_Shoot', 1], summon: ['Spellcast_Raise', 1] };
+function animRig(e, M, dt) {
+  e.lock = (e.lock || 0) - dt;
+  const once = ([n, sp]) => { const d = M.play(n, { once: true, speed: sp, fade: .1 }); e.lock = d / sp * .85; };
+  if (e.cast && e.castAnim !== e.cast) { e.castAnim = e.cast; once(BOSSCAST[e.cast.kind]); }
+  else if (e.windup > 0 && e.lock <= 0 && ATTACK[e.type]) once(ATTACK[e.type]);
+  else if (e.lock <= 0) {
+    if (e.moving) { const run = e.look.walk === 'Running_A'; M.play(e.look.walk, { speed: Math.min(1.8, Math.max(.6, e.spd * (e.chill > 0 ? .5 : 1) / (run ? 3.6 : 1.7))) }); }
+    else M.play('Idle');
+  }
+  M.mixer.update(dt);
 }
 
 // Push overlapping monsters apart; the horde also shoves the player a little.

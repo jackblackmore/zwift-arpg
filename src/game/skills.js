@@ -24,7 +24,7 @@ export function aim() {
 export function castFireball() {
   const F = SK.fireball; if (!pay(F.cost)) return false;
   const [ax, az] = aim(), base = Math.atan2(ax - P.x, az - P.z), n = S.proj;
-  P.face = base; P.castAnim = .22;
+  P.face = base; P.castAnim = .22; P.castSeq++; P.lastCast = 'shoot';
   for (let i = 0; i < n; i++) {
     const a = base + (i - (n - 1) / 2) * F.spread, g = new T.Group(); g.add(glowSprite(0xff6a1a, 1.4), glowSprite(0xffe0a0, .55));
     g.position.set(P.x + Math.sin(a) * .7, 1.2, P.z + Math.cos(a) * .7); scene.add(g);
@@ -38,7 +38,7 @@ export function castFireball() {
 export function castArc(fx = P.x, fz = P.z, free = false) {
   const A = SK.arc; if (!free && !pay(A.cost)) return false;
   let tx, tz;
-  if (free) { tx = fx; tz = fz; } else { [tx, tz] = aim(); P.face = Math.atan2(tx - P.x, tz - P.z); P.castAnim = .25; }
+  if (free) { tx = fx; tz = fz; } else { [tx, tz] = aim(); P.face = Math.atan2(tx - P.x, tz - P.z); P.castAnim = .25; P.castSeq++; P.lastCast = 'shoot'; }
   let first = null, bd = 1e9;
   for (const e of G.enemies) { if (e.deathT || dist(e.x, e.z, fx, fz) > A.range) continue; const d = dist(e.x, e.z, tx, tz); if (d < bd && (free || d < 4.5)) { bd = d; first = e; } }
   if (!first && !free) for (const e of G.enemies) { if (e.deathT) continue; const d = dist(e.x, e.z, P.x, P.z); if (d < 7 && d < bd) { bd = d; first = e; } }
@@ -61,7 +61,7 @@ export function castArc(fx = P.x, fz = P.z, free = false) {
 
 export function castNova(free = false) {
   const N = SK.nova;
-  if (!free) { if (P.novaCd > 0 || !pay(N.cost)) return false; P.novaCd = N.cd; P.castAnim = .25; }
+  if (!free) { if (P.novaCd > 0 || !pay(N.cost)) return false; P.novaCd = N.cd; P.castAnim = .25; P.castSeq++; P.lastCast = 'nova'; }
   const r = N.radius * S.aoe;
   near(P.x, P.z, r, e => {
     const d = dist(e.x, e.z, P.x, P.z) || 1; hit(e, N.mult, 'cold', { kx: (e.x - P.x) / d, kz: (e.z - P.z) / d });
@@ -86,7 +86,7 @@ export function castDash() {
     if (t - lastPatch >= D.patchEvery) { lastPatch = t; addPatch(nx, nz, .95 * S.aoe, SK.burn.life); }
     for (let i = 0; i < 2; i++) emit(glows, nx + rand(-.2, .2), rand(.4, 1.4), nz + rand(-.2, .2), 0, rand(.5, 2), 0, rand(.3, .6), 0xff5a10, 0, 1);
   }
-  P.face = a; P.invuln = D.invuln;
+  P.face = a; P.invuln = D.invuln; P.castSeq++; P.lastCast = 'dash';
   flashFx(sx, 1, sz, 0xff6a1a, 3, .3); flashFx(P.x, 1, P.z, 0xffa060, 3, .3); flashLight(P.x, P.z, 0xff6a1a, 3, .3); SFX.dash();
   return true;
 }
