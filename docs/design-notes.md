@@ -289,11 +289,12 @@ Ideas: deeper levels use more intense versions of the template; beats could be w
 
 - **A Trial is a short warm-up level** (~10–15 min, normal packs, no guardian), **then the boss arena**, where the fight is a structured workout with watt targets.
 - Win, workout types and replay with modifiers as in the Trials section above.
-- Simple defaults to start with:
-  - On target = full damage; under target = damage drops away; **over target = no extra damage** (no reason to overcook).
-  - Recovery: low damage; the boss attacks and you evade.
-  - No ERG in the first version; you ride the target yourself and the game shows how well you're hitting it.
-- The Surge gauge probably doesn't apply in Trials.
+- **No ERG mode** to start, to keep it simple. You ride the target yourself and the game shows how well you're hitting it.
+- **Power never adds damage in Trials.** Your build does the damage; the workout decides how hard the fight is. The Surge gauge doesn't apply.
+- **Under target makes the boss stronger**, escalating the longer you stay under. A few seconds' grace (gear changes, standing up), then e.g. ~5–10 s the boss gains armour, ~10–20 s extra adds spawn, 20 s+ you're slowed or frozen, or the boss heals. Effects fade once you're back on target. Each boss can have its own penalties (Warden armour plates, Lich raises extra dead, Juggernaut enrages).
+- **Open:** over target. Either a mild overheat (burn damage or slower cooldowns, teaching pacing, since overcooking early intervals wrecks later ones) or neutral.
+- **Death:** drop to one knee, a moment of invincibility, back to full health, fight continues. **The third death fails the Trial.** (Replaces the earlier "deaths only cost fight time".)
+- **Open:** what happens to the workout after a failure. Option: the fight ends but the workout continues (boss retreats; ride the rest as a chase or survival segment) and finishing still earns XP, AP and a small reward, keeping "no ride is wasted". Or the session simply ends.
 
 ### Earlier ideas
 
