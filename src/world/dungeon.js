@@ -87,7 +87,7 @@ export function buildDungeon(half) {
       solid.add('torch_mounted', fx, fz, sd.rot, s * DUNGEON.torch, 2.3 * s);
       const f = glowSprite(0xff8a30, .9); f.position.set(fx + sd.nx * .55 * s * DUNGEON.torch, 2.3 * s + .75 * s * DUNGEON.torch, fz + sd.nz * .55 * s * DUNGEON.torch);
       G.world.add(f); G.torches.push({ f, x: fx, z: fz, s: .9 });
-      const d = decal(0xff7020, 3.4); d.position.set(fx + sd.nx * 1.2, .06, fz + sd.nz * 1.2); G.world.add(d);
+      const d = decal(0xff7020, 3.4); d.position.set(fx + sd.nx * 1.2, .2, fz + sd.nz * 1.2); d.position.y = .2; G.world.add(d);
     }
   }
   for (let k = 0; k < segs; k++) solid.add('barrier_column', x0 + k * tile, half + .35 * s, Math.PI, s);
@@ -117,7 +117,7 @@ export function buildDungeon(half) {
     solid.add('column', x, z, rand(0, 6), s);
     solid.add('candle_triple', x, z, rand(0, 6), s * DUNGEON.torch, 1.4 * s);
     const f = glowSprite(0xff8a30, 1.4); f.position.set(x, 1.4 * s + .95 * s * DUNGEON.torch, z);
-    const d = decal(0xff7020, 4); d.position.set(x, .06, z); G.world.add(f, d);
+    const d = decal(0xff7020, 4); d.position.set(x, .2, z); G.world.add(f, d);
     G.torches.push({ f, x, z }); G.obst.push({ x, z, r: .32 });
   }
 
