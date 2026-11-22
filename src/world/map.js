@@ -25,7 +25,7 @@ export const blocked = (x, z, r) => x < -HALF + r || x > HALF - r || z < -HALF +
 export const inClear = (x, z, r = 0) => G.clear.some(c => (x - c.x) ** 2 + (z - c.z) ** 2 < (c.r + r) ** 2);
 export function los(ax, az, bx, bz) {
   const dx = bx - ax, dz = bz - az, L = Math.hypot(dx, dz) || 1;
-  for (const o of G.obst) { const t = clamp(((o.x - ax) * dx + (o.z - az) * dz) / (L * L), 0, 1); if (dist(ax + dx * t, az + dz * t, o.x, o.z) < o.r - .1) return false; }
+  for (const o of G.obst) { const t = clamp(((o.x - ax) * dx + (o.z - az) * dz) / (L * L), 0, 1); if (dist(ax + dx * t, az + dz * t, o.x, o.z) < o.r + .15) return false; } // same pad as a projectile (updProjectiles blocks at o.r + .15), so "in sight" means a fireball can get there
   return true;
 }
 function rock(x, z, r, solid) {

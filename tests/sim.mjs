@@ -1,9 +1,15 @@
 // Headless playtest. Builds nothing itself: run `npm run build` first. Serves dist/, then:
 //   1. ARPG (/): the level flow (beats, ambush, survival, death, guardian, portal), loot, equipment and passives.
-//   2. Pedal demo (/pedal/): two 12-minute simulated rides, as before.
-//   3. Asset gallery (/gallery/): every character, animation set and model pack loads and shows.
-// Usage: npm test  (needs Chrome; set CHROME_PATH if not found; SEED=n changes the fixed random seed). SCREENSHOT=/tmp/shot.png saves an ARPG mid-fight shot
-// (and /tmp/shot-gallery-*.png, gallery views).
+//   2. Full level run: from newLevel() the autopilot (ctl.auto, KEYS mode) follows levelGoal() with Main auto-attacking, through every
+//      beat to the guardian kill, the clear and the open portal; records the order the beats finish in and the simulated minutes.
+//   3. ARPG in RIDE mode: 0 W stops the hero, endurance gives the base attack rate, Surge drains and refills, autopilot clears packs.
+//   4. Skill bar (Main auto-attack, cooldowns, Ward, Blink) and 5. gems (AP, levels, Fireball milestones, save/load, HUD badges).
+//   6. Pedal demo (/pedal/): two 12-minute simulated rides, as before.   7. Asset gallery (/gallery/): every model and animation shows.
+// Every block also asserts that the page raised no errors.
+// Usage: npm test  (needs Chrome; set CHROME_PATH if not found; SEED=n changes the fixed random seed; PORT=n for parallel runs).
+// SCREENSHOT=/tmp/x.png also saves x.png (ambush ring, kept for compatibility), x-mid.png (a pack fight on the route), x-beat.png (the sealed
+// ambush with a wave), x-guardian.png (guardian fight and bar), x-ride.png (RIDE mode, surging, skill bar and Surge gauge), x-phone.png
+// (390x844 touch viewport) and x-gallery-*.png (gallery views).
 import { preview } from 'vite';
 import puppeteer from 'puppeteer-core';
 import { existsSync } from 'node:fs';
@@ -260,11 +266,59 @@ try {
     const lvl = await page.evaluate(() => window.__dbg.P.lvl);
     check(lvl >= 3, `arpg: player levelled up (level ${lvl})`);
     if (process.env.SCREENSHOT) {
-      // The ambush ring mid-fight.
+      const base = process.env.SCREENSHOT.replace(/\.png$/, ''), shot = async suffix => { await new Promise(r => setTimeout(r, 700)); await page.screenshot({ path: suffix ? `${base}-${suffix}.png` : process.env.SCREENSHOT }); };
+      // The real-time loop keeps running between shots, so keep the hero safe while the frame renders.
+      const safe = () => page.evaluate(() => { const D = window.__dbg; D.P.invuln = 60; D.P.life = D.S.maxLife; });
+      // Mid-level: the autopilot walks the route until a normal pack is on it, in a fight.
+      await page.evaluate(() => {
+        const D = window.__dbg, P = D.P, S = D.S; D.newLevel(0); D.ctl.auto = true;
+        for (let n = 0; n < 3000; n++) { P.life = S.maxLife; D.sim(1); if (n > 150 && D.enemies().filter(e => !e.deathT && !e.beat && Math.hypot(e.x - P.x, e.z - P.z) < 9).length >= 3) break; }
+        D.ctl.auto = false; D.ctl.mx = D.ctl.mz = 0; D.hud();
+      });
+      await safe(); await shot('mid');
+      // A beat in progress: the sealed ambush ring with a wave.
       await page.evaluate(() => { const D = window.__dbg; D.newLevel(0); D.startBeat(3); window.T.tick(160, false); });
-      await new Promise(r => setTimeout(r, 300)); await page.screenshot({ path: process.env.SCREENSHOT });
+      await safe(); await shot(''); await shot('beat');
+      // The guardian fight with its bar.
+      await page.evaluate(() => { const D = window.__dbg; D.newLevel(0); D.startBeat(6); let n = 0; while (!D.enemies().some(e => e.guardian && e.awake) && n++ < 400) window.T.tick(1, false); D.sim(40); D.hud(); });
+      await safe(); await shot('guardian');
+      // Phone-sized viewport with touch (changing isMobile/hasTouch reloads the page, so start a game again; a pack fight, then a banner).
+      await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+      await page.waitForFunction(() => window.__dbg && window.__dbg.ready(), { timeout: 20000 });
+      await page.evaluate(() => {
+        const D = window.__dbg, P = D.P, S = D.S; D.start(true); D.newLevel(0); D.ctl.auto = true;
+        for (let n = 0; n < 3000; n++) { P.life = S.maxLife; D.sim(1); if (n > 150 && D.enemies().filter(e => !e.deathT && !e.beat && Math.hypot(e.x - P.x, e.z - P.z) < 9).length >= 3) break; }
+        D.ctl.auto = false; D.ctl.mx = D.ctl.mz = 0; D.hud();
+      });
+      await safe(); await shot('phone');
+      await page.setViewport({ width: 1100, height: 700, isMobile: false, hasTouch: false });
     }
     check(errors.length === 0, `arpg: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
+  }
+
+  // ---------- Full level run: autopilot plays newLevel() through every beat to the guardian ----------
+  {
+    const { page, errors } = await open('/');
+    const r = await page.evaluate(() => {
+      const D = window.__dbg, P = D.P, S = D.S, G = D.G, out = { order: [], kinds: new Set() };
+      D.start(true); D.newLevel(0); const L = D.level(); D.ctl.auto = true;
+      const done = new Set(); let t = 0;
+      // No help beyond keeping the hero alive (life topped up each tick); the level's own damage numbers are used as they are.
+      for (; t < 40000 && !L.cleared; t++) {
+        P.life = S.maxLife; D.sim(1);
+        const g = D.levelGoal(); if (g) out.kinds.add(g.kind);
+        for (const b of L.beats) if (b.state === 'done' && !done.has(b)) { done.add(b); out.order.push(b.type); }
+      }
+      D.ctl.auto = false; D.sim(5);
+      out.template = L.beats.map(b => b.type); out.ticks = t; out.minutes = t * .033 / 60; out.cleared = L.cleared; out.portal = !!G.portal; out.kills = P.kills;
+      out.kinds = [...out.kinds]; out.guardianDead = !D.enemies().some(e => e.guardian && !e.deathT);
+      return out;
+    });
+    console.log('  full run:', JSON.stringify({ ...r, minutes: +r.minutes.toFixed(1) }));
+    check(r.cleared && r.portal && r.ticks < 40000, `run: the autopilot cleared the level and opened the portal (${r.ticks} ticks, ${r.minutes.toFixed(1)} simulated minutes, ${r.kills} kills)`);
+    check(r.order.join() === r.template.join() && r.order[r.order.length - 1] === 'guardian' && r.guardianDead, `run: beats finished in template order, ending with the guardian (${r.order.join(' > ')})`);
+    check(['pack', 'beat', 'guardian', 'portal'].every(k => k === 'portal' || r.kinds.includes(k)), `run: levelGoal led through ${r.kinds.join(', ')}`);
+    check(errors.length === 0, `run: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   }
 
   // ---------- ARPG in RIDE mode (simulated Zwift Ride + KICKR) ----------
@@ -338,6 +392,16 @@ try {
     check(Math.abs(r.keep1 / r.keep0 - 2) < .01 && r.kite0 < r.keep0, `ride: autopilot keep follows Main range (${r.keep0.toFixed(2)} -> ${r.keep1.toFixed(2)})`);
     check(r.travelled > 10, `ride: autopilot moves the hero (${r.travelled.toFixed(1)} units walked)`);
     check(r.kills >= 10, `ride: autopilot + auto-attacking Fireball clears monsters (${r.kills} kills)`);
+    if (process.env.SCREENSHOT) {
+      // RIDE mode mid-fight, surging: 130% FTP, autopilot on, a pack in front.
+      await page.evaluate(() => {
+        const D = window.__dbg, P = D.P, S = D.S; D.setRide(true); D.start(true); D.newLevel(0); D.ride.ftp = 250; D.ride.pw = 325; D.ctl.auto = true;
+        for (let n = 0; n < 3000; n++) { P.life = S.maxLife; D.pollRide(.033); D.sim(1); if (n > 150 && D.enemies().filter(e => !e.deathT && !e.beat && Math.hypot(e.x - P.x, e.z - P.z) < 9).length >= 3) break; }
+        D.surge().v = D.surge().max * .7; D.hud();
+      });
+      await page.evaluate(() => { const D = window.__dbg; D.P.invuln = 60; D.ride.pw = 325; });
+      await new Promise(r => setTimeout(r, 700)); await page.screenshot({ path: process.env.SCREENSHOT.replace(/\.png$/, '-ride.png') });
+    }
     check(errors.length === 0, `ride: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   }
 
