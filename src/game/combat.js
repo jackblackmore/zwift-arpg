@@ -13,6 +13,9 @@ import { dropItem } from './items.js';
 import { gainXp, xpNeed } from './stats.js';
 import { makePortal } from './maps.js';
 import { castArc } from './skills.js';
+import { HERO } from '../data/balance.js';
+import { DROP } from '../data/items.js';
+import { tierHp } from './formulas.js';
 
 const ECOL = { fire: '#ffb070', cold: '#bff0ff', light: '#e0c8ff' };
 
@@ -21,7 +24,7 @@ export function hit(e, mult, elem, src = {}) {
   if (e.deathT) return 0;
   wake(e);
   let d = S.base * mult * (S.dmg + (S[elem] || 0)) * rand(.88, 1.12);
-  const crit = Math.random() < S.crit; if (crit) d *= 1.75;
+  const crit = Math.random() < S.crit; if (crit) d *= HERO.critMult;
   if (e.shock > 0) d *= S.conduit ? 1.35 : 1.2;
   e.hp -= d; e.flash = .07; e.lastElem = elem; e.lastHit = Math.max(e.lastHit || 0, d);
   if (!src.dot) {
@@ -44,7 +47,7 @@ export function kill(e) {
   P.life = Math.min(S.maxLife, P.life + S.lok); P.mana = Math.min(S.maxMana, P.mana + S.mok);
   P.flask = Math.min(SK.flask.max, P.flask + (e.rar === 2 ? SK.flask.perRare : SK.flask.perKill));
   if (e.rar === 2) { dropItem(e.x, e.z, .15); if (Math.random() < .5) dropItem(e.x, e.z, .1); stop(.06); shake(.3); }
-  else if (e.type !== 'boss' && Math.random() < (e.rar === 1 ? .1 : .04)) dropItem(e.x, e.z, 0);
+  else if (e.type !== 'boss' && Math.random() < (e.rar === 1 ? DROP.magic : DROP.normal)) dropItem(e.x, e.z, 0);
   if (S.shatter && e.freeze > 0) G.queue.push({ k: 'shatter', x: e.x, z: e.z, hp: e.maxHp });
   if (S.chainboom && e.lastElem === 'fire' && Math.random() < .3) G.queue.push({ k: 'boom', x: e.x, z: e.z });
   if (e.type === 'bloater' || e.aff.includes('volatile')) G.queue.push({ k: 'bloat', x: e.x, z: e.z, t: e.type === 'bloater' ? .15 : .9, dmg: e.dmg * (e.type === 'bloater' ? .7 : 1.2), small: e.type !== 'bloater' });
@@ -58,7 +61,7 @@ export function kill(e) {
 
 export function hurtP(d) {
   if (P.dead > 0 || P.invuln > 0) return;
-  d *= 1 - S.dr; P.life -= d;
+  d *= 1 - S.dr; P.life -= d; P.taken = (P.taken || 0) + d;
   floatT(P.x, 2.1, P.z, Math.round(d), '#ff5050', 13); G.vign = Math.min(.9, G.vign + .35); SFX.hurt();
   if (P.life <= 0) {
     P.life = 0; P.dead = 2.6; banner('YOU HAVE DIED', '#ff3030', 'Respawning at the map entrance');
@@ -113,7 +116,7 @@ export function processQueue(dt) {
       const r = q.small ? 2.6 : 2.2;
       ringFx(q.x, q.z, r, 0x9ad060, .35, .5); flashFx(q.x, .8, q.z, 0x9ad060, r * 2.5, .3); burst(q.x, .6, q.z, 0x9ad060, 30, 6); burst(q.x, .6, q.z, 0x5a8a20, 15, 4); SFX.boom(); shake(.15);
       if (dist(P.x, P.z, q.x, q.z) < r + P.r) hurtP(q.dmg);
-      near(q.x, q.z, r, e => { e.hp -= 20 * (1 + TIER.hp * (G.tier - 1)); if (e.hp <= 0) kill(e); });
+      near(q.x, q.z, r, e => { e.hp -= 20 * tierHp(G.tier); if (e.hp <= 0) kill(e); });
     }
   }
   G.queue = G.queue.filter(q => !q.done);

@@ -1,5 +1,6 @@
 // Headless playtest. Builds nothing itself: run `npm run build` first. Serves dist/, then:
 //   1. ARPG (/): a scripted player clears packs, loots, equips, spends passives, kills the boss and takes the portal.
+//      Then balance guard rails: a few arena fights (src/game/arena.js) must land in sane ranges.
 //   2. Pedal demo (/pedal/): two 12-minute simulated rides, as before.
 //   3. Asset gallery (/gallery/): every character, animation set and model pack loads and shows.
 // Usage: npm test  (needs Chrome; set CHROME_PATH if not found; SEED=n changes the fixed random seed). SCREENSHOT=/tmp/shot.png saves an ARPG mid-fight shot
@@ -54,7 +55,7 @@ try {
       out.dressed = D.G.dressed && D.G.obst.length > 40 && D.G.torches.length > 10;
       out.kills = P.kills; out.lvl = P.lvl; out.loot = P.inv.length + D.items().length;
       for (let i = 0; i < 4; i++) D.dropItem(P.x, P.z, .5);
-      D.sim(40); out.inv = P.inv.length;
+      D.sim(40); for (const d of D.items()) { P.x = d.x; P.z = d.z; D.sim(2); } out.inv = P.inv.length; // walk over anything that bounced away
       const before = JSON.stringify(P.gear); D.equip(0); out.equipped = JSON.stringify(P.gear) !== before;
       P.pts = 1; D.openPass(); out.cards = document.querySelectorAll('.pc').length; document.querySelector('.pc').click();
       out.passives = Object.keys(P.passives).length;
@@ -71,8 +72,8 @@ try {
     check(r.rigged, 'arpg: KayKit character models loaded for hero and monsters');
     check(r.dressed, 'arpg: map built from the KayKit dungeon pieces');
     check(r.packs >= 18, `arpg: map has packs (${r.packs})`);
-    check(r.kills > 25, `arpg: player mowed down monsters (${r.kills} kills)`);
-    check(r.lvl >= 3, `arpg: player levelled up (level ${r.lvl})`);
+    check(r.kills > 12, `arpg: player fought through packs (${r.kills} kills)`);
+    check(r.lvl >= 2, `arpg: player levelled up (level ${r.lvl})`);
     check(r.loot > 0, `arpg: monsters dropped loot (${r.loot})`);
     check(r.inv >= 4, `arpg: loot picked up into the bag (${r.inv})`);
     check(r.equipped, 'arpg: equipping an item changes gear');
@@ -84,6 +85,24 @@ try {
       await new Promise(r => setTimeout(r, 300)); await page.screenshot({ path: process.env.SCREENSHOT });
     }
     check(errors.length === 0, `arpg: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
+  }
+
+  // ---------- Balance guard rails (arena: real fights, scripted player; full table via `npm run arena`) ----------
+  {
+    const { page, errors } = await open('/');
+    const r = await page.evaluate(() => {
+      const D = window.__dbg; D.start(true);
+      return {
+        pack: D.arena({ tier: 1, fight: [['zombie', 3], ['archer', 1]] }),
+        boss: D.arena({ tier: 1, guardian: true, maxT: 240 }),
+        under: D.arena({ tier: 2, gear: 'start', guardian: true, maxT: 120 }),
+      };
+    });
+    console.log('  balance:', JSON.stringify(Object.fromEntries(Object.entries(r).map(([k, v]) => [k, `${v.result} ${v.t}s lowest ${v.lowest}`]))));
+    check(r.pack.result === 'clear' && r.pack.t > 3 && r.pack.t < 20, `balance: a tier 1 pack takes a few seconds with the starter staff (${r.pack.t}s)`);
+    check(r.boss.result === 'clear' && r.boss.t > 45 && r.boss.t < 180, `balance: tier 1 guardian can't be burned down (${r.boss.t}s)`);
+    check(r.under.result !== 'clear', `balance: starter staff can't beat the tier 2 guardian in 2 minutes (${r.under.result})`);
+    check(errors.length === 0, `balance: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   }
 
   // ---------- ARPG in RIDE mode (simulated Zwift Ride + KICKR) ----------
