@@ -136,15 +136,20 @@ try {
     // Every character on the other animation set, then an attack clip.
     let charsOk = 0;
     for (let i = 0; i < idx.chars.length; i++) { await page.evaluate(i => window.__gal.act('char', i), i); const r = await view('c' + i).catch(() => null); if (r && r.meshes > 0 && r.playing) charsOk++; }
+    await page.evaluate(() => window.__gal.act('char', 0));
     await page.evaluate(() => window.__gal.act('set', 'adventurers'));
     await page.evaluate(() => window.__gal.act('clip', '2H_Melee_Attack_Spin'));
     res.adv = await view('attack');
+    await page.evaluate(() => window.__gal.act('set', 'anim11'));
+    await page.evaluate(() => window.__gal.act('clip', 'Ranged_Magic_Spellcasting'));
+    res.a11 = await view('anim11');
     let packsOk = 0;
     for (const p of idx.packs) { await page.evaluate(id => window.__gal.act('tab', id), p.id); const r = await view(p.id); if (r.top === p.items.length && r.meshes > 0) packsOk++; else console.log('  pack', p.id, JSON.stringify(r), p.items.length); }
-    console.log('  gallery:', JSON.stringify({ chars: idx.chars.length, packs: idx.packs.map(p => p.id + ':' + p.items.length), charsOk, packsOk, adv: res.adv.label }), shots.length ? 'shots: ' + shots.join(' ') : '');
+    console.log('  gallery:', JSON.stringify({ chars: idx.chars.length, packs: idx.packs.map(p => p.id + ':' + p.items.length), charsOk, packsOk, adv: res.adv.label, a11: res.a11.label }), shots.length ? 'shots: ' + shots.join(' ') : '');
     check(res.first.meshes > 0 && res.first.playing, 'gallery: first character shows and animates');
     check(charsOk === idx.chars.length, `gallery: all characters load (${charsOk}/${idx.chars.length})`);
     check(/2H Melee Attack Spin|2H_Melee_Attack_Spin/.test(res.adv.label) && res.adv.playing, 'gallery: switching animation set and clip plays it');
+    check(/Ranged_Magic_Spellcasting/.test(res.a11.label) && res.a11.playing, 'gallery: Animations 1.1 clips play on the KayKit characters');
     check(packsOk === idx.packs.length, `gallery: every model pack shows all its models (${packsOk}/${idx.packs.length})`);
     check(errors.length === 0, `gallery: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   }

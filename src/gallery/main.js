@@ -58,11 +58,21 @@ function frameStage(keep) {
 function clearStage() { mixer = null; while (stage.children.length) stage.remove(stage.children[0]); }
 
 // ---- state ----
-const st = { tab: 'chars', idx: 0, set: 'skeletons', clip: 'Idle', speed: 1, props: {}, handR: '', handL: '', group: {}, item: {} };
+const st = { tab: 'chars', idx: 0, set: 'anim11', clip: 'Idle_A', speed: 1, props: {}, handR: '', handL: '', group: {}, item: {} };
 let IDX = null, R = null; // R: the character on stage { root, acts, bone }
 const shown = { name: '' };
 
+// Animation sets that fit a character's rig, and a clip to fall back on when the current one isn't in the set.
+const setsFor = ch => Object.keys(IDX.anims).filter(k => IDX.anims[k].rig === ch.rig);
+const idleOf = clips => clips.find(c => c === 'Idle' || c === 'Idle_A') || clips[0];
+function fitSet() {
+  const ch = IDX.chars[st.idx], ok = setsFor(ch);
+  if (!ok.includes(st.set)) st.set = ok[0];
+  const clips = IDX.anims[st.set].clips; if (!clips.includes(st.clip)) st.clip = idleOf(clips);
+}
+
 async function showChar(keepCam) {
+  fitSet();
   const ch = IDX.chars[st.idx], lib = IDX.anims[st.set];
   const [g, a] = await Promise.all([load(ch.file), load('gallery/' + lib.file)]);
   if (IDX.chars[st.idx] !== ch) return;
@@ -82,7 +92,7 @@ async function showChar(keepCam) {
   }
   stage.add(root);
   mixer = new T.AnimationMixer(root);
-  const clip = a.animations.find(c => c.name === st.clip) || a.animations.find(c => c.name === 'Idle');
+  const clip = a.animations.find(c => c.name === st.clip) || a.animations.find(c => c.name === idleOf(lib.clips));
   st.clip = clip.name;
   const act = mixer.clipAction(clip); act.timeScale = st.speed; act.play();
   R = { root, clip };
@@ -124,9 +134,10 @@ function tabs() {
 function panel() {
   let h = '';
   if (st.tab === 'chars') {
+    fitSet();
     const ch = IDX.chars[st.idx], lib = IDX.anims[st.set];
     h += sec('Character', IDX.chars.map((c, i) => chip('char', i, c.name, i === st.idx)).join(''));
-    h += sec('Animation set', Object.entries(IDX.anims).map(([k, v]) => chip('set', k, `${k[0].toUpperCase() + k.slice(1)} (${v.clips.length})`, st.set === k)).join('') +
+    h += sec('Animation set', setsFor(ch).map(k => chip('set', k, `${IDX.anims[k].name} (${IDX.anims[k].clips.length})`, st.set === k)).join('') +
       [.25, .5, 1, 1.5].map(s => chip('speed', s, s + '×', st.speed === s)).join(''));
     h += sec('Animation', lib.clips.map(c => chip('clip', c, c.replace(/_/g, ' '), c === st.clip)).join(''));
     if (ch.props.length) h += sec('Built-in props', ch.props.map(p => chip('prop', p, p.replace(/_/g, ' '), st.props[ch.name]?.[p])).join(''));
@@ -151,7 +162,7 @@ function act(a, v) {
   const ch = IDX.chars[st.idx];
   if (a === 'tab') { st.tab = v; tabs(); panel(); return show(); }
   if (a === 'char') { st.idx = +v; panel(); return show(true); }
-  if (a === 'set') { st.set = v; if (!IDX.anims[v].clips.includes(st.clip)) st.clip = 'Idle'; panel(); return show(true); }
+  if (a === 'set') { st.set = v; fitSet(); panel(); return show(true); }
   if (a === 'speed') { st.speed = +v; panel(); if (mixer && R) mixer.existingAction(R.clip).timeScale = st.speed; return; }
   if (a === 'clip') { st.clip = v; panel(); return show(true); }
   if (a === 'prop') { st.props[ch.name][v] = !st.props[ch.name][v]; panel(); return show(true); }
