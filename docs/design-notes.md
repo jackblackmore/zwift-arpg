@@ -83,7 +83,10 @@ Levelling:
 | Same type (attack→attack, support→support) | 50% |
 | Different type | 25% |
 
-- Feeding destroys the gem, so it's a choice. Tune spare-gem drop rates so feeding is a boost, not a shortcut.
+- **You never lose a skill.** Feeding spends a gem's AP and levels, not the skill: if it's your last copy, a level 1 copy of the same tier stays in the gem bag. Duplicates can be fed in completely. Fusing works the same way (mastered Fireball I fused into Fireball II leaves Fireball I at level 1).
+- No exploit: feeding moves AP, it never creates it, and the copy left behind starts from zero.
+- The gem bag becomes a permanent library of every skill found, so experimenting with builds is risk-free; only levels are spent.
+- Tune spare-gem drop rates so feeding is a boost, not a shortcut.
 
 Who does what (damage = (gem base + flat from gear) × (1 + increased) × each more × crit):
 
