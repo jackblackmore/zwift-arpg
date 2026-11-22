@@ -27,7 +27,8 @@ const encounters = (t, n) => [
   { name: 'mixed pack (2 levels under)', fight: [['zombie', n(3)], ['archer', n(1)]], under: 2, skip: t === 1 },
 ].filter(e => !e.skip);
 
-const server = await preview({ preview: { port: 4174, strictPort: true } });
+const PORT = Number(process.env.PORT) || 4174; // PORT=4184 npm run arena
+const server = await preview({ preview: { port: PORT, strictPort: true } });
 const browser = await puppeteer.launch({ executablePath: chrome, headless: 'new', args: ['--no-sandbox', '--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
 try {
   const page = await browser.newPage();
@@ -36,7 +37,7 @@ try {
     Math.random = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
   }, SEED);
   await page.setViewport({ width: 800, height: 500 });
-  await page.goto('http://localhost:4174/', { waitUntil: 'load' });
+  await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.__dbg && window.__dbg.ready(), { timeout: 20000 });
   await page.evaluate(() => window.__dbg.start(true));
   console.log('Watt Dungeon arena · real game code, scripted player · times in game seconds\n');

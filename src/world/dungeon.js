@@ -7,7 +7,8 @@ import { rand, pick, dist } from '../core/util.js';
 import { loadGLB, linearise } from '../render/characters.js';
 import { glowSprite, decal } from '../render/assets.js';
 import { DUNGEON } from '../data/graphics.js';
-import { FLOOR, WALL, BANNERS, OBSTACLES, OBSTACLE_COUNT, CLUTTER, BRAZIERS } from '../data/dungeon.js';
+import { FLOOR, WALL, BANNERS, OBSTACLES, CLUTTER, OBSTACLE_DENSITY, WALL_TORCH, BRAZIER_MAX } from '../data/dungeon.js';
+import { solid, wallHit, lineDist } from './gen.js';
 
 export const dun = { ready: false, tpl: {} };
 
@@ -61,80 +62,102 @@ function batch() {
 // Rotate a model-space offset by rot around Y (three.js convention) and scale it.
 const turn = (ox, oz, rot, s) => [(ox * Math.cos(rot) + oz * Math.sin(rot)) * s, (-ox * Math.sin(rot) + oz * Math.cos(rot)) * s];
 
-// Builds the dungeon into G.world and fills G.obst / G.torches. half: the walkable area is -half..half on x and z.
-export function buildDungeon(half) {
-  const s = DUNGEON.scale, tile = 4 * s, floor = batch(), solid = batch();
-  const start = G.start, boss = G.bossSpot;
+// Builds the dungeon for a layout (world/gen.js) into G.world and fills G.obst / G.torches: floor tiles only where there is
+// floor, walls along every room and corridor edge, props in the rooms (never across a doorway).
+export function buildDungeon(L) {
+  const s = DUNGEON.scale, cell = L.cell, half = L.half, floor = batch(), solidB = batch(), start = L.start, boss = L.boss;
+  const cx = i => -half + (i + .5) * cell, edgeX = i => -half + i * cell;
+  const isFloor = (i, j) => !solid(L, i, j);
 
-  // Floor tiles, a ring wider than the walls so no edge shows.
-  const n = Math.ceil((half + tile) / tile);
-  for (let i = -n; i <= n; i++) for (let j = -n; j <= n; j++) floor.add(weighted(FLOOR), i * tile, j * tile, (Math.random() * 4 | 0) * Math.PI / 2, s, 0);
+  // Floor: one tile per floor cell.
+  const cells = [];
+  for (let j = 0; j < L.n; j++) for (let i = 0; i < L.n; i++) if (isFloor(i, j)) { cells.push([i, j]); floor.add(weighted(FLOOR), cx(i), cx(j), (Math.random() * 4 | 0) * Math.PI / 2, s, 0); }
 
-  // Walls on the far side and both ends; a low barrier on the near side so it never hides the hero.
-  const segs = Math.ceil((2 * half + 2 * s) / tile), x0 = -(segs - 1) * tile / 2, off = half + .5 * s;
-  const sides = [
-    { rot: 0, at: k => [x0 + k * tile, -off], nx: 0, nz: 1 }, // north wall, faces +z
-    { rot: Math.PI / 2, at: k => [-off, x0 + k * tile], nx: 1, nz: 0 }, // west wall, faces +x
-    { rot: -Math.PI / 2, at: k => [off, x0 + k * tile], nx: -1, nz: 0 }, // east wall, faces -x
-  ];
-  for (const sd of sides) for (let k = 0; k < segs; k++) {
-    const [x, z] = sd.at(k), name = weighted(WALL); solid.add(name, x, z, sd.rot, s, 0);
-    if (name === 'wall_broken' || name === 'wall_arched') continue;
-    if (k % 3 === 1) solid.add(pick(BANNERS), x, z, sd.rot, s, 0);
-    else if (k % 3 === 0 && k > 0 && k < segs - 1) {
+  // Walls on the north, west and east edges of floor cells; a low barrier on south edges so a wall never hides the hero.
+  let k = 0, torches = 0;
+  const wall = (x, z, rot, nx, nz) => {
+    const name = weighted(WALL); solidB.add(name, x, z, rot, s, 0); k++;
+    if (name === 'wall_broken' || name === 'wall_arched') return;
+    if (k % 4 === 1) solidB.add(pick(BANNERS), x, z, rot, s, 0);
+    else if (k % WALL_TORCH.every === 3 && torches < WALL_TORCH.max) {
       // A torch mounted on the wall, with its glow just in front of the face.
-      const fx = x + sd.nx * .5 * s, fz = z + sd.nz * .5 * s;
-      solid.add('torch_mounted', fx, fz, sd.rot, s * DUNGEON.torch, 2.3 * s);
-      const f = glowSprite(0xff8a30, .9); f.position.set(fx + sd.nx * .55 * s * DUNGEON.torch, 2.3 * s + .75 * s * DUNGEON.torch, fz + sd.nz * .55 * s * DUNGEON.torch);
+      torches++; const fx = x + nx * .5 * s, fz = z + nz * .5 * s;
+      solidB.add('torch_mounted', fx, fz, rot, s * DUNGEON.torch, 2.3 * s);
+      const f = glowSprite(0xff8a30, .9); f.position.set(fx + nx * .55 * s * DUNGEON.torch, 2.3 * s + .75 * s * DUNGEON.torch, fz + nz * .55 * s * DUNGEON.torch);
       G.world.add(f); G.torches.push({ f, x: fx, z: fz, s: .9 });
-      const d = decal(0xff7020, 3.4); d.position.set(fx + sd.nx * 1.2, .2, fz + sd.nz * 1.2); d.position.y = .2; G.world.add(d);
+      const d = decal(0xff7020, 3.4); d.position.set(fx + nx * 1.2, .2, fz + nz * 1.2); G.world.add(d);
+    }
+  };
+  for (const [i, j] of cells) {
+    const x = cx(i), z = cx(j), w = edgeX(i), e = edgeX(i + 1), n = edgeX(j), so = edgeX(j + 1);
+    if (!isFloor(i, j - 1)) wall(x, n - .5 * s, 0, 0, 1);
+    if (!isFloor(i - 1, j)) wall(w - .5 * s, z, Math.PI / 2, 1, 0);
+    if (!isFloor(i + 1, j)) wall(e + .5 * s, z, -Math.PI / 2, -1, 0);
+    if (!isFloor(i, j + 1)) solidB.add('barrier_column', x, so + .35 * s, Math.PI, s);
+  }
+  // Pillars where a wall turns a corner.
+  for (let j = 0; j <= L.n; j++) for (let i = 0; i <= L.n; i++) {
+    const a = isFloor(i - 1, j - 1), b = isFloor(i, j - 1), c = isFloor(i - 1, j), d = isFloor(i, j), cnt = a + b + c + d;
+    if (cnt === 0 || cnt === 4 || (cnt === 2 && a === b)) continue; // open floor, solid rock, or a straight wall
+    solidB.add('pillar', edgeX(i), edgeX(j), 0, s * 1.15);
+  }
+
+  // Props. A spot is free when it clears walls and other props; props also keep clear of the corridor centre lines.
+  const feats = [], free = (x, z, r) => !wallHit(L, x, z, r) && !G.obst.some(o => (x - o.x) ** 2 + (z - o.z) ** 2 < (o.r + r) ** 2);
+  const total = OBSTACLES.reduce((a, o) => a + o.w, 0);
+  for (const room of L.rooms) {
+    if (room.kind === 'boss') continue;
+    const want = room.kind === 'start' ? 1 : Math.round(room.w * room.h * OBSTACLE_DENSITY * (room.kind === 'side' ? 1.3 : 1));
+    for (let t = 0, got = 0; t < 70 && got < want; t++) {
+      let r = Math.random() * total, ob = OBSTACLES[0];
+      for (const o of OBSTACLES) if ((r -= o.w) <= 0) { ob = o; break; }
+      const x = edgeX(room.i0 + .5 + Math.random() * (room.w - 1)), z = edgeX(room.j0 + .5 + Math.random() * (room.h - 1)), rot = rand(0, Math.PI * 2);
+      const circles = ob.circles.map(([ox, oz, cr]) => { const [dx, dz] = turn(ox, oz, rot, s); return { x: x + dx, z: z + dz, r: cr * s }; });
+      const R = Math.max(...circles.map(c => dist(c.x, c.z, x, z) + c.r));
+      if (dist(x, z, start.x, start.z) < 5 + R || lineDist(L, x, z) < R + 2.4) continue;
+      if (circles.some(c => wallHit(L, c.x, c.z, c.r + 1.2))) continue;
+      if (feats.some(f => dist(f.x, f.z, x, z) < f.R + R + 2.2)) continue;
+      feats.push({ x, z, R }); solidB.add(ob.name, x, z, rot, s); G.obst.push(...circles); got++;
     }
   }
-  for (let k = 0; k < segs; k++) solid.add('barrier_column', x0 + k * tile, half + .35 * s, Math.PI, s);
-  for (const [x, z] of [[-off, -off], [off, -off]]) solid.add('pillar', x, z, 0, s * 1.15);
+  const spot = r => { for (let t = 0; t < 40; t++) { const [i, j] = cells[Math.random() * cells.length | 0], x = edgeX(i + Math.random()), z = edgeX(j + Math.random()); if (free(x, z, r)) return [x, z]; } return null; };
 
-  // Obstacles, each with one or more circle colliders.
-  const feats = [];
-  const total = OBSTACLES.reduce((a, o) => a + o.w, 0);
-  for (let t = 0; t < 900 && feats.length < OBSTACLE_COUNT; t++) {
-    let r = Math.random() * total, ob = OBSTACLES[0];
-    for (const o of OBSTACLES) if ((r -= o.w) <= 0) { ob = o; break; }
-    const x = rand(-half + 3, half - 3), z = rand(-half + 3, half - 3), rot = rand(0, Math.PI * 2);
-    const circles = ob.circles.map(([ox, oz, cr]) => { const [dx, dz] = turn(ox, oz, rot, s); return { x: x + dx, z: z + dz, r: cr * s }; });
-    const R = Math.max(...circles.map(c => dist(c.x, c.z, x, z) + c.r));
-    if (dist(x, z, start.x, start.z) < 7 + R || dist(x, z, boss.x, boss.z) < 10 + R) continue;
-    if (circles.some(c => Math.abs(c.x) > half - c.r - .5 || Math.abs(c.z) > half - c.r - .5)) continue;
-    if (feats.some(f => dist(f.x, f.z, x, z) < f.R + R + 2.2)) continue;
-    feats.push({ x, z, R }); solid.add(ob.name, x, z, rot, s);
-    G.obst.push(...circles);
-  }
-  const free = (x, z, r) => !G.obst.some(o => (x - o.x) ** 2 + (z - o.z) ** 2 < (o.r + r) ** 2);
-  const spot = (r, edge = 1) => { for (let t = 0; t < 40; t++) { const x = rand(-half + edge, half - edge), z = rand(-half + edge, half - edge); if (free(x, z, r)) return [x, z]; } return null; };
-
-  // Braziers: candles on a short column, glowing.
-  for (let k = 0; k < BRAZIERS; k++) {
-    const p = spot(.8, 2); if (!p) continue; const [x, z] = p;
-    solid.add('column', x, z, rand(0, 6), s);
-    solid.add('candle_triple', x, z, rand(0, 6), s * DUNGEON.torch, 1.4 * s);
-    const f = glowSprite(0xff8a30, 1.4); f.position.set(x, 1.4 * s + .95 * s * DUNGEON.torch, z);
-    const d = decal(0xff7020, 4); d.position.set(x, .2, z); G.world.add(f, d);
-    G.torches.push({ f, x, z }); G.obst.push({ x, z, r: .32 });
+  // Braziers: candles on a short column, glowing, tucked into room corners.
+  let braziers = 0;
+  for (const room of [...L.rooms].sort(() => Math.random() - .5)) {
+    const corners = [[room.i0, room.j0], [room.i0 + room.w - 1, room.j0], [room.i0, room.j0 + room.h - 1], [room.i0 + room.w - 1, room.j0 + room.h - 1]].sort(() => Math.random() - .5);
+    for (const [i, j] of corners) {
+      if (braziers >= BRAZIER_MAX) break;
+      const x = cx(i) + (i === room.i0 ? -1 : 1) * cell * .2, z = cx(j) + (j === room.j0 ? -1 : 1) * cell * .2;
+      if (!isFloor(i, j) || !free(x, z, .8) || lineDist(L, x, z) < 1.8) continue;
+      braziers++;
+      solidB.add('column', x, z, rand(0, 6), s);
+      solidB.add('candle_triple', x, z, rand(0, 6), s * DUNGEON.torch, 1.4 * s);
+      const f = glowSprite(0xff8a30, 1.4); f.position.set(x, 1.4 * s + .95 * s * DUNGEON.torch, z);
+      const d = decal(0xff7020, 4); d.position.set(x, .2, z); G.world.add(f, d);
+      G.torches.push({ f, x, z }); G.obst.push({ x, z, r: .32 });
+      if (room.w * room.h < 36) break; // a second one only in big rooms
+    }
   }
 
-  // The boss's ring of skull posts and gravestones.
-  for (let k = 0; k < 10; k++) {
-    const a = k / 10 * Math.PI * 2, x = boss.x + Math.cos(a) * 8, z = boss.z + Math.sin(a) * 8;
-    if (Math.abs(x) > half - 1 || Math.abs(z) > half - 1 || !free(x, z, .4)) continue;
-    if (k % 2) { solid.add('post_skull', x, z, -a + Math.PI / 2, s); G.obst.push({ x, z, r: .3 }); }
-    else solid.add('gravestone', x, z, -a - Math.PI / 2, s);
+  // The guardian's ring of skull posts and gravestones, inside the arena.
+  const ringR = Math.min(8, L.rooms[L.route[L.route.length - 1]].w * cell / 2 - 1.8);
+  for (let q = 0; q < 10; q++) {
+    const a = q / 10 * Math.PI * 2, x = boss.x + Math.cos(a) * ringR, z = boss.z + Math.sin(a) * ringR;
+    if (wallHit(L, x, z, 1) || !free(x, z, .4)) continue;
+    if (q % 2) { solidB.add('post_skull', x, z, -a + Math.PI / 2, s); G.obst.push({ x, z, r: .3 }); }
+    else solidB.add('gravestone', x, z, -a - Math.PI / 2, s);
   }
 
-  // Clutter, and a few chests against the walls.
-  for (const [name, count] of CLUTTER) for (let k = 0; k < count; k++) { const p = spot(.3); if (p) floor.add(name, p[0], p[1], rand(0, 6), s); }
-  for (let k = 0; k < 4; k++) {
-    const x = rand(-half + 3, half - 3), z = -half + 1.2;
-    if (free(x, z, .9)) { solid.add('chest', x, z, 0, s); G.obst.push({ x, z, r: .7 }); }
+  // Clutter on the floor, and chests: one in each side room, against a wall.
+  for (const [name, count] of CLUTTER) for (let q = 0; q < count; q++) { const p = spot(.3); if (p) floor.add(name, p[0], p[1], rand(0, 6), s); }
+  for (const room of L.rooms.filter(r => r.kind === 'side').slice(0, 5)) {
+    for (let t = 0; t < 40; t++) {
+      const x = edgeX(room.i0 + .5 + Math.random() * (room.w - 1)), z = edgeX(room.j0 + .5 + Math.random() * (room.h - 1));
+      if (!wallHit(L, x, z, 2) || wallHit(L, x, z, 1.2) || !free(x, z, 1) || lineDist(L, x, z) < 2.2) continue;
+      solidB.add('chest', x, z, Math.atan2(room.x - x, room.z - z), s); G.obst.push({ x, z, r: .7 }); break;
+    }
   }
 
-  floor.flush(G.world, { cast: false, tint: DUNGEON.floor }); solid.flush(G.world);
+  floor.flush(G.world, { cast: false, tint: DUNGEON.floor }); solidB.flush(G.world);
 }

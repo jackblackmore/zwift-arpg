@@ -4,7 +4,7 @@ import { SK } from '../data/skills.js';
 import { RCSS } from '../data/items.js';
 import { ctl } from '../input/input.js';
 import { $ } from '../core/util.js';
-import { HALF } from '../world/map.js';
+import { HALF, reveal, seen } from '../world/map.js';
 import { xpNeed } from '../game/stats.js';
 import { rideHud } from '../input/ridesim.js';
 import { GEMS, SLOT_DEFS, BAR } from '../data/gems.js';
@@ -55,15 +55,15 @@ function skillSlot(s, res) {
 
 function minimap() {
   const k = 300 / (HALF * 2), X = x => (x + HALF) * k;
-  mmc.drawImage(G.mmBase, 0, 0);
-  for (const p of G.packs) if (!p.spawned) { mmc.fillStyle = '#7a2020'; mmc.fillRect(X(p.x) - 3, X(p.z) - 3, 6, 6); }
+  reveal(P.x, P.z); mmc.drawImage(G.mmBase, 0, 0); // fog of war: only cells you have seen are drawn, and only things standing on them
+  for (const p of G.packs) if (!p.spawned && seen(p.x, p.z)) { mmc.fillStyle = '#7a2020'; mmc.fillRect(X(p.x) - 3, X(p.z) - 3, 6, 6); }
   for (const e of G.enemies) {
-    if (e.deathT) continue;
+    if (e.deathT || !seen(e.x, e.z)) continue;
     mmc.fillStyle = e.type === 'boss' ? '#ff4fd8' : e.rar === 2 ? '#ffd23f' : e.rar === 1 ? '#7a7aff' : '#d03030';
     const s = e.type === 'boss' ? 12 : e.rar === 2 ? 7 : 4; mmc.fillRect(X(e.x) - s / 2, X(e.z) - s / 2, s, s);
   }
-  if (G.bossSpec && !G.bossSpec.spawned) { mmc.fillStyle = '#ff4fd8'; mmc.beginPath(); mmc.arc(X(G.bossSpot.x), X(G.bossSpot.z), 7, 0, 7); mmc.fill(); }
-  for (const d of G.ground) if (d.it.rar >= 2) { mmc.fillStyle = RCSS[d.it.rar]; mmc.fillRect(X(d.x) - 3, X(d.z) - 3, 6, 6); }
+  if (G.bossSpec && !G.bossSpec.spawned && seen(G.bossSpot.x, G.bossSpot.z)) { mmc.fillStyle = '#ff4fd8'; mmc.beginPath(); mmc.arc(X(G.bossSpot.x), X(G.bossSpot.z), 7, 0, 7); mmc.fill(); }
+  for (const d of G.ground) if (d.it.rar >= 2 && seen(d.x, d.z)) { mmc.fillStyle = RCSS[d.it.rar]; mmc.fillRect(X(d.x) - 3, X(d.z) - 3, 6, 6); }
   if (G.portal) { mmc.strokeStyle = '#b06bff'; mmc.lineWidth = 3; mmc.beginPath(); mmc.arc(X(G.portal.x), X(G.portal.z), 8, 0, 7); mmc.stroke(); }
   mmc.save(); mmc.translate(X(P.x), X(P.z)); mmc.rotate(-P.face + Math.PI); mmc.fillStyle = '#fff';
   mmc.beginPath(); mmc.moveTo(0, -9); mmc.lineTo(6, 6); mmc.lineTo(-6, 6); mmc.fill(); mmc.restore();

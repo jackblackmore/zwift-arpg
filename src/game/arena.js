@@ -21,7 +21,7 @@ const DT = .033;
 
 export function arena(spec) {
   const tier = spec.tier || 1, lvl = spec.lvl || parLevel(tier);
-  clearMap(); G.tier = tier; G.packs = []; G.bossSpec = null; G.obst = []; G.mapKills = 0;
+  clearMap(); G.tier = tier; G.packs = []; G.bossSpec = null; G.obst = []; G.layout = null; G.mapKills = 0;
   Object.assign(P, { lvl, passives: {}, gear: gearProfile(spec.gear || PAR_GEAR(tier), tier), dead: 0, invuln: 0, shield: 0, shieldT: 0, castT: 0, flaskT: 0, kills: 0, taken: 0, gems: [], bar: {}, cd: {}, shrined: { main: 1, flexA: 1, flexB: 1, guard: 1, evade: 1 } });
   for (const [slot, [gem, gl]] of Object.entries(spec.bar || parBar(tier))) P.bar[slot] = addGem(gem, gl).id;
   recalc(); readySlots(); P.life = S.maxLife; P.mana = S.maxMana; P.flask = SK.flask.max;

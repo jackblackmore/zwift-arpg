@@ -4,7 +4,7 @@
 export const G = {
   tier: 1, mapKills: 0, mapTotal: 0, gt: 0, paused: true, started: false,
   enemies: [], proj: [], eproj: [], patches: [], ground: [], floats: [], queue: [], effects: [],
-  packs: [], obst: [], torches: [], portal: null, bossSpec: null, shrine: null, shrineAsk: null,
+  packs: [], obst: [], torches: [], portal: null, bossSpec: null, shrine: null, shrineAsk: null, layout: null, // layout: the level grid (world/gen.js); null = open floor (arena)
   start: { x: 0, z: 0 }, bossSpot: { x: 0, z: 0 },
   world: null, mmBase: null, heroM: null,
   vign: 0, shakeA: 0, hitStop: 0, saveT: 30, bannerT: 0, labelRects: [], itemId: 1,

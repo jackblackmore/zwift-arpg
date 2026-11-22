@@ -9,7 +9,7 @@ import { GB, eyeMat, glowSprite, decal, aura } from '../render/assets.js';
 import { buildModel } from '../render/models.js';
 import { chars, makeChar } from '../render/characters.js';
 import { sparks, emit, burst, ringFx, flashFx, telegraph, banner } from '../render/fx.js';
-import { pushOut, blocked, los } from '../world/map.js';
+import { pushOut, blocked, los, pathStep } from '../world/map.js';
 import { hurtP, kill } from './combat.js';
 import { RARITY } from '../data/balance.js';
 import { tierHp } from './formulas.js';
@@ -54,7 +54,7 @@ export function materialize() {
   for (const p of G.packs) {
     if (p.spawned || dist(p.x, p.z, P.x, P.z) > PACK.spawnRange) continue;
     p.spawned = true;
-    const place = (t, rar) => { let x, z, k = 0; do { x = p.x + rand(-2.6, 2.6); z = p.z + rand(-2.6, 2.6); } while (blocked(x, z, .5) && ++k < 20); spawnEnemy(t, x, z, p, rar); };
+    const place = (t, rar) => { let x, z, k = 0; do { x = p.x + rand(-2.6, 2.6); z = p.z + rand(-2.6, 2.6); } while (blocked(x, z, .5) && ++k < 20); if (k >= 20) { x = p.x; z = p.z; } spawnEnemy(t, x, z, p, rar); }; // (never inside a wall: the pack's own spot is clear)
     p.mem.forEach(t => place(t, p.magic ? 1 : 0)); if (p.rare) place(p.rare, 2);
   }
   const bs = G.bossSpec;
@@ -77,19 +77,20 @@ export function wake(e) {
 }
 
 // ---- spatial hash for neighbour and area queries ----
-const CELL = 2, hash = new Map();
+const CELL = 2, HASH0 = 80, hash = new Map(); // HASH0: shifts world coordinates positive (the map spans about ±71)
 export function buildHash() {
   hash.clear();
-  for (const e of G.enemies) { if (e.deathT) continue; const k = ((e.x + 60) / CELL | 0) * 1000 + ((e.z + 60) / CELL | 0); let a = hash.get(k); if (!a) hash.set(k, a = []); a.push(e); }
+  for (const e of G.enemies) { if (e.deathT) continue; const k = ((e.x + HASH0) / CELL | 0) * 1000 + ((e.z + HASH0) / CELL | 0); let a = hash.get(k); if (!a) hash.set(k, a = []); a.push(e); }
 }
 // Calls cb for every living enemy whose body overlaps the circle (x, z, r).
 export function near(x, z, r, cb) {
-  const x0 = (x - r + 60) / CELL | 0, x1 = (x + r + 60) / CELL | 0, z0 = (z - r + 60) / CELL | 0, z1 = (z + r + 60) / CELL | 0;
+  const x0 = (x - r + HASH0) / CELL | 0, x1 = (x + r + HASH0) / CELL | 0, z0 = (z - r + HASH0) / CELL | 0, z1 = (z + r + HASH0) / CELL | 0;
   for (let i = x0; i <= x1; i++) for (let j = z0; j <= z1; j++) { const a = hash.get(i * 1000 + j); if (a) for (const e of a) if (!e.deathT && (e.x - x) ** 2 + (e.z - z) ** 2 <= (r + e.r) ** 2) cb(e); }
 }
 
-// Steer toward a target, bending around rocks ahead.
+// Steer toward a target, round walls (path finding) and bending around rocks ahead.
 export function steer(e, tx, tz) {
+  const w = pathStep(e.x, e.z, tx, tz, e.r); if (w) { tx = w[0]; tz = w[1]; }
   let dx = tx - e.x, dz = tz - e.z; const d = Math.hypot(dx, dz) || 1; dx /= d; dz /= d;
   for (const o of G.obst) {
     const ox = o.x - e.x, oz = o.z - e.z, along = ox * dx + oz * dz; if (along < 0 || along > 3.5) continue;
@@ -135,7 +136,7 @@ export function updEnemy(e, dt) {
   }
   e.moving = false;
   const d = dist(e.x, e.z, P.x, P.z);
-  if (!e.awake && d < (e.type === 'boss' ? 13 : PACK.aggro) && P.dead <= 0) wake(e);
+  if (!e.awake && d < (e.type === 'boss' ? 13 : PACK.aggro) && P.dead <= 0 && (d < PACK.aggroNear || los(e.x, e.z, P.x, P.z))) wake(e); // walls hide you: rooms wake one at a time
   // status effects
   if (e.flash > 0) e.flash -= dt;
   if (e.shock > 0) { e.shock -= dt; if (Math.random() < dt * 8) emit(sparks, e.x + rand(-.3, .3), rand(.5, e.h), e.z + rand(-.3, .3), rand(-1, 1), rand(1, 2), rand(-1, 1), .25, 0xd0b0ff, 0, 1); }
