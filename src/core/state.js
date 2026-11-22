@@ -13,7 +13,7 @@ export const G = {
 // P: the player character (position, resources, progression, gear).
 export const P = {
   x: 0, z: 0, r: .4, face: 0, life: 100, mana: 60, lvl: 1, xp: 0, kills: 0,
-  castT: 0, castAnim: 0, dashCh: 1, dashT: 0, novaCd: 0, flask: 3, flaskT: 0, flaskRate: 0,
+  castT: 0, castAnim: 0, dashCh: 1, dashT: 0, novaCd: 0, shield: 0, shieldT: 0, shieldCd: 0, flask: 3, flaskT: 0, flaskRate: 0,
   inv: [], gear: {}, passives: {}, pts: 0, offer: null, newItems: 0,
   dead: 0, walkT: 0, moving: false, invuln: 0, fbN: 0, autoNovaT: 5, moveX: 0, moveZ: 1, castSeq: 0, lastCast: null,
 };

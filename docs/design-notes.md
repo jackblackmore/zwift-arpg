@@ -59,14 +59,14 @@ Skill bar:
 | Main | Any attack skill gem | Level 1 | 4 (1 at L1, 2 at L15, 3 at L30, 4 at L45) |
 | Flex A | Any attack or support skill gem | Level 5 | 2 (1 on unlock, 2 at L25) |
 | Flex B | Any attack or support skill gem | Level 12 | 2 (1 on unlock, 2 at L25) |
-| Guard | Guard skill gems (shields, wards, decoys) | Level 8 | 1 |
-| Evade | Evade gems (Blink, Phase, Smoke, Decoy Swap) | Level 1 | 1 |
+| Guard | Guard skill gems (shields, wards, decoys) | Level 1 | 1 |
+| Evade | Evade gems (Blink, Phase, Smoke, Decoy Swap, Flame Dash) | Level 8 | 1 |
 
 - Main is "main" because it has the most sockets and is always on the primary button; nothing else.
 - Gems can be moved between any slots that accept them at any time outside a Trial.
 
 Where skill gems come from (they drop as loot):
-- **Shrines: four, once per character, only in the first world (Crypt).** Ride 1: choose 1 of 3 Main gems (Fireball, Frost Lance, Raise Skeletons) plus Blink. Level 5: Flex A. Level 8: Guard. Level 12: Flex B. Each is 1 of 3 options for that slot and appears at the entrance of the next level so it can't be missed.
+- **Shrines: four, once per character, only in the first world (Crypt).** Ride 1: choose 1 of 3 Main gems (Fireball, Frost Lance, Raise Skeletons) plus Magic Shield. Level 5: Flex A. Level 8: Evade. Level 12: Flex B. Each is 1 of 3 options for that slot and appears at the entrance of the next level so it can't be missed.
 - **Shrine gems for Flex slots start at Main gem level − 2** (only shrine gems).
 - Guardians: 1 guaranteed gem (skill or support) from the region pool.
 - Trial bosses: their own signature gems.
@@ -100,9 +100,9 @@ Example: Pyromancer through the Crypt (illustrative numbers):
 
 | Ride | Level | Char lvl | Unlocks | Skill bar | Notes |
 |---|---|---|---|---|---|
-| 1 | Crypt 1 | 1→4 | Main, Evade | Fireball I lv1→3, Blink I | Choose Fireball. Guardian drops Split |
+| 1 | Crypt 1 | 1→4 | Main, Guard | Fireball I lv1→3, Magic Shield I | Choose Fireball. Guardian drops Split |
 | 2 | Crypt 2 | 4→7 | Flex A | Fireball lv5 (pierces), Flame Totem I | Shrine: Totem over Frost Nova/Arc |
-| 3 | Crypt 3 | 7→10 | Guard | Fireball lv7, Totem, Fire Ward I | First armour boots |
+| 3 | Crypt 3 | 7→10 | Evade | Fireball lv7, Totem, Shield, Blink I | First armour boots |
 | 4 | Crypt 4 | 10→12 | Flex B | Fireball lv9, Totem, Ward, Meteor I | First rare wand; Frost Lance I to the gem bag |
 | 5 | Crypt 5 | 12→14 | n/a | Fireball lv10 (mastered: burning ground) | Fire resistance chest |
 | 6 | Ashen King | 14 | n/a | Same | Win: Forest, Wattbringer, modifier hand unlocks |
@@ -207,7 +207,8 @@ Region themes and boss pairings are **open**; the shape (6 × 5 + Trial) is lean
 
 - **Leaning: underpowered early, loot makes the difference.** Character level adds a little damage and mostly life; gear adds most damage. A new hero has a plain starter staff and needs 4–5 Fireballs per skeleton. A full kit of magic gear roughly doubles to triples damage.
 - **Leaning: sawtooth power curve.** Inside a level you outgrow the monsters as drops come in; the next level steps monster life up again. The biggest step is Crypt 1 → 2, because that's when the starter staff is expected to be gone.
-- Skills cost more and cast slower than before, and mana runs out: Fireball can be held at a bit over half its full cast rate. Frost Nova and Flame Dash have real cooldowns (6 s, 4 s per charge).
+- Skills cost more and cast slower than before, and mana runs out: Fireball can be held at a bit over half its full cast rate. Frost Nova has a 6 s cooldown.
+- **Leaning: you start with a generic Magic Shield, not a movement skill.** It absorbs 35% of max life for 5 s on a 10 s cooldown, and fits every build (Flame Dash leaned too far toward a fire build). Movement skills come later through the Evade slot (level 8 shrine). Built as a plain skill today; it becomes the first Guard gem in gems v1.
 - **Targets** (at par level with par gear; exact numbers in `src/data/balance.js`):
 
 | Thing | Target |

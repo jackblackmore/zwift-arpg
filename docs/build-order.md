@@ -21,17 +21,17 @@ Status: ✅ done · ▶ next · ☐ later
 
 ## Step 1: Gems v1 ▶
 
-**Goal:** a new character starts with **one attack and one evade**. More skills arrive as gems from shrines when slots unlock at levels 5, 8 and 12. Skills level up as you use them. Design: "Gem model in detail" in `docs/design-notes.md`.
+**Goal:** a new character starts with **one attack and Magic Shield**. More skills arrive as gems from shrines when slots unlock at levels 5, 8 and 12. Skills level up as you use them. Design: "Gem model in detail" in `docs/design-notes.md`.
 
-**Today:** Fireball, Arc, Frost Nova and Flame Dash are wired straight to inputs and buttons:
+**Today:** Fireball, Arc, Frost Nova and Magic Shield are wired straight to inputs and buttons (Flame Dash's code is still in `skills.js` but not on any button):
 - skill code: `src/game/skills.js`
 - casting in `updPlayer`: `src/game/update.js`
-- inputs `ctl.fb`, `ctl.arc`, `ctl.nova`, `ctl.dash`: `src/input/input.js`, `src/input/devices.js`
+- inputs `ctl.fb`, `ctl.arc`, `ctl.nova`, `ctl.shield`: `src/input/input.js`, `src/input/devices.js`
 - RIDE buttons: `RIDE_BUTTONS` in `src/data/ride.js`
-- HUD buttons `sFb`, `sAr`, `sNv`, `sDs`: `index.html`, `src/ui/hud.js`
+- HUD buttons `sFb`, `sAr`, `sNv`, `sSh`: `index.html`, `src/ui/hud.js`
 
 **Scope of v1** (keep it this small):
-- **Skill bar:** Main (unlocks at level 1), Evade (level 1), Flex A (level 5), Guard (level 8), Flex B (level 12). This step has no guard skills, so make Guard accept any skill for now and note that in the code.
+- **Skill bar:** Main (unlocks at level 1), Guard (level 1), Flex A (level 5), Evade (level 8), Flex B (level 12).
 - **Skill gems we have:**
 
   | Gem | Kind | Behaviour |
@@ -39,10 +39,11 @@ Status: ✅ done · ▶ next · ☐ later
   | Fireball | Attack, held | Held: casts repeatedly while pressed |
   | Arc | Attack, held | Held: casts repeatedly while pressed |
   | Frost Nova | Attack, press | Cooldown |
-  | Flame Dash | Evade | Stands in for Blink until we build it |
+  | Magic Shield | Guard, press | The starting Guard gem; already built as a plain skill |
+  | Flame Dash | Evade, press | Code already exists; one of the level 8 Evade shrine options until Blink is built |
 
   Frost Lance and Raise Skeletons come later.
-- **Shrines:** each slot unlock offers 1 of 3 gems. On a fresh character, offer the Main choice before the first fight (Fireball, Arc or Frost Nova); Flame Dash goes in Evade automatically. When a slot unlocks, put a shrine at the start of the next map, or show it immediately if that's simpler; note which you did in the design notes.
+- **Shrines:** each slot unlock offers 1 of 3 gems. On a fresh character, offer the Main choice before the first fight (Fireball, Arc or Frost Nova); Magic Shield goes in Guard automatically. The level 8 Evade shrine offers Flame Dash (only option until Blink exists; show it as a single choice). When a slot unlocks, put a shrine at the start of the next map, or show it immediately if that's simpler; note which you did in the design notes.
 - **Gem levels:** gems in slots earn XP from the same kills as the character. Gems outside slots earn 10%. Cap at level 10 for tier I. Each gem gets **one milestone at level 5**:
 
   | Gem | Level 5 milestone |
@@ -50,6 +51,7 @@ Status: ✅ done · ▶ next · ☐ later
   | Fireball | Pierces 1 enemy |
   | Arc | +2 chains |
   | Frost Nova | +25% radius |
+  | Magic Shield | Absorbs +25% |
   | Flame Dash | +1 charge |
 
   Base damage grows with gem level (roughly 1.1× per level) instead of with character level.
@@ -64,16 +66,16 @@ Status: ✅ done · ▶ next · ☐ later
    - Save and load both in `src/game/save.js`.
    - Old saves have no gems. Treat them as fresh for gems: offer the Main shrine on load.
 3. **Input.**
-   - Replace `ctl.fb`, `ctl.arc`, `ctl.nova` and `ctl.dash` with slot inputs: `ctl.main`, `ctl.flexA`, `ctl.flexB`, `ctl.guard`, `ctl.evade`. Each slot is held or pressed depending on the gem in it.
-   - Keyboard and mouse: LMB Main, RMB Flex A, Q Flex B, E Guard, Space Evade.
+   - Replace `ctl.fb`, `ctl.arc`, `ctl.nova` and `ctl.shield` with slot inputs: `ctl.main`, `ctl.flexA`, `ctl.flexB`, `ctl.guard`, `ctl.evade`. Each slot is held or pressed depending on the gem in it.
+   - Keyboard and mouse: LMB Main, RMB Flex A, Q Flex B, Space Guard, E Evade.
    - Touch: one button per unlocked slot.
-   - RIDE (`RIDE_BUTTONS`): A = Main, B = Flex A, Z = Flex B, right shifter = Evade. Pick a free button for Guard and note it.
+   - RIDE (`RIDE_BUTTONS`): A = Main, B = Flex A, Z = Flex B, right shifter = Guard. Pick a free button for Evade and note it.
    - Game code still reads only `ctl` (CLAUDE.md rule).
 4. **Casting.**
    - `updPlayer` walks the bar and casts each slot's gem through a lookup from gem id to cast function (the functions in `skills.js`).
-   - Cooldowns become per slot instead of `P.novaCd` and `P.dashCh`.
+   - Cooldowns become per slot instead of `P.novaCd`, `P.shieldCd` and `P.dashCh`.
    - Gem level feeds damage and milestones.
-   - Passives that change one skill (Twin Flame, Searing Lance, Forked Sky, Ember Step) keep working for now. The design moves them to support gems in step 5.
+   - Passives that change one skill (Twin Flame, Searing Lance, Forked Sky, Warding) keep working for now. The design moves them to support gems in step 5.
 5. **Stats.**
    - In `src/game/formulas.js`, base damage comes from the gem: `gem base(level) + flat spell from gear`. Character level stops adding spell damage (`HERO.spellPer` → 0).
    - Keep the formulas pure. The balance tools pass a gem and its level in.
@@ -87,7 +89,7 @@ Status: ✅ done · ▶ next · ☐ later
    - The arena bot uses whatever is on the bar.
    - Re-tune until the targets pass again. The early game should feel weaker than now: one attack and nothing else.
 8. **Tests** (`tests/sim.mjs`):
-   - A fresh character has exactly Main and Evade filled.
+   - A fresh character has exactly Main and Guard (Magic Shield) filled.
    - Flex A is locked below level 5 and a shrine appears at 5.
    - Picking a shrine gem fills the slot.
    - Gems gain levels from kills.
@@ -100,7 +102,7 @@ Status: ✅ done · ▶ next · ☐ later
    - Tick step 1 in this file.
 
 **Done when:**
-- A new character can only use one attack and Flame Dash.
+- A new character can only use one attack and Magic Shield.
 - Levels 5, 8 and 12 each bring a shrine choice.
 - Gems level up and hit their milestone.
 - Balance targets pass.

@@ -1,4 +1,4 @@
-// Player skills: Fireball, Arc, Frost Nova, Flame Dash, life flask.
+// Player skills: Fireball, Arc, Frost Nova, Magic Shield, life flask. Flame Dash is kept for the Evade slot (build order step 1).
 import * as T from 'three';
 import { G, P, S, shake } from '../core/state.js';
 import { SK } from '../data/skills.js';
@@ -70,6 +70,15 @@ export function castNova(free = false) {
   ringFx(P.x, P.z, r, 0x9fe8ff, .45, .1); ringFx(P.x, P.z, r * .7, 0xffffff, .3, .1); flashFx(P.x, .6, P.z, 0x7fd8ff, r * 2.2, .35);
   for (let i = 0; i < 60; i++) { const a = rand(0, 6.28), s = rand(5, 11) * S.aoe; emit(sparks, P.x, rand(.3, 1.2), P.z, Math.cos(a) * s, rand(0, 2), Math.sin(a) * s, rand(.35, .5), pick([0xbff0ff, 0xffffff, 0x7fd8ff]), 2, 3); }
   flashLight(P.x, P.z, 0x7fd8ff, 4, .35); SFX.nova(); shake(.12); return true;
+}
+
+export function castShield() {
+  const H = SK.shield; if (P.shieldCd > 0 || !pay(H.cost)) return false;
+  P.shield = S.maxLife * H.absorb * S.shieldMul; P.shieldT = H.dur; P.shieldCd = H.cd;
+  P.castAnim = .2; P.castSeq++; P.lastCast = 'shield';
+  ringFx(P.x, P.z, 1.3, 0x7fb8ff, .35, .1); flashFx(P.x, 1, P.z, 0x7fb8ff, 3, .3);
+  for (let i = 0; i < 24; i++) { const a = rand(0, 6.28); emit(glows, P.x + Math.cos(a) * .9, rand(.2, 1.8), P.z + Math.sin(a) * .9, 0, rand(.3, 1), 0, rand(.3, .6), 0x9fc8ff); }
+  SFX.nova(); return true;
 }
 
 export function castDash() {

@@ -26,5 +26,5 @@ export const RIDE_BUTTONS = [
   { id: 'Z', side: 'R', at: [0, 1], key: 'j', label: 'Z', act: 'nova', icon: '❄', col: '#7fd8ff' },
   { id: 'B', side: 'R', at: [2, 1], key: 'l', label: 'B', act: 'arc', icon: 'ϟ', col: '#c98bff', hold: 1 },
   { id: 'A', side: 'R', at: [1, 2], key: 'k', label: 'A', act: 'fb', icon: '✹', col: '#ff8a3c', hold: 1 },
-  { id: 'rshift', side: 'R', at: [0, 3], key: 'e', label: 'SHIFT +', act: 'dash', icon: '➶', col: '#ff5a2a', wide: 1 },
+  { id: 'rshift', side: 'R', at: [0, 3], key: 'e', label: 'SHIFT +', act: 'shield', icon: '◎', col: '#7fb8ff', wide: 1 },
 ];

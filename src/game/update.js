@@ -5,7 +5,7 @@ import { ctl } from '../input/input.js';
 import { dist } from '../core/util.js';
 import { pushOut } from '../world/map.js';
 import { materialize, buildHash, updEnemy, separate, updEnemyProjectiles } from './enemies.js';
-import { castFireball, castArc, castNova, castDash, useFlask, updProjectiles } from './skills.js';
+import { castFireball, castArc, castNova, castShield, useFlask, updProjectiles } from './skills.js';
 import { explode, updPatches, processQueue } from './combat.js';
 import { pickUp, updItems } from './items.js';
 import { newMap, respawn } from './maps.js';
@@ -37,14 +37,15 @@ function updPlayer(dt) {
   pushOut(P);
   P.life = Math.min(S.maxLife, P.life + (S.lregen + (P.flaskT > 0 ? P.flaskRate : 0)) * dt); if (P.flaskT > 0) P.flaskT -= dt;
   if (!S.blood) P.mana = Math.min(S.maxMana, P.mana + S.mregen * fx.mana * dt);
-  P.castT -= dt; P.castAnim -= dt; P.novaCd -= dt; P.invuln -= dt;
+  P.castT -= dt; P.castAnim -= dt; P.novaCd -= dt; P.shieldCd -= dt; P.invuln -= dt;
+  if (P.shieldT > 0) { P.shieldT -= dt; if (P.shieldT <= 0) P.shield = 0; }
   if (P.dashCh < S.dashMax) { P.dashT += dt; if (P.dashT >= SK.dash.recharge) { P.dashT = 0; P.dashCh++; } } else P.dashT = 0;
   if (P.castT <= 0) {
     if (ctl.fb) { if (castFireball()) P.castT = SK.fireball.cast / (S.cast * fx.cast); }
     else if (ctl.arc) { if (castArc()) P.castT = SK.arc.cast / (S.cast * fx.cast); }
   }
   if (ctl.nova) { ctl.nova = false; castNova(); }
-  if (ctl.dash) { ctl.dash = false; castDash(); }
+  if (ctl.shield) { ctl.shield = false; castShield(); }
   if (ctl.flask) { ctl.flask = false; useFlask(); }
   if (S.autoNova) { P.autoNovaT -= dt; if (P.autoNovaT <= 0) { P.autoNovaT = 5; castNova(true); } }
   for (const d of G.ground) if (d.landed && !d.gone && dist(d.x, d.z, P.x, P.z) < 1.3) pickUp(d);

@@ -63,7 +63,7 @@ export function initDevices(ui) {
     ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(ev => el.addEventListener(ev, () => up && up()));
   };
   skillBtn('sFb', () => ctl.fb = true, () => ctl.fb = false); skillBtn('sAr', () => ctl.arc = true, () => ctl.arc = false);
-  skillBtn('sNv', () => ctl.nova = true); skillBtn('sDs', () => ctl.dash = true); skillBtn('sFl', () => ctl.flask = true);
+  skillBtn('sNv', () => ctl.nova = true); skillBtn('sSh', () => ctl.shield = true); skillBtn('sFl', () => ctl.flask = true);
 
   addEventListener('keydown', e => {
     const k = e.key.toLowerCase(); if (k === ' ') e.preventDefault();
@@ -74,7 +74,7 @@ export function initDevices(ui) {
     if (k === 'escape') { UI.closeAll(); return; }
     if (rideKey(k, true)) return;
     if (G.paused) return;
-    if (k === 'q' || k === '3') ctl.nova = true; if (k === ' ' || k === '4') ctl.dash = true; if (k === 'f' || k === '5') ctl.flask = true;
+    if (k === 'q' || k === '3') ctl.nova = true; if (k === ' ' || k === '4') ctl.shield = true; if (k === 'f' || k === '5') ctl.flask = true;
     if (k === '1') ctl.fb = true; if (k === '2' || k === 'e') ctl.arc = true;
   });
   addEventListener('keyup', e => { const k = e.key.toLowerCase(); keys[k] = false; if (rideKey(k, false)) return; if (k === '1') ctl.fb = false; if (k === '2' || k === 'e') ctl.arc = false; });

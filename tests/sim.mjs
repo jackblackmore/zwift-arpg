@@ -42,13 +42,21 @@ try {
       D.start(true);
       out.packs = D.packs().length;
       // Scripted player: walk toward the nearest living pack, hold Fireball, Arc and Nova on a rhythm.
-      D.ctl.fb = true;
-      for (let step = 0; step < 90; step++) {
+      D.ctl.aim = null; // a stray headless pointer event can leave a mouse aim point; auto-aim like touch does
+      D.ctl.fb = true; var px = 1e9, pz = 1e9;
+      for (let step = 0; step < 240; step++) {
         const alive = D.packs().filter(p => !p.spawned || p.list.some(e => !e.deathT));
         const tgt = alive.sort((a, b) => Math.hypot(a.x - P.x, a.z - P.z) - Math.hypot(b.x - P.x, b.z - P.z))[0];
-        if (tgt) { const dx = tgt.x - P.x, dz = tgt.z - P.z, d = Math.hypot(dx, dz); D.ctl.mx = d > 6 ? dx / d : 0; D.ctl.mz = d > 6 ? dz / d : 0; }
-        if (step % 4 === 0) D.ctl.nova = true; if (step % 9 === 0) D.ctl.dash = true; if (step % 3 === 0) D.castArc();
-        P.life = Math.max(P.life, 60); D.sim(10);
+        // Close in on the nearest awake monster (so props can't block every shot), else walk to the nearest pack.
+        const foe = D.enemies().filter(e => !e.deathT && e.awake).sort((a, b) => Math.hypot(a.x - P.x, a.z - P.z) - Math.hypot(b.x - P.x, b.z - P.z))[0];
+        const goal = foe && Math.hypot(foe.x - P.x, foe.z - P.z) < 14 ? foe : tgt, keep = goal === foe ? 3 : 6;
+        if (goal) {
+          const dx = goal.x - P.x, dz = goal.z - P.z, d = Math.hypot(dx, dz); D.ctl.mx = d > keep ? dx / d : 0; D.ctl.mz = d > keep ? dz / d : 0;
+          if (d > keep && Math.hypot(P.x - px, P.z - pz) < .3) { P.x = goal.x - dx / d * keep; P.z = goal.z - dz / d * keep; } // stuck on a prop: hop closer
+        }
+        // Mana is scarce now: mostly Fireball, with the other skills now and then.
+        if (step % 45 === 0) D.ctl.nova = true; if (step % 60 === 0) D.ctl.shield = true; if (step % 50 === 0) D.castArc();
+        var px = P.x, pz = P.z; P.life = Math.max(P.life, 60); D.sim(10);
       }
       D.ctl.fb = false; D.ctl.mx = D.ctl.mz = 0;
       out.rigged = D.chars.ready && D.G.heroM.rigged && D.enemies().some(e => e.model.rigged);
@@ -72,7 +80,7 @@ try {
     check(r.rigged, 'arpg: KayKit character models loaded for hero and monsters');
     check(r.dressed, 'arpg: map built from the KayKit dungeon pieces');
     check(r.packs >= 18, `arpg: map has packs (${r.packs})`);
-    check(r.kills > 12, `arpg: player fought through packs (${r.kills} kills)`);
+    check(r.kills > 20, `arpg: player fought through packs (${r.kills} kills)`);
     check(r.lvl >= 2, `arpg: player levelled up (level ${r.lvl})`);
     check(r.loot > 0, `arpg: monsters dropped loot (${r.loot})`);
     check(r.inv >= 4, `arpg: loot picked up into the bag (${r.inv})`);
@@ -96,12 +104,14 @@ try {
         pack: D.arena({ tier: 1, fight: [['zombie', 3], ['archer', 1]] }),
         boss: D.arena({ tier: 1, guardian: true, maxT: 240 }),
         under: D.arena({ tier: 2, gear: 'start', guardian: true, maxT: 120 }),
+        shield: (() => { D.P.shieldCd = 0; D.P.mana = 100; D.castShield(); const a = D.P.shield / D.S.maxLife; const l = D.P.life; D.ctl.shield = false; return { result: a > .3 ? 'ok' : 'none', t: Math.round(a * 100) / 100, lowest: l }; })(),
       };
     });
     console.log('  balance:', JSON.stringify(Object.fromEntries(Object.entries(r).map(([k, v]) => [k, `${v.result} ${v.t}s lowest ${v.lowest}`]))));
     check(r.pack.result === 'clear' && r.pack.t > 3 && r.pack.t < 20, `balance: a tier 1 pack takes a few seconds with the starter staff (${r.pack.t}s)`);
     check(r.boss.result === 'clear' && r.boss.t > 45 && r.boss.t < 180, `balance: tier 1 guardian can't be burned down (${r.boss.t}s)`);
     check(r.under.result !== 'clear', `balance: starter staff can't beat the tier 2 guardian in 2 minutes (${r.under.result})`);
+    check(r.shield.result === 'ok' && r.boss.shields > 0, `balance: Magic Shield absorbs ${Math.round(r.shield.t * 100)}% of max life and the bot uses it (${r.boss.shields} casts)`);
     check(errors.length === 0, `balance: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   }
 
@@ -118,7 +128,7 @@ try {
       D.ride.pw = 200; D.ctl.auto = true; D.ctl.fb = true;
       // Measure the path walked, not distance from the start: the autopilot can loop back toward the entrance.
       let walked = 0, lx = P.x, lz = P.z;
-      for (let i = 0; i < 60; i++) {
+      for (let i = 0; i < 150; i++) {
         P.life = Math.max(P.life, 60); if (i % 6 === 0) D.ctl.nova = true;
         for (let k = 0; k < 15; k++) { D.sim(1); const step = Math.hypot(P.x - lx, P.z - lz); if (step < 1) walked += step; /* skip respawn and dash jumps */ lx = P.x; lz = P.z; }
       }

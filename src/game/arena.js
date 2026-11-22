@@ -3,7 +3,7 @@
 //   spec: { tier, lvl, gear: 'start' | 'magic' | 'rare', fight: [[type, count], ...], rar: 0 | 1 | 2 (for the whole group),
 //           rare: type (adds one rare), guardian: true, maxT: seconds, bot: 'kite' (default) | 'stand' }
 // The bot holds Fireball on the nearest monster, kites when they close in ('stand': never kites, a careless player), casts Frost Nova when crowded,
-// drinks flasks under half life and dashes away when low. Obstacles are cleared so fights repeat.
+// raises Magic Shield when monsters close in and drinks flasks under half life. Obstacles are cleared so fights repeat.
 import { G, P, S } from '../core/state.js';
 import { ctl } from '../input/input.js';
 import { SK } from '../data/skills.js';
@@ -19,7 +19,7 @@ const DT = .033;
 export function arena(spec) {
   const tier = spec.tier || 1, lvl = spec.lvl || parLevel(tier);
   clearMap(); G.tier = tier; G.packs = []; G.bossSpec = null; G.obst = []; G.mapKills = 0;
-  Object.assign(P, { lvl, passives: {}, gear: gearProfile(spec.gear || PAR_GEAR(tier), tier), dead: 0, invuln: 0, novaCd: 0, castT: 0, dashT: 0, flaskT: 0, kills: 0, taken: 0 });
+  Object.assign(P, { lvl, passives: {}, gear: gearProfile(spec.gear || PAR_GEAR(tier), tier), dead: 0, invuln: 0, novaCd: 0, shield: 0, shieldT: 0, shieldCd: 0, castT: 0, dashT: 0, flaskT: 0, kills: 0, taken: 0 });
   recalc(); P.life = S.maxLife; P.mana = S.maxMana; P.flask = SK.flask.max; P.dashCh = S.dashMax;
   P.x = -8; P.z = 0; // about where a pack wakes in a room
   const pack = { x: 0, z: 0, awake: false, list: [], mem: [] }, foes = [];
@@ -28,7 +28,7 @@ export function arena(spec) {
   if (spec.guardian) { const b = spawnEnemy('boss', 2, 0, null, 0); b.abilT = 3; b.rot = 0; foes.push(b); }
   foes.forEach(wake);
   const maxT = spec.maxT || 180;
-  let t = 0, starved = 0, flasks = 0, dashes = 0, lowest = 1;
+  let t = 0, starved = 0, flasks = 0, shields = 0, lowest = 1;
   while (t < maxT) {
     const alive = G.enemies.filter(e => !e.deathT);
     if (!foes.some(e => !e.deathT)) break;
@@ -44,14 +44,14 @@ export function arena(spec) {
     if (P.mana < SK.fireball.cost) starved += DT;
     if (crowd >= 2 && P.novaCd <= 0 && P.mana >= SK.nova.cost) ctl.nova = true;
     if (P.life < S.maxLife * .5 && P.flask >= 1 && P.flaskT <= 0) ctl.flask = true;
-    if (P.life < S.maxLife * .3 && P.dashCh >= 1 && nd < 3) { ctl.aim = [P.x + dx * 8, P.z + dz * 8]; ctl.dash = true; dashes++; }
+    if (nd < 4 && P.shieldCd <= 0 && P.mana >= SK.shield.cost) { ctl.shield = true; shields++; }
     const fl = P.flask; update(DT); t += DT; if (P.flask < fl - .5) flasks++; lowest = Math.min(lowest, P.life / S.maxLife);
   }
   ctl.fb = false; ctl.mx = ctl.mz = 0; ctl.aim = null;
   const left = G.enemies.filter(e => !e.deathT && foes.includes(e)).length;
   return {
     result: P.dead > 0 ? 'died' : left ? 'timeout' : 'clear', t: Math.round(t * 10) / 10, kills: P.kills,
-    taken: Math.round(P.taken), lowest: Math.round(lowest * 100) / 100, flasks, dashes, starved: Math.round(starved * 10) / 10,
+    taken: Math.round(P.taken), lowest: Math.round(lowest * 100) / 100, flasks, shields, starved: Math.round(starved * 10) / 10,
     lvl, life: S.maxLife,
   };
 }
