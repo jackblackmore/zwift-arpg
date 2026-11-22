@@ -70,7 +70,7 @@ try {
     // 1. Structure of a fresh level, and the scripted player walking its route with levelGoal().
     const r1 = await page.evaluate(() => {
       const D = window.__dbg, P = D.P, G = D.G, T = window.T, out = {};
-      D.start(true);
+      D.start(true); D.kit();
       const L = D.level();
       out.slots = L.beats.map(b => b.slot).join(','); out.types = L.beats.map(b => b.type);
       out.name = L.name; out.packs = D.packs().length; out.depth = G.depth;
@@ -287,7 +287,7 @@ try {
       await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
       await page.waitForFunction(() => window.__dbg && window.__dbg.ready(), { timeout: 20000 });
       await page.evaluate(() => {
-        const D = window.__dbg, P = D.P, S = D.S; D.start(true); D.newLevel(0); D.ctl.auto = true;
+        const D = window.__dbg, P = D.P, S = D.S; D.start(true); D.kit(); D.newLevel(0); D.ctl.auto = true;
         for (let n = 0; n < 3000; n++) { P.life = S.maxLife; D.sim(1); if (n > 150 && D.enemies().filter(e => !e.deathT && !e.beat && Math.hypot(e.x - P.x, e.z - P.z) < 9).length >= 3) break; }
         D.ctl.auto = false; D.ctl.mx = D.ctl.mz = 0; D.hud();
       });
@@ -302,7 +302,7 @@ try {
     const { page, errors } = await open('/');
     const r = await page.evaluate(() => {
       const D = window.__dbg, P = D.P, S = D.S, G = D.G, out = { order: [], kinds: new Set() };
-      D.start(true); D.newLevel(0); const L = D.level(); D.ctl.auto = true;
+      D.start(true); D.kit(); D.newLevel(0); const L = D.level(); D.ctl.auto = true;
       const done = new Set(); let t = 0;
       // No help beyond keeping the hero alive (life topped up each tick); the level's own damage numbers are used as they are.
       for (; t < 40000 && !L.cleared; t++) {
@@ -327,7 +327,7 @@ try {
     const { page, errors } = await open('/');
     const r = await page.evaluate(() => {
       const D = window.__dbg, P = D.P, S = D.S, ctl = D.ctl, out = {};
-      D.setRide(true); D.start(true);
+      D.setRide(true); D.start(true); D.kit();
       const FTP = D.ride.ftp = 250;
       // One tick of the device (reads pad + sliders into ctl) then one game tick.
       const tick = n => { for (let i = 0; i < n; i++) { D.pollRide(.033); D.sim(1); } };
@@ -396,7 +396,7 @@ try {
     if (process.env.SCREENSHOT) {
       // RIDE mode mid-fight, surging: 130% FTP, autopilot on, a pack in front.
       await page.evaluate(() => {
-        const D = window.__dbg, P = D.P, S = D.S; D.setRide(true); D.start(true); D.newLevel(0); D.ride.ftp = 250; D.ride.pw = 325; D.ctl.auto = true;
+        const D = window.__dbg, P = D.P, S = D.S; D.setRide(true); D.start(true); D.kit(); D.newLevel(0); D.ride.ftp = 250; D.ride.pw = 325; D.ctl.auto = true;
         for (let n = 0; n < 3000; n++) { P.life = S.maxLife; D.pollRide(.033); D.sim(1); if (n > 150 && D.enemies().filter(e => !e.deathT && !e.beat && Math.hypot(e.x - P.x, e.z - P.z) < 9).length >= 3) break; }
         D.surge().v = D.surge().max * .7; D.hud();
       });

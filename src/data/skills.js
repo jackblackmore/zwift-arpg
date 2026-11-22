@@ -10,10 +10,20 @@ export const SK = {
   blink: { cd: 5, range: 6.5, invuln: .35, threat: 9, tries: 16, minRange: 3 },
   burn: { mult: .22, tick: .25, life: 2.4 },
   // --- C1 skills (Frost Lance, Raise Skeletons, Bone Armour, Decoy) ---
-  frostLance: { rate: .9, mult: 2.2, range: 11, speed: 20, life: .7 },
-  skeletons: { cd: 10, range: 9 },
-  boneArmour: { cd: 14 },
-  decoy: { cd: 12 },
+  // Frost Lance: a slow, heavy, long-range single-target lance. rate: seconds between shots (Main) / cooldown (Flex). mult: x gem base + flat
+  // spell (about 3.5x a Fireball hit). speed/life: flight (range ~ speed x life). chill: seconds of half speed on what it hits.
+  // frozenMult: damage multiplier on frozen enemies once the gem has its lv10 milestone. spread: fan angle with Split.
+  frostLance: { cd: 2.5, rate: .9, mult: 2.2, range: 13, speed: 26, life: .65, chill: 2.5, spread: .17, hitR: .45, frozenMult: 2 },
+  // Raise Skeletons: rate paces Main (one raise per `rate` s while below the cap) and the Flex cooldown (a Flex cast raises up to the cap).
+  // cap: army size at lv1 (+ the lv10 milestone). life: seconds a skeleton lasts. hp: x max life. spd: move speed. mult/swing/reach: its hit.
+  // engage: how far from the hero it will chase a monster; leash: it drops the chase when the hero is further than this; warp: it
+  // teleports to the hero beyond this. follow: formation radius round the hero when idle. range: autopilot standoff (hang back behind the army).
+  skeletons: { cd: 8, rate: 1.6, range: 7, cap: 3, life: 20, hp: .5, spd: 4.8, mult: 1, swing: .95, reach: .5, engage: 12, leash: 17, warp: 26, follow: 2.4, r: .38, height: 1.7, rise: .7, hpMile: 2 },
+  // Bone Armour: plates each stop one whole hit; thorn = damage back as a multiple of the blocked hit (at least minThorn x spell damage).
+  boneArmour: { cd: 14, dur: 8, plates: 3, thorn: 1.5, minThorn: 3, orbit: 1.15, spin: 2.2, thornMile: 2 },
+  // Decoy: a dummy that draws every monster within tauntR (bosses ignore it). hp: x max life. forward: how far toward the nearest pack it lands.
+  // burst: radius and hit (x its max life) when it ends, once the gem has its lv5 milestone.
+  decoy: { cd: 12, dur: 6, hp: 2.5, r: .5, tauntR: 9, forward: 3, packRange: 15, burstR: 3.6, burstF: .5, hpMile: 2 },
   // --- end C1 skills ---
   // --- C2 skills (Flame Totem, Arc, Meteor, Ice Trap, Corpse Explosion) ---
   // arc has a rate and no cd so that Main paces it quickly (castSlot uses cd before rate); in a Flex slot that is its cooldown too.
