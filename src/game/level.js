@@ -47,14 +47,18 @@ function layout() {
   const start = { x: -sx * (HALF - 5), z: -sz * (HALF - 5) }, guard = { x: sx * (HALF - 8), z: sz * (HALF - 8) };
   // The snake: switchbacks off the straight line, alternating sides.
   const dx = guard.x - start.x, dz = guard.z - start.z, L0 = Math.hypot(dx, dz), nx = -dz / L0, nz = dx / L0;
-  const k = randi(R.bends[0], R.bends[1]); let side = Math.random() < .5 ? 1 : -1;
-  const chain = [{ ...start }];
-  for (let i = 1; i <= k; i++) {
-    const f = i / (k + 1) + rand(-.03, .03), off = side * rand(R.sway[0], R.sway[1]); side = -side;
-    chain.push({ x: clamp(start.x + dx * f + nx * off, -lim, lim), z: clamp(start.z + dz * f + nz * off, -lim, lim) });
+  let chain, total = 0, best = null;
+  for (let t = 0; t < R.tries && total < R.minLen; t++) {
+    const k = randi(R.bends[0], R.bends[1]); let side = Math.random() < .5 ? 1 : -1;
+    chain = [{ ...start }];
+    for (let i = 1; i <= k; i++) {
+      const f = i / (k + 1) + rand(-.03, .03), off = side * rand(R.sway[0], R.sway[1]); side = -side;
+      chain.push({ x: clamp(start.x + dx * f + nx * off, -lim, lim), z: clamp(start.z + dz * f + nz * off, -lim, lim) });
+    }
+    chain.push({ ...guard });
+    total = arcLen(chain); if (!best || total > best.total) best = { chain, total };
   }
-  chain.push({ ...guard });
-  const total = arcLen(chain);
+  ({ chain, total } = best); arcLen(chain);
   // Beat sites at their fraction along the route (pulled in from the walls so rings fit), merged with the bends.
   const beats = LEVEL.template.map((slot, i) => {
     const type = pick(slot.types), D = BEATS[type], p = type === 'guardian' ? guard : routeAt(chain, total * slot.at);
@@ -91,6 +95,16 @@ function placePacks(L) {
       }
     }
   });
+  // Top up: free spots anywhere along the route, outside the beat sites, each joining the stretch it falls in.
+  const end = spots[spots.length - 1].s;
+  for (let tries = 0; tries < 400 && G.packs.length < C.min; tries++) {
+    const s = rand(spots[0].r, end - spots[spots.length - 1].r), p = routeAt(L.route, s), off = rand(-C.lateral, C.lateral), x = p.x - p.dz * off, z = p.z + p.dx * off;
+    if (blocked(x, z, 1.5) || sites.some(c => dist(x, z, c.x, c.z) < c.r) || G.packs.some(q => dist(q.x, q.z, x, z) < C.gap)) continue;
+    const j = Math.max(0, spots.findIndex(sp => sp.s > s) - 1), slot = LEVEL.template[j];
+    const pk = makePack(x, z, { size: slot.size, magicChance: slot.size ? 0 : C.magicChance, rareChance: slot.size ? 0 : C.rareChance });
+    pk.seg = j; pk.order = s; G.packs.push(pk);
+  }
+  G.packs.sort((a, b) => a.order - b.order);
 }
 
 // ---------------------------------------------------------------- level lifecycle

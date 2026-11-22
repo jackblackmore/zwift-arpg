@@ -31,6 +31,7 @@ import { blocked, los } from './world/map.js';
 import { dropItem, cleanItem } from './game/items.js';
 import { PASS } from './data/passives.js';
 import { BAR } from './data/skills.js';
+import { initGems, gainAP, gemBase, gemHas } from './game/gems.js';
 import { hud } from './ui/hud.js';
 import { initPanels, syncPause, openInv, openPass, toggleInv, togglePass, closeAll, equip } from './ui/panels.js';
 
@@ -44,7 +45,7 @@ function cleanSave(sv) {
 }
 
 function begin(fresh) {
-  audio(); resetSkills(); initSurge(ride.ftp);
+  audio(); resetSkills(); initSurge(ride.ftp); P.gems = initGems(null);
   const sv = load(); if (sv) cleanSave(sv);
   if (fresh || !sv) {
     Object.assign(P, { lvl: 1, xp: 0, gear: {}, inv: [], passives: {}, pts: 0, offer: null, newItems: 0, kills: 0 });
@@ -52,7 +53,7 @@ function begin(fresh) {
     recalc(); newLevel(0); save();
   } else {
     Object.assign(P, { lvl: sv.lvl, xp: sv.xp, gear: sv.gear || {}, inv: sv.inv || [], passives: sv.passives || {}, pts: sv.pts || 0, offer: null });
-    G.itemId = sv.itemId || 100; recalc(); newLevel(sv.clears ?? Math.max(0, (sv.tier || 1) - 1));
+    P.gems = initGems(sv.gems); G.itemId = sv.itemId || 100; recalc(); newLevel(sv.clears ?? Math.max(0, (sv.tier || 1) - 1));
   }
   G.started = true; $('mMenu').classList.remove('show'); syncPause();
 }
@@ -115,5 +116,5 @@ window.__dbg = {
   start: fresh => begin(fresh !== false), hurt: d => hurtP(d), hud: () => { hud(.1); hud(.1); },
   sim: n => { for (let i = 0; i < n; i++) { update(.033); updFx(.033); } },
   enemies: () => G.enemies, packs: () => G.packs, items: () => G.ground,
-  newLevel, level: () => G.level, levelGoal, beat: currentBeat, startBeat, hit, kill, dropItem, spawnEnemy, blocked, los, recalc, hurtP, castSlot, castFireball, castNova, castWard, castBlink, mainTarget, mainRange, openInv, openPass, equip,
+  newLevel, level: () => G.level, levelGoal, beat: currentBeat, startBeat, hit, kill, save, dropItem, spawnEnemy, blocked, los, recalc, hurtP, castSlot, castFireball, castNova, castWard, castBlink, mainTarget, mainRange, gainAP, gems: () => P.gems, gemBase, gemHas, openInv, openPass, equip,
 };

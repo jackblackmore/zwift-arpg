@@ -33,7 +33,11 @@ button.glow{border-color:#ffd23f;box-shadow:0 0 12px #ffd23f99;animation:gl 1s e
 .sk .n{position:absolute;right:3px;bottom:1px;font:700 10px 'JetBrains Mono';color:var(--ink);z-index:2}
 .sk .cd{position:absolute;left:0;right:0;bottom:0;background:#000b;z-index:1;height:0}
 .sk.oncd{filter:saturate(.35) brightness(.65)}
-.sk .gem{position:absolute;left:3px;bottom:3px;z-index:2;font-size:9px;line-height:1}
+.sk .gem{position:absolute;left:0;right:0;bottom:0;top:0;z-index:2;pointer-events:none}
+.sk .gem b{position:absolute;left:3px;bottom:6px;font:700 10px/1 'JetBrains Mono';color:#ffd23f;text-shadow:0 1px 2px #000,0 0 3px #000}
+.sk .gem i{position:absolute;left:0;right:0;bottom:0;height:4px;background:#000a}
+.sk .gem u{display:block;height:100%;width:0;background:#7fb8ff;transition:width .15s}
+.sk.gmax .gem u{background:#ffd23f}
 .sk .gem:empty{display:none}
 .sk{transition:box-shadow .12s,border-color .12s}
 .sk.fire{border-color:var(--gold);box-shadow:inset 0 0 12px #000,0 0 10px #ff8a3c88}
@@ -92,6 +96,7 @@ body.touch #orbL{left:10px}body.touch body.touch .orb span{font-size:10px}
 body.touch #skills{left:auto;right:12px;transform:none;bottom:16px;display:grid;grid-template-columns:repeat(3,72px);grid-template-areas:"fl fa gd" ". ev mn";gap:8px;justify-items:center;align-items:center}
 body.touch .sk .k{display:none}
 body.touch .sk{width:64px;height:64px;border-radius:50%}
+body.touch .sk .gem b{left:0;right:0;text-align:center;font-size:11px;top:8px;bottom:auto}
 body.touch #sMain{grid-area:mn;width:72px;height:72px;font-size:32px}
 body.touch #sFlexA{grid-area:fa}body.touch #sGuard{grid-area:gd}body.touch #sEvade{grid-area:ev}body.touch #sFl{grid-area:fl}
 body.touch #toasts{top:170px}

@@ -13,6 +13,7 @@ import { dropItem } from './items.js';
 import { gainXp, xpNeed } from './stats.js';
 import { onKill } from './level.js';
 import { castArc, endWard } from './skills.js';
+import { gemBase, gemHas, gemsOnKill } from './gems.js';
 
 const ECOL = { fire: '#ffb070', cold: '#bff0ff', light: '#e0c8ff' };
 
@@ -20,7 +21,7 @@ const ECOL = { fire: '#ffb070', cold: '#bff0ff', light: '#e0c8ff' };
 export function hit(e, mult, elem, src = {}) {
   if (e.deathT) return 0;
   wake(e);
-  let d = S.base * mult * (S.dmg + (S[elem] || 0)) * rand(.88, 1.12);
+  let d = (gemBase(src.sk) + S.spell) * mult * (1 + S.inc + (S[elem] || 0)) * S.more * rand(.88, 1.12);
   const crit = Math.random() < S.crit; if (crit) d *= 1.75;
   if (e.shock > 0) d *= 1.2;
   e.hp -= d; e.flash = .07; e.lastElem = elem; e.lastHit = Math.max(e.lastHit || 0, d);
@@ -38,7 +39,7 @@ export function kill(e) {
   e.deathT = .001;
   if (e.noLoot) { burst(e.x, 1, e.z, 0x9a2a1a, 8, 3); if (e.aura) e.aura.visible = false; return; } // collapsed when a beat ended: no kill, drops or blasts
   G.mapKills++; P.kills++;
-  SFX.kill();
+  SFX.kill(); gemsOnKill(e);
   const bossy = e.ai === 'boss';
   const col = e.freeze > 0 ? 0xbff0ff : e.type === 'bloater' ? 0x9ad060 : bossy ? 0xff4fd8 : 0x9a2a1a;
   burst(e.x, 1, e.z, col, bossy ? 120 : e.rar === 2 ? 40 : 12, bossy ? 9 : 4);
@@ -84,7 +85,7 @@ export function explode(x, z, mult = 1, storm = false, small = false) {
   for (let i = 0; i < 22; i++) { const a = rand(0, 6.28), s = rand(2, 7); emit(sparks, x, 1, z, Math.cos(a) * s, rand(1, 5), Math.sin(a) * s, rand(.3, .7), pick([0xff8a3c, 0xffd060, 0xff4a10]), 8, 2); }
   for (let i = 0; i < 5; i++) emit(glows, x + rand(-.5, .5), .8, z + rand(-.5, .5), rand(-1, 1), rand(1, 3), rand(-1, 1), rand(.3, .6), 0xff5a10, 0, 2);
   flashLight(x, z, 0xff7a2a, 3.5, .25); SFX.boom(); shake(.05);
-  if (S.burnGround) addPatch(x, z, r * .8, 2.5);
+  if (S.burnGround || gemHas('fireball', 'burn')) addPatch(x, z, r * .8, 2.5);
   if (storm) castArc(x, z, true);
 }
 
