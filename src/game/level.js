@@ -131,7 +131,7 @@ function teardown() {
 
 // Hooks for the other systems: start listeners run at the end of newLevel (after the map, packs and markers exist; shrines go here), clear
 // listeners run when the guardian dies (after the portal opens; the guardian's gem drop goes here). Both get G.level.
-export const levelHooks = { start: [], clear: [] };
+export const levelHooks = { start: [], clear: [], beat: [] }; // beat listeners get the finished beat (gem drops)
 Object.assign(dbg, { levelHooks });
 
 // Builds Crypt n (1..5) from LEVELS[n - 1]: a new layout, route, packs and random slot picks every time. n of 0, undefined or out of range
@@ -234,6 +234,7 @@ function finish(b, D) {
   const lt = D.loot; if (lt) for (let k = 0; k < lt.n; k++) dropItem(b.x + rand(-1, 1), b.z + rand(-1, 1), k === 0 && lt.first ? lt.first : lt.boost);
   banner(D.done[0], css(D.color), D.done[1]); flashFx(b.x, 1.5, b.z, D.color, 8, .8);
   dropWall(b); markDone(b);
+  levelHooks.beat.forEach(f => f(b));
 }
 
 // Called from combat.kill(). The guardian's death clears the level.

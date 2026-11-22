@@ -1,6 +1,7 @@
 // Gem tuning and the skill bar's slot rules. Gems own a skill's base damage and its behaviour milestones; gear and the tree multiply it.
 // Damage = (gem base + flat spell from gear) x skill mult x (1 + increased) x each more x crit.
 // P.gems holds gem INSTANCES { uid, id, lvl, ap } (id keys GEMS); the bar and sockets refer to them by uid (see game/gems.js).
+import { SUP } from './supports.js';
 export const GEM_CAP = 10; // Tier I level cap
 // kind: attack (damaging skill, incl. minion / totem / trap skills) | guard | evade | support.
 // tags: projectile area fire cold lightning minion totem trap corpse duration aura melee. A support's tags are the tags it needs
@@ -8,6 +9,7 @@ export const GEM_CAP = 10; // Tier I level cap
 // scale: gentle per-level growth of a non-damage stat (ward absorb, blink range, a support's strength). milestones: behaviour at levels.
 // Only Fireball / Frost Nova / Ward / Blink have behaviour today; the rest are definitions the later workstreams implement.
 const skill = (name, tags, icon, color, desc, b1 = 10, bc = 30, milestones = []) => ({ name, kind: 'attack', tier: 'I', cap: GEM_CAP, tags, icon, color, base1: b1, baseCap: bc, milestones, desc });
+const pc = v => Math.round(v * 100); // a fraction as a percent
 const guard = (name, icon, color, desc) => ({ name, kind: 'guard', tier: 'I', cap: GEM_CAP, tags: [], icon, color, scale: .02, milestones: [], desc });
 const support = (name, tags, icon, color, desc) => ({ name, kind: 'support', tier: 'I', cap: GEM_CAP, tags, icon, color, scale: .05, milestones: [], desc });
 export const GEMS = {
@@ -25,12 +27,13 @@ export const GEMS = {
   boneArmour: guard('Bone Armour', '❖', '#e6dcc6', 'Bone plating that absorbs damage and thorns attackers.'),
   decoy: guard('Decoy', '☻', '#ffd23f', 'Leaves a decoy that draws enemy attention.'),
   blink: { name: 'Blink', kind: 'evade', tier: 'I', cap: GEM_CAP, tags: [], icon: '➶', color: '#b08aff', scale: .02, milestones: [], desc: 'Teleports a short way, away from danger.' },
-  split: support('Split', ['projectile'], '⑂', '#ff8a3c', 'Fires extra projectiles in a fan.'),
-  pierce: support('Pierce', ['projectile'], '➳', '#ffd23f', 'Projectiles pass through extra enemies.'),
-  shatter: support('Shatter', ['cold'], '❅', '#7fd8ff', 'Frozen enemies explode on death.'),
-  conduit: support('Conduit', ['lightning'], '⌁', '#c98bff', 'Lightning hits shock and spread.'),
-  ignite: support('Ignite', ['fire'], '✸', '#ff5a2a', 'Fire hits set enemies burning.'),
-  chainReaction: support('Chain Reaction', ['fire', 'area'], '⚯', '#ff7a3c', 'Enemies killed by this skill may explode.'),
+  split: support('Split', ['projectile'], '⑂', '#ff8a3c', `+${SUP.split.extra} projectiles in a fan, each ${pc(SUP.split.less[0])}% less damage (lv10: ${pc(SUP.split.less[1])}%).`),
+  pierce: support('Pierce', ['projectile'], '➳', '#ffd23f', `Projectiles pierce +${SUP.pierce.n[0]} enemy (lv10: +${SUP.pierce.n[1]}).`),
+  shatter: support('Shatter', ['cold'], '❅', '#7fd8ff', `Enemies this skill froze explode on death: ${pc(SUP.shatter.frac[0])}% of their life to enemies nearby, which freeze briefly (lv10: ${pc(SUP.shatter.frac[1])}%).`),
+  conduit: support('Conduit', ['lightning'], '⌁', '#c98bff', `Lightning hits always shock for ${SUP.conduit.shockT[0]}s (lv10: ${SUP.conduit.shockT[1]}s), and the shock jumps to one nearby enemy.`),
+  ignite: support('Ignite', ['fire'], '✸', '#ff5a2a', `Fire hits burn enemies for ${pc(SUP.ignite.frac[0] * SUP.ignite.dur)}% of the hit over ${SUP.ignite.dur}s (lv10: ${pc(SUP.ignite.frac[1] * SUP.ignite.dur)}%).`),
+  chainReaction: support('Chain Reaction', ['fire', 'area'], '⚯', '#ff7a3c', `Enemies this skill kills have a ${pc(SUP.chainReaction.chance[0])}% chance to explode (lv10: ${pc(SUP.chainReaction.chance[1])}%).`),
+  swiftCast: support('Swift Cast', ['projectile', 'area', 'fire', 'cold', 'lightning', 'totem', 'trap', 'corpse'], '≫', '#ffe08a', `This skill's cooldown is ${pc(SUP.swiftCast.cd[0])}% shorter (lv10: ${pc(SUP.swiftCast.cd[1])}%).`),
 };
 // Skills with no gem of their own borrow a gem's base: damage = gem base x frac.
 export const GEM_FALLBACK = { burn: { gem: 'fireball', frac: .6 }, none: { gem: 'fireball', frac: 1 } };

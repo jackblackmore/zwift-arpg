@@ -14,6 +14,7 @@ import { blocked, los } from '../world/map.js';
 import { near } from './enemies.js';
 import { hit } from './combat.js';
 import { gemMile, gemScale, slotSkill } from './gems.js';
+import { projCount, projLess, pierceCount, applyFreeze, swiftCd } from './supports.js';
 import { dbg } from '../core/dbg.js';
 
 // Where the player is aiming: the device's aim point, else the nearest awake enemy, else straight ahead.
@@ -44,12 +45,12 @@ export function mainTarget() {
 export function castFireball(ax, az) {
   const F = SK.fireball;
   if (ax === undefined) [ax, az] = aim();
-  const base = Math.atan2(ax - P.x, az - P.z), n = S.proj;
+  const base = Math.atan2(ax - P.x, az - P.z), n = S.proj + projCount('fireball'), less = projLess('fireball'), prc = S.pierce + gemMile('fireball', 'pierce', 'pierce') + pierceCount('fireball'); // gear + supports (Split, Pierce) + Fireball's own milestone
   P.face = base; P.castAnim = .12; P.castSeq++; P.lastCast = 'shoot';
   for (let i = 0; i < n; i++) {
     const a = base + (i - (n - 1) / 2) * F.spread, g = new T.Group(); g.add(glowSprite(0xff6a1a, 1.4), glowSprite(0xffe0a0, .55));
     g.position.set(P.x + Math.sin(a) * .7, 1.2, P.z + Math.cos(a) * .7); scene.add(g);
-    G.proj.push({ x: g.position.x, z: g.position.z, dx: Math.sin(a), dz: Math.cos(a), sp: F.speed, life: F.life, pierce: S.pierce + gemMile('fireball', 'pierce', 'pierce'), hitS: new Set(), g, storm: false });
+    G.proj.push({ x: g.position.x, z: g.position.z, dx: Math.sin(a), dz: Math.cos(a), sp: F.speed, life: F.life, pierce: prc, mult: less, hitS: new Set(), g, storm: false });
   }
   P.fbN++; if (S.storm && P.fbN % 4 === 0) G.proj[G.proj.length - 1].storm = true;
   SFX.fire(); return true;
@@ -90,7 +91,7 @@ export function castNova(free = false) {
   const r = N.radius * S.aoe;
   near(P.x, P.z, r, e => {
     const d = dist(e.x, e.z, P.x, P.z) || 1; hit(e, N.mult, 'cold', { kx: (e.x - P.x) / d, kz: (e.z - P.z) / d, sk: 'nova' });
-    if (!e.deathT) { if (e.ai === 'boss') e.chill = 3; else e.freeze = N.freeze * S.freeze; }
+    if (!e.deathT) applyFreeze(e, e.ai === 'boss' ? 3 : N.freeze * S.freeze, 'nova');
   });
   ringFx(P.x, P.z, r, 0x9fe8ff, .45, .1); ringFx(P.x, P.z, r * .7, 0xffffff, .3, .1); flashFx(P.x, .6, P.z, 0x7fd8ff, r * 2.2, .35);
   for (let i = 0; i < 60; i++) { const a = rand(0, 6.28), s = rand(5, 11) * S.aoe; emit(sparks, P.x, rand(.3, 1.2), P.z, Math.cos(a) * s, rand(0, 2), Math.sin(a) * s, rand(.35, .5), pick([0xbff0ff, 0xffffff, 0x7fd8ff]), 2, 3); }
@@ -167,12 +168,12 @@ export function castSlot(slot) {
   if (slot === 'main') {
     if (P.cd.main > 0) return false;
     if (def.main ? !def.main(slot) : !(mainTarget() && def.cast(slot))) return false;
-    P.cd.main = skillCd(id) / (S.cast * P.eff.atk); return true;
+    P.cd.main = skillCd(id) * swiftCd(id) / (S.cast * P.eff.atk); return true;
   }
   const rite = S.bloodRite ? S.bloodRite * S.maxLife * skillCd(id) / BLOOD.cdRef : 0;
   if (rite ? rite >= P.life : P.cd[slot] > 0) return false;
   if (!def.cast(slot)) return false;
-  if (rite) P.life -= rite; else P.cd[slot] = skillCd(id) * (1 - S.cdr);
+  if (rite) P.life -= rite; else P.cd[slot] = skillCd(id) * (1 - S.cdr) * swiftCd(id);
   return true;
 }
 
@@ -191,11 +192,11 @@ export function updProjectiles(dt, explode) {
     let boom = p.life <= 0 || blocked(p.x, p.z, .15);
     if (!boom) {
       let tgt = null; near(p.x, p.z, .45, e => { if (!tgt && !p.hitS.has(e)) tgt = e; });
-      if (tgt) { if (p.pierce > 0) { p.pierce--; p.hitS.add(tgt); hit(tgt, SK.fireball.pierceMult, 'fire', { kx: p.dx, kz: p.dz, sk: 'fireball' }); } else boom = true; }
+      if (tgt) { if (p.pierce > 0) { p.pierce--; p.hitS.add(tgt); hit(tgt, SK.fireball.pierceMult * (p.mult || 1), 'fire', { kx: p.dx, kz: p.dz, sk: 'fireball' }); } else boom = true; }
     }
-    if (boom) { p.dead = true; scene.remove(p.g); explode(p.x, p.z, 1, p.storm); }
+    if (boom) { p.dead = true; scene.remove(p.g); explode(p.x, p.z, p.mult || 1, p.storm); }
   }
   G.proj = G.proj.filter(p => !p.dead);
 }
 
-Object.assign(dbg, { SKILLS, registerSkill, mainRange, mainTarget, castSlot, skillCd });
+Object.assign(dbg, { castArc, SKILLS, registerSkill, mainRange, mainTarget, castSlot, skillCd });

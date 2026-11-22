@@ -67,11 +67,11 @@ export function draw(dt) {
   labs.sort((a, b) => a[0][1] - b[0][1]);
   const placed = [];
   for (const [s, d] of labs) {
-    const tw = ctx.measureText(d.it.name).width + 12; const x = s[0] - tw / 2; let y = s[1] - 24;
+    const col = d.col || RCSS[d.it.rar], tw = ctx.measureText(d.it.name).width + 12; const x = s[0] - tw / 2; let y = s[1] - 24;
     for (let k2 = 0; k2 < 6; k2++) { if (placed.some(r => x < r[0] + r[2] && x + tw > r[0] && y < r[1] + r[3] && y + 16 > r[1])) y -= 18; else break; }
     placed.push([x, y, tw, 16]); G.labelRects.push([x, y, tw, 16, d]);
-    ctx.fillStyle = '#000000d0'; ctx.fillRect(x, y, tw, 16); ctx.strokeStyle = RCSS[d.it.rar]; ctx.lineWidth = d.it.rar >= 2 ? 1.5 : 1; ctx.strokeRect(x + .5, y + .5, tw - 1, 15);
-    ctx.fillStyle = RCSS[d.it.rar]; ctx.fillText(d.it.name, x + tw / 2, y + 8.5);
+    ctx.fillStyle = '#000000d0'; ctx.fillRect(x, y, tw, 16); ctx.strokeStyle = col; ctx.lineWidth = d.it.rar >= 2 ? 1.5 : 1; ctx.strokeRect(x + .5, y + .5, tw - 1, 15);
+    ctx.fillStyle = col; ctx.fillText(d.it.name, x + tw / 2, y + 8.5);
   }
   for (const f of G.floats) {
     const s = toScreen(f.x, f.y, f.z); if (!s) continue;
