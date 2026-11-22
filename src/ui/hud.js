@@ -2,6 +2,7 @@
 // markers) is ui/levelhud.js; the Surge gauge is ui/surgehud.js.
 import { G, P, S } from '../core/state.js';
 import { SK } from '../data/skills.js';
+import { SHRINES } from '../data/shrines.js';
 import { RCSS } from '../data/items.js';
 import { ctl } from '../input/input.js';
 import { $ } from '../core/util.js';
@@ -77,6 +78,7 @@ function minimap() {
     mmc.fillStyle = e.ai === 'boss' ? '#ff4fd8' : e.rar === 2 ? '#ffd23f' : e.rar === 1 ? '#7a7aff' : '#d03030';
     const s = e.ai === 'boss' ? 12 : e.rar === 2 ? 7 : 4; mmc.fillRect(X(e.x) - s / 2, X(e.z) - s / 2, s, s);
   }
+  for (const s of G.shrines) if (!s.taken) { mmc.strokeStyle = '#' + SHRINES[s.slot].color.toString(16).padStart(6, '0'); mmc.lineWidth = 3; mmc.beginPath(); mmc.arc(X(s.x), X(s.z), 8 + Math.sin(G.gt * 5) * 1.5, 0, 7); mmc.stroke(); } // shrine beacons
   for (const d of G.ground) if (d.it.rar >= 2) { mmc.fillStyle = RCSS[d.it.rar]; mmc.fillRect(X(d.x) - 3, X(d.z) - 3, 6, 6); }
   mmc.save(); mmc.translate(X(P.x), X(P.z)); mmc.rotate(-P.face + Math.PI); mmc.fillStyle = '#fff';
   mmc.beginPath(); mmc.moveTo(0, -9); mmc.lineTo(6, 6); mmc.lineTo(-6, 6); mmc.fill(); mmc.restore();

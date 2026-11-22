@@ -13,8 +13,10 @@ const support = (name, tags, icon, color, desc) => ({ name, kind: 'support', tie
 export const GEMS = {
   fireball: { ...skill('Fireball', ['projectile', 'area', 'fire'], '✹', '#ff8a3c', 'Hurls an exploding fireball at the nearest enemy.'),
     milestones: [{ lvl: 5, key: 'pierce', text: 'pierces an enemy', pierce: 1 }, { lvl: 10, key: 'burn', text: 'leaves burning ground' }] },
-  frostLance: skill('Frost Lance', ['projectile', 'cold'], '✦', '#8fe0ff', 'A slow, heavy ice lance that hits one enemy hard.', 22, 66),
-  skeletons: skill('Raise Skeletons', ['minion'], '☠', '#d8d0b8', 'Raises skeleton warriors that fight for you.'),
+  frostLance: skill('Frost Lance', ['projectile', 'cold'], '✦', '#8fe0ff', 'A slow, heavy ice lance with long reach. It picks the toughest target, chills it and hits very hard.', 22, 66,
+    [{ lvl: 5, key: 'pierce', text: 'pierces one more enemy', pierce: 1 }, { lvl: 10, key: 'shatter', text: 'frozen enemies take double damage' }]),
+  skeletons: skill('Raise Skeletons', ['minion'], '☠', '#d8d0b8', 'Raises skeleton warriors (3 at first) that hunt monsters for 20 s and follow you. They take the hits meant for you.', 10, 30,
+    [{ lvl: 5, key: 'bonehard', text: 'skeletons have double life' }, { lvl: 10, key: 'legion', text: 'the army grows to 5', cap: 2 }]),
   nova: skill('Frost Nova', ['area', 'cold'], '❄', '#7fd8ff', 'A ring of frost that damages and freezes everything around you.'),
   flameTotem: skill('Flame Totem', ['totem', 'fire', 'projectile'], '♨', '#ff6a2a', 'Plants a totem that spits fire at nearby enemies.'),
   arc: skill('Arc', ['lightning'], '↯', '#c98bff', 'Chain lightning that jumps between enemies and may shock them.'),
@@ -22,8 +24,10 @@ export const GEMS = {
   iceTrap: skill('Ice Trap', ['trap', 'cold', 'area'], '✣', '#a8f0ff', 'Lays a trap that bursts in frost when an enemy steps on it.'),
   corpseExplosion: skill('Corpse Explosion', ['corpse', 'area', 'fire'], '✺', '#ff7a5a', 'Detonates a corpse, damaging everything around it.', 14, 42),
   ward: guard('Ward', '◍', '#8fe0ff', 'A shield that absorbs damage for a few seconds.'),
-  boneArmour: guard('Bone Armour', '❖', '#e6dcc6', 'Bone plating that absorbs damage and thorns attackers.'),
-  decoy: guard('Decoy', '☻', '#ffd23f', 'Leaves a decoy that draws enemy attention.'),
+  boneArmour: { ...guard('Bone Armour', '❖', '#e6dcc6', 'Three bone plates circle you; each stops one whole hit for 8 s and hits the attacker back.'),
+    milestones: [{ lvl: 5, key: 'thorns', text: 'thorns hit twice as hard' }, { lvl: 10, key: 'ossuary', text: 'five plates', plates: 2 }] },
+  decoy: { ...guard('Decoy', '☻', '#ffd23f', 'Drops a decoy for 6 s that every nearby monster attacks instead of you.'),
+    milestones: [{ lvl: 5, key: 'burst', text: 'bursts when it ends' }, { lvl: 10, key: 'sturdy', text: 'twice the life' }] },
   blink: { name: 'Blink', kind: 'evade', tier: 'I', cap: GEM_CAP, tags: [], icon: '➶', color: '#b08aff', scale: .02, milestones: [], desc: 'Teleports a short way, away from danger.' },
   split: support('Split', ['projectile'], '⑂', '#ff8a3c', 'Fires extra projectiles in a fan.'),
   pierce: support('Pierce', ['projectile'], '➳', '#ffd23f', 'Projectiles pass through extra enemies.'),
@@ -50,8 +54,6 @@ export const BAR_SLOTS = {
   guard: { name: 'Guard', accepts: ['guard'], unlock: 8, sockets: [[8, 1]], key: 'E' },
   evade: { name: 'Evade', accepts: ['evade'], unlock: 1, sockets: [[1, 1]], key: 'SPACE' },
 };
-// TEMPORARY: what a fresh character carries until the shrines (workstream C1) hand out the first gems. C1 deletes this.
-export const FRESH_KIT = { main: 'fireball', evade: 'blink', lvl: 1 };
 // The Slice 1 loadout, for dbg.kit() with no argument.
 export const SLICE1_KIT = { main: 'fireball', flexA: 'nova', guard: 'ward', evade: 'blink', lvl: 1 };
 // Slice 1 notable passives that became support gems (old saves convert them; see game/character.js).

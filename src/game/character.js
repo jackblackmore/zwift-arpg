@@ -2,7 +2,7 @@
 // Called once from main.js begin(), before startRun() (game/waypoint.js) decides where the hero enters.
 import { G, P } from '../core/state.js';
 import { PASS } from '../data/passives.js';
-import { GEMS, SLOT_ORDER, FRESH_KIT, NOTABLE_TO_SUPPORT } from '../data/gems.js';
+import { GEMS, SLOT_ORDER, NOTABLE_TO_SUPPORT } from '../data/gems.js';
 import { cleanItem } from './items.js';
 import { makeGem, resetKit, equipGem, socketGem, validateBar, slotUnlocked } from './gems.js';
 
@@ -53,8 +53,7 @@ export function initCharacter(sv) {
   if (!sv) {
     Object.assign(P, { lvl: 1, xp: 0, gear: {}, inv: [], passives: {}, pts: 0, offer: null, newItems: 0, kills: 0, clears: 0, waypoint: 0, shrines: {}, tree: {} });
     P.gear.weapon = { id: G.itemId++, slot: 'weapon', rar: 1, base: 'Ashwood Staff', name: 'Smouldering Ashwood Staff', il: 1, impl: 1, mods: [['spell', 5], ['fire', .12]] };
-    // TEMPORARY until the shrines hand out gems (workstream C1): a starter kit so the game is playable.
-    for (const slot of SLOT_ORDER) if (FRESH_KIT[slot]) equipGem(slot, makeGem(FRESH_KIT[slot], FRESH_KIT.lvl).uid);
+    // No gems until the Ride 1 shrine at the entrance of Crypt 1 (game/shrines.js); __dbg.kit() gives tests a loadout.
     return;
   }
   const passives = { ...(sv.passives || {}) }; // read before cleanSave drops the retired notables

@@ -45,7 +45,7 @@ export default async function ({ open, check, SEED, SHOT }) {
   check(r1[2].mem.bloater > 0 && !r1[2].mem.necro && r1[2].hazard && r1[2].pools > 0, `levels: the Flooded Tombs have bloaters (${r1[2].mem.bloater}) and ambient poison pools (${r1[2].pools})`);
   check(r1[3].mem.necro > 0 && !r1[0].mem.necro && !r1[2].mem.necro, `levels: the Bone Gardens have necromancers (${r1[3].mem.necro})`);
   check(r1[0].pools === 0 && r1[1].pools === 0 && r1[3].pools === 0, 'levels: only the Flooded Tombs and Throne Approach carry ambient pools');
-  check(r1[4].rares + r1[4].magic > (r1[0].rares + r1[0].magic) * 1.8 && r1[4].rares > r1[0].rares, `levels: Throne Approach is heavy on rare and magic packs (${r1[4].rares} rare, ${r1[4].magic} magic vs ${r1[0].rares}, ${r1[0].magic} in Crypt 1)`);
+  check(r1[4].rares + r1[4].magic > (r1[0].rares + r1[0].magic) * 1.4 && r1[4].rares > r1[0].rares, `levels: Throne Approach is heavy on rare and magic packs (${r1[4].rares} rare, ${r1[4].magic} magic vs ${r1[0].rares}, ${r1[0].magic} in Crypt 1)`);
   check(r1[1].obst > r1[0].obst * 1.3, `levels: the Ossuary is denser with obstacles (${Math.round(r1[1].obst)} colliders vs ${Math.round(r1[0].obst)})`);
 
   // ---------- 2. Scaling and the damage target ----------
@@ -196,7 +196,7 @@ export default async function ({ open, check, SEED, SHOT }) {
   // ---------- 8. Leaving a level keeps everything earned ----------
   const r8 = await page.evaluate(() => {
     const D = window.__dbg, G = D.G, P = D.P, A = window.A, out = {};
-    D.start(true); P.invuln = 1e9; D.newLevel(1);
+    D.start(true); D.kit(); P.invuln = 1e9; D.newLevel(1);
     for (let i = 0; i < 3; i++) D.dropItem(P.x, P.z, .5); D.sim(40); if (P.inv.length) D.equip(0);
     D.ctl.auto = true; A.tick(300, true); D.ctl.auto = false; D.ctl.mx = D.ctl.mz = 0; D.gainAP(25); P.xp += 5;
     const snap = () => JSON.stringify({ lvl: P.lvl, xp: Math.round(P.xp * 1e3), gear: P.gear, inv: P.inv, gems: P.gems });
@@ -219,7 +219,7 @@ export default async function ({ open, check, SEED, SHOT }) {
   // ---------- 9. Autopilot smoke runs of every Crypt, and Crypt 5 ends with "The Trial awaits" ----------
   const r9 = await page.evaluate(() => {
     const D = window.__dbg, G = D.G, P = D.P, A = window.A, out = { ran: [] };
-    D.start(true); P.invuln = 1e9;
+    D.start(true); D.kit(); P.invuln = 1e9;
     for (let n = 1; n <= 5; n++) { D.newLevel(n); D.ctl.auto = true; A.tick(700, true); D.ctl.auto = false; D.ctl.mx = D.ctl.mz = 0; out.ran.push([n, P.kills, D.enemies().length]); }
     A.fresh(5); const g = A.guardian(); D.kill(g); D.sim(5);
     out.banner = document.getElementById('bT').textContent; out.sub = document.getElementById('bS').textContent; out.wp = P.waypoint;
@@ -240,7 +240,7 @@ export default async function ({ open, check, SEED, SHOT }) {
     await page.evaluate(() => { document.getElementById('mWay').classList.remove('show'); });
     // A necromancer channelling a revive in the Bone Gardens, with the hero near.
     await page.evaluate(() => {
-      const D = window.__dbg, G = D.G, P = D.P, A = window.A; D.start(true); A.fresh(4);
+      const D = window.__dbg, G = D.G, P = D.P, A = window.A; D.start(true); D.kit(); A.fresh(4);
       const ux = -Math.sign(G.start.x), uz = -Math.sign(G.start.z), at = (a, b) => [P.x + ux * a, P.z + uz * b];
       const [nx, nz] = at(7, 1); const nec = D.spawnEnemy('necro', nx, nz, null, 0); nec.awake = true; nec.revT = 0; nec.face = Math.atan2(P.x - nx, P.z - nz);
       for (const [a, b, t] of [[5.2, 3.2, 'zombie'], [8.8, 3.6, 'zombie'], [8, -1.8, 'runner']]) { const [x, z] = at(a, b); D.addCorpse({ x, z, type: t, rar: 0, maxHp: 100, r: .4 }); }

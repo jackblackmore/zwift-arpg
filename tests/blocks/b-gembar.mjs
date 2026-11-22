@@ -7,7 +7,7 @@ export default async function ({ open, check, SEED, SHOT }) {
       const D = window.__dbg, P = D.P, S = D.S, out = {};
       const onBar = u => Object.values(P.bar).includes(u), socketed = u => Object.values(P.sockets).some(a => a.includes(u));
       const lvlAt = L => { P.lvl = L; D.recalc(); };
-      D.start(true); // FRESH_KIT: Fireball in Main, Blink in Evade
+      D.start(true); out.bare = P.gems.length; D.pickShrine('fireball'); P.newGems = 0; // a fresh character has no gems; the Ride 1 shrine at the Crypt 1 entrance gives Fireball in Main and Blink in Evade
       out.fresh = [D.slotSkill('main'), D.slotSkill('evade'), D.slotSkill('flexA'), P.gems.length];
       // unlocks and socket counts at the levels the design lists
       out.unlock = {};
@@ -75,7 +75,7 @@ export default async function ({ open, check, SEED, SHOT }) {
       return out;
     });
     console.log('  gembar rules:', JSON.stringify(r));
-    check(r.fresh.join() === 'fireball,blink,,2', `gembar: a fresh character has the temporary kit (${r.fresh})`);
+    check(r.fresh.join() === 'fireball,blink,,2' && r.bare === 0, `gembar: a fresh character starts with no gems; the main shrine gives Fireball + Blink (${r.fresh}, bare ${r.bare})`);
     const U = r.unlock;
     check(U[1] === '1/1 0/0 0/0 0/0 1/1' && U[5] === '1/1 1/1 0/0 0/0 1/1' && U[8] === '1/1 1/1 0/0 1/1 1/1' && U[12] === '1/1 1/1 1/1 1/1 1/1' && U[15] === '1/2 1/1 1/1 1/1 1/1' && U[25] === '1/2 1/2 1/2 1/1 1/1' && U[30] === '1/3 1/2 1/2 1/1 1/1' && U[45] === '1/4 1/2 1/2 1/1 1/1', `gembar: slots and sockets unlock at L1/5/8/12/15/25/30/45 (${JSON.stringify(U)})`);
     check(r.newGems === 8, `gembar: addGem counts new gems for the badge (${r.newGems})`);
@@ -120,7 +120,7 @@ export default async function ({ open, check, SEED, SHOT }) {
     const r = await page.evaluate(() => {
       const D = window.__dbg, P = D.P, out = {};
       // round trip
-      D.start(true); P.lvl = 15; D.recalc();
+      D.start(true); D.pickShrine('fireball'); P.newGems = 0; P.lvl = 15; D.recalc();
       D.kit({ main: 'fireball', flexA: 'nova', flexB: 'frostLance', guard: 'ward', evade: 'blink', lvl: 3, sup: { main: ['split', 'ignite'] } });
       P.lvl = 15; D.recalc(); D.addGem('arc', 2); P.gems[0].ap = 12.5; D.save();
       const snap = () => JSON.stringify({ g: P.gems, b: P.bar, s: P.sockets });
@@ -166,7 +166,7 @@ export default async function ({ open, check, SEED, SHOT }) {
     // Shared set-up: a character at level 8 with a spread of gems (also used for the screenshots).
     const setup = () => {
       const D = window.__dbg, P = D.P;
-      D.start(true); P.lvl = 8; P.xp = 0; D.recalc();
+      D.start(true); D.pickShrine('fireball'); P.newGems = 0; P.lvl = 8; P.xp = 0; D.recalc();
       const nova = D.addGem('nova', 3), ward = D.addGem('ward', 2), split = D.addGem('split', 2);
       D.equipGem('flexA', nova.uid); D.equipGem('guard', ward.uid); D.socketGem('main', 0, split.uid);
       P.gems.find(g => g.id === 'fireball').lvl = 5; P.gems.find(g => g.id === 'fireball').ap = 60; nova.ap = 40; split.ap = 25;
@@ -175,7 +175,7 @@ export default async function ({ open, check, SEED, SHOT }) {
     };
     const hudR = await page.evaluate(() => {
       const D = window.__dbg, P = D.P, out = {}, q = s => document.querySelector(s), qa = s => [...document.querySelectorAll(s)];
-      D.start(true); try { D.hud(); D.hud(); } catch (e) { out.err = e.stack; }
+      D.start(true); D.pickShrine('fireball'); P.newGems = 0; try { D.hud(); D.hud(); } catch (e) { out.err = e.stack; }
       out.slots = qa('#skills .sk').map(e => e.id).join();
       out.lockedFlexB = q('#sFlexB').classList.contains('locked') && q('#sFlexB .lk em').textContent;
       out.lockedFlexA = q('#sFlexA .lk em').textContent; out.lockedGuard = q('#sGuard .lk em').textContent;
@@ -188,7 +188,7 @@ export default async function ({ open, check, SEED, SHOT }) {
       out.openedByTap = [q('#mGems').classList.contains('show'), D.G.paused, P.newGems];
       D.openGems(false); out.closed = [q('#mGems').classList.contains('show'), D.G.paused];
       // pips and cooldown sweep
-      D.start(true); P.lvl = 25; D.recalc(); const sp = D.addGem('split'), ig = D.addGem('ignite'); D.socketGem('main', 0, sp.uid); D.socketGem('main', 1, ig.uid);
+      D.start(true); D.pickShrine('fireball'); P.newGems = 0; P.lvl = 25; D.recalc(); const sp = D.addGem('split'), ig = D.addGem('ignite'); D.socketGem('main', 0, sp.uid); D.socketGem('main', 1, ig.uid);
       const nv = D.addGem('nova'); D.equipGem('flexA', nv.uid); D.castSlot('flexA'); D.hud();
       out.pips = [qa('#sMain .pips i').length, qa('#sMain .pips i.on').length, qa('#sFlexA .pips i').length, qa('#sFlexA .pips i.on').length];
       out.sweep = [q('#sFlexA .cd').style.height, q('#sFlexA .n').textContent];
@@ -206,7 +206,7 @@ export default async function ({ open, check, SEED, SHOT }) {
     // the editor by DOM clicks
     const ed = await page.evaluate(async () => {
       const D = window.__dbg, P = D.P, out = {}, q = s => document.querySelector(s), click = el => el.click(), wait = ms => new Promise(r => setTimeout(r, ms));
-      D.start(true); P.lvl = 5; D.recalc(); D.G.enemies.length = 0;
+      D.start(true); D.pickShrine('fireball'); P.newGems = 0; P.lvl = 5; D.recalc(); D.G.enemies.length = 0;
       const nova = D.addGem('nova', 2), split = D.addGem('split'), shat = D.addGem('shatter'), ward = D.addGem('ward');
       D.hud(); out.badgeShown = q('#gemBadge').style.display; click(q('#bGems')); D.hud(); out.open = [q('#mGems').classList.contains('show'), D.G.paused, q('#gemBadge').style.display];
       out.cards = document.querySelectorAll('#gbBag .gcard').length; out.supRound = document.querySelectorAll('#gbBag .gcard.sup').length;

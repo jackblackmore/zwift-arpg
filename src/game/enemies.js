@@ -12,7 +12,7 @@ import { chars, makeChar } from '../render/characters.js';
 import { sparks, emit, burst, ringFx, flashFx, telegraph, banner } from '../render/fx.js';
 import { pushOut, blocked, los } from '../world/map.js';
 import { hurtP, kill } from './combat.js';
-import { enemyTarget, hurtTarget, allyHitBy } from './allies.js';
+import { enemyTarget, hurtTarget, hurtHero, allyHitBy } from './allies.js';
 import { necroAI, beginRaise, tickRaise, finishRaise, corpsesNear } from './corpses.js';
 import { addPool } from './hazards.js';
 
@@ -107,14 +107,14 @@ export function eShoot(e, ang, spd, dmg, col, size) {
   if (col === 'arrow') { const m = new T.Mesh(GB, eyeMat(0xd8c890)); m.scale.set(.05, .05, .55); g.add(m); g.rotation.y = ang; }
   else g.add(glowSprite(col, size));
   g.position.set(e.x, 1.2, e.z); scene.add(g);
-  G.eproj.push({ x: e.x, z: e.z, vx: Math.sin(ang) * spd, vz: Math.cos(ang) * spd, dmg, life: 3, g, r: col === 'arrow' ? .3 : .45 });
+  G.eproj.push({ src: e, x: e.x, z: e.z, vx: Math.sin(ang) * spd, vz: Math.cos(ang) * spd, dmg, life: 3, g, r: col === 'arrow' ? .3 : .45 });
 }
 export function updEnemyProjectiles(dt) {
   for (const p of G.eproj) {
     p.x += p.vx * dt; p.z += p.vz * dt; p.life -= dt; p.g.position.set(p.x, 1.2, p.z);
     if (p.life <= 0 || blocked(p.x, p.z, .05)) p.dead = true;
-    else if (P.dead <= 0 && dist(p.x, p.z, P.x, P.z) < p.r + P.r) { p.dead = true; hurtP(p.dmg); burst(p.x, 1.2, p.z, 0xff6060, 6, 3); }
-    else { const a = allyHitBy(p.x, p.z, p.r); if (a) { p.dead = true; hurtTarget(a, p.dmg); burst(p.x, 1.2, p.z, 0xff6060, 6, 3); } }
+    else if (P.dead <= 0 && dist(p.x, p.z, P.x, P.z) < p.r + P.r) { p.dead = true; hurtHero(p.dmg, p.src); burst(p.x, 1.2, p.z, 0xff6060, 6, 3); }
+    else { const a = allyHitBy(p.x, p.z, p.r); if (a) { p.dead = true; hurtTarget(a, p.dmg, p.src); burst(p.x, 1.2, p.z, 0xff6060, 6, 3); } }
     if (p.dead) scene.remove(p.g);
   }
   G.eproj = G.eproj.filter(p => !p.dead);
@@ -169,7 +169,7 @@ export function updEnemy(e, dt) {
   if (e.ai === 'melee' || e.ai === 'boss') {
     if (e.windup > 0) {
       e.windup -= dt; e.face = Math.atan2(t.x - e.x, t.z - e.z);
-      if (e.windup <= 0) { e.swing = 1; if (td < e.range + e.r + t.r + .45) { hurtTarget(t, e.dmg); if (e.ai === 'boss') { shake(.3); SFX.slam(); } } e.atkT = e.cd * cdm; }
+      if (e.windup <= 0) { e.swing = 1; if (td < e.range + e.r + t.r + .45) { hurtTarget(t, e.dmg, e); if (e.ai === 'boss') { shake(.3); SFX.slam(); } } e.atkT = e.cd * cdm; }
     } else if (td < e.range + e.r + t.r) { e.face = Math.atan2(t.x - e.x, t.z - e.z); e.atkT -= dt; if (e.atkT <= 0) { e.windup = e.ai === 'boss' ? .55 : .32; e.atkSeq = (e.atkSeq || 0) + 1; } }
     else moveE(e, t.x, t.z, spd, dt);
   } else if (e.ai === 'ranged') {
@@ -197,7 +197,7 @@ function bossAI(e, dt) {
     e.cast = null; e.swing = 1;
     if (c.kind === 'slam') {
       ringFx(c.x, c.z, c.r, 0xff3030, .4, .5); burst(c.x, .4, c.z, 0xff4fd8, 50, 7); flashFx(c.x, .5, c.z, 0xff2bd6, c.r * 2.4, .3); SFX.slam(); shake(.7); stop(.08);
-      if (dist(P.x, P.z, c.x, c.z) < c.r + P.r) hurtP(e.dmg * 2);
+      if (dist(P.x, P.z, c.x, c.z) < c.r + P.r) hurtHero(e.dmg * 2, e);
     }
     if (c.kind === 'nova') for (let k = 0; k < (e.phase2 ? 2 : 1); k++) setTimeout(() => { if (e.deathT || e.gone) return; for (let i = 0; i < B.novaBolts; i++) eShoot(e, i / B.novaBolts * 6.283 + k * .22, 6.5, e.dmg * .7, 0xff2bd6, 1.1); SFX.arc(); }, k * 380);
     if (c.kind === 'volley') for (let k = 0; k < (e.phase2 ? 2 : 1); k++) setTimeout(() => {
