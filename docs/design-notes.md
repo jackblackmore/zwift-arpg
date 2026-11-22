@@ -121,7 +121,7 @@ Example: Pyromancer through the Crypt (illustrative numbers):
 
 ### Stats
 
-- **Today** (`src/game/stats.js`): one flat pool. Level gives base life, mana and spell damage; gear and passives all add into it; skill behaviour (projectiles, chains, pierce) sits in the same pool; defence is just life plus a little damage reduction; no attributes.
+- **Today** (`src/game/formulas.js`, tuning in `src/data/balance.js`): one flat pool. Level gives base life, mana and spell damage; gear and passives all add into it; skill behaviour (projectiles, chains, pierce) sits in the same pool; defence is just life plus a little damage reduction; no attributes.
 - **Leaning:** one stat sheet fed by the three systems, each owning different parts:
 
 | | Gems | Passive tree | Gear |
@@ -172,6 +172,65 @@ Example: Pyromancer through the Crypt (illustrative numbers):
 - **Parked:** "Surge", a bike-only evade from a short effort spike. Depends on the bike link, and must not push sprinting on recovery days. Mouse and touch could keep an aimed dash as a bonus.
 - **Dropped:** strict role slots (target / chain / area): chain and area did the same job, and Diablo 3 players switched strict slots off. Also dropped: a 3×3 grid of the same skills in three elements, which recreates the "fire, ice, lightning" boredom.
 - **Dropped:** dash as a core skill on the bike (aiming is awkward, and pedalling already sets movement).
+
+## Game outline
+
+- **Leaning:** **6 regions × 5 levels + a Trial** = 36 sessions, about 18 hours at par. Character level runs from 1 to about 54 (soft cap after). One region per workout boss, so the whole game covers every workout type once.
+- The Crypt is planned in detail below; later regions only need a theme, new enemy types and a boss until we build them. Each region adds about 2 new enemy types and 5 guardians and reskins the earlier types.
+- In code, a map's **tier** is its place in this list (Crypt 1–5 are tiers 1–5, Forest 1 is tier 6, and so on). Par levels per tier live in `src/data/balance.js`.
+
+| # | Region | Par level | New enemy types | Element lean | Trial boss (workout) |
+|---|---|---|---|---|---|
+| 1 | Crypt | 1 → 14 | Skeleton warriors, runners, archers, bloaters; then necromancer, bone knight | Physical, poison | The Ashen King (sweet spot: waves of adds) |
+| 2 | Forest | 14 → 22 | Wolf packs (fast), treants (slow tanks), spore shamans | Poison | The Swarm Queen (sprints) |
+| 3 | Mines | 22 → 30 | Goblin bombers, rock golems, burrowers | Fire | The Juggernaut (VO2 max) |
+| 4 | Frozen Keep | 30 → 38 | Shield knights (block from the front), crossbow lines, frost mages | Cold | The Warden (threshold) |
+| 5 | Storm Spire | 38 → 46 | Elementals, blinking casters | Lightning | The Storm Witch (over-unders) |
+| 6 | The Abyss | 46 → 54 | Corrupted versions of everything | All | The Endless One (ramp) |
+
+Region themes and boss pairings are **open**; the shape (6 × 5 + Trial) is leaning.
+
+### The Crypt in detail
+
+| Level | Tier | Par level | New this level | Pack size | Guardian |
+|---|---|---|---|---|---|
+| 1 Crypt Halls | 1 | 1 | Skeleton warriors, runners | 3–5 | Skeleton knight |
+| 2 Ossuary | 2 | 4 | Archers | 4–6 | Bone archer captain |
+| 3 Flooded Tombs | 3 | 7 | Bloaters, poison pools | 5–7 | Plague bloat (bursts into bloaters) |
+| 4 Bone Gardens | 4 | 10 | Necromancer (raises the dead; kill order matters) | 5–8 | High necromancer |
+| 5 Throne Approach | 5 | 12 | Bone knights (shield), more rares | 6–8 | The King's lieutenant |
+| Trial | – | 14 | | | The Ashen King |
+
+- **Today:** we have warriors (zombie), runners, archers, bloaters and one boss (the Pale Warden) that guards every map. Missing for the Crypt: necromancer, bone knight and 4 guardians.
+
+## Balance
+
+- **Leaning: underpowered early, loot makes the difference.** Character level adds a little damage and mostly life; gear adds most damage. A new hero has a plain starter staff and needs 4–5 Fireballs per skeleton. A full kit of magic gear roughly doubles to triples damage.
+- **Leaning: sawtooth power curve.** Inside a level you outgrow the monsters as drops come in; the next level steps monster life up again. The biggest step is Crypt 1 → 2, because that's when the starter staff is expected to be gone.
+- Skills cost more and cast slower than before, and mana runs out: Fireball can be held at a bit over half its full cast rate. Frost Nova and Flame Dash have real cooldowns (6 s, 4 s per charge).
+- **Targets** (at par level with par gear; exact numbers in `src/data/balance.js`):
+
+| Thing | Target |
+|---|---|
+| Normal skeleton | 3–5 Fireball hits |
+| Normal pack | 4–15 s to clear |
+| Rare | 8–25 s of single-target fire |
+| Guardian | 45–100 s; an under-geared hero can't burn it down |
+| Danger | A pack in melee kills you in 4–14 s if you stand still |
+| Mana | Fireball sustains 40–75% of its full cast rate |
+| Loot | A full magic kit is ×1.3–3 the starter staff's damage |
+
+### Testing balance without playing a level
+
+Three layers, fastest first. Levels are the final polish pass, not the only check.
+
+1. **`npm run balance`** (instant, no browser): maths from the game's own data and formulas (`src/game/formulas.js`). For each tier at par level and with each gear profile (starter staff, average magic kit, average rare kit) it prints hits to kill, mana uptime, pack clear time, rare and guardian kill time, how long you survive standing in a pack, XP per map and the gain from loot. Anything outside the targets is flagged. Fireball only, so it's a floor on real kill speed.
+2. **`npm run arena`** (about 30 s, needs `npm run build`): real game code fights one encounter at a time (packs, magic, rare, guardian, under-geared, under-levelled) with a scripted player. A kiting bot plays well; "standing still" rows play carelessly; real play sits between them. Shows clear time, damage taken, lowest life, flasks used and time spent out of mana. In the browser: `__dbg.arena({ tier: 2, fight: [['zombie', 4]], gear: 'magic' })`.
+3. **`npm test`** includes balance guard rails: a tier 1 pack isn't one-shot, the tier 1 guardian can't be burned down, and the starter staff can't beat the tier 2 guardian. These catch regressions on every push.
+
+Loop: change numbers in `src/data/` → `npm run balance` → `npm run arena` → play a level to feel it.
+
+- **First pass results (Nov 2026):** every par number is inside target. Known gaps: melee packs barely touch a kiting player (knockback from Fireball plus slow skeletons), so the danger comes from archers, magic packs and rares; XP runs slightly behind par (fine while maps are small); maps are still one open square, so levels are quick and you can still run straight to the guardian. Next step: the room-and-corridor layout.
 
 ## Regions and levels
 

@@ -10,11 +10,11 @@ export const BASES = {
 export const IMPL = { weapon: ['spell', 5], helm: ['lifeF', 14], chest: ['lifeF', 28], boots: ['ms', .06], ring: ['manaF', 14], amulet: ['dmg', .08] };
 // t: text (# = value), pct: shown as %, dec: 1 decimal, int: whole number, slots: allowed slots, rare: rolls less often, mp: magic item prefix.
 export const AFF = [
-  { st: 'spell', t: 'Adds # spell damage', a: 3, b: 7, slots: ['weapon', 'ring', 'amulet'], mp: 'Sorcerous' },
-  { st: 'dmg', t: '#% increased damage', pct: 1, a: .06, b: .14, mp: 'Potent' },
-  { st: 'fire', t: '#% increased fire damage', pct: 1, a: .1, b: .25, mp: 'Smouldering' },
-  { st: 'cold', t: '#% increased cold damage', pct: 1, a: .1, b: .25, mp: 'Icy' },
-  { st: 'light', t: '#% increased lightning damage', pct: 1, a: .1, b: .25, mp: 'Static' },
+  { st: 'spell', t: 'Adds # spell damage', a: 2, b: 4, slots: ['weapon', 'ring', 'amulet'], mp: 'Sorcerous' },
+  { st: 'dmg', t: '#% increased damage', pct: 1, a: .06, b: .14, slots: ['weapon', 'amulet', 'helm'], mp: 'Potent' },
+  { st: 'fire', slots: ['weapon', 'ring', 'amulet'], t: '#% increased fire damage', pct: 1, a: .1, b: .25, mp: 'Smouldering' },
+  { st: 'cold', slots: ['weapon', 'ring', 'amulet'], t: '#% increased cold damage', pct: 1, a: .1, b: .25, mp: 'Icy' },
+  { st: 'light', slots: ['weapon', 'ring', 'amulet'], t: '#% increased lightning damage', pct: 1, a: .1, b: .25, mp: 'Static' },
   { st: 'cast', t: '#% increased cast speed', pct: 1, a: .05, b: .12, slots: ['weapon', 'ring', 'amulet', 'helm'], mp: 'Nimble' },
   { st: 'lifeF', t: '+# to maximum life', a: 10, b: 28, mp: 'Hale' },
   { st: 'manaF', t: '+# to maximum mana', a: 8, b: 22, mp: 'Mystic' },
@@ -49,4 +49,5 @@ export const RAREN1 = ['Doom', 'Storm', 'Grim', 'Soul', 'Blood', 'Rune', 'Dusk',
 export const RAREN2 = ['Grasp', 'Song', 'Brand', 'Ward', 'Veil', 'Crown', 'Spire', 'Bite', 'Coil', 'Weaver', 'Mark', 'Knell'];
 export const RCOL = [0xc8c8c8, 0x8888ff, 0xffff77, 0xff9a3c], RCSS = ['#c8c8c8', '#8888ff', '#ffff77', '#ff9a3c'];
 // Drop chances and rarity rolls.
-export const DROP = { normal: .04, magic: .1, uniqueBase: .025, rareBase: .25, bagSize: 30 };
+// normal/magic: chance a monster of that rarity drops an item (rares always drop 1–2, guardians 5).
+export const DROP = { normal: .07, magic: .2, uniqueBase: .025, rareBase: .25, bagSize: 30 };

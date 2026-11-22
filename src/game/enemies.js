@@ -11,6 +11,8 @@ import { chars, makeChar } from '../render/characters.js';
 import { sparks, emit, burst, ringFx, flashFx, telegraph, banner } from '../render/fx.js';
 import { pushOut, blocked, los } from '../world/map.js';
 import { hurtP, kill } from './combat.js';
+import { RARITY } from '../data/balance.js';
+import { tierHp } from './formulas.js';
 
 export function makePack(x, z) {
   const sz = 1 + TIER.packSize * (G.tier - 1), mem = [];
@@ -22,16 +24,16 @@ export function makePack(x, z) {
 
 // rar: 0 normal, 1 magic, 2 rare
 export function spawnEnemy(type, x, z, pack, rar = 0) {
-  const b = MT[type], mt = 1 + TIER.hp * (G.tier - 1), md = 1 + TIER.dmg * (G.tier - 1);
+  const b = MT[type], mt = tierHp(G.tier), md = 1 + TIER.dmg * (G.tier - 1);
   const e = { type, ...b, x, z, vx: 0, vz: 0, pack, rar, aff: [], hp: 0, atkT: rand(.2, 1.2), windup: 0, awake: false, freeze: 0, chill: 0, shock: 0, burnT: 0, burnDps: 0, burnTick: 0, flash: 0, deathT: 0, walk: rand(0, 6), shootT: rand(.5, 2), face: rand(0, 6), fuse: 0, sx: x, sz: z };
   let hpm = mt, sc = b.scale || 1;
-  if (rar === 1) { hpm *= 1.8; e.dmg *= 1.15; e.spd *= 1.08; }
+  if (rar === 1) { const R = RARITY.magic; hpm *= R.hp; e.dmg *= R.dmg; e.spd *= R.spd; }
   if (rar === 2) {
-    hpm *= 5; e.dmg *= 1.4; sc *= 1.4; e.r *= 1.35;
+    hpm *= RARITY.rare.hp; e.dmg *= RARITY.rare.dmg; sc *= 1.4; e.r *= 1.35;
     e.aff = Object.keys(RAREAFF).sort(() => Math.random() - .5).slice(0, G.tier >= 3 ? 3 : 2);
     if (e.aff.includes('hasted')) { e.spd *= 1.5; e.cd *= .7; }
     if (e.aff.includes('frenzied')) { e.cd *= .55; e.dmg *= 1.1; }
-    if (e.aff.includes('fortified')) { hpm *= 1.8; sc *= 1.12; }
+    if (e.aff.includes('fortified')) { hpm *= RARITY.rare.fortified; sc *= 1.12; }
     e.name = pick(RN1) + pick(RN2);
   }
   e.hp = e.maxHp = b.hp * hpm; e.dmg *= md;

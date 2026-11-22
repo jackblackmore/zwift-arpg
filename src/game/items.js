@@ -8,9 +8,9 @@ import { GB, GCY, decal } from '../render/assets.js';
 import { toast } from '../render/fx.js';
 import { SFX } from '../core/audio.js';
 import { save } from './save.js';
+import { flatScale, pctScale } from './formulas.js';
 import { blocked } from '../world/map.js';
 
-const flatScale = il => 1 + .22 * (il - 1), pctScale = il => 1 + .07 * (il - 1);
 function rollVal(a, il) {
   const v = rand(a.a, a.b) * (a.pct ? pctScale(il) : flatScale(il));
   return a.int ? Math.max(1, Math.round(a.a === a.b ? a.a : v)) : a.pct ? Math.round(v * 100) / 100 : a.dec ? Math.round(v * 10) / 10 : Math.round(v);

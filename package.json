@@ -6,7 +6,9 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node tests/sim.mjs"
+    "test": "node tests/sim.mjs",
+    "balance": "node scripts/balance.mjs",
+    "arena": "node tests/arena.mjs"
   },
   "repository": {
     "type": "git",

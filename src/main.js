@@ -20,6 +20,8 @@ import { update } from './game/update.js';
 import { recalc } from './game/stats.js';
 import { newMap } from './game/maps.js';
 import { save, load } from './game/save.js';
+import { START_WEAPON, parLevel, PAR_GEAR } from './data/balance.js';
+import { arena } from './game/arena.js';
 import { kill } from './game/combat.js';
 import { castFireball, castArc, castNova, castDash } from './game/skills.js';
 import { dropItem } from './game/items.js';
@@ -31,7 +33,7 @@ function begin(fresh) {
   const sv = load();
   if (fresh || !sv) {
     Object.assign(P, { lvl: 1, xp: 0, gear: {}, inv: [], passives: {}, pts: 0, offer: null, newItems: 0, kills: 0 });
-    P.gear.weapon = { id: G.itemId++, slot: 'weapon', rar: 1, base: 'Ashwood Staff', name: 'Smouldering Ashwood Staff', il: 1, impl: 1, mods: [['spell', 5], ['fire', .12]] };
+    P.gear.weapon = { ...START_WEAPON, id: G.itemId++, mods: START_WEAPON.mods.map(m => [...m]) };
     recalc(); newMap(1); save();
   } else {
     Object.assign(P, { lvl: sv.lvl, xp: sv.xp, gear: sv.gear || {}, inv: sv.inv || [], passives: sv.passives || {}, pts: sv.pts || 0, offer: null });
@@ -98,5 +100,5 @@ window.__dbg = {
   start: fresh => begin(fresh !== false),
   sim: n => { for (let i = 0; i < n; i++) { update(.033); updFx(.033); } },
   enemies: () => G.enemies, packs: () => G.packs, items: () => G.ground,
-  newMap, kill, dropItem, castFireball, castArc, castNova, castDash, openInv, openPass, equip,
+  arena, parLevel, parGear: PAR_GEAR, newMap, kill, dropItem, castFireball, castArc, castNova, castDash, openInv, openPass, equip,
 };
