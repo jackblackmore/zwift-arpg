@@ -50,7 +50,7 @@ try {
       window.T = {
         slay(r = 12) { for (const e of D.enemies()) if (!e.deathT && e.ai !== 'boss' && Math.hypot(e.x - P.x, e.z - P.z) < r) D.hit(e, 8, 'fire'); },
         tick(n, slay = true) { for (let i = 0; i < n; i++) { if (slay) this.slay(); P.life = D.S.maxLife; D.sim(1); } },
-        loot: () => P.inv.length + D.items().length,
+        loot: () => P.inv.length + D.items().length + P.gems.length, // gem drops picked up leave the ground for the gem bag
         // Run beat i from its trigger to done, recording the states it passes through and what the banner said at the signal.
         run(i, opts = {}) {
           const b = D.startBeat(i), seq = [b.state], r = { loot0: this.loot() };
