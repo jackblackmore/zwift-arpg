@@ -1,4 +1,5 @@
-// Player skills: Fireball, Arc, Frost Nova, Magic Shield, life flask. Flame Dash is kept for the Evade slot (build order step 1).
+// Player skills, one cast function per skill gem (game/gems.js casts them from the skill bar), plus the life flask.
+// Cast functions pay the cost and do the effect; cooldowns and charges belong to the bar slot (game/gems.js).
 import * as T from 'three';
 import { G, P, S, shake } from '../core/state.js';
 import { SK } from '../data/skills.js';
@@ -50,7 +51,7 @@ export function castArc(fx = P.x, fz = P.z, free = false) {
   const hitS = new Set(); let cur = first;
   for (let k = 0; k <= S.chains && cur; k++) {
     hitS.add(cur); pts.push({ x: cur.x, z: cur.z });
-    hit(cur, A.mult, 'light'); if (S.conduit || Math.random() < A.shockChance) cur.shock = A.shockT;
+    hit(cur, A.mult, 'light', { gem: 'arc' }); if (S.conduit || Math.random() < A.shockChance) cur.shock = A.shockT;
     for (let i = 0; i < 4; i++) emit(sparks, cur.x, 1.1, cur.z, rand(-4, 4), rand(1, 4), rand(-4, 4), .3, 0xe0c8ff, 4, 2);
     let nx = null, nd = A.chainRange; const c = cur;
     near(c.x, c.z, A.chainRange, e => { if (hitS.has(e)) return; const d = dist(e.x, e.z, c.x, c.z); if (d < nd) { nd = d; nx = e; } });
@@ -61,10 +62,10 @@ export function castArc(fx = P.x, fz = P.z, free = false) {
 
 export function castNova(free = false) {
   const N = SK.nova;
-  if (!free) { if (P.novaCd > 0 || !pay(N.cost)) return false; P.novaCd = N.cd; P.castAnim = .25; P.castSeq++; P.lastCast = 'nova'; }
-  const r = N.radius * S.aoe;
+  if (!free) { if (!pay(N.cost)) return false; P.castAnim = .25; P.castSeq++; P.lastCast = 'nova'; }
+  const r = N.radius * S.aoe * S.novaR;
   near(P.x, P.z, r, e => {
-    const d = dist(e.x, e.z, P.x, P.z) || 1; hit(e, N.mult, 'cold', { kx: (e.x - P.x) / d, kz: (e.z - P.z) / d });
+    const d = dist(e.x, e.z, P.x, P.z) || 1; hit(e, N.mult, 'cold', { gem: 'nova', kx: (e.x - P.x) / d, kz: (e.z - P.z) / d });
     if (!e.deathT) { if (e.type === 'boss') e.chill = 3; else e.freeze = N.freeze * S.freeze; }
   });
   ringFx(P.x, P.z, r, 0x9fe8ff, .45, .1); ringFx(P.x, P.z, r * .7, 0xffffff, .3, .1); flashFx(P.x, .6, P.z, 0x7fd8ff, r * 2.2, .35);
@@ -73,8 +74,8 @@ export function castNova(free = false) {
 }
 
 export function castShield() {
-  const H = SK.shield; if (P.shieldCd > 0 || !pay(H.cost)) return false;
-  P.shield = S.maxLife * H.absorb * S.shieldMul; P.shieldT = H.dur; P.shieldCd = H.cd;
+  const H = SK.shield; if (!pay(H.cost)) return false;
+  P.shield = S.maxLife * H.absorb * S.shieldMul; P.shieldT = H.dur;
   P.castAnim = .2; P.castSeq++; P.lastCast = 'shield';
   ringFx(P.x, P.z, 1.3, 0x7fb8ff, .35, .1); flashFx(P.x, 1, P.z, 0x7fb8ff, 3, .3);
   for (let i = 0; i < 24; i++) { const a = rand(0, 6.28); emit(glows, P.x + Math.cos(a) * .9, rand(.2, 1.8), P.z + Math.sin(a) * .9, 0, rand(.3, 1), 0, rand(.3, .6), 0x9fc8ff); }
@@ -82,8 +83,7 @@ export function castShield() {
 }
 
 export function castDash() {
-  const D = SK.dash; if (P.dashCh < 1 || !pay(D.cost)) return false;
-  P.dashCh--;
+  const D = SK.dash; if (!pay(D.cost)) return false;
   // Toward the aim point if the device gives one, else the way the player is moving, else facing.
   let a, L = D.range;
   if (ctl.aim) { a = Math.atan2(ctl.aim[0] - P.x, ctl.aim[1] - P.z); L = Math.min(D.range, dist(ctl.aim[0], ctl.aim[1], P.x, P.z) || D.range); }
@@ -92,7 +92,7 @@ export function castDash() {
   for (let t = 0; t <= L; t += .2) {
     const nx = sx + Math.sin(a) * t, nz = sz + Math.cos(a) * t; if (blocked(nx, nz, P.r)) break;
     P.x = nx; P.z = nz;
-    if (t - lastPatch >= D.patchEvery) { lastPatch = t; addPatch(nx, nz, .95 * S.aoe, SK.burn.life); }
+    if (t - lastPatch >= D.patchEvery) { lastPatch = t; addPatch(nx, nz, .95 * S.aoe, SK.burn.life, 'dash'); }
     for (let i = 0; i < 2; i++) emit(glows, nx + rand(-.2, .2), rand(.4, 1.4), nz + rand(-.2, .2), 0, rand(.5, 2), 0, rand(.3, .6), 0xff5a10, 0, 1);
   }
   P.face = a; P.invuln = D.invuln; P.castSeq++; P.lastCast = 'dash';
@@ -115,7 +115,7 @@ export function updProjectiles(dt, explode) {
     let boom = p.life <= 0 || blocked(p.x, p.z, .15);
     if (!boom) {
       let tgt = null; near(p.x, p.z, .45, e => { if (!tgt && !p.hitS.has(e)) tgt = e; });
-      if (tgt) { if (p.pierce > 0) { p.pierce--; p.hitS.add(tgt); hit(tgt, SK.fireball.pierceMult, 'fire', { kx: p.dx, kz: p.dz }); } else boom = true; }
+      if (tgt) { if (p.pierce > 0) { p.pierce--; p.hitS.add(tgt); hit(tgt, SK.fireball.pierceMult, 'fire', { gem: 'fireball', kx: p.dx, kz: p.dz }); } else boom = true; }
     }
     if (boom) { p.dead = true; scene.remove(p.g); explode(p.x, p.z, 1, p.storm); }
   }

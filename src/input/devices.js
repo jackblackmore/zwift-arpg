@@ -1,6 +1,7 @@
 // Keyboard + mouse and touch devices. They write into `ctl` (input/input.js) and never touch game state.
 import * as T from 'three';
-import { ctl } from './input.js';
+import { ctl, slotInput, clearHeld } from './input.js';
+import { BAR } from '../data/gems.js';
 import { cam, o2d, V } from '../render/scene.js';
 import { G, P } from '../core/state.js';
 import { $, dist } from '../core/util.js';
@@ -14,6 +15,8 @@ const mouse = { ndc: new T.Vector2(), has: false };
 export const joy = { on: false, id: null, bx: 0, by: 0, x: 0, y: 0 };
 const ray = new T.Raycaster(), gplane = new T.Plane(new T.Vector3(0, 1, 0), 0), TV = new T.Vector3();
 const UI = {}; // hooks for opening panels, set by main.js
+// Keyboard skill bar: Q Flex B, Space Guard, E Evade; 1–5 the whole bar in order (LMB Main and RMB Flex A on the mouse).
+const KEY_SLOT = { q: 'flexB', ' ': 'guard', e: 'evade', 1: 'main', 2: 'flexA', 3: 'flexB', 4: 'guard', 5: 'evade' };
 
 export function setTouch(v) { if (ctl.touch === v) return; ctl.touch = v; document.body.classList.toggle('touch', v); }
 if (matchMedia('(pointer:coarse)').matches) setTouch(true);
@@ -45,7 +48,7 @@ export function initDevices(ui) {
     if (ride.on) return; // RIDE mode uses its own pad
     if (e.pointerType === 'touch') { if (e.clientX < V.W * .55 && !joy.on) Object.assign(joy, { on: true, id: e.pointerId, bx: e.clientX, by: e.clientY, x: 0, y: 0 }); return; }
     mouse.has = true; setMouse(e);
-    if (e.button === 0) ctl.fb = true; if (e.button === 2) ctl.arc = true;
+    if (e.button === 0) slotInput('main', true); if (e.button === 2) slotInput('flexA', true);
   });
   addEventListener('pointermove', e => {
     if (joy.on && e.pointerId === joy.id) { let dx = (e.clientX - joy.bx) / 50, dy = (e.clientY - joy.by) / 50; const l = Math.hypot(dx, dy); if (l > 1) { dx /= l; dy /= l; } joy.x = dx; joy.y = dy; }
@@ -53,7 +56,7 @@ export function initDevices(ui) {
   });
   const endPtr = e => {
     if (joy.on && e.pointerId === joy.id) { joy.on = false; joy.x = joy.y = 0; }
-    if (e.pointerType === 'mouse') { if (e.button === 0) ctl.fb = false; if (e.button === 2) ctl.arc = false; }
+    if (e.pointerType === 'mouse') { if (e.button === 0) slotInput('main', false); if (e.button === 2) slotInput('flexA', false); }
   };
   addEventListener('pointerup', endPtr); addEventListener('pointercancel', endPtr);
 
@@ -62,8 +65,8 @@ export function initDevices(ui) {
     el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); audio(); if (G.paused) return; try { el.setPointerCapture(e.pointerId); } catch (_) {} down(); });
     ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(ev => el.addEventListener(ev, () => up && up()));
   };
-  skillBtn('sFb', () => ctl.fb = true, () => ctl.fb = false); skillBtn('sAr', () => ctl.arc = true, () => ctl.arc = false);
-  skillBtn('sNv', () => ctl.nova = true); skillBtn('sSh', () => ctl.shield = true); skillBtn('sFl', () => ctl.flask = true);
+  for (const s of BAR) skillBtn('sk-' + s, () => slotInput(s, true), () => slotInput(s, false));
+  skillBtn('sFl', () => ctl.flask = true);
 
   addEventListener('keydown', e => {
     const k = e.key.toLowerCase(); if (k === ' ') e.preventDefault();
@@ -71,12 +74,13 @@ export function initDevices(ui) {
     keys[k] = true; audio();
     if (k === 'i' || k === 'b') { if (G.started) UI.toggleInv(); return; }
     if (k === 'p') { if (G.started) UI.togglePass(); return; }
+    if (k === 'g') { if (G.started) UI.toggleGems(); return; }
     if (k === 'escape') { UI.closeAll(); return; }
     if (rideKey(k, true)) return;
     if (G.paused) return;
-    if (k === 'q' || k === '3') ctl.nova = true; if (k === ' ' || k === '4') ctl.shield = true; if (k === 'f' || k === '5') ctl.flask = true;
-    if (k === '1') ctl.fb = true; if (k === '2' || k === 'e') ctl.arc = true;
+    if (KEY_SLOT[k]) slotInput(KEY_SLOT[k], true);
+    if (k === 'f') ctl.flask = true;
   });
-  addEventListener('keyup', e => { const k = e.key.toLowerCase(); keys[k] = false; if (rideKey(k, false)) return; if (k === '1') ctl.fb = false; if (k === '2' || k === 'e') ctl.arc = false; });
-  addEventListener('blur', () => { for (const k in keys) keys[k] = false; ctl.fb = ctl.arc = false; });
+  addEventListener('keyup', e => { const k = e.key.toLowerCase(); keys[k] = false; if (rideKey(k, false)) return; if (KEY_SLOT[k]) slotInput(KEY_SLOT[k], false); });
+  addEventListener('blur', () => { for (const k in keys) keys[k] = false; clearHeld(); });
 }

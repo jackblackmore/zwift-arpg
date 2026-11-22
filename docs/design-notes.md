@@ -110,6 +110,15 @@ Example: Pyromancer through the Crypt (illustrative numbers):
 
 - **Open:** whether random gem drops still feel exciting enough; the numbers above are untuned and the proportions are what matter.
 
+**Built: gems v1 (Nov 2026).** Data in `src/data/gems.js`, logic in `src/game/gems.js`.
+- Skill bar: Main (L1), Flex A (L5), Evade (L8), Flex B (L12), Guard (L1). Keys: LMB Main, RMB Flex A, Q Flex B, Space Guard, E Evade (also 1–5). RIDE: A Main, B Flex A, Z Flex B, right shifter Guard, and Evade on the left controller's power-up button (key U in the simulator; check this once the real controllers are tested).
+- Held gems (Fireball, Arc) cast while the button is down and share one cast timer. Press gems (Frost Nova, Magic Shield, Flame Dash) cast once per press, and holding the button recasts whenever the gem is ready. Cooldowns and Flame Dash charges belong to the slot.
+- A new character gets Magic Shield in Guard and picks Main (Fireball, Arc or Frost Nova) from a shrine panel before the first fight. **Later shrines appear in the world at the next map's entrance** (a glowing stone; walk into it), as the design says, rather than popping up mid-fight. A toast on level-up says a shrine is waiting. Flex shrines offer the attack gems you don't own yet (so Flex B is a single choice until step 2 adds gems); Evade offers Flame Dash only. Flex shrine gems start at Main gem level − 2.
+- Gem levels: bar gems earn the character's kill XP on the character's curve; bag gems earn 10%. Cap 10. Base damage 4 × 1.1^(level − 1) for every gem, plus flat spell from gear; skills keep their own multipliers. One milestone at level 5 (Fireball pierces 1, Arc +2 chains, Frost Nova +25% radius, Magic Shield absorbs +25%, Flame Dash +1 charge).
+- Passive notables that change one skill (Twin Flame, Searing Lance, Forked Sky, Warding, Ignite, Shatter, Conduit, Chain Reaction) are only offered once you own that gem; they move to support gems in step 3.
+- Old saves have no gems: they're treated as fresh for gems (Magic Shield, then the Main shrine on load; shrines for any other unlocked slots wait at the map entrance).
+- Gem panel (G or the GEMS button): tap a gem, then a slot. Moving a gem between slots swaps the two if each fits the other's slot.
+
 ### Evade gems
 
 | Evade | Effect | Suits |
@@ -121,7 +130,7 @@ Example: Pyromancer through the Crypt (illustrative numbers):
 
 ### Stats
 
-- **Today** (`src/game/formulas.js`, tuning in `src/data/balance.js`): one flat pool. Level gives base life, mana and spell damage; gear and passives all add into it; skill behaviour (projectiles, chains, pierce) sits in the same pool; defence is just life plus a little damage reduction; no attributes.
+- **Today** (`src/game/formulas.js`, tuning in `src/data/balance.js`): one flat pool. Level gives base life and mana; base damage comes from the skill gem (gems v1, below); gear and passives all add into it; skill behaviour (projectiles, chains, pierce) sits in the same pool; defence is just life plus a little damage reduction; no attributes.
 - **Leaning:** one stat sheet fed by the three systems, each owning different parts:
 
 | | Gems | Passive tree | Gear |
@@ -208,7 +217,7 @@ Region themes and boss pairings are **open**; the shape (6 × 5 + Trial) is lean
 - **Leaning: underpowered early, loot makes the difference.** Character level adds a little damage and mostly life; gear adds most damage. A new hero has a plain starter staff and needs 4–5 Fireballs per skeleton. A full kit of magic gear roughly doubles to triples damage.
 - **Leaning: sawtooth power curve.** Inside a level you outgrow the monsters as drops come in; the next level steps monster life up again. The biggest step is Crypt 1 → 2, because that's when the starter staff is expected to be gone.
 - Skills cost more and cast slower than before, and mana runs out: Fireball can be held at a bit over half its full cast rate. Frost Nova has a 6 s cooldown.
-- **Leaning: you start with a generic Magic Shield, not a movement skill.** It absorbs 35% of max life for 5 s on a 10 s cooldown, and fits every build (Flame Dash leaned too far toward a fire build). Movement skills come later through the Evade slot (level 8 shrine). Built as a plain skill today; it becomes the first Guard gem in gems v1.
+- **Leaning: you start with a generic Magic Shield, not a movement skill.** It absorbs 35% of max life for 5 s on a 10 s cooldown, and fits every build (Flame Dash leaned too far toward a fire build). Movement skills come later through the Evade slot (level 8 shrine). It's the starting Guard gem (gems v1).
 - **Targets** (at par level with par gear; exact numbers in `src/data/balance.js`):
 
 | Thing | Target |
@@ -232,6 +241,7 @@ Three layers, fastest first. Levels are the final polish pass, not the only chec
 Loop: change numbers in `src/data/` → `npm run balance` → `npm run arena` → play a level to feel it.
 
 - **First pass results (Nov 2026):** every par number is inside target. Known gaps: melee packs barely touch a kiting player (knockback from Fireball plus slow skeletons), so the danger comes from archers, magic packs and rares; XP runs slightly behind par (fine while maps are small); maps are still one open square, so levels are quick and you can still run straight to the guardian. Next: finish the character systems (gems, skills, tree, defence, gear) and balance them together; level layout comes after (see `docs/build-order.md`).
+- **Gems v1 (Nov 2026):** base damage moved from character level (`HERO.spellPer` is now 0) to the Main gem's level (`PAR_GEM` = 1, 4, 7, 9, 10 for tiers 1–5). Every par number in `npm run balance` is still inside target, and hits are within ~5% of before. In the arena the bot plays par bars (`parBar`: Fireball Main, Magic Shield, Frost Nova in Flex A from level 5); every par fight still clears. Guardians take 62–73 s (were 58–86 s); the tier 1 rare is quicker (19 s, was 30 s), the tier 2 rare slower (23 s, was 12 s). The starter staff still can't beat the tier 2, 4 or 5 guardian within 4 minutes; it just beats tier 3 (235 s).
 
 ## Regions and levels
 
