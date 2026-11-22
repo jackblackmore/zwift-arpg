@@ -49,7 +49,7 @@ index.html, src/          the ARPG
   ui/                     HUD + minimap, panels (bag, passives, menu)
 public/models/            trimmed KayKit .glb files (rebuild with scripts/prep-models.mjs)
 gallery/, src/gallery/    asset gallery page: characters × both animation sets, held gear, prop packs
-public/gallery/           gallery files: KayKit Adventurers, Skeletons, Dungeon Remastered, Halloween Bits, Medieval Hexagon (rebuild with scripts/prep-gallery.mjs)
+public/gallery/           gallery files: KayKit Adventurers, Skeletons, Character Animations 1.1, Dungeon Remastered, Halloween Bits, Medieval Hexagon, Forest Nature, Resource Bits (rebuild with scripts/prep-gallery.mjs)
 pedal/                    the original pedal-driven demo (unchanged, its own src/)
 tests/sim.mjs             headless playtest for both games and the gallery
 ```
