@@ -2,7 +2,7 @@
 // countdown, the guardian bar (the #bossbar element, retitled) and the minimap markers for beats, the guardian and the portal.
 // The markers are drawn on their own canvas stacked over the minimap so hud.js's minimap redraw doesn't wipe them.
 import { G, P } from '../core/state.js';
-import { BEATS } from '../data/levels.js';
+import { pools } from '../game/hazards.js';
 import { $ } from '../core/util.js';
 import { HALF } from '../world/map.js';
 
@@ -18,7 +18,7 @@ let mmT = 0;
 
 // One line describing where a beat stands.
 export function beatStatus(b) {
-  const D = BEATS[b.type];
+  const D = G.level.defs[b.type];
   if (b.state === 'done') return `${D.name} done`;
   if (b.state === 'idle') return `${D.name} ahead`;
   if (b.state === 'signal') return `${D.name}: it begins...`;
@@ -33,9 +33,9 @@ export function levelHud(dt) {
   const b = L.beats[L.i], nx = L.beats[L.i + 1];
   // info block
   const cur = L.cleared ? 'Level cleared: take the portal' : b ? beatStatus(b) : '';
-  const next = L.cleared ? '' : nx ? `Next: ${BEATS[nx.type].name}` : b ? 'Next: exit portal' : '';
-  const html = `<b>${L.name.toUpperCase()}</b>${L.clears ? ` <span style="color:var(--dim)">· ${L.clears} cleared</span>` : ''}<br>Level ${P.lvl} · ${G.mapKills} slain<br>` +
-    `<span style="color:${b && !L.cleared ? css(BEATS[b.type].color) : '#b06bff'}">${cur}</span><br><span style="color:var(--dim)">${next}</span>`;
+  const next = L.cleared ? '' : nx ? `Next: ${L.defs[nx.type].name}` : b ? 'Next: exit portal' : '';
+  const html = `<b>CRYPT ${L.crypt} · ${L.name.toUpperCase()}</b>${P.clears ? ` <span style="color:var(--dim)">· ${P.clears} cleared</span>` : ''}<br>Level ${P.lvl} (par ${L.def.par}) · ${G.mapKills} slain<br>` +
+    `<span style="color:${b && !L.cleared ? css(L.defs[b.type].color) : '#b06bff'}">${cur}</span><br><span style="color:var(--dim)">${next}</span>`;
   if (html !== last.info) { last.info = html; $('info').innerHTML = html; }
   // survival countdown
   let st = '';
@@ -55,7 +55,7 @@ export function levelHud(dt) {
   const k = 300 / (HALF * 2), X = x => (x + HALF) * k;
   mc.clearRect(0, 0, 300, 300);
   L.beats.forEach((o, i) => {
-    const D = BEATS[o.type], isNext = i === L.i, done = o.state === 'done', gd = o.type === 'guardian';
+    const D = L.defs[o.type], isNext = i === L.i, done = o.state === 'done', gd = o.type === 'guardian';
     if (gd && g) return; // the guardian itself is drawn as an enemy
     const r = gd ? 9 : isNext ? 9 : 6.5, x = X(o.x), z = X(o.z), pulse = isNext ? 1 + Math.sin(G.gt * 5) * .12 : 1;
     mc.globalAlpha = done ? .3 : isNext ? 1 : .75;
@@ -65,5 +65,7 @@ export function levelHud(dt) {
     mc.fillStyle = '#000'; mc.font = `800 ${gd ? 12 : isNext ? 11 : 9}px sans-serif`; mc.textAlign = 'center'; mc.textBaseline = 'middle'; mc.fillText(ICON[o.type], x, z + .5);
   });
   mc.globalAlpha = 1;
+  mc.fillStyle = '#8be04a'; for (const p of pools) { mc.beginPath(); mc.arc(X(p.x), X(p.z), Math.max(2, p.r * k), 0, 7); mc.fill(); } // poison pools
+  for (const e of G.enemies) if (e.priority && !e.deathT && e.awake) { mc.fillStyle = '#d070ff'; mc.beginPath(); mc.arc(X(e.x), X(e.z), 3.5, 0, 7); mc.fill(); } // necromancers
   if (G.portal) { mc.strokeStyle = '#b06bff'; mc.lineWidth = 3; mc.beginPath(); mc.arc(X(G.portal.x), X(G.portal.z), 8, 0, 7); mc.stroke(); }
 }

@@ -1,8 +1,9 @@
-// Player skills. The skill bar (P.bar) maps slots to skills: Main (Fireball, auto-attacks), Flex A (Frost Nova),
-// Guard (Ward), Evade (Blink), plus the life flask. No mana: Flex / Guard / Evade run on cooldowns (P.cd).
+// Player skills. The skill bar (P.bar, game/gems.js) maps five slots to gems: Main (auto-attacks), Flex A, Flex B, Guard, Evade,
+// plus the life flask. Each skill registers its behaviour in SKILLS (registerSkill); castSlot() runs whatever sits in a slot.
+// No mana: Flex / Guard / Evade run on cooldowns (P.cd).
 import * as T from 'three';
 import { G, P, S, shake } from '../core/state.js';
-import { SK } from '../data/skills.js';
+import { SK, MAIN_RANGE, BLOOD } from '../data/skills.js';
 import { ctl } from '../input/input.js';
 import { rand, pick, dist } from '../core/util.js';
 import { SFX } from '../core/audio.js';
@@ -12,7 +13,9 @@ import { sparks, glows, emit, ringFx, flashFx, boltFx } from '../render/fx.js';
 import { blocked, los } from '../world/map.js';
 import { near } from './enemies.js';
 import { hit } from './combat.js';
-import { gemMile, gemScale } from './gems.js';
+import { gemMile, gemScale, slotSkill } from './gems.js';
+import { projCount, projLess, pierceCount, applyFreeze, swiftCd } from './supports.js';
+import { dbg } from '../core/dbg.js';
 
 // Where the player is aiming: the device's aim point, else the nearest awake enemy, else straight ahead.
 export function aim() {
@@ -24,8 +27,9 @@ export function aim() {
 }
 
 // ---- Main: auto-target ----
-export const mainRange = () => SK[P.bar.main].range;
-const isElite = e => e.rar === 2 || e.guardian || e.ai === 'boss';
+// The Main skill's range (its def.range(), else SK[id].range), a default with nothing in Main.
+export const mainRange = () => { const id = slotSkill('main'), d = id && SKILLS[id]; return (d && d.range && d.range()) || (id && SK[id] && SK[id].range) || MAIN_RANGE; };
+const isElite = e => e.rar === 2 || e.guardian || e.ai === 'boss' || e.priority;
 // Elites first, then the nearest enemy; within range and in line of sight.
 export function mainTarget() {
   const R = mainRange(); let elite = null, ed = 1e9, norm = null, nd = 1e9;
@@ -41,29 +45,27 @@ export function mainTarget() {
 export function castFireball(ax, az) {
   const F = SK.fireball;
   if (ax === undefined) [ax, az] = aim();
-  const base = Math.atan2(ax - P.x, az - P.z), n = S.proj;
+  const base = Math.atan2(ax - P.x, az - P.z), n = S.proj + projCount('fireball'), less = projLess('fireball'), prc = S.pierce + gemMile('fireball', 'pierce', 'pierce') + pierceCount('fireball'); // gear + supports (Split, Pierce) + Fireball's own milestone
   P.face = base; P.castAnim = .12; P.castSeq++; P.lastCast = 'shoot';
   for (let i = 0; i < n; i++) {
     const a = base + (i - (n - 1) / 2) * F.spread, g = new T.Group(); g.add(glowSprite(0xff6a1a, 1.4), glowSprite(0xffe0a0, .55));
     g.position.set(P.x + Math.sin(a) * .7, 1.2, P.z + Math.cos(a) * .7); scene.add(g);
-    G.proj.push({ x: g.position.x, z: g.position.z, dx: Math.sin(a), dz: Math.cos(a), sp: F.speed, life: F.life, pierce: S.pierce + gemMile('fireball', 'pierce', 'pierce'), hitS: new Set(), g, storm: false });
+    G.proj.push({ x: g.position.x, z: g.position.z, dx: Math.sin(a), dz: Math.cos(a), sp: F.speed, life: F.life, pierce: prc, mult: less, hitS: new Set(), g, storm: false });
   }
   P.fbN++; if (S.storm && P.fbN % 4 === 0) G.proj[G.proj.length - 1].storm = true;
   SFX.fire(); return true;
 }
 
-// Main attack: holding ctl.main fires toward the aim point, otherwise it auto-fires at mainTarget(). Paced by attack rate.
-function castMain() {
-  if (P.cd.main > 0) return false;
+// Fireball as Main: holding ctl.main fires toward the aim point, otherwise it auto-fires at mainTarget(). castSlot paces it.
+function fireballMain() {
   let t = null;
   if (ctl.main && ctl.aim) t = ctl.aim;
   else { const e = mainTarget(); if (e) t = [e.x, e.z]; else if (ctl.main) t = aim(); }
   if (!t) return false;
-  castFireball(t[0], t[1]);
-  P.cd.main = SK[P.bar.main].rate / (S.cast * P.eff.atk); return true;
+  return castFireball(t[0], t[1]);
 }
 
-// Arc: instant chain lightning, only cast by effects (Heart of the Storm) from fx/fz. `free` stays for the call sites.
+// Arc: instant chain lightning from fx/fz (the Arc skill in game/spells.js and Heart of the Storm's free arcs; both use the Arc gem's level). `free` stays for the call sites.
 export function castArc(fx = P.x, fz = P.z, free = true) {
   const A = SK.arc, tx = fx, tz = fz;
   let first = null, bd = 1e9;
@@ -71,7 +73,7 @@ export function castArc(fx = P.x, fz = P.z, free = true) {
   const pts = [{ x: fx, z: fz }];
   if (!first) return true;
   const hitS = new Set(); let cur = first;
-  for (let k = 0; k <= A.chains && cur; k++) {
+  for (let k = 0; k <= A.chains + gemMile('arc', 'chain', 'chains') && cur; k++) {
     hitS.add(cur); pts.push({ x: cur.x, z: cur.z });
     hit(cur, A.mult, 'light', { sk: 'arc' }); if (Math.random() < A.shockChance) cur.shock = A.shockT;
     for (let i = 0; i < 4; i++) emit(sparks, cur.x, 1.1, cur.z, rand(-4, 4), rand(1, 4), rand(-4, 4), .3, 0xe0c8ff, 4, 2);
@@ -89,7 +91,7 @@ export function castNova(free = false) {
   const r = N.radius * S.aoe;
   near(P.x, P.z, r, e => {
     const d = dist(e.x, e.z, P.x, P.z) || 1; hit(e, N.mult, 'cold', { kx: (e.x - P.x) / d, kz: (e.z - P.z) / d, sk: 'nova' });
-    if (!e.deathT) { if (e.ai === 'boss') e.chill = 3; else e.freeze = N.freeze * S.freeze; }
+    if (!e.deathT) applyFreeze(e, e.ai === 'boss' ? 3 : N.freeze * S.freeze, 'nova');
   });
   ringFx(P.x, P.z, r, 0x9fe8ff, .45, .1); ringFx(P.x, P.z, r * .7, 0xffffff, .3, .1); flashFx(P.x, .6, P.z, 0x7fd8ff, r * 2.2, .35);
   for (let i = 0; i < 60; i++) { const a = rand(0, 6.28), s = rand(5, 11) * S.aoe; emit(sparks, P.x, rand(.3, 1.2), P.z, Math.cos(a) * s, rand(0, 2), Math.sin(a) * s, rand(.35, .5), pick([0xbff0ff, 0xffffff, 0x7fd8ff]), 2, 3); }
@@ -144,13 +146,40 @@ export function castBlink() {
   SFX.dash(); return true;
 }
 
-// Cast whatever skill sits in a bar slot. Flex / Guard / Evade are gated by their cooldown; Main by its attack timer.
-const CAST = { fireball: castMain, nova: () => castNova(), ward: castWard, blink: castBlink };
+// ---- the casting registry ----
+// registerSkill(id, def): def = { cast(slot) -> bool, main?(slot) -> bool, range?: () -> number, target?: () -> enemy|null }.
+//   cast: one press of the button; return false when nothing happened (no cooldown is spent).
+//   main: the skill's own auto-attack when it sits in Main (Fireball: fire at mainTarget() or the aim point). Without it, Main calls
+//         cast() whenever the skill is off cooldown and mainTarget() finds something.
+// Supports and effects find the skill by its gem id; damage goes through combat.hit(e, mult, elem, { sk: id }).
+export const SKILLS = {};
+export const registerSkill = (id, def) => { SKILLS[id] = def; };
+registerSkill('fireball', { cast: () => castFireball(), main: fireballMain, range: () => SK.fireball.range });
+registerSkill('nova', { cast: () => castNova() });
+registerSkill('ward', { cast: () => castWard() });
+registerSkill('blink', { cast: () => castBlink() });
+
+// Cooldown of a skill in seconds before cdr: its cd, else its rate (so Fireball works in a Flex slot).
+// Flex / Guard / Evade wait skillCd (cd, else rate); Main paces by skillRate (rate, else cd), so a skill can auto-fire quickly from Main
+// and still have a real cooldown on a button (Arc: rate .7 in Main, cd 3 elsewhere).
+export const skillCd = id => { const k = SK[id] || {}; return k.cd || k.rate || 1; };
+// A button's full cooldown after cdr, the Swift Cast support (swiftCd) and Deep Reserves (S.cdMore). The HUD sweep uses it too.
+export const cdFull = id => skillCd(id) * (1 - S.cdr) * swiftCd(id) * (S.cdMore || 1);
+export const skillRate = id => { const k = SK[id] || {}; return k.rate || k.cd || 1; };
+// Cast whatever skill sits in a bar slot. Main is paced by its attack rate (and the effort modifier); the others by cooldowns, or by
+// life with the Blood Rite keystone (S.bloodRite): no cooldown, each cast costs life, refused when it would kill.
 export function castSlot(slot) {
-  const id = P.bar[slot]; if (!id || P.dead > 0) return false;
-  if (slot === 'main') return castMain();
-  if (P.cd[slot] > 0 || !CAST[id]()) return false;
-  P.cd[slot] = SK[id].cd * (1 - S.cdr); return true;
+  const id = slotSkill(slot), def = id && SKILLS[id]; if (!def || P.dead > 0) return false;
+  if (slot === 'main') {
+    if (P.cd.main > 0) return false;
+    if (def.main ? !def.main(slot) : !(mainTarget() && def.cast(slot))) return false;
+    P.cd.main = skillRate(id) * swiftCd(id) / (S.cast * P.eff.atk); return true;
+  }
+  const rite = S.bloodRite ? S.bloodRite * S.maxLife * skillCd(id) / BLOOD.cdRef : 0;
+  if (rite ? rite >= P.life : P.cd[slot] > 0) return false;
+  if (!def.cast(slot)) return false;
+  if (rite) P.life -= rite; else P.cd[slot] = cdFull(id);
+  return true;
 }
 
 export function useFlask() {
@@ -168,9 +197,11 @@ export function updProjectiles(dt, explode) {
     let boom = p.life <= 0 || blocked(p.x, p.z, .15);
     if (!boom) {
       let tgt = null; near(p.x, p.z, .45, e => { if (!tgt && !p.hitS.has(e)) tgt = e; });
-      if (tgt) { if (p.pierce > 0) { p.pierce--; p.hitS.add(tgt); hit(tgt, SK.fireball.pierceMult, 'fire', { kx: p.dx, kz: p.dz, sk: 'fireball' }); } else boom = true; }
+      if (tgt) { if (p.pierce > 0) { p.pierce--; p.hitS.add(tgt); hit(tgt, SK.fireball.pierceMult * (p.mult || 1), 'fire', { kx: p.dx, kz: p.dz, sk: 'fireball' }); } else boom = true; }
     }
-    if (boom) { p.dead = true; scene.remove(p.g); explode(p.x, p.z, 1, p.storm); }
+    if (boom) { p.dead = true; scene.remove(p.g); explode(p.x, p.z, p.mult || 1, p.storm); }
   }
   G.proj = G.proj.filter(p => !p.dead);
 }
+
+Object.assign(dbg, { castArc, SKILLS, registerSkill, mainRange, mainTarget, castSlot, skillCd, skillRate });

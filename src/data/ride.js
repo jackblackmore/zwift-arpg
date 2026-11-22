@@ -29,7 +29,7 @@ export const RIDE_BUTTONS = [
   { id: 'down', side: 'L', at: [1, 2], key: 'arrowdown', label: '▼' },
   { id: 'lshift', side: 'L', at: [0, 3], key: 'q', label: 'SHIFT −', act: 'flask', icon: '♥', col: '#ff4a5a', wide: 1 },
   { id: 'Y', side: 'R', at: [1, 0], key: 'i', label: 'Y', act: 'auto', icon: '⟳', col: '#5fe39a' },
-  { id: 'Z', side: 'R', at: [0, 1], key: 'j', label: 'Z', act: null }, // spare (Flex B later)
+  { id: 'Z', side: 'R', at: [0, 1], key: 'j', label: 'Z', act: 'flexB', icon: '✦', col: '#ffb070' },
   { id: 'B', side: 'R', at: [2, 1], key: 'l', label: 'B', act: 'guard', icon: '◍', col: '#8fe0ff' },
   { id: 'A', side: 'R', at: [1, 2], key: 'k', label: 'A', act: 'flexA', icon: '❄', col: '#7fd8ff' },
   { id: 'rshift', side: 'R', at: [0, 3], key: 'e', label: 'SHIFT +', act: 'evade', icon: '➶', col: '#b08aff', wide: 1 },

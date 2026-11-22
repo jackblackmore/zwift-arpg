@@ -1,6 +1,6 @@
 // One game tick: player, monsters, projectiles, ground effects, loot.
 import { G, P, S } from '../core/state.js';
-import { SLOT_ORDER } from '../data/skills.js';
+import { SLOT_ORDER } from '../data/gems.js';
 import { ctl } from '../input/input.js';
 import { dist } from '../core/util.js';
 import { pushOut } from '../world/map.js';
@@ -9,6 +9,10 @@ import { castSlot, castNova, useFlask, updProjectiles, updWard } from './skills.
 import { explode, updPatches, processQueue } from './combat.js';
 import { pickUp, updItems } from './items.js';
 import { updLevel, respawn } from './level.js';
+import { updCorpses } from './corpses.js';
+import { updPools } from './hazards.js';
+import { updAllies } from './allies.js';
+import { tickers } from './tick.js';
 import { save } from './save.js';
 import { gemsTick } from './gems.js';
 import { autopilot } from './autopilot.js';
@@ -45,7 +49,8 @@ export function update(dt) {
   separate();
   updProjectiles(dt, explode); updWard(dt);
   updEnemyProjectiles(dt);
-  updPatches(dt);
+  updPatches(dt); updCorpses(dt); updPools(dt);
+  updAllies(dt); for (const f of tickers) f(dt);
   updItems(dt);
   processQueue(dt);
   G.enemies = G.enemies.filter(e => !e.gone);

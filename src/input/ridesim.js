@@ -7,9 +7,12 @@ import { $, clamp } from '../core/util.js';
 import { audio } from '../core/audio.js';
 import { G } from '../core/state.js';
 import { initSurge } from '../game/surge.js';
+import { slotSkill } from '../game/gems.js';
+import { GEMS } from '../data/gems.js';
 
 export const ride = { on: false, pw: RIDE.startPower, cad: RIDE.startCad, ftp: RIDE.ftp, held: {}, keys: {} };
 const BY_KEY = Object.fromEntries(RIDE_BUTTONS.map(b => [b.key, b]));
+const SLOT_ACT = { flexA: 1, flexB: 1, guard: 1, evade: 1 };
 const DIR = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 
 function press(b, down) {
@@ -75,5 +78,9 @@ export function rideHud() {
   if (!ride.on) return;
   $('rpw').value = Math.round(ride.pw); $('rcd').value = Math.round(ride.cad);
   $('rpwV').textContent = Math.round(ride.pw) + ' W · ' + Math.round(ride.pw / ride.ftp * 100) + '%'; $('rcdV').textContent = Math.round(ride.cad) + ' rpm';
-  for (const b of RIDE_BUTTONS) { const el = $('rb-' + b.id); if (el) el.classList.toggle('on', b.act === 'auto' ? ctl.auto : !!ride.held[b.id]); }
+  for (const b of RIDE_BUTTONS) {
+    const el = $('rb-' + b.id); if (!el) continue;
+    el.classList.toggle('on', b.act === 'auto' ? ctl.auto : !!ride.held[b.id]);
+    const sk = slotSkill(b.act), ic = el.querySelector('.ic'); if (ic && b.act in SLOT_ACT) { ic.textContent = sk ? GEMS[sk].icon : '·'; el.style.color = sk ? GEMS[sk].color : b.col || ''; } // the pad shows the gem in its slot
+  }
 }

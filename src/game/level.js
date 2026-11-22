@@ -1,5 +1,5 @@
-// A level: one Crypt Halls built on the beat template (data/levels.js).
-// newLevel() lays out a route that snakes from the entrance to the guardian's arena, puts the beats in order along it
+// A level: one of the five Crypt levels (data/levels.js LEVELS) built on the beat template.
+// newLevel(n) lays out a route that snakes from the entrance to the guardian's arena, puts the beats in order along it
 // and normal packs on the stretches between. Each beat runs idle -> signal -> active -> done:
 //   idle    a marker (beacon, glow, light, minimap dot) shows where it is
 //   signal  the hero came close: a banner names it; then a short wind-up (telegraph ring) before anything happens
@@ -12,7 +12,7 @@ import { endWard } from './skills.js';
 import { initSurge } from './surge.js';
 import { ctl } from '../input/input.js';
 import { G, P, S, shake } from '../core/state.js';
-import { LEVEL, BEATS } from '../data/levels.js';
+import { LEVEL, LEVELS, resolveBeats } from '../data/levels.js';
 import { SK } from '../data/skills.js';
 import { rand, randi, pick, dist, clamp } from '../core/util.js';
 import { SFX } from '../core/audio.js';
@@ -21,6 +21,10 @@ import { GB, GCY, GS, GRING, glowSprite, decal } from '../render/assets.js';
 import { burst, ringFx, flashFx, telegraph, banner, toast } from '../render/fx.js';
 import { HALF, buildMap, blocked } from '../world/map.js';
 import { makePack, spawnEnemy, wake } from './enemies.js';
+import { buildHazards, clearPools } from './hazards.js';
+import { clearCorpses, endChannel } from './corpses.js';
+import { openWaypoint } from './waypoint.js';
+import { dbg } from '../core/dbg.js';
 import { dropItem } from './items.js';
 import { save } from './save.js';
 import { kill } from './combat.js';
@@ -43,7 +47,7 @@ function routeAt(pts, s) {
 
 // Decides the route, the beat sites and the clearings. Sets G.start, G.bossSpot, G.clear; returns { beats, route }.
 function layout() {
-  const R = LEVEL.route, sx = Math.random() < .5 ? 1 : -1, sz = Math.random() < .5 ? 1 : -1, lim = HALF - R.margin;
+  const lv = G.level.def, R = { ...LEVEL.route, ...lv.route }, sx = Math.random() < .5 ? 1 : -1, sz = Math.random() < .5 ? 1 : -1, lim = HALF - R.margin;
   const start = { x: -sx * (HALF - 5), z: -sz * (HALF - 5) }, guard = { x: sx * (HALF - 8), z: sz * (HALF - 8) };
   // The snake: switchbacks off the straight line, alternating sides.
   const dx = guard.x - start.x, dz = guard.z - start.z, L0 = Math.hypot(dx, dz), nx = -dz / L0, nz = dx / L0;
@@ -61,7 +65,7 @@ function layout() {
   ({ chain, total } = best); arcLen(chain);
   // Beat sites at their fraction along the route (pulled in from the walls so rings fit), merged with the bends.
   const beats = LEVEL.template.map((slot, i) => {
-    const type = pick(slot.types), D = BEATS[type], p = type === 'guardian' ? guard : routeAt(chain, total * slot.at);
+    const type = pick((lv.slots && lv.slots[slot.slot]) || slot.types), D = G.level.defs[type], p = type === 'guardian' ? guard : routeAt(chain, total * slot.at);
     const m = HALF - 1 - (D.radius || D.clear * .5 + 1);
     return { type, slot: slot.slot, idx: i, x: type === 'guardian' ? p.x : clamp(p.x, -m, m), z: type === 'guardian' ? p.z : clamp(p.z, -m, m), state: 'idle', t: 0, s0: type === 'guardian' ? total : total * slot.at, mats: [] };
   });
@@ -71,7 +75,7 @@ function layout() {
   // Clearings: the entrance, each beat site, the guardian's arena and a corridor of points along the route.
   G.start = start; G.bossSpot = { x: guard.x, z: guard.z };
   G.clear = [{ x: start.x, z: start.z, r: LEVEL.start.clear }];
-  for (const b of beats) G.clear.push({ x: b.x, z: b.z, r: BEATS[b.type].clear });
+  for (const b of beats) G.clear.push({ x: b.x, z: b.z, r: G.level.defs[b.type].clear });
   const len = route[route.length - 1].s;
   for (let s = R.spacing; s < len; s += R.spacing) { const p = routeAt(route, s); G.clear.push({ x: p.x, z: p.z, r: R.width }); }
   return { beats, route, start, len };
@@ -79,7 +83,7 @@ function layout() {
 
 // Normal packs on each stretch of the route, keeping clear of every beat site.
 function placePacks(L) {
-  const C = LEVEL.packs, sites = [{ x: L.start.x, z: L.start.z, r: LEVEL.start.clear + C.fromSite }, ...L.beats.map(b => { const D = BEATS[b.type]; return { x: b.x, z: b.z, r: Math.max(D.noPacks, D.clear + C.fromSite) }; })];
+  const C = { ...LEVEL.packs, ...G.level.def.packs }, sites = [{ x: L.start.x, z: L.start.z, r: LEVEL.start.clear + C.fromSite }, ...L.beats.map(b => { const D = G.level.defs[b.type]; return { x: b.x, z: b.z, r: Math.max(D.noPacks, D.clear + C.fromSite) }; })];
   const spots = [{ s: 0, r: sites[0].r }, ...L.beats.map((b, i) => ({ s: b.s, r: sites[i + 1].r }))];
   G.packs = [];
   LEVEL.template.forEach((slot, j) => {
@@ -97,7 +101,7 @@ function placePacks(L) {
   });
   // Top up: free spots anywhere along the route, outside the beat sites, each joining the stretch it falls in. Looser than the
   // main pass (C.top), so folded routes whose beat radii eat most of the line still reach LEVEL.packs.min.
-  const end = spots[spots.length - 1].s, T2 = C.top, tsites = [{ x: L.start.x, z: L.start.z, r: LEVEL.start.clear + T2.fromSite }, ...L.beats.map(b => { const D = BEATS[b.type]; return { x: b.x, z: b.z, r: Math.max(D.noPacks, D.clear + T2.fromSite) }; })];
+  const end = spots[spots.length - 1].s, T2 = C.top, tsites = [{ x: L.start.x, z: L.start.z, r: LEVEL.start.clear + T2.fromSite }, ...L.beats.map(b => { const D = G.level.defs[b.type]; return { x: b.x, z: b.z, r: Math.max(D.noPacks, D.clear + T2.fromSite) }; })];
   for (let tries = 0; tries < 1500 && G.packs.length < C.min; tries++) {
     const wide = tries > 300, s = rand(spots[0].r, end - spots[spots.length - 1].r), p = routeAt(L.route, s), lat = wide ? T2.lateral : C.lateral, off = rand(-lat, lat), x = p.x - p.dz * off, z = p.z + p.dx * off;
     if (blocked(x, z, 1.5) || tsites.some(c => dist(x, z, c.x, c.z) < c.r) || G.packs.some(q => dist(q.x, q.z, x, z) < (wide ? T2.gap : C.gap))) continue;
@@ -111,27 +115,43 @@ function placePacks(L) {
 // ---------------------------------------------------------------- level lifecycle
 
 function teardown() {
-  for (const e of G.enemies) { scene.remove(e.model.g); e.model.mats.forEach(m => m.dispose()); }
+  for (const e of G.enemies) { endChannel(e); scene.remove(e.model.g); e.model.mats.forEach(m => m.dispose()); }
   G.enemies = [];
   [...G.proj, ...G.eproj, ...G.patches, ...G.ground].forEach(o => scene.remove(o.g));
   G.proj = []; G.eproj = []; G.patches = []; G.ground = [];
   G.effects.forEach(f => scene.remove(f.mesh)); G.effects = []; G.queue = []; G.floats = [];
   if (G.portal) { scene.remove(G.portal.g); G.portal = null; }
   if (G.level) for (const b of G.level.beats) { dropWall(b); dropMarker(b); }
+  // Things other systems put in the world: allies (minions, totems), corpses and their bone piles, shrines, poison pools.
+  for (const a of G.allies) { if (a.model && a.model.g) scene.remove(a.model.g); if (a.g) scene.remove(a.g); }
+  G.allies = []; clearCorpses();
+  for (const s of G.shrines) if (s.g) scene.remove(s.g);
+  G.shrines = []; clearPools();
 }
 
-// Builds a fresh Crypt Halls (a new layout, route, packs and random slot picks every time). clears: levels cleared so far.
-export function newLevel(clears = G.level ? G.level.clears : 0) {
+// Hooks for the other systems: start listeners run at the end of newLevel (after the map, packs and markers exist; shrines go here), clear
+// listeners run when the guardian dies (after the portal opens; the guardian's gem drop goes here). Both get G.level.
+export const levelHooks = { start: [], clear: [], beat: [] }; // beat listeners get the finished beat (gem drops)
+Object.assign(dbg, { levelHooks });
+
+// Builds Crypt n (1..5) from LEVELS[n - 1]: a new layout, route, packs and random slot picks every time. n of 0, undefined or out of range
+// rebuilds the current Crypt (Crypt 1 if there is none yet), which is what the old newLevel() / newLevel(0) callers (tests, debug) expect.
+export function newLevel(n) {
+  n = n >= 1 && n <= LEVELS.length ? Math.floor(n) : (G.crypt || 1);
   teardown();
+  const lv = LEVELS[n - 1];
+  G.crypt = n; G.depth = n; G.mapKills = 0;
+  G.level = { def: lv, defs: resolveBeats(lv), crypt: n, name: lv.name, beats: [] }; // provisional: layout and packs read the level's definition
   const L = layout();
-  G.level = { name: LEVEL.name, beats: L.beats, i: 0, cleared: false, clears, route: L.route, cp: { x: L.start.x, z: L.start.z }, len: L.len };
-  G.depth = LEVEL.depth; G.mapKills = 0;
+  Object.assign(G.level, { beats: L.beats, i: 0, cleared: false, clears: P.clears || 0, route: L.route, cp: { x: L.start.x, z: L.start.z }, len: L.len });
   buildMap();
   placePacks(L);
   for (const b of L.beats) buildMarker(b);
+  buildHazards(s => routeAt(L.route, s), L.len);
   P.x = G.start.x; P.z = G.start.z; P.dead = 0; P.life = S.maxLife; P.flask = SK.flask.max; P.invuln = 1;
   for (const k in P.cd) P.cd[k] = 0; endWard(); initSurge(ctl.effort ? ctl.effort.ftp : undefined); // fresh cooldowns, ward and Surge each visit
-  banner(LEVEL.name.toUpperCase(), '#c8a25a', clears ? `${clears} cleared · follow the route, beats lie ahead` : 'Follow the route · beats lie ahead');
+  banner(lv.name.toUpperCase(), '#c8a25a', `Crypt ${n} · par level ${lv.par} · follow the route, beats lie ahead`);
+  levelHooks.start.forEach(f => f(G.level));
   return G.level;
 }
 
@@ -183,13 +203,13 @@ export function updLevel(dt) {
   if (L.grace > 0) L.grace -= dt;
   if (P.dead <= 0) {
     const b = L.beats[L.i]; if (b) updBeat(b, dt);
-    if (G.portal && dist(P.x, P.z, G.portal.x, G.portal.z) < 1.3) { const c = L.clears + 1; save(c); newLevel(c); return; }
+    if (G.portal && dist(P.x, P.z, G.portal.x, G.portal.z) < 1.3) { save(); openWaypoint(); return; } // the portal leads to the waypoint (pick the next Crypt)
   }
   for (const b of L.beats) visuals(b, dt);
 }
 
 function updBeat(b, dt) {
-  const D = BEATS[b.type], d = dist(P.x, P.z, b.x, b.z);
+  const D = G.level.defs[b.type], d = dist(P.x, P.z, b.x, b.z);
   if (b.state === 'idle') { if (d < D.signal && !(G.level.grace > 0)) enterSignal(b, D); }
   else if (b.state === 'signal') {
     if (b.t > 0) { b.t -= dt; if (b.t <= 0) activate(b, D); }
@@ -214,23 +234,26 @@ function finish(b, D) {
   const lt = D.loot; if (lt) for (let k = 0; k < lt.n; k++) dropItem(b.x + rand(-1, 1), b.z + rand(-1, 1), k === 0 && lt.first ? lt.first : lt.boost);
   banner(D.done[0], css(D.color), D.done[1]); flashFx(b.x, 1.5, b.z, D.color, 8, .8);
   dropWall(b); markDone(b);
+  levelHooks.beat.forEach(f => f(b));
 }
 
 // Called from combat.kill(). The guardian's death clears the level.
 export function onKill(e) {
   if (!e.guardian || !e.beat || e.beat.state === 'done') return;
-  const L = G.level; finish(e.beat, BEATS.guardian);
+  const L = G.level; finish(e.beat, G.level.defs.guardian);
   L.cleared = true; makePortal(e.beat.x - 2, e.beat.z + 2); shake(1);
+  P.waypoint = Math.max(P.waypoint || 0, L.crypt); P.clears = (P.clears || 0) + 1; save(); // the furthest cleared Crypt is the waypoint
+  levelHooks.clear.forEach(f => f(L));
 }
 
 // Takes a beat back to idle: its monsters despawn, walls drop, the marker resets.
 function resetBeat(b) {
-  for (const e of G.enemies) if (e.beat === b) { scene.remove(e.model.g); e.model.mats.forEach(m => m.dispose()); e.gone = true; }
+  for (const e of G.enemies) if (e.beat === b) { endChannel(e); scene.remove(e.model.g); e.model.mats.forEach(m => m.dispose()); e.gone = true; }
   G.enemies = G.enemies.filter(e => !e.gone);
   dropWall(b);
   b.state = 'idle'; b.t = 0; b.timer = 0; b.wave = 0; b.guard = null; b.locked = false; b.open = 0;
   if (b.lid) b.lid.rotation.x = 0;
-  if (b.vis) { b.vis.beam.visible = b.vis.glow.visible = b.vis.pad.visible = true; if (b.vis.ring) b.vis.ring.material.color.setHex(BEATS[b.type].color); }
+  if (b.vis) { b.vis.beam.visible = b.vis.glow.visible = b.vis.pad.visible = true; if (b.vis.ring) b.vis.ring.material.color.setHex(G.level.defs[b.type].color); }
 }
 
 // ---------------------------------------------------------------- what each beat does when it goes active
@@ -243,7 +266,7 @@ function spawnAt(b, type, x, z, rar = 0) {
   let px = x, pz = z;
   for (let k = 0; k < 14 && blocked(px, pz, .5); k++) { px = x + rand(-2, 2); pz = z + rand(-2, 2); }
   const e = spawnEnemy(type, px, pz, null, rar); e.awake = true; e.beat = b;
-  burst(px, .4, pz, BEATS[b.type].color, 10, 3); return e;
+  burst(px, .4, pz, G.level.defs[b.type].color, 10, 3); return e;
 }
 // A group of [type, count] pairs scattered within `rad` of (cx, cz).
 function spawnGroup(b, list, cx, cz, rad, rar = 0) {
@@ -252,7 +275,7 @@ function spawnGroup(b, list, cx, cz, rad, rar = 0) {
 const announceRares = rares => banner(rares.map(e => e.name).join(' & '), '#ffd23f', rares.map(e => e.aff.map(a => a[0].toUpperCase() + a.slice(1)).join(' · ')).join('  |  '));
 
 function eliteStart(b, D) {
-  const n = D.rares.length, rares = D.rares.map((types, k) => spawnAt(b, pick(types), b.x + (n > 1 ? (k ? 2.5 : -2.5) : 0), b.z, 2));
+  const n = D.rares.length, rares = D.rares.map((types, k) => spawnAt(b, pick(types), b.x + (k - (n - 1) / 2) * 5, b.z, 2));
   spawnGroup(b, D.minions, b.x, b.z, D.minionRadius); announceRares(rares); SFX.roar();
 }
 
@@ -299,7 +322,7 @@ const H = {
   },
   guardian: {
     start(b) {
-      const e = spawnEnemy('guardian', b.x, b.z, null, 0); e.beat = b; e.abilT = 3; e.rot = 0; b.guard = e; wake(e);
+      const e = spawnEnemy(G.level.def.guardian, b.x, b.z, null, 0); e.beat = b; e.abilT = 3; e.rot = 0; b.guard = e; wake(e);
       shake(.5); flashFx(b.x, 1.5, b.z, 0xff2bd6, 9, .8);
     },
     upd: () => false, // its death (combat.kill -> onKill) finishes the beat
@@ -333,7 +356,7 @@ function mat(b, color, emissive = 0) { const m = new T.MeshLambertMaterial({ col
 function basic(b, o) { const m = new T.MeshBasicMaterial({ transparent: true, depthWrite: false, ...o }); b.mats.push(m); return m; }
 
 function buildMarker(b) {
-  const D = BEATS[b.type], g = new T.Group(); g.position.set(b.x, 0, b.z);
+  const D = G.level.defs[b.type], g = new T.Group(); g.position.set(b.x, 0, b.z);
   const box = (w, h, d, m, x, y, z, parent = g) => { const o = new T.Mesh(GB, m); o.scale.set(w, h, d); o.position.set(x, y, z); o.castShadow = true; parent.add(o); return o; };
   const cyl = (rx, h, m, x, y, z) => { const o = new T.Mesh(GCY, m); o.scale.set(rx, h, rx); o.position.set(x, y, z); o.castShadow = true; g.add(o); return o; };
   // beacon: a beam of light, a glow and a pad on the floor
@@ -399,7 +422,7 @@ function dropWall(b) {
 
 // Per-frame pulses: the beacons breathe, the next beat is brighter, the ambush wall rises, the survival ring warns.
 function visuals(b, dt) {
-  const D = BEATS[b.type], V = b.vis, L = G.level, next = L.beats[L.i] === b;
+  const D = G.level.defs[b.type], V = b.vis, L = G.level, next = L.beats[L.i] === b;
   if (V && b.state !== 'done') {
     const k = 1 + Math.sin(G.gt * 3 + b.idx) * .12;
     V.glow.scale.set(1.8 * k, 1.8 * k, 1); V.beam.material.opacity = (next ? .42 : .16) + Math.sin(G.gt * 2.4 + b.idx) * .06;
@@ -417,5 +440,5 @@ export function levelLight() {
   if (G.portal) return { x: G.portal.x, y: 2, z: G.portal.z, col: 0xb06bff, i: 2 };
   const g = G.enemies.find(e => e.guardian && !e.deathT && e.awake); if (g) return { x: g.x, y: 4, z: g.z, col: 0xff3ad0, i: 1.2 };
   const b = L.beats[L.i]; if (!b) return null;
-  return { x: b.x, y: 2.6, z: b.z, col: BEATS[b.type].color, i: b.state === 'done' ? 0 : .9 };
+  return { x: b.x, y: 2.6, z: b.z, col: G.level.defs[b.type].color, i: b.state === 'done' ? 0 : .9 };
 }

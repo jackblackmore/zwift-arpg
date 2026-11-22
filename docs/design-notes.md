@@ -43,13 +43,63 @@ Deviations from the design, and why:
 - Should the guardian preview the region's Trial workout?
 - How should the ambush and survival beats feel in RIDE mode? They ask for a surge.
 
-**Known issue: damage is far too high (balance pass deferred)**
-- Playtest: by gem level 5 everything dies in one shot and the guardian dies in seconds.
-- Why:
-  - Monster HP is still the old tier-1 numbers. A zombie has 16 HP, and a level 1 Fireball already does about 17 across its whole explosion.
-  - The guardian has 400 HP against about 65 DPS from a level 5 Fireball, before pierce and burning ground.
-  - With map tiers gone (depth fixed at 1), monsters never scale while gems, gear and passives all grow.
-- Likely fix: tune monster HP against gem base damage (a lv1 gem should need 2–3 hits on a normal monster), and bring back scaling through Crypt levels 1–5 with par character levels. Tuning lives in `src/data/monsters.js`, `src/data/gems.js` and `src/data/levels.js`.
+**Known issue: damage balance (first pass in Slice 2, full pass still deferred)**
+- Playtest of Slice 1: by gem level 5 everything died in one shot and the guardian in seconds, because monster HP was the old tier-1 numbers and nothing scaled.
+- Slice 2 retuned monster HP against gem base damage and brought back scaling through Crypt levels 1–5 (see "Slice 2: built"). Measured: a level 1 Fireball hit (about 17.7 with the starting staff) takes 2.85 hits on a Crypt 1 zombie (40 HP), inside the 2–3 target. Ossric has 1200 HP.
+- Still open: gem growth (×3 over a tier) against monster growth (×1.35 HP per Crypt level, so ×3.3 at Crypt 5), the new skills' numbers (Frost Lance, minions, totems, Meteor, Corpse Explosion), support values, keystone costs and the passive tree's numbers. None of these have been played. The headless autopilot (life topped up) clears Crypt 1 in 2.2–3.5 simulated minutes, so the level is still far shorter than the 30-minute design.
+- Tuning lives in `src/data/monsters.js` (base HP/damage), `src/data/levels.js` (per-level `scale`), `src/data/gems.js` and `src/data/skills.js` (skills), `src/data/supports.js` (supports, gem drops) and `src/data/tree.js` (tree and keystones).
+
+## Slice 2: built
+
+What the second slice adds: the Crypt's five levels, the skill bar and gem model, support gems and the passive tree. Balance is a first pass only.
+
+- **Crypt levels 1–5,** each on the Slice 1 beat rhythm but reskinned (monsters, hazards, beat titles) and harder than the last:
+  1. Crypt Halls (par level 1): open rooms, zombies and runners only. Guardian: Ossric, the Hollow Knight.
+  2. Ossuary (par 4): a narrow, continuous corridor through dense bone and pillar clutter; archers arrive. Guardian: Vael, a bone archer captain who volleys.
+  3. Flooded Tombs (par 7): bloaters and poison pools (ambient, and left by bursting bloaters). Guardian: the Drowned Warden, who drops pools.
+  4. Bone Gardens (par 10): necromancers channel a 1.8 s revive on nearby corpses (rings and beams show it); killing one mid-channel cancels it, and Main auto-targets them like elites. Guardian: Maldrec, a necromancer lord who raises the dead.
+  5. Throne Approach (par 12): more magic and rare packs, double elites favoured. Guardian: Varrek, the Ashen King's Lieutenant.
+  - Scaling per level: monster HP ×1.35, damage ×1.17, XP ×1.35 (in `src/data/levels.js`). Kills leave corpses (bone piles for 10 s) for the necromancer and Corpse Explosion.
+- **Waypoint.** Saved at the furthest Crypt cleared; the waypoint screen offers every level up to one past it. A fresh character goes straight into Crypt 1; Continue opens the waypoint. The guardian's portal leads back to it. LEAVE LEVEL (menu) keeps XP, gear, items and gem AP; only that level's clear is lost. Clearing Crypt 5 shows "The Trial awaits" (the Trial itself isn't built).
+- **Gem bag and skill bar.** All owned gems live in an unlimited, saved gem bag (duplicates allowed). Five slots unlock by character level: Main L1, Evade L1, Flex A L5, Guard L8, Flex B L12, with sockets per the skill bar table. Free swaps any time in the GEMS editor (G, or tap an empty slot): tap a gem, then a slot or socket; invalid targets say why. A skill can sit on the bar only once. Flex B is R on the keyboard and Z on the Zwift Ride.
+- **Shrines.** Four, once per character, at the entrance of the next level once their level is reached: Ride 1 (Fireball, Frost Lance or Raise Skeletons, plus Blink), L5 Flex A (Flame Totem, Frost Nova, Arc), L8 Guard (Ward, Bone Armour, Decoy), L12 Flex B (Meteor, Ice Trap, Corpse Explosion). Flex shrine gems start at Main gem level − 2. A fresh character has no gems until the first shrine.
+- **New skills** (each changes how you play, not just the element):
+  - Frost Lance: a slow, long-range lance that picks the toughest target, pierces and chills (Frost Sniper).
+  - Raise Skeletons: up to 3 (5 at lv10) skeleton warriors that hunt monsters and draw their attacks; in Main they keep refilling the army (Necromancer).
+  - Flame Totem: a breakable totem that keeps firing bolts while you kite.
+  - Arc: chain lightning (the button version of Heart of the Storm's effect).
+  - Meteor: a telegraphed, delayed big hit on the densest group; enemies can walk out.
+  - Ice Trap: up to 3 traps that burst and freeze when stepped on.
+  - Corpse Explosion: detonates corpses; fails (no cooldown) with none near.
+  - Bone Armour: plates that each stop one whole hit and thorn the attacker (Ward absorbs a pool instead).
+  - Decoy: a dummy that taunts monsters within 9 units for 6 s.
+  - Main auto-fires a skill at its `rate`; the same skill on a button waits its `cd` (Arc: 0.7 s in Main, 3 s on a button).
+- **Support gems** modify only the skill they're socketed with and level with AP: Split (fires three, each a bit weaker), Pierce, Shatter (enemies frozen by this skill explode on death), Conduit (this skill's lightning always shocks and the shock spreads), Ignite, Chain Reaction, and Swift Cast (shorter cooldown). The old notables became these supports.
+- **Gem drops.** Guardians drop one guaranteed gem from the Crypt pool (supports weighted 4:1 over skills); finished beats (10%) and elites (6%) sometimes drop one. Gem level = Crypt number. Duplicates go to the bag.
+- **Passive tree** (68 nodes) replaces the pick-1-of-3: a core of life, regen, cooldown, area, movement and Surge capacity, with fire, cold and lightning regions. One point per level. Refund any node that doesn't cut others off, or reset the whole tree, both free. Total movement speed is capped at +50%. Keystones:
+  - Blood Rite: no cooldowns on Flex, Guard and Evade; each cast costs 8% max life per 6 s of its cooldown (refused if it would kill).
+  - Glass Cannon: the Guard slot takes attack gems; 40% more damage, 40% less life.
+  - Fortress: Flex B takes guard gems; 10% less damage taken, 20% less damage dealt.
+  - Deep Reserves: the Surge gauge holds 50% more; cooldowns 15% slower.
+- **Old saves** migrate: Slice 1 gems keep their levels (into slots the character has unlocked, else the bag); the Ride 1 shrine counts as taken; notables become support gems; every passive point is refunded into the tree with a one-time toast.
+
+Deviations from the design, and why:
+- Every new skill uses the same Tier I cap and placeholder milestones; numbers are untuned.
+- Shrines appear one at a time. If two are pending, the second appears as soon as the first is taken, at the same entrance.
+- Bloaters and necromancers leave no corpse. Monsters a necromancer raised give no XP and no corpse, so a revive loop can't be farmed.
+- Bone Armour doesn't block damage-over-time sources (poison pools, burning auras, bloater blasts), which bypass the shield code.
+- Swift Cast is an extra support beyond the six notables, added because it was cheap and clearly different.
+- Guardian bosses always fight the hero, never minions or decoys, so a Decoy can't trivialise a guardian.
+- The fourth keystone is Deep Reserves (Surge capacity for slower cooldowns) rather than Legion or Summoner's Pact: those need minion stats the tree doesn't have yet.
+- The autopilot doesn't avoid poison pools or prioritise necromancers.
+
+**Questions for next session**
+- Is Main gem level − 2 the right head start for Flex shrine gems, or should Flex gems catch up faster (they earn the same AP)?
+- Should Raise Skeletons in Main count as "attacking" for RIDE attack speed? Today power speeds up how fast the army refills.
+- Blood Rite with no cooldowns lets a Guard skill be spammed while life lasts. Is a life cost enough, or should it keep a short floor (e.g. 1 s)?
+- Should guardians ever attack minions and decoys (a reason to bring them), or always the hero (today)?
+- The gem pool is weighted 4:1 toward supports. Is that right, given four shrines already hand out skills?
+- Shrines are one-time and can't be retaken; a duplicate skill can still drop. Should the waypoint let you revisit a past shrine's other choices?
 
 ---
 

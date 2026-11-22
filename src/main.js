@@ -22,39 +22,38 @@ import { initSurge } from './game/surge.js';
 import { SK } from './data/skills.js';
 import { recalc } from './game/stats.js';
 import { newLevel, levelGoal, currentBeat, startBeat } from './game/level.js';
-import { LEVEL } from './data/levels.js';
 import { save, load } from './game/save.js';
+import { initCharacter } from './game/character.js';
+import { startRun } from './game/waypoint.js';
+import { dbg } from './core/dbg.js';
 import { kill, hit, hurtP } from './game/combat.js';
 import { castSlot, castFireball, castNova, castWard, castBlink, mainTarget, mainRange, endWard } from './game/skills.js';
 import { spawnEnemy } from './game/enemies.js';
 import { blocked, los } from './world/map.js';
-import { dropItem, cleanItem } from './game/items.js';
-import { PASS } from './data/passives.js';
-import { BAR } from './data/skills.js';
-import { initGems, gainAP, gemBase, gemHas } from './game/gems.js';
+import { dropItem } from './game/items.js';
+import { SLOT_ORDER } from './data/gems.js';
+import { gainAP, gemBase, gemHas } from './game/gems.js';
 import { hud } from './ui/hud.js';
+import './ui/waypoint.js';
+// Feature modules that register skills, ticks, hooks and panels when loaded.
+import './game/minions.js';
+import './game/spells.js';
+import './game/supports.js';
+import './game/shrines.js';
+import './game/tree.js';
+import './ui/shrine.js';
+import './ui/tree.js';
+import { initGemBag, toggleGems } from './ui/gembag.js';
 import { initPanels, syncPause, openInv, openPass, toggleInv, togglePass, closeAll, equip } from './ui/panels.js';
 
-// Fresh skill state: default bar, no cooldowns, no ward.
-function resetSkills() { endWard(); P.bar = { ...BAR }; P.cd = { main: 0, flexA: 0, guard: 0, evade: 0 }; }
-// Old saves: drop retired passives and mods (mana, Flame Dash charges, Arc chains, Blood Magic ...).
-function cleanSave(sv) {
-  for (const k of Object.keys(sv.passives || {})) if (!PASS[k]) delete sv.passives[k];
-  Object.values(sv.gear || {}).forEach(cleanItem); (sv.inv || []).forEach(cleanItem);
-  return sv;
-}
+// Fresh skill state: no cooldowns, no ward (the gems and bar come from initCharacter).
+function resetSkills() { endWard(); P.cd = Object.fromEntries(SLOT_ORDER.map(k => [k, 0])); }
 
+// Start (fresh) or continue a character: restore it (game/character.js), then enter the world (game/waypoint.js).
 function begin(fresh) {
-  audio(); resetSkills(); initSurge(ride.ftp); P.gems = initGems(null);
-  const sv = load(); if (sv) cleanSave(sv);
-  if (fresh || !sv) {
-    Object.assign(P, { lvl: 1, xp: 0, gear: {}, inv: [], passives: {}, pts: 0, offer: null, newItems: 0, kills: 0 });
-    P.gear.weapon = { id: G.itemId++, slot: 'weapon', rar: 1, base: 'Ashwood Staff', name: 'Smouldering Ashwood Staff', il: 1, impl: 1, mods: [['spell', 5], ['fire', .12]] };
-    recalc(); newLevel(0); save();
-  } else {
-    Object.assign(P, { lvl: sv.lvl, xp: sv.xp, gear: sv.gear || {}, inv: sv.inv || [], passives: sv.passives || {}, pts: sv.pts || 0, offer: null });
-    P.gems = initGems(sv.gems); G.itemId = sv.itemId || 100; recalc(); newLevel(sv.clears ?? Math.max(0, (sv.tier || 1) - 1));
-  }
+  audio(); resetSkills(); initSurge(ride.ftp);
+  const sv = fresh ? null : load();
+  initCharacter(sv); recalc(); startRun(sv);
   G.started = true; $('mMenu').classList.remove('show'); syncPause();
 }
 
@@ -88,8 +87,8 @@ $('bFx').onclick = () => { $('bFx').textContent = 'FX: ' + cycleQuality().toUppe
 $('bLook').textContent = 'LOOK: ' + STYLES[Q.style].name.toUpperCase();
 $('bLook').onclick = () => { $('bLook').textContent = 'LOOK: ' + cycleStyle().toUpperCase(); };
 recalc(); resize(); buildMap(); P.x = G.start.x; P.z = G.start.z; cam.position.set(P.x + CAM.x, CAM.y, P.z + CAM.z);
-initPanels();
-initDevices({ toggleInv, togglePass, closeAll });
+initPanels(); initGemBag();
+initDevices({ toggleInv, togglePass, toggleGems, closeAll });
 initRide(); setRide(storedRide());
 const modeLabel = () => { $('bMode').textContent = ride.on ? 'MODE: RIDE' : 'MODE: KEYS'; $('bMode').classList.toggle('glow', ride.on); };
 modeLabel(); $('bMode').onclick = () => { setRide(!ride.on); modeLabel(); };
@@ -97,11 +96,11 @@ $('bMute').onclick = () => { audio(); $('bMute').style.opacity = toggleMute() ? 
 $('bMenu').onclick = () => { $('mMenu').classList.add('show'); $('goCont').style.display = ''; $('goCont').textContent = 'RESUME'; syncPause(); };
 $('goNew').onclick = () => begin(true);
 $('goCont').onclick = () => { if (G.started && $('goCont').textContent === 'RESUME') { $('mMenu').classList.remove('show'); syncPause(); } else begin(false); };
-const sv = load(); if (sv) { $('goCont').style.display = ''; $('goCont').dataset.label = `CONTINUE · LV ${sv.lvl} · ${LEVEL.name.toUpperCase()} · ${sv.clears ?? Math.max(0, (sv.tier || 1) - 1)} CLEARED`; if (!$('goCont').disabled) $('goCont').textContent = $('goCont').dataset.label; }
+const sv = load(); if (sv) { $('goCont').style.display = ''; $('goCont').dataset.label = `CONTINUE · LV ${sv.lvl} · ${sv.waypoint ? 'CRYPT ' + sv.waypoint + ' REACHED' : 'NO CRYPT CLEARED'}`; if (!$('goCont').disabled) $('goCont').textContent = $('goCont').dataset.label; }
 
 let last = performance.now();
 function frame(now) {
-  const dt = Math.min(.05, (now - last) / 1000); last = now;
+  const dt = Math.max(0, Math.min(.05, (now - last) / 1000)); last = now; // never negative: the first rAF timestamp can predate script start
   pollInput(dt);
   if (!G.paused) { if (G.hitStop > 0) G.hitStop -= dt; else update(dt); }
   updFx(G.paused ? 0 : dt); draw(dt); hud(dt);
@@ -110,11 +109,11 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // Testing hooks (used by tests/sim.mjs and handy in the console).
-window.__dbg = {
+window.__dbg = Object.assign(dbg, {
   G, P, S, SK, ctl, Q, chars, ride, setRide, effortMods, pollRide, autopilotRanges, surge: () => P.surge,
   ready: () => (chars.ready || chars.failed) && G.loaded, cycleQuality, cycleStyle,
   start: fresh => begin(fresh !== false), hurt: d => hurtP(d), hud: () => { hud(.1); hud(.1); },
   sim: n => { for (let i = 0; i < n; i++) { update(.033); updFx(.033); } },
   enemies: () => G.enemies, packs: () => G.packs, items: () => G.ground,
   newLevel, level: () => G.level, levelGoal, beat: currentBeat, startBeat, hit, kill, save, dropItem, spawnEnemy, blocked, los, recalc, hurtP, castSlot, castFireball, castNova, castWard, castBlink, mainTarget, mainRange, gainAP, gems: () => P.gems, gemBase, gemHas, openInv, openPass, equip,
-};
+});
