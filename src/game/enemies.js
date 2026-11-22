@@ -1,7 +1,7 @@
 // Monster packs, spawning, AI (melee, ranged, bomber, boss) and crowd separation.
 import * as T from 'three';
 import { G, P, shake, stop } from '../core/state.js';
-import { MT, TIER, PACKS, PACK, RAREAFF, RN1, RN2, BOSS } from '../data/monsters.js';
+import { MT, TIER, PACKS, PACK, RAREAFF, RN1, RN2, BOSS, RISE, ANIM } from '../data/monsters.js';
 import { rand, pick, dist, $ } from '../core/util.js';
 import { SFX } from '../core/audio.js';
 import { scene } from '../render/scene.js';
@@ -61,10 +61,16 @@ export function materialize() {
   }
 }
 
+// Rigged skeletons get up when woken: they play their rise clip and don't act until it's done.
+function rouse(o) {
+  if (o.awake) return; o.awake = true;
+  const R = o.model.rigged && o.look && RISE[o.look.rise], clip = R && chars.clips[R.clip];
+  if (clip && !o.deathT) { o.rise = clip.duration / R.speed * .85; o.riseAnim = R; }
+}
 export function wake(e) {
   if (e.awake) return;
-  if (e.pack) { if (!e.pack.awake) { e.pack.awake = true; if (e.pack.rare) SFX.roar(); } e.pack.list.forEach(o => o.awake = true); }
-  e.awake = true;
+  if (e.pack) { if (!e.pack.awake) { e.pack.awake = true; if (e.pack.rare) SFX.roar(); } e.pack.list.forEach(rouse); }
+  rouse(e);
   if (e.type === 'boss') { banner('THE PALE WARDEN', '#ff4fd8', 'Dodge the slams · it summons at range'); SFX.roar(); $('bossbar').style.display = 'block'; }
 }
 
@@ -112,7 +118,7 @@ export function updEnemy(e, dt) {
   const M = e.model;
   if (e.deathT && M.rigged) {
     // Play a death clip, leave the body a moment, then sink it into the floor.
-    if (!e.deathAnim) { e.deathAnim = 1; M.play(pick(['Death_A', 'Death_B']), { once: true, fade: .08, speed: 1.3 }); }
+    if (!e.deathAnim) { e.deathAnim = 1; M.play(pick(ANIM.deaths), { once: true, fade: .08, speed: 1.3 }); }
     e.deathT += dt; if (e.freeze <= 0) M.mixer.update(dt);
     if (e.deathT > 2.2) M.g.position.y = -(e.deathT - 2.2) * 1.2;
     if (e.deathT > 3) { scene.remove(M.g); M.mats.forEach(m => m.dispose()); e.gone = true; }
@@ -148,6 +154,7 @@ export function updEnemy(e, dt) {
   }
   if (Math.abs(e.vx) + Math.abs(e.vz) > .01) { e.x += e.vx * dt; e.z += e.vz * dt; const f = Math.exp(-8 * dt); e.vx *= f; e.vz *= f; }
   if (!e.awake || frozen || P.dead > 0) { pushOut(e); return animE(e, dt); }
+  if (e.rise > 0) { e.rise -= dt; e.face = Math.atan2(P.x - e.x, P.z - e.z); pushOut(e); return animE(e, dt); }
   const spd = e.spd * (e.chill > 0 ? .5 : 1), cdm = e.chill > 0 ? 1.6 : 1;
   if (e.fireAura && d < 2.75) { e.auraT = (e.auraT || 0) - dt; if (e.auraT <= 0) { e.auraT = .5; hurtP(3 * (1 + TIER.dmg * (G.tier - 1))); } }
   if (e.ai === 'boss' && bossAI(e, dt)) { pushOut(e); return animE(e, dt); }
@@ -155,13 +162,13 @@ export function updEnemy(e, dt) {
     if (e.windup > 0) {
       e.windup -= dt; e.face = Math.atan2(P.x - e.x, P.z - e.z);
       if (e.windup <= 0) { e.swing = 1; if (d < e.range + e.r + P.r + .45) { hurtP(e.dmg); if (e.type === 'boss') { shake(.3); SFX.slam(); } } e.atkT = e.cd * cdm; }
-    } else if (d < e.range + e.r + P.r) { e.face = Math.atan2(P.x - e.x, P.z - e.z); e.atkT -= dt; if (e.atkT <= 0) e.windup = e.type === 'boss' ? .55 : .32; }
+    } else if (d < e.range + e.r + P.r) { e.face = Math.atan2(P.x - e.x, P.z - e.z); e.atkT -= dt; if (e.atkT <= 0) { e.windup = e.type === 'boss' ? .55 : .32; e.atkSeq = (e.atkSeq || 0) + 1; } }
     else moveE(e, P.x, P.z, spd, dt);
   } else if (e.ai === 'ranged') {
     if (e.windup > 0) { e.windup -= dt; e.face = Math.atan2(P.x - e.x, P.z - e.z); if (e.windup <= 0) { e.swing = 1; eShoot(e, e.face + rand(-.05, .05), 11, e.dmg, 'arrow'); e.shootT = e.cd * cdm * rand(.85, 1.2); } }
     else if (d < 4.5) { const [dx, dz] = steer(e, e.x - (P.x - e.x), e.z - (P.z - e.z)); e.x += dx * spd * dt; e.z += dz * spd * dt; e.walk += dt * spd * 2.6; e.moving = true; e.face = Math.atan2(P.x - e.x, P.z - e.z); }
     else if (d > 9 || !los(e.x, e.z, P.x, P.z)) moveE(e, P.x, P.z, spd, dt);
-    else { e.face = Math.atan2(P.x - e.x, P.z - e.z); e.shootT -= dt; if (e.shootT <= 0) e.windup = .45; }
+    else { e.face = Math.atan2(P.x - e.x, P.z - e.z); e.shootT -= dt; if (e.shootT <= 0) { e.windup = .45; e.atkSeq = (e.atkSeq || 0) + 1; } }
   } else if (e.ai === 'bomb') {
     if (e.fuse > 0) { e.fuse -= dt; if (e.fuse <= 0) kill(e); }
     else if (d < 1.9) { e.fuse = .85; telegraph(e.x, e.z, 2.2, .85, 0x9ad060); }
@@ -214,17 +221,25 @@ function animE(e, dt) {
   M.g.position.y = e.moving ? Math.abs(Math.cos(e.walk)) * .06 : 0;
 }
 
-// Clip choice for KayKit characters. `lock` keeps a one-shot clip (attack, cast) playing to the end.
-const ATTACK = { zombie: ['1H_Melee_Attack_Chop', 1.7], runner: ['1H_Melee_Attack_Chop', 2.2], archer: ['2H_Ranged_Shoot', 1.3], boss: ['2H_Melee_Attack_Chop', 1.1] };
-const BOSSCAST = { slam: ['2H_Melee_Attack_Spin', 1], nova: ['Spellcast_Shoot', 1], summon: ['Spellcast_Raise', 1] };
+// Clip choice for KayKit characters (clip names live in data/monsters.js). `lock` keeps a one-shot clip
+// (rise, attack, cast, flinch) playing to the end.
 function animRig(e, M, dt) {
   e.lock = (e.lock || 0) - dt;
-  const once = ([n, sp]) => { const d = M.play(n, { once: true, speed: sp, fade: .1 }); e.lock = d / sp * .85; };
-  if (e.cast && e.castAnim !== e.cast) { e.castAnim = e.cast; once(BOSSCAST[e.cast.kind]); }
-  else if (e.windup > 0 && e.lock <= 0 && ATTACK[e.type]) once(ATTACK[e.type]);
+  const L = e.look;
+  const once = ([n, sp], fade = .1) => { const d = M.play(n, { once: true, speed: sp, fade }); e.lock = d / sp * .85; };
+  const big = e.lastHit >= e.maxHp * ANIM.minHit; e.lastHit = 0;
+  if (!e.awake) {
+    // Poses are single-frame clips: play them once and hold (looping a zero-length clip breaks the mixer).
+    const R = RISE[L.rise], pose = R && R.pose && chars.clips[R.pose];
+    if (pose) { if (M.cur !== R.pose) M.play(R.pose, { once: true, fade: 0 }); } else M.play(L.idle || 'Idle');
+  }
+  else if (e.riseAnim) { const R = e.riseAnim; e.riseAnim = null; once([R.clip, R.speed], .05); }
+  else if (e.cast && e.castAnim !== e.cast) { e.castAnim = e.cast; once(ANIM.bossCast[e.cast.kind]); }
+  else if (e.windup > 0 && e.swingAnim !== e.atkSeq && L.attacks) { e.swingAnim = e.atkSeq; once(pick(L.attacks)); }
+  else if (big && e.lock <= 0 && e.windup <= 0 && e.type !== 'boss') once([pick(ANIM.hits), ANIM.hitSpeed], .05);
   else if (e.lock <= 0) {
-    if (e.moving) { const run = e.look.walk === 'Running_A'; M.play(e.look.walk, { speed: Math.min(1.8, Math.max(.6, e.spd * (e.chill > 0 ? .5 : 1) / (run ? 3.6 : 1.7))) }); }
-    else M.play('Idle');
+    if (e.moving) { const run = L.walk === 'Running_A'; M.play(L.walk, { speed: Math.min(1.8, Math.max(.6, e.spd * (e.chill > 0 ? .5 : 1) / (run ? 3.6 : 1.7))) }); }
+    else M.play(L.idle || 'Idle');
   }
   M.mixer.update(dt);
 }

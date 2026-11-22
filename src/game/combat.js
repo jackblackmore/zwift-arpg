@@ -23,7 +23,7 @@ export function hit(e, mult, elem, src = {}) {
   let d = S.base * mult * (S.dmg + (S[elem] || 0)) * rand(.88, 1.12);
   const crit = Math.random() < S.crit; if (crit) d *= 1.75;
   if (e.shock > 0) d *= S.conduit ? 1.35 : 1.2;
-  e.hp -= d; e.flash = .07; e.lastElem = elem;
+  e.hp -= d; e.flash = .07; e.lastElem = elem; e.lastHit = Math.max(e.lastHit || 0, d);
   if (!src.dot) {
     floatT(e.x, e.h + .3, e.z, Math.round(d), crit ? '#ffe060' : ECOL[elem] || '#fff', crit ? 17 : 12);
     if (src.kx !== undefined && e.type !== 'boss') { const k = (crit ? 5 : 3) / (e.rar === 2 ? 3 : 1); e.vx += src.kx * k; e.vz += src.kz * k; }

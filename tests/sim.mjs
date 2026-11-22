@@ -45,6 +45,7 @@ try {
       }
       D.ctl.fb = false; D.ctl.mx = D.ctl.mz = 0;
       out.rigged = D.chars.ready && D.G.heroM.rigged && D.enemies().some(e => e.model.rigged);
+      out.dressed = D.G.dressed && D.G.obst.length > 40 && D.G.torches.length > 10;
       out.kills = P.kills; out.lvl = P.lvl; out.loot = P.inv.length + D.items().length;
       for (let i = 0; i < 4; i++) D.dropItem(P.x, P.z, .5);
       D.sim(40); out.inv = P.inv.length;
@@ -62,6 +63,7 @@ try {
     });
     console.log('  arpg:', JSON.stringify(r));
     check(r.rigged, 'arpg: KayKit character models loaded for hero and monsters');
+    check(r.dressed, 'arpg: map built from the KayKit dungeon pieces');
     check(r.packs >= 18, `arpg: map has packs (${r.packs})`);
     check(r.kills > 40, `arpg: player mowed down monsters (${r.kills} kills)`);
     check(r.lvl >= 3, `arpg: player levelled up (level ${r.lvl})`);

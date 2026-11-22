@@ -12,6 +12,7 @@ import { STYLES } from './data/graphics.js';
 import { updFx } from './render/fx.js';
 import { draw } from './render/draw.js';
 import { buildMap } from './world/map.js';
+import { loadDungeon } from './world/dungeon.js';
 import { ctl } from './input/input.js';
 import { pollInput, initDevices } from './input/devices.js';
 import { ride, initRide, setRide, storedRide } from './input/ridesim.js';
@@ -57,10 +58,12 @@ function rigHero() {
 }
 const menuBtns = ['goNew', 'goCont'].map($);
 menuBtns.forEach(b => { b.disabled = true; b.dataset.label = b.textContent; b.textContent = 'LOADING…'; });
-loadCharacters().then(ok => {
+Promise.all([loadCharacters(), loadDungeon()]).then(([ok]) => {
   if (ok) rigHero();
+  if (!G.started) buildMap(); // swap the placeholder map behind the menu for the dungeon
   applyQuality();
   menuBtns.forEach(b => { b.disabled = false; b.textContent = b.dataset.label; });
+  G.loaded = true;
 });
 $('bFx').textContent = 'FX: ' + Q.level.toUpperCase();
 $('bFx').onclick = () => { $('bFx').textContent = 'FX: ' + cycleQuality().toUpperCase(); };
@@ -91,7 +94,7 @@ requestAnimationFrame(frame);
 // Testing hooks (used by tests/sim.mjs and handy in the console).
 window.__dbg = {
   G, P, S, ctl, Q, chars, ride, setRide,
-  ready: () => chars.ready || chars.failed, cycleQuality, cycleStyle,
+  ready: () => (chars.ready || chars.failed) && G.loaded, cycleQuality, cycleStyle,
   start: fresh => begin(fresh !== false),
   sim: n => { for (let i = 0; i < n; i++) { update(.033); updFx(.033); } },
   enemies: () => G.enemies, packs: () => G.packs, items: () => G.ground,

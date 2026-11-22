@@ -39,15 +39,16 @@ SCREENSHOT=/tmp/shot.png npm test   # also saves an ARPG mid-fight screenshot
 index.html, src/          the ARPG
   main.js                 boot, main loop, window.__dbg test hooks
   core/                   shared state (G world, P player, S stats), helpers, audio
-  data/                   tuning tables: monsters, skills, items/affixes/uniques, passives
+  data/                   tuning tables: monsters (+ their clips), skills, items/affixes/uniques, passives, dungeon layout, look
   input/input.js          the input layer: `ctl` is all the game reads
   input/devices.js        keyboard + mouse and touch devices that write into `ctl`
   input/ridesim.js        RIDE mode: simulated Zwift Ride pad + KICKR power/cadence, writes into `ctl`
-  world/map.js            map generation, rock colliders, line of sight
+  world/map.js            map generation, colliders, line of sight
+  world/dungeon.js        the crypt built from KayKit Dungeon pieces (instanced), primitive rocks if they don't load
   game/                   rules: stats, combat, skills, enemies + AI, items, maps, save, tick
   render/                 three.js scene, assets, primitive + KayKit characters, post-processing, effects, drawing + overlay
   ui/                     HUD + minimap, panels (bag, passives, menu)
-public/models/            trimmed KayKit .glb files (rebuild with scripts/prep-models.mjs)
+public/models/            trimmed KayKit .glb files: characters, extra clips, dungeon pieces (rebuild with scripts/prep-models.mjs)
 gallery/, src/gallery/    asset gallery page: characters × both animation sets, held gear, prop packs
 public/gallery/           gallery files: KayKit Adventurers, Skeletons, Character Animations 1.1, Dungeon Remastered, Halloween Bits, Medieval Hexagon, Forest Nature, Resource Bits (rebuild with scripts/prep-gallery.mjs)
 pedal/                    the original pedal-driven demo (unchanged, its own src/)

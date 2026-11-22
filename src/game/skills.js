@@ -38,7 +38,7 @@ export function castFireball() {
 export function castArc(fx = P.x, fz = P.z, free = false) {
   const A = SK.arc; if (!free && !pay(A.cost)) return false;
   let tx, tz;
-  if (free) { tx = fx; tz = fz; } else { [tx, tz] = aim(); P.face = Math.atan2(tx - P.x, tz - P.z); P.castAnim = .25; P.castSeq++; P.lastCast = 'shoot'; }
+  if (free) { tx = fx; tz = fz; } else { [tx, tz] = aim(); P.face = Math.atan2(tx - P.x, tz - P.z); P.castAnim = .25; P.castSeq++; P.lastCast = 'arc'; }
   let first = null, bd = 1e9;
   for (const e of G.enemies) { if (e.deathT || dist(e.x, e.z, fx, fz) > A.range) continue; const d = dist(e.x, e.z, tx, tz); if (d < bd && (free || d < 4.5)) { bd = d; first = e; } }
   if (!first && !free) for (const e of G.enemies) { if (e.deathT) continue; const d = dist(e.x, e.z, P.x, P.z); if (d < 7 && d < bd) { bd = d; first = e; } }
