@@ -1,23 +1,35 @@
 // Per-frame drawing: hero animation, camera, and the 2D overlay (bars, rare names, loot labels, numbers).
 import * as T from 'three';
-import { G, P } from '../core/state.js';
+import { G, P, S } from '../core/state.js';
 import { RAREAFF } from '../data/monsters.js';
 import { RCSS } from '../data/items.js';
 import { rand, $ } from '../core/util.js';
-import { renderer, scene, cam, CAM, V, plight, blight, ctx } from './scene.js';
+import { cam, CAM, V, plight, blight, ctx } from './scene.js';
+import { render } from './post.js';
 import { glows, emit } from './fx.js';
 import { joy } from '../input/devices.js';
 
 const TV = new T.Vector3();
 function toScreen(x, y, z) { TV.set(x, y, z).project(cam); return TV.z > 1 ? null : [(TV.x + 1) / 2 * V.W, (1 - TV.y) / 2 * V.H]; }
 
+// Hero clips: a cast plays once (fast) and hands back to run/idle; death holds until respawn.
+const HERO = { shoot: ['Spellcast_Shoot', 2.4], nova: ['Spellcast_Raise', 2.2], dash: ['Dodge_Forward', 1.8] };
+function animHero(M, dt) {
+  M.lock = (M.lock || 0) - dt;
+  if (P.dead > 0) { if (M.cur !== 'Death_A') M.play('Death_A', { once: true, fade: .1 }); }
+  else if (P.castSeq !== M.seq) { M.seq = P.castSeq; const [n, sp] = HERO[P.lastCast] || HERO.shoot; M.lock = M.play(n, { once: true, speed: sp, fade: .06 }) / sp * .7; }
+  else if (M.lock <= 0) { if (P.moving) M.play('Running_A', { speed: S.ms / 5 }); else M.play('Idle'); }
+  M.mixer.update(dt);
+}
+
 export function draw(dt) {
   const { W, H } = V, gt = G.gt;
   // hero
   const M = G.heroM; M.g.visible = P.dead <= 0; M.g.position.set(P.x, P.moving ? Math.abs(Math.cos(P.walkT)) * .05 : 0, P.z);
   const dr = ((P.face - M.g.rotation.y + Math.PI * 3) % (Math.PI * 2)) - Math.PI; M.g.rotation.y += dr * Math.min(1, dt * 16);
-  const w = P.moving ? Math.sin(P.walkT) : 0; M.legL.rotation.x = w * .7; M.legR.rotation.x = -w * .7; M.armL.rotation.x = -w * .5;
-  M.armR.rotation.x = P.castAnim > 0 ? -1.5 : w * .4; M.orb.scale.setScalar(.55 + (P.castAnim > 0 ? .4 : 0) + Math.sin(gt * 5) * .05);
+  if (M.rigged) animHero(M, G.paused ? 0 : dt);
+  else { const w = P.moving ? Math.sin(P.walkT) : 0; M.legL.rotation.x = w * .7; M.legR.rotation.x = -w * .7; M.armL.rotation.x = -w * .5; M.armR.rotation.x = P.castAnim > 0 ? -1.5 : w * .4; }
+  if (M.orb) M.orb.scale.setScalar(.55 + (P.castAnim > 0 ? .4 : 0) + Math.sin(gt * 5) * .05);
   plight.position.set(P.x, 3, P.z);
   G.torches.forEach((t, i) => { const f = 1.4 + Math.sin(gt * 11 + i) * .15 + Math.sin(gt * 23 + i * 3) * .08; t.f.scale.set(f, f * 1.15, 1); });
   const boss = G.bossSpec && G.bossSpec.e;
@@ -32,7 +44,7 @@ export function draw(dt) {
   cam.position.x += (cx - cam.position.x) * Math.min(1, dt * 6); cam.position.z += (cz - cam.position.z) * Math.min(1, dt * 6); cam.position.y = CAM.y * k;
   cam.lookAt(cam.position.x - CAM.x * k, 0, cam.position.z - CAM.z * k);
   if (G.shakeA > .01) { cam.position.x += rand(-G.shakeA, G.shakeA) * .5; cam.position.y += rand(-G.shakeA, G.shakeA) * .5; G.shakeA *= Math.exp(-10 * dt); }
-  renderer.render(scene, cam);
+  render(P.x, P.z);
 
   // ---- overlay ----
   ctx.clearRect(0, 0, W, H); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';

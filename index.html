@@ -13,7 +13,7 @@
 <canvas id="o2d"></canvas>
 <div id="vign"></div>
 <div id="info" class="hud"><b id="iMap">MAP 1</b><br><span id="iLvl">Level 1</span> · <span id="iKill">0 slain</span></div>
-<div id="btns" class="hud"><button id="bInv">BAG <kbd>I</kbd><span class="badge" id="invBadge">0</span></button><button id="bPass">PASSIVES <kbd>P</kbd><span class="badge" id="passBadge">0</span></button><button id="bMute">♪</button><button id="bMenu">☰</button></div>
+<div id="btns" class="hud"><button id="bInv">BAG <kbd>I</kbd><span class="badge" id="invBadge">0</span></button><button id="bPass">PASSIVES <kbd>P</kbd><span class="badge" id="passBadge">0</span></button><button id="bFx">FX</button><button id="bMute">♪</button><button id="bMenu">☰</button></div>
 <canvas id="mm" class="hud" width="300" height="300"></canvas>
 <div id="bossbar" class="hud"><span>THE PALE WARDEN</span><div><i id="bossHp"></i></div></div>
 <div id="toasts"></div>
@@ -47,12 +47,13 @@
 
 <div class="modal show" id="mMenu"><div class="card" style="max-width:600px">
   <h1>WATT DUNGEON</h1>
-  <div class="sub">ARPG prototype · Path of Exile style · bike controls come later · <a href="./pedal/" style="color:var(--gold)">original pedal demo</a></div>
+  <div class="sub">ARPG prototype · Path of Exile style · bike controls come later · <a href="./pedal/" style="color:var(--gold)">original pedal demo</a><br>Characters: KayKit by Kay Lousberg (CC0)</div>
   <ul>
     <li><b>Mow down hordes.</b> Fireball explodes, Arc chains, Frost Nova freezes, Flame Dash leaves a burning trail.</li>
     <li><b>Hunt rare monsters</b> (yellow names) with affixes like Hasted, Splitting or Volatile.</li>
     <li><b>Loot drops with beams.</b> Magic (blue), rare (yellow) and unique (orange) gear with affixes that change your skills.</li>
     <li><b>Level up and pick passives</b> to build: chain lightning, shatter, ignite, Blood Magic.</li>
+    <li><b>FX</b> switches graphics quality (high: bloom + shadows, medium: bloom, low: plain) if your device struggles.</li>
     <li><b>Kill the map boss</b> and step through the portal into a harder map. Progress saves on this device.</li>
   </ul>
   <div class="keys">Desktop: move <kbd>WASD</kbd> · aim with mouse · <kbd>LMB</kbd> Fireball · <kbd>RMB</kbd> Arc · <kbd>Q</kbd> Frost Nova · <kbd>Space</kbd> Flame Dash · <kbd>F</kbd> flask · <kbd>I</kbd> bag · <kbd>P</kbd> passives<br>Touch: drag the left side to move · skills on the right auto-aim at the nearest enemy · walk over loot to pick it up</div>

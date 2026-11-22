@@ -22,6 +22,8 @@ SCREENSHOT=/tmp/shot.png npm test   # also saves an ARPG mid-fight screenshot
 
 ## The ARPG
 
+- **Graphics:** the hero and the skeletons are animated KayKit characters (CC0, by Kay Lousberg) in `public/models/`, trimmed by `scripts/prep-models.mjs`. The skeletons share one rig, so a single set of enemy clips drives them all. Bloom, a vignette and soft shadows run through `src/render/post.js`. The **FX** button cycles quality: high (bloom + shadows), medium (bloom, the default on touch devices) and low (plain). If the models fail to load, the game falls back to the primitive models.
+
 - **Skills:** Fireball explodes in an area, Arc chains between enemies, Frost Nova freezes (2.2s cooldown), and Flame Dash uses charges and leaves a burning trail. The life flask refills its charges on kills.
 - **Monsters:** zombies, runners, archers and bloaters that explode. They come in packs of 6–14. Magic packs are blue. Rare leaders have yellow names and affixes: Hasted, Fortified, Burning, Splitting, Volatile or Frenzied.
 - **Boss:** The Pale Warden uses telegraphed slams, a bolt nova and summons, and enrages at 50%. Killing it opens a portal to the next map tier, where monsters have +45% HP per tier.
@@ -40,8 +42,9 @@ index.html, src/          the ARPG
   input/devices.js        keyboard + mouse and touch devices that write into `ctl`
   world/map.js            map generation, rock colliders, line of sight
   game/                   rules: stats, combat, skills, enemies + AI, items, maps, save, tick
-  render/                 three.js scene, assets, models, effects, per-frame drawing + overlay
+  render/                 three.js scene, assets, primitive + KayKit characters, post-processing, effects, drawing + overlay
   ui/                     HUD + minimap, panels (bag, passives, menu)
+public/models/            trimmed KayKit .glb files (rebuild with scripts/prep-models.mjs)
 pedal/                    the original pedal-driven demo (unchanged, its own src/)
 tests/sim.mjs             headless playtest for both
 ```
@@ -59,6 +62,6 @@ Every push to `main` builds, runs the playtest and deploys to GitHub Pages (Sett
 ## Roadmap
 
 1. Make the ARPG fun: more skills, with skill gems and supports to swap; more monster types and biomes; a town, stash and crafting currency.
-2. Swap the primitive models for animated low-poly packs (KayKit or Quaternius; check the licences).
+2. More art: build the dungeon from KayKit Dungeon Remastered (walls, doors, props), give bloaters and the boss their own models (Quaternius), and add sprite-sheet spell effects.
 3. Design the bike mapping, for example: movement auto-paths toward the next pack or loot, Zwift Ride buttons cast skills and steer, effort feeds mana and cast speed, and a surge triggers dash.
 4. Last: Bluetooth. KICKR via FTMS (Web Bluetooth) and Zwift Ride buttons, added as a device in `src/input/`.

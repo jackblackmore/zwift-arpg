@@ -20,7 +20,7 @@ async function open(path) {
   page.on('console', m => { if (m.type() === 'error' && !m.text().startsWith('Failed to load resource')) errors.push(m.text()); });
   await page.setViewport({ width: 1100, height: 700 });
   await page.goto('http://localhost:4173' + path, { waitUntil: 'load' });
-  await page.waitForFunction(() => window.__dbg, { timeout: 10000 });
+  await page.waitForFunction(() => window.__dbg && (!window.__dbg.ready || window.__dbg.ready()), { timeout: 20000 });
   return { page, errors };
 }
 
@@ -42,6 +42,7 @@ try {
         P.life = Math.max(P.life, 60); D.sim(10);
       }
       D.ctl.fb = false; D.ctl.mx = D.ctl.mz = 0;
+      out.rigged = D.chars.ready && D.G.heroM.rigged && D.enemies().some(e => e.model.rigged);
       out.kills = P.kills; out.lvl = P.lvl; out.loot = P.inv.length + D.items().length;
       for (let i = 0; i < 4; i++) D.dropItem(P.x, P.z, .5);
       D.sim(40); out.inv = P.inv.length;
@@ -58,6 +59,7 @@ try {
       return out;
     });
     console.log('  arpg:', JSON.stringify(r));
+    check(r.rigged, 'arpg: KayKit character models loaded for hero and monsters');
     check(r.packs >= 18, `arpg: map has packs (${r.packs})`);
     check(r.kills > 40, `arpg: player mowed down monsters (${r.kills} kills)`);
     check(r.lvl >= 3, `arpg: player levelled up (level ${r.lvl})`);
