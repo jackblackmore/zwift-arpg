@@ -6,6 +6,7 @@ import { RIDE, RIDE_BUTTONS } from '../data/ride.js';
 import { $, clamp } from '../core/util.js';
 import { audio } from '../core/audio.js';
 import { G } from '../core/state.js';
+import { initSurge } from '../game/surge.js';
 
 export const ride = { on: false, pw: RIDE.startPower, cad: RIDE.startCad, ftp: RIDE.ftp, held: {}, keys: {} };
 const BY_KEY = Object.fromEntries(RIDE_BUTTONS.map(b => [b.key, b]));
@@ -38,13 +39,13 @@ export function pollRide(dt) {
   for (const [id, [x, z]] of Object.entries(DIR)) if (ride.held[id]) { mx += x; mz += z; }
   const l = Math.hypot(mx, mz); if (l > 1) { mx /= l; mz /= l; }
   ctl.mx = mx; ctl.mz = mz; ctl.aim = null;
-  ctl.effort = { pw: ride.pw, rel: ride.pw / ride.ftp, cad: ride.cad };
+  ctl.effort = { pw: ride.pw, rel: ride.pw / ride.ftp, cad: ride.cad, ftp: ride.ftp };
 }
 
 export function setRide(on) {
   ride.on = on; document.body.classList.toggle('ride', on);
   ride.held = {}; ride.keys = {}; clearHeld(); ctl.auto = false;
-  if (!on) ctl.effort = null;
+  if (!on) ctl.effort = null; else initSurge(ride.ftp);
   try { localStorage.setItem('wd-mode', on ? 'ride' : 'keys'); } catch (e) {}
 }
 export function storedRide() { try { return localStorage.getItem('wd-mode') === 'ride'; } catch (e) { return false; } }

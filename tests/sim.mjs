@@ -90,25 +90,71 @@ try {
   {
     const { page, errors } = await open('/');
     const r = await page.evaluate(() => {
-      const D = window.__dbg, P = D.P, out = {};
+      const D = window.__dbg, P = D.P, S = D.S, ctl = D.ctl, out = {};
       D.setRide(true); D.start(true);
-      // Not pedalling: the hero must not move even with the D-pad held.
-      D.ride.pw = 0; D.ride.held.right = true; const x0 = P.x; D.sim(60); out.stillAt0W = Math.abs(P.x - x0) < .01;
-      D.ride.held.right = false;
-      // Pedalling at ~80% FTP with autopilot on and A (Fireball) held: the hero should go and clear packs alone.
-      D.ride.pw = 200; D.ctl.auto = true;
-      // Measure the path walked, not distance from the start: the autopilot can loop back toward the entrance.
+      const FTP = D.ride.ftp = 250;
+      // One tick of the device (reads pad + sliders into ctl) then one game tick.
+      const tick = n => { for (let i = 0; i < n; i++) { D.pollRide(.033); D.sim(1); } };
+      const keepAlive = () => { P.life = S.maxLife; P.invuln = 5; };
+      // Autopilot with Flex A pressed now and then: the hero should go and clear packs alone (before enemies are wiped below).
+      D.ride.pw = 200; ctl.auto = true;
       let walked = 0, lx = P.x, lz = P.z;
       for (let i = 0; i < 60; i++) {
-        P.life = Math.max(P.life, 60); if (i % 6 === 0) D.ctl.flexA = true;
-        for (let k = 0; k < 15; k++) { D.sim(1); const step = Math.hypot(P.x - lx, P.z - lz); if (step < 1) walked += step; /* skip respawn and dash jumps */ lx = P.x; lz = P.z; }
+        P.life = Math.max(P.life, 60); if (i % 6 === 0) ctl.flexA = true;
+        for (let k = 0; k < 15; k++) { tick(1); const step = Math.hypot(P.x - lx, P.z - lz); if (step < 1) walked += step; /* skip respawn and blink jumps */ lx = P.x; lz = P.z; }
       }
       out.kills = P.kills; out.travelled = walked;
+      ctl.auto = false; ctl.flexA = false;
+      const speed = (pw, dir) => { // units/s walking in `dir` for 1 s from a fixed spot
+        D.enemies().length = 0; D.ride.pw = pw; D.ride.held = { [dir]: true };
+        const x = P.x, z = P.z; tick(30); const d = Math.hypot(P.x - x, P.z - z) / (30 * .033); P.x = x; P.z = z;
+        D.ride.held = {}; return d;
+      };
+      // Pick the direction with the most open floor.
+      let dir = 'right', best = -1;
+      for (const d of ['right', 'left', 'up', 'down']) { const v = speed(FTP, d); if (v > best) { best = v; dir = d; } }
+      out.full = speed(FTP * 1.0, dir); out.at0 = speed(0, dir); out.at20 = speed(FTP * .2, dir); out.at40 = speed(FTP * .4, dir);
+      // Main's fire interval: hold Main toward a fixed aim and count casts.
+      const fireRate = rel => {
+        D.ride.pw = FTP * rel; D.ride.held = {}; ctl.main = true; ctl.auto = false; D.surge().v = D.surge().max;
+        P.cd.main = 0; tick(2); const n0 = P.fbN, T = 300; // ~10 s
+        for (let i = 0; i < T; i++) { ctl.aim = [P.x + 5, P.z]; keepAlive(); D.pollRide(.033); ctl.aim = [P.x + 5, P.z]; D.sim(1); }
+        ctl.main = false; ctl.aim = null;
+        return { atk: P.eff.atk, interval: T * .033 / (P.fbN - n0) };
+      };
+      const endu = fireRate(.675), slow = fireRate(.4);
+      out.enduAtk = endu.atk; out.enduInt = endu.interval; out.expInt = D.SK.fireball.rate / S.cast; out.slowAtk = slow.atk; out.cast = S.cast;
+      // Surge at 130% FTP: bonus, drain, empty, then back to 1.0 while still at 130%.
+      D.enemies().length = 0; D.ride.pw = FTP * 1.3; D.surge().v = D.surge().max; tick(1);
+      out.surgeAtk = P.eff.atk; out.surging = P.eff.surging; const v0 = D.surge().v; tick(30); out.drained = D.surge().v < v0;
+      let n = 0; while (D.surge().v > 0 && n < 4000) { keepAlive(); tick(1); n++; } out.emptySec = n * .033;
+      tick(2); out.emptyAtk = P.eff.atk; out.emptySurging = P.eff.surging; out.emptyMaxEq = D.surge().max;
+      // Easy riding refills: ~50% FTP.
+      D.ride.pw = FTP * .5; tick(60); const vr = D.surge().v; out.rises = vr > 0;
+      n = 0; while (D.surge().v < D.surge().max - 1e-6 && n < 8000) { keepAlive(); tick(1); n++; } out.refillSec = n * .033;
+      // FTP change resizes the gauge and keeps the fill fraction.
+      D.surge().v = D.surge().max / 2; D.ride.ftp = 300; tick(1); out.resize = D.surge().v / D.surge().max;
+      D.ride.ftp = FTP;
+      // Autopilot's keep distance follows Main's range.
+      const k0 = D.autopilotRanges(); const r0 = D.SK.fireball.range; D.SK.fireball.range = r0 * 2; const k1 = D.autopilotRanges(); D.SK.fireball.range = r0;
+      out.keep0 = k0.keep; out.keep1 = k1.keep; out.kite0 = k0.kite;
       D.setRide(false);
       return out;
     });
     console.log('  ride:', JSON.stringify(r));
-    check(r.stillAt0W, 'ride: hero stands still at 0 W');
+    check(r.at0 < .01, `ride: hero stands still at 0 W with the D-pad held (${r.at0.toFixed(2)} u/s)`);
+    check(r.at20 > r.full * .15 && r.at20 < r.full * .6, `ride: 20% FTP walks slowly (${r.at20.toFixed(2)} vs full ${r.full.toFixed(2)} u/s)`);
+    check(r.full > 1 && Math.abs(r.at40 - r.full) < r.full * .02, `ride: 40% and 100% FTP move equally fast (${r.at40.toFixed(2)} / ${r.full.toFixed(2)})`);
+    check(Math.abs(r.enduAtk - 1) < .02, `ride: atk is 1.0 at endurance (${r.enduAtk.toFixed(3)})`);
+    check(Math.abs(r.enduInt / r.expInt - 1) < .1, `ride: Main fires every ${r.enduInt.toFixed(3)} s at endurance (expected ${r.expInt.toFixed(3)})`);
+    check(Math.abs(r.slowAtk - .5) < .03, `ride: atk is about .5 at 40% FTP (${r.slowAtk.toFixed(3)})`);
+    check(r.surging && r.surgeAtk > 1.3, `ride: surging at 130% FTP raises atk (${r.surgeAtk.toFixed(2)})`);
+    check(r.drained, 'ride: the Surge gauge drains while surging');
+    check(r.emptySec > 30 && r.emptySec < 60, `ride: the gauge empties in 30-60 s at 130% (${r.emptySec.toFixed(1)} s)`);
+    check(r.emptyAtk === 1 && !r.emptySurging, `ride: atk back to 1.0 with an empty gauge at 130% (${r.emptyAtk})`);
+    check(r.rises && r.refillSec < 180, `ride: easy riding refills the gauge in under 3 min (${r.refillSec.toFixed(0)} s)`);
+    check(Math.abs(r.resize - .5) < .01, `ride: FTP change keeps the fill fraction (${r.resize.toFixed(3)})`);
+    check(Math.abs(r.keep1 / r.keep0 - 2) < .01 && r.kite0 < r.keep0, `ride: autopilot keep follows Main range (${r.keep0.toFixed(2)} -> ${r.keep1.toFixed(2)})`);
     check(r.travelled > 10, `ride: autopilot moves the hero (${r.travelled.toFixed(1)} units walked)`);
     check(r.kills >= 10, `ride: autopilot + auto-attacking Fireball clears monsters (${r.kills} kills)`);
     check(errors.length === 0, `ride: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);

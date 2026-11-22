@@ -15,8 +15,11 @@ import { buildMap } from './world/map.js';
 import { loadDungeon } from './world/dungeon.js';
 import { ctl } from './input/input.js';
 import { pollInput, initDevices } from './input/devices.js';
-import { ride, initRide, setRide, storedRide } from './input/ridesim.js';
-import { update } from './game/update.js';
+import { ride, initRide, setRide, storedRide, pollRide } from './input/ridesim.js';
+import { update, effortMods } from './game/update.js';
+import { autopilotRanges } from './game/autopilot.js';
+import { initSurge } from './game/surge.js';
+import { SK } from './data/skills.js';
 import { recalc } from './game/stats.js';
 import { newMap } from './game/maps.js';
 import { save, load } from './game/save.js';
@@ -40,7 +43,7 @@ function cleanSave(sv) {
 }
 
 function begin(fresh) {
-  audio(); resetSkills();
+  audio(); resetSkills(); initSurge(ride.ftp);
   const sv = load(); if (sv) cleanSave(sv);
   if (fresh || !sv) {
     Object.assign(P, { lvl: 1, xp: 0, gear: {}, inv: [], passives: {}, pts: 0, offer: null, newItems: 0, kills: 0 });
@@ -106,7 +109,7 @@ requestAnimationFrame(frame);
 
 // Testing hooks (used by tests/sim.mjs and handy in the console).
 window.__dbg = {
-  G, P, S, ctl, Q, chars, ride, setRide,
+  G, P, S, SK, ctl, Q, chars, ride, setRide, effortMods, pollRide, autopilotRanges, surge: () => P.surge,
   ready: () => (chars.ready || chars.failed) && G.loaded, cycleQuality, cycleStyle,
   start: fresh => begin(fresh !== false),
   sim: n => { for (let i = 0; i < n; i++) { update(.033); updFx(.033); } },

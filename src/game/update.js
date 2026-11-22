@@ -11,18 +11,12 @@ import { pickUp, updItems } from './items.js';
 import { newMap, respawn } from './maps.js';
 import { save } from './save.js';
 import { autopilot } from './autopilot.js';
-import { RIDE } from '../data/ride.js';
+import { effortMods, tickSurge } from './surge.js';
 
-// Effort (RIDE mode): how %FTP scales movement. atk (attack rate) stays 1 for now. All 1 when not riding.
-export function effortMods(E) {
-  if (!E) return { move: 1, atk: 1 };
-  const M = RIDE.move, rel = E.rel;
-  const move = rel < M.stop ? 0 : rel < M.full ? (rel - M.stop) / (M.full - M.stop) : Math.min(M.max, 1 + (rel - M.full) * .5);
-  return { move, atk: 1 };
-}
+export { effortMods };
 
 function updPlayer(dt) {
-  const fx = P.eff = effortMods(ctl.effort);
+  const fx = P.eff = effortMods(ctl.effort); tickSurge(dt, ctl.effort);
   let mx = ctl.mx, mz = ctl.mz;
   if (ctl.auto && Math.hypot(mx, mz) < .08) [mx, mz] = autopilot(dt);
   const ml = Math.hypot(mx, mz), spd = S.ms * fx.move * (P.castAnim > 0 && P.lastCast !== 'shoot' ? .65 : 1);

@@ -7,6 +7,7 @@ import { $ } from '../core/util.js';
 import { HALF } from '../world/map.js';
 import { xpNeed } from '../game/stats.js';
 import { rideHud } from '../input/ridesim.js';
+import { surgeHud } from './surgehud.js';
 
 const mmc = $('mm').getContext('2d');
 const T = { hud: 0, mm: 0 };
@@ -34,7 +35,7 @@ export function hud(dt) {
   const ib = $('invBadge'); ib.style.display = P.newItems ? 'block' : 'none'; ib.textContent = P.newItems;
   const pb = $('passBadge'); pb.style.display = P.pts ? 'block' : 'none'; pb.textContent = P.pts; $('bPass').classList.toggle('glow', P.pts > 0);
   const boss = G.bossSpec && G.bossSpec.e; if (boss && !boss.deathT) $('bossHp').style.width = (boss.hp / boss.maxHp * 100) + '%';
-  rideHud();
+  surgeHud(); rideHud();
   T.mm -= .07; if (T.mm > 0 || !G.mmBase) return; T.mm = .2;
   minimap();
 }

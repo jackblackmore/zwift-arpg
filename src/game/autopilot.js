@@ -5,9 +5,13 @@ import { RIDE } from '../data/ride.js';
 import { dist } from '../core/util.js';
 import { steer } from './enemies.js';
 import { los } from '../world/map.js';
+import { mainRange } from './skills.js';
 
 // Stuck detection: if we've been trying to move but haven't, sidestep for a moment.
 const ST = { x: 0, z: 0, t: 0, side: 0, sideT: 0 };
+
+// Hold distance and back-off distance follow the Main skill's range, so snipers hang back and short-range builds close in.
+export const autopilotRanges = () => ({ keep: RIDE.autopilot.keepF * mainRange(), kite: RIDE.autopilot.kiteF * mainRange() });
 
 const toward = (x, z) => steer(P, x, z);
 const away = (x, z) => steer(P, P.x * 2 - x, P.z * 2 - z);
@@ -22,7 +26,7 @@ export function autopilot(dt = .033) {
 }
 
 function pick() {
-  const A = RIDE.autopilot;
+  const A = { ...RIDE.autopilot, ...autopilotRanges() };
   let best = null, bd = A.engage;
   for (const e of G.enemies) { if (e.deathT) continue; const d = dist(e.x, e.z, P.x, P.z); if (d < bd) { bd = d; best = e; } }
   if (best) {

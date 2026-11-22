@@ -2,10 +2,20 @@
 // Today power and cadence come from on-screen sliders / keys; later from the KICKR over Bluetooth.
 export const RIDE = {
   ftp: 250, startPower: 175, startCad: 88,
-  // Movement speed multiplier from %FTP: below `stop` the hero stands still, `full` is normal speed, capped at `max`.
-  move: { stop: .3, full: .75, max: 1.25 },
-  // Autopilot (Y): walk toward the nearest fight / loot / pack; hold at `keep`, back off inside `kite`.
-  autopilot: { engage: 14, keep: 6.5, kite: 3.5, loot: 15 },
+  // Pedalling is a GATE for movement, not a speed dial. Below `stopW` watts the hero stands still; above that but
+  // under `fullAt` (fraction of FTP) it is a slow walk (`walk` x normal speed); from `fullAt` up it is a fixed 1x, no bonus.
+  move: { stopW: 1, walk: .35, fullAt: .35 },
+  // Power sets Main's attack rate. `curve` is [fraction of FTP, attack rate] points, linearly interpolated, flat past
+  // the last point. Endurance (.65-.70) = 1.0. Below it Main slows. Above it rises, but only while the Surge gauge has charge;
+  // an empty gauge clamps the attack rate to 1.
+  atk: { curve: [[0, .35], [.4, .5], [.65, 1], [.7, 1], [1.3, 1.8]] },
+  // Surge gauge (modelled on W'). The same for everyone: max joules = k x FTP, so it scales with FTP and never with the rider.
+  // Drains by (power - drainFrom x FTP) per second above `drainFrom` (just over endurance); refills below `refillBelow`
+  // (just under endurance) at (refillBelow x FTP - power) x `refill` + `base` x FTP per second. Nothing removes the limit.
+  // With k 22.5: 45 s at 120% FTP, 37 s at 130%, 28 s at 150%. Refill ~2 min of easy riding at 50% FTP, ~35 s at 0 W.
+  surge: { k: 22.5, drainFrom: .7, refillBelow: .65, refill: .9, base: .04 },
+  // Autopilot (Y): walk toward the nearest fight / loot / pack; hold at `keepF` x Main's range, back off inside `kiteF` x range.
+  autopilot: { engage: 14, keepF: .75, kiteF: .35, loot: 15 },
   keys: { powerUp: 'w', powerDown: 's', cadUp: 'd', cadDown: 'a', step: 120, cadStep: 40 }, // per second while held
 };
 
