@@ -1,22 +1,29 @@
-// Derived stats from level, gear and passives, plus experience and levelling.
+// Derived stats from level, gear and the passive tree, plus experience and levelling.
 import { P, S } from '../core/state.js';
 import { ctl } from '../input/input.js';
-import { PASS } from '../data/passives.js';
+import { MS_CAP, KEYSTONES } from '../data/tree.js';
+import { treeSums } from './tree.js';
 import { SK, CDR_CAP } from '../data/skills.js';
 import { gemBase, slotSkill, validateBar } from './gems.js';
 import { rand } from '../core/util.js';
 import { banner, emit, glows } from '../render/fx.js';
 import { SFX } from '../core/audio.js';
+import { dbg } from '../core/dbg.js';
 
 export function computeStats(gear) {
-  const s = { lifeF: 0, lifePct: 0, lregen: 0, dmg: 0, fire: 0, cold: 0, light: 0, cast: 0, ms: 0, crit: 0, aoe: 0, proj: 0, lok: 0, spell: 0, pierce: 0, freeze: 0, dr: 0, cdr: 0,
-    more: 1, lifeMore: 1, bloodRite: 0, slotKinds: null }; // later contributions: s.more *= x, s.lifeMore *= x, s.bloodRite = n, s.slotKinds = { slot: [kinds] }
+  const s = { lifeF: 0, lifePct: 0, lregen: 0, dmg: 0, fire: 0, cold: 0, light: 0, cast: 0, ms: 0, crit: 0, aoe: 0, proj: 0, lok: 0, spell: 0, pierce: 0, freeze: 0, dr: 0, cdr: 0, surgeCap: 0,
+    more: 1, lifeMore: 1, cdMore: 1, bloodRite: 0, slotKinds: null }; // keystones (data/tree.js KEYSTONES): s.more *= x, s.lifeMore *= x, s.cdMore *= x, s.bloodRite = n, s.slotKinds = { slot: [kinds] }
   for (const k in gear) { const it = gear[k]; if (it) for (const [st, v] of it.mods) s[st] = (s[st] || 0) + v; } // retired mods from old saves just sum into unused keys
-  for (const id in P.passives) if (PASS[id]) PASS[id].fn(s, P.passives[id]);
+  const T = treeSums(); for (const st in T.s) s[st] = (s[st] || 0) + T.s[st];
+  for (const k of T.keys) for (const [st, v] of Object.entries(KEYSTONES[k])) {
+    if (st === 'more' || st === 'lifeMore' || st === 'cdMore') s[st] *= v;
+    else if (st === 'slotKinds') { s.slotKinds = s.slotKinds || {}; for (const sl in v) s.slotKinds[sl] = [...new Set([...(s.slotKinds[sl] || []), ...v[sl]])]; }
+    else s[st] = (s[st] || 0) + v;
+  }
   return {
     maxLife: Math.max(20, Math.round((90 + 12 * (P.lvl - 1) + s.lifeF) * (1 + s.lifePct) * s.lifeMore)),
-    lregen: 1 + s.lregen, spell: s.spell, inc: s.dmg, more: s.more, lifeMore: s.lifeMore, bloodRite: s.bloodRite, slotKinds: s.slotKinds, fire: s.fire, cold: s.cold, light: s.light,
-    cast: 1 + s.cast, ms: 5.4 * (1 + s.ms), crit: .05 + s.crit, aoe: 1 + s.aoe, proj: 1 + s.proj, lok: s.lok, pierce: s.pierce,
+    lregen: 1 + s.lregen, spell: s.spell, inc: s.dmg, more: s.more, lifeMore: s.lifeMore, cdMore: s.cdMore, surgeCap: s.surgeCap, bloodRite: s.bloodRite, slotKinds: s.slotKinds, fire: s.fire, cold: s.cold, light: s.light,
+    cast: 1 + s.cast, ms: 5.4 * (1 + Math.min(MS_CAP, s.ms)), crit: .05 + s.crit, aoe: 1 + s.aoe, proj: 1 + s.proj, lok: s.lok, pierce: s.pierce,
     cdr: Math.min(CDR_CAP, Math.max(0, s.cdr)), freeze: 1 + s.freeze, dr: Math.min(.6, s.dr),
     ignite: !!s.ignite, shatter: !!s.shatter, chainboom: !!s.chainboom, burnGround: !!s.burnGround, storm: !!s.storm, autoNova: !!s.autoNova,
   };
@@ -41,3 +48,5 @@ export function gainXp(n) {
     for (let i = 0; i < 40; i++) emit(glows, P.x + rand(-.5, .5), rand(0, .5), P.z + rand(-.5, .5), 0, rand(3, 6), 0, rand(.6, 1.1), 0xffd23f);
   }
 }
+
+Object.assign(dbg, { gainXp, xpNeed, computeStats });

@@ -163,6 +163,8 @@ registerSkill('blink', { cast: () => castBlink() });
 // Flex / Guard / Evade wait skillCd (cd, else rate); Main paces by skillRate (rate, else cd), so a skill can auto-fire quickly from Main
 // and still have a real cooldown on a button (Arc: rate .7 in Main, cd 3 elsewhere).
 export const skillCd = id => { const k = SK[id] || {}; return k.cd || k.rate || 1; };
+// A button's full cooldown after cdr, the Swift Cast support (swiftCd) and Deep Reserves (S.cdMore). The HUD sweep uses it too.
+export const cdFull = id => skillCd(id) * (1 - S.cdr) * swiftCd(id) * (S.cdMore || 1);
 export const skillRate = id => { const k = SK[id] || {}; return k.rate || k.cd || 1; };
 // Cast whatever skill sits in a bar slot. Main is paced by its attack rate (and the effort modifier); the others by cooldowns, or by
 // life with the Blood Rite keystone (S.bloodRite): no cooldown, each cast costs life, refused when it would kill.
@@ -176,7 +178,7 @@ export function castSlot(slot) {
   const rite = S.bloodRite ? S.bloodRite * S.maxLife * skillCd(id) / BLOOD.cdRef : 0;
   if (rite ? rite >= P.life : P.cd[slot] > 0) return false;
   if (!def.cast(slot)) return false;
-  if (rite) P.life -= rite; else P.cd[slot] = skillCd(id) * (1 - S.cdr) * swiftCd(id);
+  if (rite) P.life -= rite; else P.cd[slot] = cdFull(id);
   return true;
 }
 

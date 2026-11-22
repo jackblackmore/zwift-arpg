@@ -1,10 +1,36 @@
-// Passive skill tree data. One point per character level. Broad stats only.
+// Passive skill tree data. One point per character level. Broad stats only (never a specific skill).
 // Coordinates: x, y in -100..100, (0, 0) is the centre. Negative y is up.
 // Regions: core (centre ring), fire (up-left), cold (up-right), lightning (down).
-// Stats are summed into game/stats.js computeStats raw sums (s[stat] += value).
-// Links are undirected and listed on both nodes.
+// Node stats are summed into game/stats.js computeStats raw sums (s[stat] += value). Keystones carry `key` instead
+// (see KEYSTONES below). Links are undirected and listed on both nodes.
 //
-// Total ms on the whole tree: 0.21 (must stay at or under 0.30).
+// Total ms on the whole tree: 0.21 (must stay at or under 0.30); gear ms adds to it under MS_CAP.
+
+export const TREE_VER = 1; // saved as P.treeV; a save without it is a Slice 1 save and gets its passive points refunded once
+export const MS_CAP = .5; // total movement speed bonus (tree + gear) is capped at +50%
+// What a respec costs. Today everything is free: refunding a node is free (it must leave the rest connected to the start)
+// and "Reset tree" refunds every point for free after a confirm tap. `resetGold` is where a gold price would go if gold existed.
+export const RESPEC = { node: 'free', reset: 'free', resetGold: 0, confirmMs: 5000 }; // confirmMs: how long RESET TREE waits for its confirm tap
+
+// Keystone effects, merged into computeStats raw sums. `more`, `lifeMore` and `cdMore` multiply, `slotKinds` merges per slot
+// (union of kinds), everything else adds. `bloodRite` is the fraction of max life a cast costs per BLOOD.cdRef seconds of cooldown
+// (data/skills.js): 0.08 makes a 6 s cooldown skill (Frost Nova) cost 8% of max life every cast, Ward (12 s) 16%.
+export const KEYSTONES = {
+  bloodRite: { bloodRite: .08 },
+  glassCannon: { more: 1.4, lifeMore: .6, slotKinds: { guard: ['attack'] } },
+  fortress: { more: .8, dr: .1, slotKinds: { flexB: ['guard'] } },
+  deepReserves: { surgeCap: .5, cdMore: 1.15 },
+};
+
+// Stats in words, for the node detail bar and the totals line. v is the summed value.
+const pc = v => Math.round(v * 1000) / 10 + '%';
+export const STAT_TEXT = {
+  lifeF: v => `+${v} maximum life`, lifePct: v => `+${pc(v)} increased maximum life`, lregen: v => `+${Math.round(v * 10) / 10} life regenerated per second`,
+  lok: v => `+${v} life on kill`, dmg: v => `+${pc(v)} increased damage`, fire: v => `+${pc(v)} increased fire damage`, cold: v => `+${pc(v)} increased cold damage`,
+  light: v => `+${pc(v)} increased lightning damage`, cast: v => `+${pc(v)} increased cast speed`, ms: v => `+${pc(v)} increased movement speed`,
+  crit: v => `+${pc(v)} critical strike chance`, aoe: v => `+${pc(v)} increased area of effect`, freeze: v => `+${pc(v)} increased freeze duration`,
+  dr: v => `${pc(v)} less damage taken`, cdr: v => `${pc(v)} cooldown reduction`, surgeCap: v => `+${pc(v)} increased Surge capacity`,
+};
 
 export const TREE_START = 'heart';
 
@@ -33,7 +59,7 @@ export const TREE = {
   S1: { x: 32, y: 24, name: 'Reserve', kind: 'small', region: 'core', stats: { surgeCap: 0.06 }, links: ['core3', 'S2'] },
   S2: { x: 40, y: 36, name: 'Life', kind: 'small', region: 'core', stats: { lifePct: 0.04 }, links: ['S1', 'overflow'] },
   overflow: {
-    x: 46, y: 46, name: 'Deep Reserves', kind: 'keystone', region: 'core', stats: { deepReserves: 1 },
+    x: 46, y: 46, name: 'Deep Reserves', kind: 'keystone', region: 'core', stats: {}, key: 'deepReserves',
     desc: 'The Surge gauge holds 50% more, but cooldowns are 15% slower.',
     links: ['S2'],
   },
@@ -45,7 +71,7 @@ export const TREE = {
   F4: { x: -54, y: -54, name: 'Fire', kind: 'small', region: 'fire', stats: { fire: 0.08 }, links: ['F3', 'F5', 'FC1'] },
   F5: { x: -61, y: -61, name: 'Crit', kind: 'small', region: 'fire', stats: { crit: 0.015 }, links: ['F4', 'bloodRite'] },
   bloodRite: {
-    x: -68, y: -68, name: 'Blood Rite', kind: 'keystone', region: 'fire', stats: { bloodRite: 1 },
+    x: -68, y: -68, name: 'Blood Rite', kind: 'keystone', region: 'fire', stats: {}, key: 'bloodRite',
     desc: 'Your skills have no cooldowns, but every cast costs life.',
     links: ['F5'],
   },
@@ -71,7 +97,7 @@ export const TREE = {
   C4: { x: 54, y: -54, name: 'Cold', kind: 'small', region: 'cold', stats: { cold: 0.08 }, links: ['C3', 'C5', 'CC1'] },
   C5: { x: 61, y: -61, name: 'Life', kind: 'small', region: 'cold', stats: { lifeF: 8 }, links: ['C4', 'fortress'] },
   fortress: {
-    x: 68, y: -68, name: 'Fortress', kind: 'keystone', region: 'cold', stats: { fortress: 1 },
+    x: 68, y: -68, name: 'Fortress', kind: 'keystone', region: 'cold', stats: {}, key: 'fortress',
     desc: 'Flex B becomes a second Guard slot and you take 10% less damage, but you deal 20% less damage.',
     links: ['C5'],
   },
@@ -97,7 +123,7 @@ export const TREE = {
   L4: { x: 0, y: 68, name: 'Crit', kind: 'small', region: 'lightning', stats: { crit: 0.02 }, links: ['L3', 'L5', 'LC1'] },
   L5: { x: 0, y: 78, name: 'Lightning', kind: 'small', region: 'lightning', stats: { light: 0.08 }, links: ['L4', 'glassCannon'] },
   glassCannon: {
-    x: 0, y: 88, name: 'Glass Cannon', kind: 'keystone', region: 'lightning', stats: { glassCannon: 1 },
+    x: 0, y: 88, name: 'Glass Cannon', kind: 'keystone', region: 'lightning', stats: {}, key: 'glassCannon',
     desc: 'The Guard slot becomes an attack slot and you deal 40% more damage, but you have 40% less maximum life.',
     links: ['L5'],
   },

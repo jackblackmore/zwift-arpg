@@ -1,6 +1,6 @@
 // RIDE mode: what effort (power) does to the hero. Movement is gated, power sets Main's attack rate, and the
 // Surge gauge (like W') limits how long you can run above endurance pace. The device only reports effort.
-import { P } from '../core/state.js';
+import { P, S } from '../core/state.js';
 import { RIDE } from '../data/ride.js';
 
 // Piecewise-linear lookup through [x, y] points, flat outside them.
@@ -20,13 +20,16 @@ export function effortMods(E) {
   return { move, atk, surging };
 }
 
+// Gauge size in joules: k x FTP, enlarged by the tree's Surge capacity (S.surgeCap, the only way to build the gauge; nothing removes the limit).
+const gaugeMax = ftp => RIDE.surge.k * ftp * (1 + (S.surgeCap || 0));
+
 // Gauge full (level start, RIDE toggle). `ftp` in watts.
-export function initSurge(ftp = RIDE.ftp) { const max = RIDE.surge.k * ftp; P.surge.max = max; P.surge.v = max; }
+export function initSurge(ftp = RIDE.ftp) { const max = gaugeMax(ftp); P.surge.max = max; P.surge.v = max; }
 
 // One tick: resize on FTP change (keeping the fill fraction), then drain above endurance or refill below it.
 export function tickSurge(dt, E) {
   if (!E) return;
-  const R = RIDE.surge, g = P.surge, ftp = E.ftp || RIDE.ftp, max = R.k * ftp;
+  const R = RIDE.surge, g = P.surge, ftp = E.ftp || RIDE.ftp, max = gaugeMax(ftp);
   if (Math.abs(max - g.max) > 1e-6) { g.v = g.v / g.max * max; g.max = max; }
   const hi = R.drainFrom * ftp, lo = R.refillBelow * ftp;
   if (E.pw > hi) g.v = Math.max(0, g.v - (E.pw - hi) * dt);

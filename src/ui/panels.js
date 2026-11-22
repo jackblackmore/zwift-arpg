@@ -1,7 +1,6 @@
-// Modal panels: inventory (bag), passive picker, main menu (the gem bag is ui/gembag.js). Any visible .modal pauses the game.
+// Modal panels: inventory (bag), main menu (the gem bag is ui/gembag.js). Any visible .modal pauses the game.
 import { G, P, S } from '../core/state.js';
 import { SLOTS, GLY, DROP } from '../data/items.js';
-import { PASS } from '../data/passives.js';
 import { clearHeld } from '../input/input.js';
 import { $ } from '../core/util.js';
 import { SFX } from '../core/audio.js';
@@ -10,6 +9,7 @@ import { modText } from '../game/items.js';
 import { save } from '../game/save.js';
 import { GEMS } from '../data/gems.js';
 import { slotSkill } from '../game/gems.js';
+import { initTree } from './tree.js';
 
 const isOpen = id => $(id).classList.contains('show');
 // Paused until the game starts, and while any .modal is showing (add data-sticky to one Escape must not close).
@@ -62,29 +62,8 @@ export function equip(i) {
 export function openInv(v) { $('mInv').classList.toggle('show', v); if (v) { P.newItems = 0; ui.sel = null; renderInv(); $('mPass').classList.remove('show'); $('mGems').classList.remove('show'); } syncPause(); }
 export const toggleInv = () => openInv(!isOpen('mInv'));
 
-// ================= PASSIVES =================
-function genOffer() {
-  const pool = Object.keys(PASS).filter(k => (P.passives[k] || 0) < PASS[k].max), out = [];
-  while (out.length < 3 && pool.length) {
-    const w = pool.map(k => PASS[k].note === 2 ? .25 : PASS[k].note ? .5 : 1), tot = w.reduce((a, b) => a + b, 0);
-    let r = Math.random() * tot, i = 0; while (r > w[i]) { r -= w[i]; i++; }
-    out.push(pool.splice(i, 1)[0]);
-  }
-  return out;
-}
-function renderPass() {
-  $('passSub').textContent = P.pts ? `${P.pts} point${P.pts > 1 ? 's' : ''} to spend · choose one` : 'No points to spend · level up to earn more';
-  if (P.pts && !P.offer) P.offer = genOffer();
-  $('passCards').innerHTML = P.pts ? P.offer.map(k => {
-    const p = PASS[k];
-    return `<div class="pc ${p.note === 2 ? 'key' : p.note ? 'note' : ''}" data-k="${k}"><b style="color:${p.c}">${p.n}</b><span>${p.d}</span><em>${p.note === 2 ? 'KEYSTONE' : p.note ? 'NOTABLE' : 'PASSIVE'} · ${P.passives[k] || 0}/${p.max}</em></div>`;
-  }).join('') : '';
-  const tk = Object.entries(P.passives);
-  $('taken').innerHTML = tk.length ? 'Allocated: ' + tk.map(([k, n]) => `<span style="color:${PASS[k].c}">${PASS[k].n}${PASS[k].max > 1 ? ' ×' + n : ''}</span>`).join(' · ') : 'Nothing allocated yet.';
-}
-export function openPass() { $('mPass').classList.add('show'); $('mInv').classList.remove('show'); $('mGems').classList.remove('show'); renderPass(); syncPause(); }
-export function closePass() { $('mPass').classList.remove('show'); syncPause(); }
-export const togglePass = () => isOpen('mPass') ? closePass() : openPass();
+// ================= PASSIVES: the tree panel lives in ui/tree.js; these stay importable from here =================
+export { openPass, closePass, togglePass } from './tree.js';
 // Escape: close every panel except sticky ones (the main menu).
 export function closeAll() { document.querySelectorAll('.modal.show:not([data-sticky])').forEach(m => m.classList.remove('show')); syncPause(); }
 
@@ -93,10 +72,5 @@ export function initPanels() {
   $('invGrid').addEventListener('click', e => { const c = e.target.closest('.cell'); if (c && P.inv[+c.dataset.i]) { ui.sel = { i: +c.dataset.i }; renderInv(); } });
   $('junkMagic').onclick = () => { P.inv = P.inv.filter(it => it.rar !== 1); ui.sel = null; renderInv(); save(); };
   $('bInv').onclick = toggleInv; $('invClose').onclick = () => openInv(false);
-  $('passCards').addEventListener('click', e => {
-    const c = e.target.closest('.pc'); if (!c) return;
-    const k = c.dataset.k; P.passives[k] = (P.passives[k] || 0) + 1; P.pts--; P.offer = null;
-    recalc(); SFX.lvl(); save(); renderPass(); if (!P.pts) setTimeout(closePass, 250);
-  });
-  $('bPass').onclick = togglePass; $('passClose').onclick = closePass;
+  initTree();
 }

@@ -255,15 +255,15 @@ try {
       for (let i = 0; i < 4; i++) D.dropItem(P.x, P.z, .5);
       D.sim(40); out.inv = P.inv.length;
       const before = JSON.stringify(P.gear); D.equip(0); out.equipped = JSON.stringify(P.gear) !== before;
-      P.pts = 1; D.openPass(); out.cards = document.querySelectorAll('.pc').length; document.querySelector('.pc').click();
-      out.passives = Object.keys(P.passives).length;
+      P.pts = 1; D.openPass(); out.cards = document.querySelectorAll('#treeG .ring').length; D.treeAlloc('core1'); // the tree: nodes next to the start glow, then one is taken
+      out.passives = Object.keys(P.tree).length;
       document.getElementById('passClose').click();
       return out;
     });
     check(r8.loot > 0, `arpg: monsters dropped loot (${r8.loot})`);
     check(r8.inv >= 4, `arpg: loot picked up into the bag (${r8.inv})`);
     check(r8.equipped, 'arpg: equipping an item changes gear');
-    check(r8.cards === 3 && r8.passives >= 1, `arpg: passive offer shows 3 cards and allocates`);
+    check(r8.cards >= 3 && r8.passives >= 1, `arpg: passive tree highlights the nodes next to the start and allocates one (${r8.cards})`);
     const lvl = await page.evaluate(() => window.__dbg.P.lvl);
     check(lvl >= 3, `arpg: player levelled up (level ${lvl})`);
     if (process.env.SCREENSHOT) {
