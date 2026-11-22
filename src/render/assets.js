@@ -32,5 +32,9 @@ export const spMat = c => spMats[c] || (spMats[c] = new T.SpriteMaterial({ map: 
 const decalMats = {};
 const decalMat = c => decalMats[c] || (decalMats[c] = new T.MeshBasicMaterial({ map: glowTex, color: c, blending: T.AdditiveBlending, depthWrite: false, transparent: true }));
 export function glowSprite(c, s) { const sp = new T.Sprite(spMat(c)); sp.scale.set(s, s, 1); return sp; }
+// Flat auras use normal blending, so a pack of them overlapping stays one soft patch instead of adding up to a blown-out blob.
+const auraMats = {};
+const auraMat = (c, o) => auraMats[c + '/' + o] || (auraMats[c + '/' + o] = new T.MeshBasicMaterial({ map: glowTex, color: c, opacity: o, depthWrite: false, transparent: true }));
+export function aura(c, s, o = .3) { const m = new T.Mesh(GPLANE, auraMat(c, o)); m.rotation.x = -Math.PI / 2; m.scale.set(s, s, 1); m.position.y = .04; return m; }
 export function decal(c, s) { const m = new T.Mesh(GPLANE, decalMat(c)); m.rotation.x = -Math.PI / 2; m.scale.set(s, s, 1); m.position.y = .04; return m; }
-export const isShared = m => Object.values(spMats).includes(m) || Object.values(decalMats).includes(m) || Object.values(eyeMats).includes(m);
+export const isShared = m => Object.values(spMats).includes(m) || Object.values(decalMats).includes(m) || Object.values(auraMats).includes(m) || Object.values(eyeMats).includes(m);

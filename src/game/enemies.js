@@ -5,7 +5,7 @@ import { MT, TIER, PACKS, PACK, RAREAFF, RN1, RN2, BOSS, RISE, ANIM } from '../d
 import { rand, pick, dist, $ } from '../core/util.js';
 import { SFX } from '../core/audio.js';
 import { scene } from '../render/scene.js';
-import { GB, eyeMat, glowSprite, decal } from '../render/assets.js';
+import { GB, eyeMat, glowSprite, decal, aura } from '../render/assets.js';
 import { buildModel } from '../render/models.js';
 import { chars, makeChar } from '../render/characters.js';
 import { sparks, emit, burst, ringFx, flashFx, telegraph, banner } from '../render/fx.js';
@@ -41,8 +41,8 @@ export function spawnEnemy(type, x, z, pack, rar = 0) {
   if (rar === 2) e.model.mats.forEach(m => m.emissive.setHex(0x221a00));
   e.model.g.position.set(x, 0, z); e.model.g.rotation.y = e.face; scene.add(e.model.g);
   const inv = rigged ? 1 : 1 / sc; // primitive models scale the whole group; rigged ones scale an inner node
-  if (rar) { e.aura = decal(rar === 2 ? 0xffd23f : 0x5a6aff, e.r * 5); e.model.g.add(e.aura); e.aura.scale.multiplyScalar(inv); }
-  if (e.aff.includes('burning')) { e.fireAura = decal(0xff5a10, 5.5); e.model.g.add(e.fireAura); e.fireAura.scale.multiplyScalar(inv); }
+  if (rar) { e.aura = aura(rar === 2 ? 0xffd23f : 0x5a6aff, e.r * 5, .35); e.model.g.add(e.aura); e.aura.scale.multiplyScalar(inv); }
+  if (e.aff.includes('burning')) { e.fireAura = aura(0xd8400c, 5.5, .35); e.model.g.add(e.fireAura); e.fireAura.scale.multiplyScalar(inv); }
   G.enemies.push(e); if (pack) pack.list.push(e);
   return e;
 }
