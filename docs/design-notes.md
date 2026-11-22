@@ -271,7 +271,24 @@ Ideas: deeper levels use more intense versions of the template; beats could be w
 
 ## Linking the bike to progression
 
-- **Open:** not decided. Ideas so far:
+### Layer 1: movement and normal mode (leaning)
+
+- **Movement: the game drives, you decide (Zwift-style).** The autopilot follows the route through the level toward the next beat and the guardian, fights, loots and keeps your build's preferred range (from the main skill: snipers hang back, melee and Phase builds close in). At junctions the D-pad picks a direction; holding it nudges the character manually. On keyboard and touch, manual control is the default and autopilot is optional.
+  - Autopilot needs route awareness (beats, junctions, guardian), not just "nearest thing", and per-build range instead of fixed `keep`/`kite` in `src/data/ride.js`.
+- **Pedalling is a gate for movement, not a speed dial.** Above ~30–40% FTP you move at a fixed speed; below, a slow walk; at 0 W you stop. (Change from today, where speed keeps rising to 125% at 125% FTP.)
+- **The main skill auto-attacks.** It picks the most important nearby target (elites first, then nearest). The same on every device; manual aim could be an option.
+- **Power drives attack speed:** endurance pace (~65–70% FTP) = 100% attack rate; below it slows (e.g. 50% at 40% FTP); above it speeds up, draining the **Surge gauge**.
+- **Surge gauge = W′** (the energy you can spend above threshold; drains when hard, refills when easy). Default size and refill from FTP; later optionally calibrated from the rider's real W′, so a big anaerobic capacity really gives a bigger gauge. Size ~30–60 s of hard effort. When empty, the bonus stops (back to 100%).
+  - Why: it gates early content (you can't smash everything at 200%), keeps easy rides mostly easy with short surges at elites, ambushes and guardians, and makes heat a natural intensity dial (more pressure, more reason to surge).
+  - **Firm rule: nothing removes the gauge's limit.** Builds reshape it, never make it endless.
+- **Surge as a build axis** (tree nodes, support gems): gauge size or refill; surge strength (big burst); efficiency (diesel: smaller bonus, slower drain); on surge start / end effects (nova on start, shield on end); keystones such as Redline (double surge bonus, gauge refills only from kills).
+- **Movement speed is a stat** (gems, tree, gear): faster clears and better escapes. Cap around +50% so the autopilot and screen stay readable.
+- **Skills use cooldowns, not mana.** The Surge gauge is the only resource, and it's effort-based. Cooldown reduction is a stat, capped around 40%. A tree node or support can make surging speed up cooldowns, so effort can feed every skill for builds that want it. Blood Magic becomes **Blood Rite**: no cooldowns, every cast costs life.
+- Trials work differently (the workout prescribes the effort; damage scales with hitting the target); the Surge gauge probably doesn't apply. Next layer.
+
+### Earlier ideas
+
+- Ideas before layer 1:
   - Rewards in levels come from time ridden rather than intensity, so easy rides stay easy.
   - Rewards normalised to %FTP, so riders of different strengths progress at the same rate.
   - A strong Trial result could suggest raising your FTP.
