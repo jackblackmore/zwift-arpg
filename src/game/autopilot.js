@@ -1,4 +1,5 @@
-// Autopilot for RIDE mode: steer toward the nearest fight, then loot, then the next pack, then the boss / portal.
+// Autopilot for RIDE mode: steer toward the nearest fight, then loot, then the next pack along the route (room to room, side rooms
+// as detours; `steer` finds the way round walls), then the boss / portal.
 // Holds at casting range and backs off when monsters get too close, so the rider only pedals and casts.
 import { G, P } from '../core/state.js';
 import { RIDE } from '../data/ride.js';
@@ -24,7 +25,7 @@ export function autopilot(dt = .033) {
 function pick() {
   const A = RIDE.autopilot;
   let best = null, bd = A.engage;
-  for (const e of G.enemies) { if (e.deathT) continue; const d = dist(e.x, e.z, P.x, P.z); if (d < bd) { bd = d; best = e; } }
+  for (const e of G.enemies) { if (e.deathT) continue; const d = dist(e.x, e.z, P.x, P.z); if (d < bd && (e.awake || los(P.x, P.z, e.x, e.z))) { bd = d; best = e; } } // not sleepers behind walls
   if (best) {
     if (bd > A.keep || !los(P.x, P.z, best.x, best.z)) return toward(best.x, best.z); // close in, or get round the rock
     if (bd < A.kite) return away(best.x, best.z);
@@ -34,8 +35,8 @@ function pick() {
   for (const d of G.ground) { if (!d.landed || d.gone) continue; const dd = dist(d.x, d.z, P.x, P.z); if (dd < ld) { ld = dd; loot = d; } }
   if (loot) return toward(loot.x, loot.z);
   if (G.portal) return toward(G.portal.x, G.portal.z);
-  let pack = null, pd = 1e9;
-  for (const p of G.packs) { if (p.spawned && !p.list.some(e => !e.deathT)) continue; const d = dist(p.x, p.z, P.x, P.z); if (d < pd) { pd = d; pack = p; } }
+  let pack = null, pr = 1e9, pd = 1e9;
+  for (const p of G.packs) { if (p.spawned && !p.list.some(e => !e.deathT)) continue; const d = dist(p.x, p.z, P.x, P.z), r = p.rank || 0; if (r < pr || (r === pr && d < pd)) { pr = r; pd = d; pack = p; } }
   if (pack) return toward(pack.x, pack.z);
   const boss = G.bossSpec && G.bossSpec.e;
   if (!boss || !boss.deathT) return toward(G.bossSpot.x, G.bossSpot.z);

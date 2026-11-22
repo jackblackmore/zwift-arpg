@@ -16,7 +16,7 @@ Status: ✅ done · ▶ next · ☐ later
 | 5 | Defence: armour, resistances, typed monster damage | ☐ |
 | 6 | Gear rework: affixes and uniques for the new stat sheet | ☐ |
 | 7 | Balance pass 2: the whole character, every Crypt tier | ☐ |
-| 8 | Room-and-corridor levels | ☐ |
+| 8 | Room-and-corridor levels (built ahead of steps 2–7; level length still to tune after step 7) | ✅ |
 | 9 | Crypt content: 5 distinct levels, new enemies, guardians | ☐ |
 | 10 | Beats inside a level | ☐ |
 | 11 | Crypt Trial boss (workout fight, RIDE mode) | ☐ |
@@ -197,9 +197,11 @@ Status: ✅ done · ▶ next · ☐ later
 - **Update the targets** in `src/data/balance.js` and the guard rails in `npm test` to cover the new systems.
 - **Record the results** in the design notes' Balance section.
 
-## Step 8: Room-and-corridor levels ☐
+## Step 8: Room-and-corridor levels ✅
 
 **Goal:** you can't dash straight to the guardian, and a level takes about 20–30 minutes at par. Design: "Regions and levels" in the design notes.
+
+**Built** (ahead of steps 2–7, so the character-side balance isn't final): generator `src/world/gen.js`, tuning `GEN` in `src/data/dungeon.js`, walls and path finding in `src/world/map.js`, dressing in `src/world/dungeon.js`, tests in `tests/sim.mjs` ("Level layout"). Details and decisions: "Room-and-corridor levels" in the design notes. Still open: re-check XP per map and level length against par once steps 2–7 land (the route is only about a minute of walking; the 20–30 minutes has to come from pack count, monster HP and beats).
 
 - **New generator in `src/world/`:** rooms of different sizes joined by corridors along a main route, with a few side branches. The guardian arena is at the far end. Tuning goes in `src/data/dungeon.js`.
 - **Walls are real colliders,** so line-of-sight and steering already work (`los`, `steer` in `src/world/map.js`, `src/game/enemies.js`).
