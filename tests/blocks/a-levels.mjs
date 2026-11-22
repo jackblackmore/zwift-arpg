@@ -26,11 +26,11 @@ export default async function ({ open, check, SEED, SHOT }) {
     const D = window.__dbg, G = D.G, out = [];
     for (let n = 1; n <= 5; n++) {
       const o = { n, mem: {}, rares: 0, magic: 0, packs: 0, obst: 0, beatTypes: new Set(), defMon: new Set() };
-      for (let k = 0; k < 4; k++) {
+      for (let k = 0; k < 10; k++) {
         const L = D.newLevel(n);
         if (k === 0) { o.name = L.name; o.crypt = L.crypt; o.gcrypt = G.crypt; o.depth = G.depth; o.par = L.def.par; o.guardian = L.def.guardian; o.hazard = !!(L.def.hazards && L.def.hazards.pools); o.pools = D.pools().length; }
         for (const p of D.packs()) { o.packs++; p.mem.forEach(t => o.mem[t] = (o.mem[t] || 0) + 1); if (p.rare) { o.rares++; o.mem[p.rare] = (o.mem[p.rare] || 0) + 1; } if (p.magic) o.magic++; }
-        o.obst += G.obst.length / 4;
+        o.obst += G.obst.length / 10;
         JSON.stringify(L.defs, (key, v) => { if (typeof v === 'string' && ['zombie', 'runner', 'archer', 'bloater', 'necro'].includes(v)) o.defMon.add(v); return v; });
       }
       o.defMon = [...o.defMon]; delete o.beatTypes; out.push(o);
