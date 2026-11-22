@@ -11,7 +11,8 @@ import { existsSync } from 'node:fs';
 const chrome = process.env.CHROME_PATH || ['/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser'].find(existsSync);
 if (!chrome) { console.error('No Chrome found. Set CHROME_PATH.'); process.exit(1); }
 
-const server = await preview({ preview: { port: 4173, strictPort: true } });
+const PORT = Number(process.env.PORT) || 4173; // set PORT to run two test suites at once
+const server = await preview({ preview: { port: PORT, strictPort: true } });
 const browser = await puppeteer.launch({ executablePath: chrome, headless: 'new', args: ['--no-sandbox', '--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
 let failed = 0;
 const check = (ok, msg) => { console.log(`${ok ? 'PASS' : 'FAIL'}  ${msg}`); if (!ok) failed++; };
@@ -27,7 +28,7 @@ async function open(path) {
   // Ignore network failures (web fonts may be unreachable in CI/sandboxes); catch real script errors.
   page.on('console', m => { if (m.type() === 'error' && !m.text().startsWith('Failed to load resource')) errors.push(m.text()); });
   await page.setViewport({ width: 1100, height: 700 });
-  await page.goto('http://localhost:4173' + path, { waitUntil: 'load' });
+  await page.goto(`http://localhost:${PORT}` + path, { waitUntil: 'load' });
   await page.waitForFunction(() => window.__gal || (window.__dbg && (!window.__dbg.ready || window.__dbg.ready())), { timeout: 20000 });
   return { page, errors };
 }
