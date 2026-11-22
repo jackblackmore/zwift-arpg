@@ -172,7 +172,7 @@ export function castSlot(slot) {
   const rite = S.bloodRite ? S.bloodRite * S.maxLife * skillCd(id) / BLOOD.cdRef : 0;
   if (rite ? rite >= P.life : P.cd[slot] > 0) return false;
   if (!def.cast(slot)) return false;
-  if (rite) P.life -= rite; else P.cd[slot] = skillCd(id) * (1 - S.cdr);
+  if (rite) P.life -= rite; else P.cd[slot] = skillCd(id) * (1 - S.cdr) * (S.cdMore || 1); // cdMore: Deep Reserves
   return true;
 }
 

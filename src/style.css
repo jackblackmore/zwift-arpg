@@ -92,15 +92,6 @@ button.pri{background:var(--gold);color:#1a1008;border-color:var(--gold)}
 #tip .cmp{margin-top:6px;border-top:1px solid #3a2a1a;padding-top:5px;font-size:11px}
 .up{color:#5fe39a}.dn{color:#ff6a5a}
 #tip .row button{min-width:80px;padding:8px;font-size:11px}
-#passCards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:10px 0}
-@media (max-width:640px){#passCards{grid-template-columns:1fr}}
-.pc{border:1px solid #6a5030;border-radius:8px;padding:12px;background:#140e0a;cursor:pointer;text-align:left}
-.pc:hover{border-color:#ffd23f;box-shadow:0 0 14px #ffd23f55}
-.pc b{display:block;font:800 15px Cinzel,serif;margin-bottom:4px}
-.pc span{font-size:11.5px;color:#cfc3a8;line-height:1.45}
-.pc em{display:block;font-style:normal;font-size:10px;color:var(--dim);margin-top:6px;letter-spacing:.08em}
-.pc.note{border-color:#c8a25a}.pc.key{border-color:#ff5a3c;background:#1a0c08}
-#taken{font-size:11px;color:var(--dim);line-height:1.6}
 #joy{position:fixed;width:110px;height:110px;margin:-55px 0 0 -55px;border-radius:50%;border:2px solid #ffffff30;background:#ffffff0c;display:none;z-index:5;pointer-events:none}
 #joy i{position:absolute;left:50%;top:50%;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;background:#c8a25a66;border:2px solid #c8a25a}
 body.touch .orb{width:64px;height:64px;bottom:auto;top:122px}
@@ -216,4 +207,38 @@ body.ride #xp{bottom:4px}
   .gslot .gi{font-size:24px}
   .gsock{width:22px;height:22px;font-size:12px}
   #gbBag{grid-template-columns:repeat(auto-fill,minmax(72px,1fr))}
+}
+
+/* ---- passive tree modal (ui/tree.js) ---- */
+#treeCard{max-width:1000px;height:min(94vh,820px);height:min(94dvh,820px);display:flex;flex-direction:column;overflow:hidden;padding:12px 14px}
+#treeCard h3{flex:none;gap:8px;margin-bottom:4px}
+#treePts{flex:1;font:700 12px 'JetBrains Mono',monospace;color:#ffd23f;letter-spacing:0;margin-left:6px}
+#treePts.none{color:var(--dim)}
+.tbtns{display:flex;gap:6px}.tbtns button{padding:8px 10px}
+#treeReset.ask{background:#6a1c10;border-color:#ff5a3c;color:#fff}
+#treeTot{flex:none;font-size:11px;color:var(--dim);line-height:1.5;margin-bottom:6px}
+#treeTot b{color:var(--ink);font-weight:600}
+#treeWrap{flex:1;min-height:0;position:relative;border:1px solid #3a2a1a;border-radius:8px;background:radial-gradient(#171009,#0a0706);overflow:hidden}
+#treeSvg{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}
+#treeSvg.drag{cursor:grabbing}
+#treeSvg .lbl{display:none;font:700 3px Cinzel,serif;fill:#e6dcc6;text-anchor:middle;pointer-events:none;paint-order:stroke;stroke:#0a0706;stroke-width:.8px}
+#treeSvg.zoomed .lbl{display:block}
+#treeSvg .ring{animation:tpulse 1.2s ease-in-out infinite alternate}
+@keyframes tpulse{from{opacity:.35}to{opacity:1}}
+#treeSel{flex:none;margin-top:8px;min-height:92px;background:#120c08;border:1px solid #3a2a1a;border-radius:8px;padding:8px 10px;display:flex;gap:10px;align-items:center}
+#treeSel .tinfo{flex:1;min-width:0}
+#treeSel b{font:800 15px Cinzel,serif;letter-spacing:.04em}
+#treeSel .tk{font-size:10px;color:var(--dim);letter-spacing:.1em;margin-left:6px}
+#treeSel .ts{font-size:12.5px;line-height:1.45;color:#e6dcc6}
+#treeSel .ts.key{color:#ffb070}
+#treeSel .why{font-size:11px;color:var(--dim);margin-top:2px}
+#treeSel .tact{display:flex;flex-direction:column;gap:6px;flex:none}
+#treeSel .tact button{min-width:112px;padding:12px 10px;font-size:13px}
+#treeSel .tact button:disabled{opacity:.35;cursor:default}
+@media (max-width:640px){
+  #treeCard{height:100%;max-height:none;border-radius:0;padding:8px 8px}
+  #mPass.modal{padding:0}
+  #treeCard h3{font-size:14px}
+  #treeSel{flex-direction:column;align-items:stretch;gap:6px;min-height:0}
+  #treeSel .tact{flex-direction:row}#treeSel .tact button{flex:1;padding:14px 10px}
 }

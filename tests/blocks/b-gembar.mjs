@@ -140,10 +140,6 @@ export default async function ({ open, check, SEED, SHOT }) {
       // very old save with no gems at all
       const bare = { ...old, lvl: 1 }; delete bare.gems; delete bare.passives; localStorage.setItem('wd-arpg-1', JSON.stringify(bare)); D.start(false);
       out.bare = [P.gems.length, D.slotSkill('main'), D.slotSkill('evade'), P.gems.every(g => g.lvl === 1 && g.ap === 0)];
-      // the retired notables can't be offered any more
-      P.pts = 50; const seen = new Set();
-      for (let i = 0; i < 40; i++) { P.offer = null; D.openPass(); document.querySelectorAll('.pc').forEach(c => seen.add(c.dataset.k)); }
-      document.getElementById('mPass').classList.remove('show'); out.offered = [...seen].sort().join();
       return out;
     });
     console.log('  gembar save:', JSON.stringify(r));
@@ -152,10 +148,9 @@ export default async function ({ open, check, SEED, SHOT }) {
     check(m.main === 'fireball' && m.evade === 'blink' && m.flexA === 'nova' && m.guard === null && m.ward[1] === null && m.n === 6, `gembar: migration: Fireball Main, Blink Evade, Nova Flex A, Ward in the bag (${m.main}/${m.evade}/${m.flexA}/${m.guard}, ${m.n} gems)`);
     check(m.fb.join() === '5,20' && m.blink === 3 && m.nova.join() === '2,3' && m.ward[0] === 4, 'gembar: migration keeps gem levels and AP');
     check(m.split[0] === 2 && m.split[1] && m.ignite === 1, `gembar: migration turns Twin Flame x2 into a level 2 Split in Main's socket and Ignite into a support gem (${JSON.stringify(m.split)})`);
-    check(m.pass.multi === undefined && m.pass.ignite === undefined && m.pass.pyre === 3 && m.pts === 5 && m.shrine === 'fireball', `gembar: notables removed, points refunded (pts ${m.pts}), pyre kept, Main shrine marked taken`);
+    check(m.pass.multi === undefined && m.pass.ignite === undefined && m.pts === 5 && m.shrine === 'fireball', `gembar: old passives dropped, every point refunded to the tree (pts ${m.pts}), Main shrine marked taken`);
     check(r.migRound && r.guard9 === 'ward', `gembar: migrated save round-trips; at level 9 Ward goes to Guard (${r.guard9})`);
     check(r.bare[0] === 4 && r.bare[1] === 'fireball' && r.bare[2] === 'blink' && r.bare[3], `gembar: a save with no gems starts the four at level 1 (${r.bare})`);
-    check(!/multi|pierce|ignite|shatter|inferno/.test(r.offered) && r.offered.length > 10, `gembar: retired notables are never offered (${r.offered})`);
     check(errors.length === 0, `gembar: no page errors on save${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
     await page.close();
   }
