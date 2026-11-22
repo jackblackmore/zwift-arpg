@@ -242,7 +242,7 @@ Ideas: deeper levels use more intense versions of the template; beats could be w
 ## Trials (boss runs)
 
 - **Leaning:** a Trial is a **structured workout**, and the boss fight follows the workout script. During intervals the boss is exposed or staggered; during recoveries it attacks and you survive.
-- **Leaning:** targets are a **% of FTP**, not raw watts. Hitting them doesn't add damage; missing them makes the fight harder (see layer 2).
+- **Leaning:** targets are a **% of FTP**, not raw watts. Riding well adds damage and missing them makes the fight harder (see layer 2).
 - **Leaning:** **killing the boss before the workout ends unlocks the next region**. Three deaths fail the Trial (see layer 2). If you fail, you keep your loot and retry another day. Whether you can win depends on your stats and build, and on riding the targets well enough to avoid the penalties.
 - A grade (time in zone, deaths, phases broken on time) decides loot quality.
 - **Leaning:** **bosses are tied to workout types**, and the rhythm of the fight matches the rhythm of the workout:
@@ -290,11 +290,16 @@ Ideas: deeper levels use more intense versions of the template; beats could be w
 - **A Trial is a short warm-up level** (~10–15 min, normal packs, no guardian), **then the boss arena**, where the fight is a structured workout with watt targets.
 - Win, workout types and replay with modifiers as in the Trials section above.
 - **No ERG mode** to start, to keep it simple. You ride the target yourself and the game shows how well you're hitting it.
-- **Power never adds damage in Trials.** Your build does the damage; the workout decides how hard the fight is. The Surge gauge doesn't apply.
+- **Power is rewarded in Trials** (replaces the earlier "power never adds damage"), always against your own FTP, not raw watts. Gear sets base damage; riding well multiplies it, enough to beat slightly weak gear but not badly under-levelled gear. Options to combine (numbers need testing):
+  - On-target bonus: damage scales with how close you are to the target (under = less, on target = full).
+  - A small over band: up to ~5–10% over target adds damage; beyond that no extra, or overheat.
+  - Clean-interval streak: holding a whole interval in range boosts damage for the next one.
+  - Final interval, empty the tank: no cap; the harder you go, the more damage.
+- The Surge gauge doesn't apply in Trials.
 - **Under target makes the boss stronger**, escalating the longer you stay under. A few seconds' grace (gear changes, standing up), then e.g. ~5–10 s the boss gains armour, ~10–20 s extra adds spawn, 20 s+ you're slowed or frozen, or the boss heals. Effects fade once you're back on target. Each boss can have its own penalties (Warden armour plates, Lich raises extra dead, Juggernaut enrages).
 - **Open:** over target. Either a mild overheat (burn damage or slower cooldowns, teaching pacing, since overcooking early intervals wrecks later ones) or neutral.
 - **Death:** drop to one knee, a moment of invincibility, back to full health, fight continues. **The third death fails the Trial.** (Replaces the earlier "deaths only cost fight time".)
-- **Deferred: revisit Trials properly later to settle the metrics.** Goals to reconcile: failing should be possible (failing sometimes is part of structured training), but you must not be locked out by gear alone; **a very good ride should be able to win** with slightly weak gear. Tension: if power never adds damage and riding well only avoids penalties, an under-geared character can't win however well they ride. One idea: **reward precision, not watts.** A clean interval held in range could expose a weak point or break a ward for bonus damage, while going over target gains nothing.
+- **Deferred: revisit Trials properly later to settle the metrics.** Goals to reconcile: failing should be possible (failing sometimes is part of structured training), but you must not be locked out by gear alone; **a very good ride should be able to win** with slightly weak gear. Resolved in direction: power is rewarded (see above); the numbers still need testing.
 - **Open:** what happens to the workout after a failure. Option: the fight ends but the workout continues (boss retreats; ride the rest as a chase or survival segment) and finishing still earns XP, AP and a small reward, keeping "no ride is wasted". Or the session simply ends.
 
 ### Earlier ideas
