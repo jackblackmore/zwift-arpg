@@ -242,8 +242,8 @@ Ideas: deeper levels use more intense versions of the template; beats could be w
 ## Trials (boss runs)
 
 - **Leaning:** a Trial is a **structured workout**, and the boss fight follows the workout script. During intervals the boss is exposed or staggered; during recoveries it attacks and you survive.
-- **Leaning:** your damage scales with **how close you are to the target as a % of FTP**, not with raw watts.
-- **Leaning:** **killing the boss before the workout ends unlocks the next region**, however many times you died. Dying costs a few seconds out of the fight; the workout never stops. If the boss survives, you keep your loot and retry another day. Whether you can win depends mainly on your stats and build, and partly on how well you ride.
+- **Leaning:** targets are a **% of FTP**, not raw watts. Hitting them doesn't add damage; missing them makes the fight harder (see layer 2).
+- **Leaning:** **killing the boss before the workout ends unlocks the next region**. Three deaths fail the Trial (see layer 2). If you fail, you keep your loot and retry another day. Whether you can win depends on your stats and build, and on riding the targets well enough to avoid the penalties.
 - A grade (time in zone, deaths, phases broken on time) decides loot quality.
 - **Leaning:** **bosses are tied to workout types**, and the rhythm of the fight matches the rhythm of the workout:
 
