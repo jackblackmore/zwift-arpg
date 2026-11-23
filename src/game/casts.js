@@ -4,6 +4,7 @@
 // game tick (minions, totems, delayed impacts); clear() removes its scene objects when the map is cleared.
 // To add a skill: write the module, then add one import and one entry to MODS below.
 import { castFireball, castArc, castNova, castShield, castDash } from './skills.js';
+import frostlance from './sk/frostlance.js';
 
 import blink from './sk/blink.js';
 import ward from './sk/ward.js';
@@ -11,7 +12,7 @@ import totem from './sk/totem.js';
 import meteor from './sk/meteor.js';
 
 const MODS = {
-  blink, ward, totem, meteor,
+  blink, ward, totem, meteor, frostlance,
 };
 
 export const CAST = { fireball: castFireball, arc: () => castArc(), nova: () => castNova(), shield: castShield, dash: castDash };

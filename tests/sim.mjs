@@ -347,6 +347,30 @@ try {
     check(errors.length === 0, `totem/meteor: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   }
 
+  // ---------- Skill gems: Frost Lance (package A) ----------
+  {
+    const { page, errors } = await open('/');
+    const r = await page.evaluate(() => {
+      const D = window.__dbg, P = D.P, S = D.S, G = D.G, out = {};
+      D.start(true); D.takeShrine('main', 'fireball'); document.getElementById('mShrine').classList.remove('show');
+      const gem = D.addGem('frostlance'); D.placeGem(gem.id, 'main');
+      out.onBar = P.gems.find(g => g.id === P.bar.main).gem;
+      // Find a direction with 14 clear units in front of the hero, line monsters up along it.
+      let dir = [0, 1]; for (const d of [[0, 1], [1, 0], [0, -1], [-1, 0], [.7, .7], [-.7, .7], [.7, -.7], [-.7, -.7]]) { let ok = true; for (let t = 1; t < 15; t += .5) if (D.blocked(P.x + d[0] * t, P.z + d[1] * t, .5)) ok = false; if (ok) { dir = d; break; } }
+      const line = () => { G.enemies.length = 0; const es = []; for (let i = 0; i < 7; i++) { const e = D.spawnEnemy('zombie', P.x + dir[0] * (4 + i * 1.2), P.z + dir[1] * (4 + i * 1.2), null, 0); e.hp = e.maxHp = 1e6; es.push(e); } D.ctl.aim = [P.x + dir[0] * 10, P.z + dir[1] * 10]; D.sim(1); return es; };
+      const fire = () => { P.mana = S.maxMana; const m = P.mana; const ok = D.cast('frostlance'); out.paid = out.paid || (ok && P.mana < m); D.sim(30); };
+      let es = line(); fire();
+      out.hit = es.filter(e => e.hp < e.maxHp).length; out.chilled = es.filter(e => e.chill > 0 || e.hp < e.maxHp).length;
+      gem.lvl = 5; D.recalc(); es = line(); fire(); out.hit5 = es.filter(e => e.hp < e.maxHp).length;
+      D.ctl.aim = null; return out;
+    });
+    console.log('  frostlance:', JSON.stringify(r));
+    check(r.onBar === 'frostlance' && r.paid, 'frostlance: goes on the Main slot and casting pays mana');
+    check(r.hit >= 3 && r.hit <= 5, `frostlance: pierces a line of monsters but not all of them (${r.hit} of 7 hit)`);
+    check(r.hit5 === r.hit + 2, `frostlance: level 5 pierces 2 more (${r.hit5})`);
+    check(errors.length === 0, `frostlance: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
+  }
+
   // ---------- ARPG in RIDE mode (simulated Zwift Ride + KICKR) ----------
   {
     const { page, errors } = await open('/');

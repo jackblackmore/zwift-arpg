@@ -29,8 +29,8 @@ import { castFireball, castArc, castNova, castDash, castShield } from './game/sk
 import { dropItem } from './game/items.js';
 import { hud } from './ui/hud.js';
 import { initPanels, syncPause, openInv, openPass, toggleInv, togglePass, toggleGems, openGems, openShrine, closeAll, equip } from './ui/panels.js';
-import { freshGems, readySlots, takeShrine, shrineDue, refreshShrine, placeGem, addGem } from './game/gems.js';
 import { CAST } from './game/casts.js';
+import { freshGems, readySlots, takeShrine, shrineDue, refreshShrine, placeGem, addGem } from './game/gems.js';
 import { GEMS, SLOT_DEFS } from './data/gems.js';
 
 function begin(fresh) {
@@ -120,5 +120,5 @@ window.__dbg = {
   sim: n => { for (let i = 0; i < n; i++) { update(.033); updFx(.033); } },
   enemies: () => G.enemies, packs: () => G.packs, items: () => G.ground,
   arena, parLevel, parBar, parGear: PAR_GEAR, newMap, kill, dropItem, castFireball, castArc, castNova, castDash, castShield, openInv, openPass, openGems, openShrine, equip,
-  takeShrine, shrineDue, placeGem, addGem, recalc, save, load, begin, CAST, blocked, spawnEnemy, hurtP,
+  takeShrine, shrineDue, placeGem, addGem, recalc, save, load, begin, CAST, blocked, spawnEnemy, hurtP, cast: id => CAST[id](),
 };
