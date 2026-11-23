@@ -34,8 +34,9 @@ export const AFFBY = Object.fromEntries(AFF.map(a => [a.st, a]));
 // Mods that only uniques carry.
 export const EXTRA = {
   lifePct: { t: '#% to maximum life', pct: 1, sign: 1 }, dr: { t: '#% less damage taken', pct: 1 }, dashCh: { t: 'Flame Dash has +# charges', int: 1 }, shieldPct: { t: 'Magic Shield absorbs #% more', pct: 1 },
-  burnGround: { t: 'Fireball explosions leave burning ground', flag: 1 }, storm: { t: 'Every 4th Fireball also casts Arc where it explodes', flag: 1 },
-  autoNova: { t: 'Casts Frost Nova automatically every 5 seconds', flag: 1 },
+  // Rule-bending unique mods, with their numbers (keep the text in step). burnGround: patch radius r × explosion radius, lasting dur s.
+  burnGround: { t: 'Fireball explosions leave burning ground', flag: 1, r: .8, dur: 2.5 }, storm: { t: 'Every 4th Fireball also casts Arc where it explodes', flag: 1, every: 4 },
+  autoNova: { t: 'Casts Frost Nova automatically every 5 seconds', flag: 1, every: 5 },
 };
 export const UNIQ = [
   { id: 'watt', slot: 'weapon', name: 'Wattbringer', base: 'Ember Sceptre', mods: [['spell', 9], ['fire', .3], ['proj', 1], ['burnGround', 1]], fl: 'Every turn of the crank feeds the flame.' },
@@ -51,4 +52,9 @@ export const RCOL = [0xc8c8c8, 0x8888ff, 0xffff77, 0xff9a3c], RCSS = ['#c8c8c8',
 // Drop chances and rarity rolls.
 // normal/magic: chance a monster of that rarity drops an item (rares always drop 1–2, guardians 5).
 // gem: chance a rare also drops a gem (guardians always drop one; pool and level in data/gems.js GEM_POOL, GEM_DROP).
-export const DROP = { normal: .07, magic: .2, uniqueBase: .025, rareBase: .25, bagSize: 30, gem: .25 };
+// rare: a rare's items (the first always, a second at `second` chance) and their rarity boosts. boss: the guardian's items and boosts (first, rest), one every `gap` s.
+// uniqueBase, rareBase: chance a drop is unique or rare; a boost adds to rareBase and uniqueBoost × it to uniqueBase.
+// affixes: [min, max] rolled per rarity. rareAffixSkip: chance an affix marked `rare` is skipped on a magic and a rare item.
+export const DROP = { normal: .07, magic: .2, uniqueBase: .025, uniqueBoost: .4, rareBase: .25, bagSize: 30, gem: .25,
+  affixes: { magic: [1, 2], rare: [3, 5] }, rareAffixSkip: { magic: .85, rare: .4 },
+  rare: { boost: .15, second: .5, boost2: .1 }, boss: { n: 5, first: .6, rest: .25, gap: .12 } };

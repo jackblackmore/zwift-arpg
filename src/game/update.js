@@ -13,6 +13,7 @@ import { newMap, respawn } from './maps.js';
 import { save } from './save.js';
 import { autopilot } from './autopilot.js';
 import { RIDE } from '../data/ride.js';
+import { EXTRA } from '../data/items.js';
 import { clamp } from '../core/util.js';
 
 // Effort (RIDE mode): how %FTP and cadence scale movement, mana and casting. 1 when not riding.
@@ -42,7 +43,7 @@ function updPlayer(dt) {
   if (P.shieldT > 0) { P.shieldT -= dt; if (P.shieldT <= 0) P.shield = 0; }
   updSlots(dt, fx);
   if (ctl.flask) { ctl.flask = false; useFlask(); }
-  if (S.autoNova) { P.autoNovaT -= dt; if (P.autoNovaT <= 0) { P.autoNovaT = 5; castNova(true); } }
+  if (S.autoNova) { P.autoNovaT -= dt; if (P.autoNovaT <= 0) { P.autoNovaT = EXTRA.autoNova.every; castNova(true); } }
   for (const d of G.ground) if (d.landed && !d.gone && dist(d.x, d.z, P.x, P.z) < 1.3) pickUp(d);
   updShrine();
   if (G.portal && dist(P.x, P.z, G.portal.x, G.portal.z) < 1.3) { save(G.tier + 1); newMap(G.tier + 1); }

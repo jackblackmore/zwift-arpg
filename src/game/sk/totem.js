@@ -3,6 +3,7 @@
 import * as T from 'three';
 import { P, S } from '../../core/state.js';
 import { SK } from '../../data/skills.js';
+import { GEMS, SUPPORTS } from '../../data/gems.js';
 import { dist, rand, pick } from '../../core/util.js';
 import { SFX } from '../../core/audio.js';
 import { scene, flashLight } from '../../render/scene.js';
@@ -41,7 +42,7 @@ function cast() {
   const K = SK.totem; if (!pay(K.cost)) return false;
   const [x, z] = spot();
   remove();
-  totem = build(x, z); totem.life = K.dur * (S.mile.totem ? K.mileDur : 1);
+  totem = build(x, z); totem.life = K.dur * (S.mile.totem ? GEMS.totem.mile.dur : 1);
   P.face = Math.atan2(x - P.x, z - P.z); P.castAnim = .3; P.castSeq++; P.lastCast = 'totem';
   ringFx(x, z, 1.8, 0xff8a3c, .4, .2); flashFx(x, 1.2, z, 0xff7a2a, 4, .35); flashLight(x, z, 0xff7a2a, 3, .3);
   for (let i = 0; i < 14; i++) { const a = rand(0, 6.28); emit(glows, x + Math.cos(a) * .6, rand(.1, .6), z + Math.sin(a) * .6, 0, rand(.8, 2.5), 0, rand(.3, .6), 0xff5a10); }
@@ -66,7 +67,7 @@ function tick(dt) {
   if (t.life <= 0) { flashFx(t.x, 1.2, t.z, 0xff7a2a, 3, .25); remove(); return; }
   if (t.shotT > 0) return;
   // The nearest monster in sight; with the Volley support, the nearest few, each bolt weaker.
-  const V = K.sup.volley, n = S.sk.totem.volley ? V.n : 1, tg = [];
+  const V = SUPPORTS.volley, n = S.sk.totem.volley ? V.targets : 1, tg = [];
   near(t.x, t.z, K.range, e => { if (los(t.x, t.z, e.x, e.z)) tg.push([dist(e.x, e.z, t.x, t.z), e]); });
   tg.sort((a, b) => a[0] - b[0]);
   if (tg.length) { t.shotT = K.interval; for (const [, e] of tg.slice(0, n)) shoot(e, t, K.mult * (n > 1 ? V.mult : 1)); } else t.shotT = .1;

@@ -2,6 +2,7 @@
 import { P, S } from '../core/state.js';
 import { computeStats as calcStats, avgHit, xpNeedFor } from './formulas.js';
 import { SK } from '../data/skills.js';
+import { ESTIMATE as E } from '../data/balance.js';
 import { GEMS } from '../data/gems.js';
 import { barLevels, sockMap, barGem, gemXp, onLevelUp } from './gems.js';
 import { $, rand } from '../core/util.js';
@@ -18,7 +19,7 @@ export function recalc() {
 // Rough DPS of the Main gem (Fireball if the slot is empty; Raise Skeletons: a base-cap army swinging), used by the bag to compare items.
 export function estimate(st) {
   const g = barGem('main'), id = g ? g.gem : 'fireball', D = GEMS[id], K = SK[D.sk];
-  const rate = id === 'skeletons' ? st.cast / K.atk * K.cap : D.held ? st.cast / K.cast : 1 / K.cd, k = st.sk[id], extra = id === 'fireball' ? 1 + (k.proj - 1) * .55 : id === 'arc' ? 1 + k.chains * .3 : id === 'frostlance' ? 1.6 * (k.split ? 1.3 : 1) : id === 'skeletons' ? (K.cap + k.army) / K.cap : 1;
+  const rate = id === 'skeletons' ? st.cast / K.atk * K.cap : D.held ? st.cast / K.cast : 1 / K.cd, k = st.sk[id], extra = id === 'fireball' ? 1 + (k.proj - 1) * E.extraProj : id === 'arc' ? 1 + k.chains * E.perChain : id === 'frostlance' ? E.lance * (k.split ? E.split : 1) : id === 'skeletons' ? (K.cap + k.army) / K.cap : 1;
   return { dps: avgHit(st, K.mult || 1, D.elem, id) * rate * extra, life: st.maxLife, ms: st.ms, gem: D.n };
 }
 

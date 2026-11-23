@@ -3,6 +3,7 @@
 import * as T from 'three';
 import { P, S, shake } from '../../core/state.js';
 import { SK } from '../../data/skills.js';
+import { GEMS, SUPPORTS } from '../../data/gems.js';
 import { dist, rand, pick } from '../../core/util.js';
 import { SFX } from '../../core/audio.js';
 import { scene, flashLight } from '../../render/scene.js';
@@ -19,10 +20,10 @@ function cast() {
   const K = SK.meteor; if (!pay(K.cost)) return false;
   let [x, z] = aim(); const d = dist(x, z, P.x, P.z) || 1;
   if (d > K.range) { x = P.x + (x - P.x) / d * K.range; z = P.z + (z - P.z) / d * K.range; }
-  const r = K.radius * S.aoe * (S.mile.meteor ? K.mileR : 1);
+  const r = K.radius * S.aoe * (S.mile.meteor ? GEMS.meteor.mile.radius : 1);
   drop(x, z, r, K.delay, K.mult);
   // Twin Meteor support: a second, weaker one a little later, beside the first (away from you, so it lands among them).
-  if (S.sk.meteor.twin) { const W = K.sup.twin, a = Math.atan2(x - P.x, z - P.z) + rand(-1.2, 1.2); drop(x + Math.sin(a) * r * W.off, z + Math.cos(a) * r * W.off, r, K.delay + W.delay, K.mult * W.mult); }
+  if (S.sk.meteor.twin) { const W = SUPPORTS.twinmeteor, a = Math.atan2(x - P.x, z - P.z) + rand(-1.2, 1.2); drop(x + Math.sin(a) * r * W.off, z + Math.cos(a) * r * W.off, r, K.delay + W.delay, K.mult * W.mult); }
   P.face = Math.atan2(x - P.x, z - P.z); P.castAnim = .4; P.castSeq++; P.lastCast = 'meteor';
   SFX.nova(); return true;
 }
@@ -40,7 +41,7 @@ function land(m) {
   near(m.x, m.z, m.r, e => {
     const dd = dist(e.x, e.z, m.x, m.z) || 1;
     const d = hit(e, m.mult, 'fire', { gem: 'meteor', kx: (e.x - m.x) / dd, kz: (e.z - m.z) / dd });
-    if (S.sk.meteor.ignite && !e.deathT) { e.burnT = 3; e.burnDps = Math.max(e.burnDps, d * .2); }
+    const IG = SUPPORTS.ignite; if (S.sk.meteor.ignite && !e.deathT) { e.burnT = IG.dur; e.burnDps = Math.max(e.burnDps, d * IG.share / IG.dur); }
   });
   addPatch(m.x, m.z, m.r * .85, K.burn, 'meteor');
   flashFx(m.x, 1, m.z, 0xff7a2a, m.r * 2.8, .35); flashFx(m.x, 1, m.z, 0xffe0a0, m.r * 1.3, .2); ringFx(m.x, m.z, m.r, 0xff8a3c, .4, .3); ringFx(m.x, m.z, m.r * .6, 0xffe0a0, .3, .2);

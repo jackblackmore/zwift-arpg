@@ -11,10 +11,21 @@ export const HERO = {
 export const START_WEAPON = { slot: 'weapon', rar: 0, base: 'Ashwood Staff', name: 'Ashwood Staff', il: 1, impl: 1, mods: [['spell', 5]] };
 
 // Monster rarity multipliers on top of the type's tier values (game/enemies.js spawnEnemy).
+// xp: kill XP multiplier.
 export const RARITY = {
-  magic: { hp: 2, dmg: 1.15, spd: 1.08 },
-  rare: { hp: 5, dmg: 1.35, fortified: 1.6 },
+  magic: { hp: 2, dmg: 1.15, spd: 1.08, xp: 2 },
+  rare: { hp: 5, dmg: 1.35, fortified: 1.6, xp: 8 },
 };
+// Every hit rolls between spread[0] and spread[1] × its average. Dying costs deathXp of the XP needed for your next level.
+// After dying you respawn at the map entrance, untouchable for respawnInvuln s.
+export const COMBAT = { spread: [.88, 1.12], deathXp: .1, respawnInvuln: 2 };
+// Experience to go from level l to l + 1: base × l^exp (the character and every gem use the same curve).
+export const XP_CURVE = { base: 40, exp: 1.55 };
+// Item level scaling of rolled values: flat affixes +flat per item level above 1, percent affixes +pct per level.
+export const ITEM_SCALE = { flat: .22, pct: .07 };
+// The bag's "is this an upgrade?" estimate (game/stats.js estimate) and the maths report: share of extra Fireball projectiles
+// that land, extra damage per Arc chain, and Frost Lance's pierce (with Split) as a damage factor.
+export const ESTIMATE = { extraProj: .55, perChain: .3, lance: 1.6, split: 1.3 };
 
 // Par character level for each map tier: the level you should be when you start that map.
 // Tiers 1–5 are the Crypt's five levels (the region boss comes after); later tiers add `PAR_AFTER` each.

@@ -19,7 +19,7 @@ function rollVal(a, il) {
   return a.int ? Math.max(1, Math.round(a.a === a.b ? a.a : v)) : a.pct ? Math.round(v * 100) / 100 : a.dec ? Math.round(v * 10) / 10 : Math.round(v);
 }
 export function rollItem(il, boost = 0) {
-  const r = Math.random(); let rar = r < DROP.uniqueBase + boost * .4 ? 3 : r < DROP.rareBase + boost ? 2 : 1;
+  const r = Math.random(); let rar = r < DROP.uniqueBase + boost * DROP.uniqueBoost ? 3 : r < DROP.rareBase + boost ? 2 : 1;
   const slot = pick(SLOTS);
   if (rar === 3) {
     const u = pick(UNIQ.filter(u => u.slot === slot));
@@ -28,8 +28,8 @@ export function rollItem(il, boost = 0) {
   const [ist, iv] = IMPL[slot];
   const it = { id: G.itemId++, slot, rar, base: pick(BASES[slot]), il, mods: [[ist, ist === 'ms' || ist === 'dmg' ? iv : Math.round(iv * flatScale(il))]], impl: 1 };
   const pool = AFF.filter(a => !a.slots || a.slots.includes(slot)).sort(() => Math.random() - .5);
-  const n = rar === 1 ? randi(1, 2) : randi(3, 5);
-  for (const a of pool) { if (it.mods.length - 1 >= n) break; if (a.rare && Math.random() < (rar === 2 ? .4 : .85)) continue; it.mods.push([a.st, rollVal(a, il)]); }
+  const A = DROP.affixes[rar === 1 ? 'magic' : 'rare'], n = randi(A[0], A[1]), skip = DROP.rareAffixSkip[rar === 1 ? 'magic' : 'rare'];
+  for (const a of pool) { if (it.mods.length - 1 >= n) break; if (a.rare && Math.random() < skip) continue; it.mods.push([a.st, rollVal(a, il)]); }
   it.name = rar === 2 ? pick(RAREN1) + ' ' + pick(RAREN2) : `${AFFBY[it.mods[1][0]].mp} ${it.base}`;
   return it;
 }

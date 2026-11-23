@@ -4,6 +4,7 @@
 // and when cornered it tries the diagonals. Milestone (gem level 5): a frost burst where you were that damages and chills.
 import { G, P, S } from '../../core/state.js';
 import { SK } from '../../data/skills.js';
+import { GEMS } from '../../data/gems.js';
 import { ctl } from '../../input/input.js';
 import { rand, dist } from '../../core/util.js';
 import { SFX } from '../../core/audio.js';
@@ -46,8 +47,8 @@ export default {
     }
     flashLight(P.x, P.z, col, 3, .3); SFX.dash();
     if (S.mile.blink) {
-      const r = B.burstR * S.aoe;
-      near(sx, sz, r, e => { hit(e, B.burstMult, 'cold', { gem: 'blink' }); if (!e.deathT) e.chill = Math.max(e.chill, B.burstChill); });
+      const M = GEMS.blink.mile, r = M.burstR * S.aoe;
+      near(sx, sz, r, e => { hit(e, M.burstMult, 'cold', { gem: 'blink' }); if (!e.deathT) e.chill = Math.max(e.chill, M.burstChill); });
       ringFx(sx, sz, r, 0xffffff, .4, .1);
       for (let i = 0; i < 24; i++) { const b = rand(0, 6.28), s = rand(3, 7); emit(sparks, sx, rand(.3, 1), sz, Math.cos(b) * s, rand(0, 2), Math.sin(b) * s, rand(.3, .5), 0xbff0ff, 2, 3); }
     }

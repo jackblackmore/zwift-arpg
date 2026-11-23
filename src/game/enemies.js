@@ -1,7 +1,7 @@
 // Monster packs, spawning, AI (melee, ranged, bomber, boss) and crowd separation.
 import * as T from 'three';
 import { G, P, shake, stop } from '../core/state.js';
-import { MT, TIER, PACKS, PACK, RAREAFF, RN1, RN2, BOSS, RISE, ANIM } from '../data/monsters.js';
+import { MT, TIER, PACKS, PACK, RAREAFF, RN1, RN2, BOSS, RISE, ANIM, STATUS, FIGHT, BLAST, RARE } from '../data/monsters.js';
 import { rand, pick, dist, $ } from '../core/util.js';
 import { SFX } from '../core/audio.js';
 import { scene } from '../render/scene.js';
@@ -29,11 +29,11 @@ export function spawnEnemy(type, x, z, pack, rar = 0) {
   let hpm = mt, sc = b.scale || 1;
   if (rar === 1) { const R = RARITY.magic; hpm *= R.hp; e.dmg *= R.dmg; e.spd *= R.spd; }
   if (rar === 2) {
-    hpm *= RARITY.rare.hp; e.dmg *= RARITY.rare.dmg; sc *= 1.4; e.r *= 1.35;
-    e.aff = Object.keys(RAREAFF).sort(() => Math.random() - .5).slice(0, G.tier >= 3 ? 3 : 2);
-    if (e.aff.includes('hasted')) { e.spd *= 1.5; e.cd *= .7; }
-    if (e.aff.includes('frenzied')) { e.cd *= .55; e.dmg *= 1.1; }
-    if (e.aff.includes('fortified')) { hpm *= RARITY.rare.fortified; sc *= 1.12; }
+    hpm *= RARITY.rare.hp; e.dmg *= RARITY.rare.dmg; sc *= RARE.size; e.r *= RARE.radius;
+    e.aff = Object.keys(RAREAFF).sort(() => Math.random() - .5).slice(0, G.tier >= RARE.moreFrom ? RARE.more : RARE.affixes);
+    if (e.aff.includes('hasted')) { e.spd *= RARE.hasted.spd; e.cd *= RARE.hasted.cd; }
+    if (e.aff.includes('frenzied')) { e.cd *= RARE.frenzied.cd; e.dmg *= RARE.frenzied.dmg; }
+    if (e.aff.includes('fortified')) { hpm *= RARITY.rare.fortified; sc *= RARE.fortified.size; }
     e.name = pick(RN1) + pick(RN2);
   }
   e.hp = e.maxHp = b.hp * hpm; e.dmg *= md;
@@ -105,7 +105,7 @@ function eShoot(e, ang, spd, dmg, col, size) {
   if (col === 'arrow') { const m = new T.Mesh(GB, eyeMat(0xd8c890)); m.scale.set(.05, .05, .55); g.add(m); g.rotation.y = ang; }
   else g.add(glowSprite(col, size));
   g.position.set(e.x, 1.2, e.z); scene.add(g);
-  G.eproj.push({ x: e.x, z: e.z, vx: Math.sin(ang) * spd, vz: Math.cos(ang) * spd, dmg, life: 3, g, r: col === 'arrow' ? .3 : .45 });
+  G.eproj.push({ x: e.x, z: e.z, vx: Math.sin(ang) * spd, vz: Math.cos(ang) * spd, dmg, life: FIGHT.projLife, g, r: col === 'arrow' ? .3 : .45 });
 }
 export function updEnemyProjectiles(dt) {
   for (const p of G.eproj) {
@@ -136,7 +136,7 @@ export function updEnemy(e, dt) {
   }
   e.moving = false;
   const d = dist(e.x, e.z, P.x, P.z);
-  if (!e.awake && d < (e.type === 'boss' ? 13 : PACK.aggro) && P.dead <= 0 && (d < PACK.aggroNear || los(e.x, e.z, P.x, P.z))) wake(e); // walls hide you: rooms wake one at a time
+  if (!e.awake && d < (e.type === 'boss' ? BOSS.aggro : PACK.aggro) && P.dead <= 0 && (d < PACK.aggroNear || los(e.x, e.z, P.x, P.z))) wake(e); // walls hide you: rooms wake one at a time
   // status effects
   if (e.flash > 0) e.flash -= dt;
   if (e.shock > 0) { e.shock -= dt; if (Math.random() < dt * 8) emit(sparks, e.x + rand(-.3, .3), rand(.5, e.h), e.z + rand(-.3, .3), rand(-1, 1), rand(1, 2), rand(-1, 1), .25, 0xd0b0ff, 0, 1); }
@@ -144,8 +144,8 @@ export function updEnemy(e, dt) {
     e.burnT -= dt; e.burnTick -= dt;
     if (Math.random() < dt * 14) emit(sparks, e.x + rand(-.3, .3), rand(.3, 1.2), e.z + rand(-.3, .3), 0, rand(1, 2.5), 0, .4, 0xff5a10);
     if (e.burnTick <= 0) {
-      e.burnTick = .5; e.hp -= e.burnDps * .5; e.lastElem = 'fire';
-      G.floats.push({ x: e.x, y: e.h, z: e.z, txt: Math.round(e.burnDps * .5), col: '#ff8a3c', size: 10, life: .6, max: .6 });
+      e.burnTick = STATUS.burnTick; e.hp -= e.burnDps * STATUS.burnTick; e.lastElem = 'fire';
+      G.floats.push({ x: e.x, y: e.h, z: e.z, txt: Math.round(e.burnDps * STATUS.burnTick), col: '#ff8a3c', size: 10, life: .6, max: .6 });
       if (e.hp <= 0) { kill(e); return; }
     }
   } else e.burnDps = 0;
@@ -158,24 +158,24 @@ export function updEnemy(e, dt) {
   if (Math.abs(e.vx) + Math.abs(e.vz) > .01) { e.x += e.vx * dt; e.z += e.vz * dt; const f = Math.exp(-8 * dt); e.vx *= f; e.vz *= f; }
   if (!e.awake || frozen || P.dead > 0) { pushOut(e); return animE(e, dt); }
   if (e.rise > 0) { e.rise -= dt; e.face = Math.atan2(P.x - e.x, P.z - e.z); pushOut(e); return animE(e, dt); }
-  const spd = e.spd * (e.chill > 0 ? .5 : 1), cdm = e.chill > 0 ? 1.6 : 1;
-  if (e.fireAura && d < 2.75) { e.auraT = (e.auraT || 0) - dt; if (e.auraT <= 0) { e.auraT = .5; hurtP(3 * (1 + TIER.dmg * (G.tier - 1))); } }
+  const spd = e.spd * (e.chill > 0 ? STATUS.chillSpd : 1), cdm = e.chill > 0 ? STATUS.chillCd : 1, BU = RARE.burning;
+  if (e.fireAura && d < BU.r) { e.auraT = (e.auraT || 0) - dt; if (e.auraT <= 0) { e.auraT = BU.tick; hurtP(BU.dps * BU.tick * (1 + TIER.dmg * (G.tier - 1))); } }
   if (e.ai === 'boss' && bossAI(e, dt)) { pushOut(e); return animE(e, dt); }
   if (e.ai === 'melee' || e.ai === 'boss') {
     const tg = meleeTarget(e, d), td = tg === P ? d : dist(e.x, e.z, tg.x, tg.z);
     if (e.windup > 0) {
       e.windup -= dt; e.face = Math.atan2(tg.x - e.x, tg.z - e.z);
-      if (e.windup <= 0) { e.swing = 1; if (td < e.range + e.r + tg.r + .45) { if (tg === P) hurtP(e.dmg); else tg.hurt(e.dmg * (e.type === 'boss' ? BOSS.vsMinion : 1)); if (e.type === 'boss') { shake(.3); SFX.slam(); hurtMinions(e.x, e.z, e.range + e.r + .45, e.dmg * BOSS.vsMinion, tg); } } e.atkT = e.cd * cdm; }
-    } else if (td < e.range + e.r + tg.r) { e.face = Math.atan2(tg.x - e.x, tg.z - e.z); e.atkT -= dt; if (e.atkT <= 0) { e.windup = e.type === 'boss' ? .55 : .32; e.atkSeq = (e.atkSeq || 0) + 1; } }
+      if (e.windup <= 0) { e.swing = 1; if (td < e.range + e.r + tg.r + FIGHT.reach) { if (tg === P) hurtP(e.dmg); else tg.hurt(e.dmg * (e.type === 'boss' ? BOSS.vsMinion : 1)); if (e.type === 'boss') { shake(.3); SFX.slam(); hurtMinions(e.x, e.z, e.range + e.r + FIGHT.reach, e.dmg * BOSS.vsMinion, tg); } } e.atkT = e.cd * cdm; }
+    } else if (td < e.range + e.r + tg.r) { e.face = Math.atan2(tg.x - e.x, tg.z - e.z); e.atkT -= dt; if (e.atkT <= 0) { e.windup = e.type === 'boss' ? FIGHT.windup.boss : FIGHT.windup.melee; e.atkSeq = (e.atkSeq || 0) + 1; } }
     else moveE(e, P.x, P.z, spd, dt);
   } else if (e.ai === 'ranged') {
-    if (e.windup > 0) { e.windup -= dt; e.face = Math.atan2(P.x - e.x, P.z - e.z); if (e.windup <= 0) { e.swing = 1; eShoot(e, e.face + rand(-.05, .05), 11, e.dmg, 'arrow'); e.shootT = e.cd * cdm * rand(.85, 1.2); } }
-    else if (d < 4.5) { const [dx, dz] = steer(e, e.x - (P.x - e.x), e.z - (P.z - e.z)); e.x += dx * spd * dt; e.z += dz * spd * dt; e.walk += dt * spd * 2.6; e.moving = true; e.face = Math.atan2(P.x - e.x, P.z - e.z); }
-    else if (d > 9 || !los(e.x, e.z, P.x, P.z)) moveE(e, P.x, P.z, spd, dt);
-    else { e.face = Math.atan2(P.x - e.x, P.z - e.z); e.shootT -= dt; if (e.shootT <= 0) { e.windup = .45; e.atkSeq = (e.atkSeq || 0) + 1; } }
+    if (e.windup > 0) { e.windup -= dt; e.face = Math.atan2(P.x - e.x, P.z - e.z); if (e.windup <= 0) { e.swing = 1; eShoot(e, e.face + rand(-FIGHT.arrowJitter, FIGHT.arrowJitter), FIGHT.arrowSpeed, e.dmg, 'arrow'); e.shootT = e.cd * cdm * rand(FIGHT.shotJitter[0], FIGHT.shotJitter[1]); } }
+    else if (d < FIGHT.flee) { const [dx, dz] = steer(e, e.x - (P.x - e.x), e.z - (P.z - e.z)); e.x += dx * spd * dt; e.z += dz * spd * dt; e.walk += dt * spd * 2.6; e.moving = true; e.face = Math.atan2(P.x - e.x, P.z - e.z); }
+    else if (d > FIGHT.chase || !los(e.x, e.z, P.x, P.z)) moveE(e, P.x, P.z, spd, dt);
+    else { e.face = Math.atan2(P.x - e.x, P.z - e.z); e.shootT -= dt; if (e.shootT <= 0) { e.windup = FIGHT.windup.ranged; e.atkSeq = (e.atkSeq || 0) + 1; } }
   } else if (e.ai === 'bomb') {
     if (e.fuse > 0) { e.fuse -= dt; if (e.fuse <= 0) kill(e); }
-    else if (d < 1.9) { e.fuse = .85; telegraph(e.x, e.z, 2.2, .85, 0x9ad060); }
+    else if (d < FIGHT.bomb.trigger) { e.fuse = FIGHT.bomb.fuse; telegraph(e.x, e.z, BLAST.bloater.r, FIGHT.bomb.fuse, 0x9ad060); }
     else moveE(e, P.x, P.z, spd, dt);
   }
   pushOut(e); animE(e, dt);
@@ -194,27 +194,27 @@ function hurtMinions(x, z, r, d, skip) { for (const m of G.minions) if (m !== sk
 
 // Returns true while the boss is busy with an ability (so it doesn't also walk or swing).
 function bossAI(e, dt) {
-  if (!e.phase2 && e.hp < e.maxHp * .5) { e.phase2 = true; e.spd *= 1.3; banner('THE WARDEN IS ENRAGED', '#ff4fd8', 'Faster slams · double nova'); SFX.roar(); }
+  if (!e.phase2 && e.hp < e.maxHp * BOSS.enrage) { e.phase2 = true; e.spd *= BOSS.enrageSpd; banner('THE WARDEN IS ENRAGED', '#ff4fd8', 'Faster slams · double nova'); SFX.roar(); }
   if (e.cast) {
     const c = e.cast; c.t -= dt; e.face = Math.atan2(P.x - e.x, P.z - e.z);
     if (c.t > 0) return true;
     e.cast = null; e.swing = 1;
     if (c.kind === 'slam') {
       ringFx(c.x, c.z, c.r, 0xff3030, .4, .5); burst(c.x, .4, c.z, 0xff4fd8, 50, 7); flashFx(c.x, .5, c.z, 0xff2bd6, c.r * 2.4, .3); SFX.slam(); shake(.7); stop(.08);
-      if (dist(P.x, P.z, c.x, c.z) < c.r + P.r) hurtP(e.dmg * 2);
-      hurtMinions(c.x, c.z, c.r, e.dmg * 2 * BOSS.vsMinion);
+      if (dist(P.x, P.z, c.x, c.z) < c.r + P.r) hurtP(e.dmg * BOSS.slamDmg);
+      hurtMinions(c.x, c.z, c.r, e.dmg * BOSS.slamDmg * BOSS.vsMinion);
     }
-    if (c.kind === 'nova') for (let k = 0; k < (e.phase2 ? 2 : 1); k++) setTimeout(() => { if (e.deathT || e.gone) return; for (let i = 0; i < BOSS.novaBolts; i++) eShoot(e, i / BOSS.novaBolts * 6.283 + k * .22, 6.5, e.dmg * .7, 0xff2bd6, 1.1); SFX.arc(); }, k * 380);
+    if (c.kind === 'nova') for (let k = 0; k < (e.phase2 ? 2 : 1); k++) G.queue.push({ k: 'later', t: k * BOSS.novaGap, fn: () => { if (e.deathT || e.gone) return; for (let i = 0; i < BOSS.novaBolts; i++) eShoot(e, i / BOSS.novaBolts * 6.283 + k * .22, BOSS.novaSpeed, e.dmg * BOSS.novaDmg, 0xff2bd6, 1.1); SFX.arc(); } }); // game time, so it pauses and replays the same
     if (c.kind === 'summon') for (let i = 0; i < (e.phase2 ? BOSS.summon2 : BOSS.summon); i++) {
       const a = i * 1.26, x = e.x + Math.cos(a) * 2.5, z = e.z + Math.sin(a) * 2.5;
-      if (!blocked(x, z, .3)) { const r = spawnEnemy('runner', x, z, null, 0); r.awake = true; G.mapTotal++; burst(x, .5, z, 0xff4fd8, 10, 3); }
+      if (!blocked(x, z, .3)) { const r = spawnEnemy(BOSS.summonType, x, z, null, 0); r.awake = true; G.mapTotal++; burst(x, .5, z, 0xff4fd8, 10, 3); }
     }
     return true;
   }
   e.abilT -= dt;
   if (e.abilT <= 0) {
     const k = BOSS.rotation[e.rot++ % BOSS.rotation.length]; e.abilT = e.phase2 ? BOSS.abilGap2 : BOSS.abilGap;
-    if (k === 'slam') { e.cast = { kind: k, t: e.phase2 ? .75 : 1, x: P.x, z: P.z, r: BOSS.slamR }; telegraph(P.x, P.z, BOSS.slamR, e.cast.t); }
+    if (k === 'slam') { e.cast = { kind: k, t: e.phase2 ? BOSS.slamT2 : BOSS.slamT, x: P.x, z: P.z, r: BOSS.slamR }; telegraph(P.x, P.z, BOSS.slamR, e.cast.t); }
     else if (k === 'nova') { e.cast = { kind: k, t: .6 }; flashFx(e.x, 3, e.z, 0xff2bd6, 5, .6); }
     else { e.cast = { kind: k, t: .7 }; ringFx(e.x, e.z, 3, 0xff4fd8, .7, .2); }
     return true;

@@ -5,6 +5,7 @@
 // Map clear removes them; on a new map you raise a fresh army. Tuning: data/skills.js SK.skeletons.
 import { G, P, S } from '../../core/state.js';
 import { SK } from '../../data/skills.js';
+import { GEMS } from '../../data/gems.js';
 import { ANIM, RISE } from '../../data/monsters.js';
 import { rand, pick, dist } from '../../core/util.js';
 import { SFX } from '../../core/audio.js';
@@ -20,7 +21,7 @@ import { aim } from '../skills.js';
 
 const K = SK.skeletons;
 const lvl = () => barLevels().skeletons || 1;
-export const cap = () => { const l = lvl(); return K.cap + K.capAt.filter(a => l >= a).length + (S.mile && S.mile.skeletons ? 1 : 0) + ((S.sk && S.sk.skeletons.army) || 0); };
+export const cap = () => { const l = lvl(); return K.cap + K.capAt.filter(a => l >= a).length + (S.mile && S.mile.skeletons ? GEMS.skeletons.mile.cap : 0) + ((S.sk && S.sk.skeletons.army) || 0); };
 export const living = () => G.minions.filter(m => !m.deathT);
 
 function raise(x, z) {
@@ -101,7 +102,7 @@ function updMinion(m, i, n, dt) {
     if (m.windup > 0) {
       m.windup -= dt; m.face = Math.atan2(e.x - m.x, e.z - m.z);
       if (m.windup <= 0) { m.swing = 1; m.atkT = K.atk / rate; if (d < reach + .4) { const dd = d || 1; hit(e, K.mult, 'phys', { gem: 'skeletons', kx: (e.x - m.x) / dd * .4, kz: (e.z - m.z) / dd * .4 }); } }
-    } else if (d < reach) { m.face = Math.atan2(e.x - m.x, e.z - m.z); m.atkT -= dt; if (m.atkT <= 0) { m.windup = .28 / rate; m.atkSeq++; } }
+    } else if (d < reach) { m.face = Math.atan2(e.x - m.x, e.z - m.z); m.atkT -= dt; if (m.atkT <= 0) { m.windup = K.windup / rate; m.atkSeq++; } }
     else { m.atkT = Math.min(m.atkT, .25); move(m, e.x, e.z, m.spd, dt); }
   } else {
     // Follow: each skeleton keeps its own spot in a ring behind the player.
