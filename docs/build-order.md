@@ -25,6 +25,12 @@ Status: ✅ done · ▶ next · ☐ later
 | 11 | Crypt Trial boss (workout fight, RIDE mode) | ☐ |
 | 12 | Bluetooth (Zwift Ride, KICKR) | ☐ |
 
+**Next up (Nov 2026):**
+1. **The owner plays the harder start** (design notes, Balance: "Harder start") and reports back: does the first map feel a little underpowered, is 5 swings per zombie good or slow, does loot feel earned, is the first guardian hard but fair, how does the parry window feel?
+2. **Step 3⅞ part 2** (brief below): tune from that, make stagger pay off, then guardian channels, shield arts, elites' heavy swings.
+3. **Step 4, the passive tree**, now with block, posture, parry and riposte nodes.
+4. Then steps 5–7 (defence, gear, balance pass 2) to finish the character, and steps 9–11 for the world.
+
 ---
 
 ## Step 1: Gems v1 ✅
@@ -236,7 +242,16 @@ Status: ✅ done · ▶ next · ☐ later
 
 **Part 1 done (Nov 2026): a prototype to test the mechanics before committing more** (the owner's call: don't rework the skills yet, and start with a basic attack, no fire, ice or lightning). What was built and the arena results are under "Built: fight mechanics prototype" in the design notes. In short: a plain Sword, the Knight's Shield (block, parry, posture, guard break, riposte), Roll from level 1, stagger on guardians and rares, telegraph colours and sounds, the guardian's parryable swing, heavy slam, fanned nova and unblockable charge, defusable bloaters, unblockable volatile blasts, pulsing burning rares, and an arena bot with reaction skill.
 
-**Part 2, after the owner has played it:** tune from playtesting (parry window, posture, stagger fill), then channels broken by stagger (and a short effort in RIDE mode), shield arts (build step 4 below), Flame Dash through the target, elites' parryable swings. The brief below is the full plan; most of it is done in prototype form, and what is left is listed here.
+**Part 2 ▶ (after the owner's next play).** The brief further down is the original full plan; most of it is done in prototype form. What's left, in order:
+
+1. **Tune from the playtest.** The numbers most likely to move: the parry window (`SK.block.parry`, 0.35 s), posture per blocked hit and its drain, normal monster windups (`FIGHT.windup`), swings per zombie (zombie life, Sword `mult`), the first guardian's damage. Re-run `npm run balance` and `npm run arena` after.
+2. **Make stagger pay off.** In the arena the perfect bot is barely faster than the good rider, so timing isn't rewarded enough yet. Options: a parry fills more (`STAGGER.parry`), a longer stun, or a **finisher** (Sekiro's deathblow): the first hit on a staggered guardian or rare deals a big chunk (say 3× and more stagger damage taken). Target: the perfect bot kills guardians at least 15% faster than the good rider.
+3. **Channels (🔵), broken by stagger.** The guardian's phase 2 gains a channel: it stops, a blue bar fills over about 3 s, and if it completes it does something bad (a big unblockable burst you must roll, or it heals and summons). Filling its stagger bar before the bar completes cancels it and staggers it. While a channel is up, Surge fills stagger faster, and in RIDE mode a short effort spike does too (tuning in `src/data/ride.js`; it must stay optional, so parrying alone can still break it). Data in `BOSS.channel`; a blue telegraph colour in `TELL` and its own cue sound. Arena bot: surges during a channel; report how often it breaks one.
+4. **Shield arts.** Guard gems change the block and parry instead of being timed casts (design notes, "Fight mechanics"): **Magic Shield**: a parry grants a barrier (blocking absorbs a little more); **Frost Ward**: parries chill the attacker and leave a short frost ring. Rework their supports (Warding, Lingering Frost) and the text in `gems.js` (the test checks text against numbers). The level 3 Guard shrine keeps offering Frost Ward.
+5. **Elites' heavy swings.** Rares get an occasional red heavy swing (longer windup, more damage, block for less or roll), so rare packs ask for more than parrying. Data in `RARE` or `FIGHT`.
+6. **Small fixes:** Flame Dash passes through the target (it stops in front of it today); the Sword gets a level 5 milestone (something plain, for example every 3rd swing is a heavier cut).
+
+**Part 2 done when:** a good rider beats every guardian at par, a careless one loses, the perfect bot is at least 15% faster than the good rider, the good rider breaks most channels, Magic Shield and Frost Ward work as shield arts, and `npm run build && npm test` pass with tests for the finisher, channels and both shield arts.
 
 **Goal:** a level 1 knight can beat the first guardian by parrying, blocking and rolling on time, and clearly can't by just standing there. Every threat in the Crypt has a readable telegraph, a sound and a button that beats it.
 
@@ -263,7 +278,7 @@ Status: ✅ done · ▶ next · ☐ later
 
 ## Step 4: Passive tree ☐
 
-- **Fight mechanics first (step 3⅞):** add block, posture, parry and stagger nodes, and a riposte keystone.
+- **Fight mechanics first (step 3⅞):** add nodes for the shield and timing: block reduction, posture (more, faster drain), parry window, riposte damage, stagger fill, roll charges or invulnerability. Keystone ideas: **Riposte** (parries always riposte, blocking takes more posture), **Bulwark** (blocking doesn't slow you, no parry window), **Duelist** (a longer parry window, no blocking). Each must cost something real.
 
 - **The tree:**
   - small (60–80 nodes) and readable on a phone; replaces the pick-1-of-3 level-up cards
