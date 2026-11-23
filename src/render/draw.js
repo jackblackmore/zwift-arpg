@@ -12,12 +12,12 @@ import { joy } from '../input/devices.js';
 const TV = new T.Vector3();
 function toScreen(x, y, z) { TV.set(x, y, z).project(cam); return TV.z > 1 ? null : [(TV.x + 1) / 2 * V.W, (1 - TV.y) / 2 * V.H]; }
 
-// Hero clips: a cast plays once (fast) and hands back to run/idle; death holds until respawn.
-const HERO = { shoot: ['Ranged_Magic_Shoot', 2], arc: ['Ranged_Magic_Spellcasting', 1.6], nova: ['Ranged_Magic_Raise', 3.2], dash: ['Dodge_Forward', 1.4], shield: ['Ranged_Magic_Raise', 3.2], blink: ['Dodge_Forward', 2.2], ward: ['Ranged_Magic_Summon', 1.8], totem: ['Ranged_Magic_Summon', 1.8], meteor: ['Spellcast_Long', 1.8], lance: ['Ranged_Magic_Summon', 1.8], skeletons: ['Ranged_Magic_Summon', 2.4] };
+// Hero clips: a swing or cast plays once (fast) and hands back to run/idle; death holds until respawn. [clip, speed]
+const HERO = { cleave: ['Melee_1H_Attack_Slice_Horizontal', 2.2], fstrike: ['Melee_1H_Attack_Stab', 2.4], slam: ['Melee_2H_Attack_Chop', 1.7], arc: ['Ranged_Magic_Spellcasting', 1.6], nova: ['Ranged_Magic_Raise', 3.2], dash: ['Dodge_Forward', 1.4], shield: ['Ranged_Magic_Raise', 3.2], blink: ['Dodge_Forward', 2.2], ward: ['Ranged_Magic_Summon', 1.8], totem: ['Ranged_Magic_Summon', 1.8], meteor: ['Spellcast_Long', 1.8] };
 function animHero(M, dt) {
   M.lock = (M.lock || 0) - dt;
   if (P.dead > 0) { if (M.cur !== 'Death_A') M.play('Death_A', { once: true, fade: .1 }); }
-  else if (P.castSeq !== M.seq) { M.seq = P.castSeq; const [n, sp] = HERO[P.lastCast] || HERO.shoot; M.lock = M.play(n, { once: true, speed: sp, fade: .06 }) / sp * .7; }
+  else if (P.castSeq !== M.seq) { M.seq = P.castSeq; const [n, sp] = HERO[P.lastCast] || HERO.cleave; M.lock = M.play(n, { once: true, speed: sp, fade: .06 }) / sp * .7; }
   else if (M.lock <= 0) { if (P.moving) M.play('Running_A', { speed: S.ms * ((P.eff && P.eff.move) || 1) / 5 }); else M.play('Idle'); }
   M.mixer.update(dt);
 }
@@ -33,7 +33,6 @@ export function draw(dt) {
   const dr = ((P.face - M.g.rotation.y + Math.PI * 3) % (Math.PI * 2)) - Math.PI; M.g.rotation.y += dr * Math.min(1, dt * 16);
   if (M.rigged) animHero(M, G.paused ? 0 : dt);
   else { const w = P.moving ? Math.sin(P.walkT) : 0; M.legL.rotation.x = w * .7; M.legR.rotation.x = -w * .7; M.armL.rotation.x = -w * .5; M.armR.rotation.x = P.castAnim > 0 ? -1.5 : w * .4; }
-  if (M.orb) M.orb.scale.setScalar(.55 + (P.castAnim > 0 ? .4 : 0) + Math.sin(gt * 5) * .05);
   bubble.visible = P.shield > 0 && P.dead <= 0;
   if (bubble.visible) { bubble.position.set(P.x, 1, P.z); bubble.material.opacity = .08 + .17 * Math.min(1, P.shield / (S.maxLife * .35)) + Math.sin(gt * 8) * .03; }
   plight.position.set(P.x, 3, P.z);

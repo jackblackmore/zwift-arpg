@@ -35,8 +35,14 @@ export function pollInput(dt) {
 
 const setMouse = e => mouse.ndc.set(e.clientX / V.W * 2 - 1, -(e.clientY / V.H) * 2 + 1);
 
+// ATTACK: AUTO / HOLD. Auto: the Main gem swings at whatever's in reach; hold: only while LMB (or the button) is held. Stored per device.
+const ATK_KEY = 'wd-autoatk';
+export function setAutoAtk(v) { ctl.autoAtk = v; try { localStorage.setItem(ATK_KEY, v ? '1' : '0'); } catch (_) {} const b = $('bAtk'); if (b) { b.textContent = 'ATTACK: ' + (v ? 'AUTO' : 'HOLD'); b.classList.toggle('glow', v); } }
+
 export function initDevices(ui) {
   Object.assign(UI, ui);
+  let atk = true; try { atk = localStorage.getItem(ATK_KEY) !== '0'; } catch (_) {}
+  setAutoAtk(atk); $('bAtk').onclick = () => setAutoAtk(!ctl.autoAtk);
   o2d.addEventListener('contextmenu', e => e.preventDefault());
   o2d.addEventListener('pointerdown', e => {
     audio(); if (G.paused) return;
@@ -77,6 +83,7 @@ export function initDevices(ui) {
     if (k === 'i' || k === 'b') { if (G.started) UI.toggleInv(); return; }
     if (k === 'p') { if (G.started) UI.togglePass(); return; }
     if (k === 'g') { if (G.started) UI.toggleGems(); return; }
+    if (k === 't') { setAutoAtk(!ctl.autoAtk); return; }
     if (k === 'escape') { UI.closeAll(); return; }
     if (rideKey(k, true)) return;
     if (G.paused) return;

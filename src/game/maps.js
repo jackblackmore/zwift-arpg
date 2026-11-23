@@ -24,8 +24,8 @@ export function makePortal(x, z) {
 export function clearMap() {
   for (const e of G.enemies) { scene.remove(e.model.g); e.model.mats.forEach(m => m.dispose()); }
   G.enemies = [];
-  [...G.proj, ...G.eproj, ...G.patches, ...G.ground].forEach(o => scene.remove(o.g));
-  G.proj = []; G.eproj = []; G.patches = []; G.ground = [];
+  [...G.eproj, ...G.patches, ...G.ground].forEach(o => scene.remove(o.g));
+  G.eproj = []; G.patches = []; G.ground = [];
   for (const f of CLEAR) f();
   G.effects.forEach(f => scene.remove(f.mesh)); G.effects = []; G.queue = []; G.floats = [];
   if (G.portal) { scene.remove(G.portal.g); G.portal = null; }

@@ -1,11 +1,12 @@
-// Raise Skeletons: a minion Main gem. Each cast raises one skeleton (up to a cap set by gem level); at the cap a recast
-// replaces the most hurt one if it's badly hurt. Skeletons follow you, chase and hit the nearest awake monster within a leash of you, and come
+// Raise Skeletons: a support gem (data/gems.js SUPPORTS.raise). A monster killed by the socketed skill has a chance to rise as a
+// skeleton where it fell, up to a cap. Skeletons follow you, chase and hit the nearest awake monster within a leash of you, and come
 // back when you move on. Monsters in melee reach swing at them (game/enemies.js meleeTarget), so they can die.
-// They live in G.minions, never in G.enemies, so nothing treats them as monsters. Their kills count as yours (hit → kill).
-// Map clear removes them; on a new map you raise a fresh army. Tuning: data/skills.js SK.skeletons.
+// They live in G.minions, never in G.enemies, so nothing treats them as monsters. Their kills count as yours (hit → kill), but not
+// as the skill's, so skeletons don't raise more skeletons. Each one hits with, and scales with, the gem that raised it.
+// Map clear removes them, and they crumble when no bar skill has the support. Tuning: data/skills.js SK.skeletons.
 import { G, P, S } from '../../core/state.js';
 import { SK } from '../../data/skills.js';
-import { GEMS } from '../../data/gems.js';
+import { SUPPORTS } from '../../data/gems.js';
 import { ANIM, RISE } from '../../data/monsters.js';
 import { rand, pick, dist } from '../../core/util.js';
 import { SFX } from '../../core/audio.js';
@@ -13,20 +14,24 @@ import { scene } from '../../render/scene.js';
 import { chars, makeChar } from '../../render/characters.js';
 import { buildModel } from '../../render/models.js';
 import { burst, ringFx, floatT } from '../../render/fx.js';
-import { pushOut, los } from '../../world/map.js';
+import { pushOut } from '../../world/map.js';
 import { near, steer, animE } from '../enemies.js';
 import { hit } from '../combat.js';
 import { barLevels } from '../gems.js';
-import { aim } from '../skills.js';
 
-const K = SK.skeletons;
-const lvl = () => barLevels().skeletons || 1;
-export const cap = () => { const l = lvl(); return K.cap + K.capAt.filter(a => l >= a).length + (S.mile && S.mile.skeletons ? GEMS.skeletons.mile.cap : 0) + ((S.sk && S.sk.skeletons.army) || 0); };
+const K = SK.skeletons, R = SUPPORTS.raise;
+export const cap = () => R.cap;
 export const living = () => G.minions.filter(m => !m.deathT);
+// Is the support on any skill on the bar?
+const active = () => !!S.sk && Object.values(S.sk).some(k => k.raise);
 
-function raise(x, z) {
-  const L = K.look, life = K.life * Math.pow(K.lifeGrow, lvl() - 1), rigged = chars.ready;
-  const m = { type: 'skeleton', look: L, x, z, vx: 0, vz: 0, r: K.r, h: K.h, spd: K.spd, hp: life, maxHp: life, face: P.face, walk: 0, moving: false,
+// A kill by a skill with the support (game/combat.js kill): maybe rise.
+export function onKill(e) { if (living().length < cap() && Math.random() < R.chance) raise(e.x, e.z, e.lastGem); }
+
+// Raise a skeleton at (x, z) for skill gem `gem` (its level sets the skeleton's life; its hits use that gem's base).
+export function raise(x, z, gem) {
+  const L = K.look, life = K.life * Math.pow(K.lifeGrow, (barLevels()[gem] || 1) - 1), rigged = chars.ready;
+  const m = { type: 'skeleton', gem, look: L, x, z, vx: 0, vz: 0, r: K.r, h: K.h, spd: K.spd, hp: life, maxHp: life, face: P.face, walk: 0, moving: false,
     awake: true, atkT: rand(.1, .4), windup: 0, swing: 0, atkSeq: 0, freeze: 0, chill: 0, flash: 0, lastHit: 0, deathT: 0, tgt: null, born: G.gt };
   m.model = rigged ? makeChar(L.kind, K.h, { weapon: L.weapon, tint: L.tint }) : buildModel(K.model);
   m.model.g.position.set(x, 0, z); m.model.g.rotation.y = m.face; scene.add(m.model.g);
@@ -40,21 +45,6 @@ function raise(x, z) {
 }
 // Ally tint: a green glow, white while flashing from a hit.
 function glow(m, f) { for (const mt of m.model.mats) if (mt.emissive) mt.emissive.setHex(f > 0 ? 0x888888 : K.look.glow); }
-
-export function cast() {
-  const alive = living(), full = alive.length >= cap();
-  // At the cap a recast replaces the most hurt skeleton, if one is below `replace` of its life; else nothing happens.
-  const worst = full && alive.sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0];
-  if (full && worst.hp > worst.maxHp * K.replace) return false;
-  if (worst) die(worst, true);
-  // Rise between you and what you're aiming at, a little to the side so a pile-up spreads out.
-  const [ax, az] = aim(), a = Math.atan2(ax - P.x, az - P.z) + rand(-.7, .7), r = Math.min(K.raiseAt, dist(ax, az, P.x, P.z)) * rand(.7, 1);
-  let x = P.x + Math.sin(a) * r, z = P.z + Math.cos(a) * r;
-  if (!los(P.x, P.z, x, z)) { x = P.x; z = P.z; }
-  raise(x, z);
-  P.face = a; P.castAnim = .25; P.castSeq++; P.lastCast = 'skeletons'; SFX.nova();
-  return true;
-}
 
 function hurt(m, d) {
   if (m.deathT || P.dead > 0) return;
@@ -100,7 +90,7 @@ function updMinion(m, i, n, dt) {
     const d = dist(m.x, m.z, e.x, e.z), reach = K.reach + m.r + e.r;
     if (m.windup > 0) {
       m.windup -= dt; m.face = Math.atan2(e.x - m.x, e.z - m.z);
-      if (m.windup <= 0) { m.swing = 1; m.atkT = K.atk / rate; if (d < reach + .4) { const dd = d || 1; hit(e, K.mult, 'phys', { gem: 'skeletons', kx: (e.x - m.x) / dd * .4, kz: (e.z - m.z) / dd * .4 }); } }
+      if (m.windup <= 0) { m.swing = 1; m.atkT = K.atk / rate; if (d < reach + .4) { const dd = d || 1; hit(e, K.mult, 'phys', { gem: m.gem, by: 'minion', kx: (e.x - m.x) / dd * .4, kz: (e.z - m.z) / dd * .4 }); } }
     } else if (d < reach) { m.face = Math.atan2(e.x - m.x, e.z - m.z); m.atkT -= dt; if (m.atkT <= 0) { m.windup = K.windup / rate; m.atkSeq++; } }
     else { m.atkT = Math.min(m.atkT, .25); move(m, e.x, e.z, m.spd, dt); }
   } else {
@@ -118,7 +108,7 @@ function updMinion(m, i, n, dt) {
 
 export function tick(dt) {
   if (!G.minions.length) return;
-  if (!S.gems || !S.gems.skeletons) for (const m of G.minions) die(m, true); // gem taken off the bar: the army crumbles
+  if (!active()) for (const m of G.minions) die(m, true); // support taken off the bar: the army crumbles
   const alive = living();
   for (const m of G.minions) updMinion(m, alive.indexOf(m), alive.length, dt);
   G.minions = G.minions.filter(m => !m.gone);
@@ -126,4 +116,4 @@ export function tick(dt) {
 
 export function clear() { for (const m of G.minions) remove(m); G.minions = []; }
 
-export default { cast, tick, clear };
+export default { tick, clear };

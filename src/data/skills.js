@@ -2,9 +2,13 @@
 // Skill tuning, one entry per skill gem (data/gems.js `sk`). `mult` scales the hit: (gem base + flat spell from gear) × mult (game/formulas.js).
 // Milestone and support numbers live with the gem in data/gems.js (`mile`, SUPPORTS).
 export const SK = {
-  fireball: { cast: .75, speed: 17, life: .8, spread: .17, pierceMult: .8, radius: 1.9 },
-  // Frost Lance: slow, fast-flying, pierces `pierce` enemies (more at level 5) and chills for `chill` seconds.
-  frostlance: { cast: 1.25, mult: 1.75, speed: 34, life: .75, pierce: 3, chill: 2.5, bot: { range: 14 } },
+  // Melee attacks (src/game/sk/strike.js). cast: seconds per swing (faster with cast speed and Surge). The hit lands `windup` s into it.
+  //   cleave/fstrike: everything within `reach` (+ the monster's radius) of you and inside a cone `arc` degrees wide.
+  //   slam: a circle of `radius` centred `reach` in front of you. kb: knockback (× the default), stop: hit-stop on a connecting swing.
+  //   Ember Cleave can ignite (support). Frost Strike chills for `chill` s. Thunder Slam shocks `shockChance` of the time (Arc's shock).
+  cleave: { cast: .8, mult: .93, windup: .12, reach: 2.4, arc: 150, kb: .35, stop: .035 },
+  fstrike: { cast: .62, mult: .95, windup: .1, reach: 2.1, arc: 90, kb: .2, stop: .03, chill: 2 },
+  slam: { cast: 1.3, mult: 1.5, windup: .3, reach: 1.5, radius: 1.9, kb: 1, stop: .07, shockChance: .35 },
   // Arc: shocks `shockChance` of the time for `shockT` s; shocked enemies take `shockMore` more damage from everything.
   arc: { cast: .8, mult: .9, range: 11, chainRange: 5.5, shockChance: .3, shockT: 3, shockMore: .2 },
   // Frost Nova: freezes for `freeze` s (× freeze duration); guardians can't be frozen and are chilled for `bossChill` s instead.
@@ -13,13 +17,13 @@ export const SK = {
   totem: { cd: 9, dur: 6, interval: .45, mult: .5, range: 9, place: 9, bot: { range: 9, crowd: 1 } },
   // Meteor: lands `delay` s after the cast, within `range`; hits `radius`, leaves burning ground for `burn` s.
   meteor: { cd: 10, delay: .8, mult: 1.7, radius: 2.6, range: 13, burn: 3, bot: { range: 9, crowd: 2 } },
-  // Raise Skeletons: each cast raises one minion (game/sk/skeletons.js); at the cap a recast replaces the most hurt one if it's below `replace` life (else it does nothing, free).
-  //   cap: skeletons at once, +1 for each gem level in capAt (more from the level 5 milestone and Bigger Army). life: at gem level 1, × lifeGrow per level.
-  //   Hits are `mult` × the gem's base (physical: only generic % damage applies), every `atk` seconds after a `windup` (both faster with cast speed).
-  //   They rise up to `raiseAt` toward your aim, can't act for `riseT` of their rise clip, chase awake monsters within `leash` of you, return when you're `leash` + 2 away, and jump back to you beyond `warp`.
+  // Skeletons raised by the Raise Skeletons support (data/gems.js SUPPORTS.raise: chance and cap; game/sk/skeletons.js).
+  //   life: at gem level 1 of the skill that raised it, × lifeGrow per level. Hits are `mult` × that gem's base (physical: only generic % damage applies),
+  //   every `atk` seconds after a `windup` (both faster with cast speed). They can't act for `riseT` of their rise clip, chase awake
+  //   monsters within `leash` of you, return when you're `leash` + 2 away, and jump back to you beyond `warp`.
   skeletons: {
-    cd: .3, replace: .6, cap: 3, capAt: [8], life: 45, lifeGrow: 1.06, mult: 1.05, atk: 1.05, windup: .28, reach: .7, spd: 5.6, r: .32, h: 1.45, raiseAt: 3, riseT: .5,
-    leash: 10, follow: 2.2, warp: 24, bot: { range: 14 },
+    life: 45, lifeGrow: 1.06, mult: 1.05, atk: 1.05, windup: .28, reach: .7, spd: 5.6, r: .32, h: 1.45, riseT: .5,
+    leash: 10, follow: 2.2, warp: 24,
     look: { kind: 'minion', weapon: 'blade', tint: 0xb8ffd8, glow: 0x0c3a26, walk: 'Running_A', idle: 'Skeletons_Idle', rise: 'floor',
       attacks: [['Melee_1H_Attack_Chop', 1.9], ['Melee_1H_Attack_Stab', 1.9], ['Melee_1H_Attack_Slice_Diagonal', 1.8]] },
     model: { col: 0x9adfc0, head: 0xd8ffe8, eye: 0x40ffb0, scale: .8 },

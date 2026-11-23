@@ -90,13 +90,13 @@ export const togglePass = () => isOpen('mPass') ? closePass() : openPass();
 export function closeAll() { $('mInv').classList.remove('show'); $('mGems').classList.remove('show'); closeShrine(); closePass(); }
 
 // ================= SHRINE (pick 1 of 3 skill gems for a newly unlocked slot) =================
-const gemCard = (id, extra = '') => { const D = GEMS[id], K = SK[D.sk]; return `<div class="pc gemc" data-k="${id}"><b style="color:${D.col}">${D.icon} ${D.n}</b><span>${D.d}.</span><span class="gm">${D.held ? `Hold to cast · ${K.cast}s per cast` : 'Press to cast'}${K.cd ? ` · ${K.cd}s cooldown` : ''}${K.recharge ? ` · charge every ${K.recharge}s` : ''}</span><em>LEVEL 5: ${D.ms[5].toUpperCase()}${extra}</em></div>`; };
+const gemCard = (id, extra = '') => { const D = GEMS[id], K = SK[D.sk]; return `<div class="pc gemc" data-k="${id}"><b style="color:${D.col}">${D.icon} ${D.n}</b><span>${D.d}.</span><span class="gm">${D.melee ? `Melee · attacks on its own in reach · ${K.cast}s per swing` : D.held ? `Hold to cast · ${K.cast}s per cast` : 'Press to cast'}${K.cd ? ` · ${K.cd}s cooldown` : ''}${K.recharge ? ` · charge every ${K.recharge}s` : ''}</span><em>LEVEL 5: ${D.ms[5].toUpperCase()}${extra}</em></div>`; };
 let shrineSlot = null;
 export function openShrine(slot) {
   if (!shrineDue().includes(slot)) return;
   shrineSlot = slot; const S = SLOT_DEFS[slot], offer = shrineOffer(slot);
   $('shrineT').textContent = `SHRINE · ${S.n.toUpperCase()} SLOT`;
-  $('shrineSub').textContent = slot === 'main' ? 'Choose your first skill. You start with this and Magic Shield; more slots open at levels 5, 8 and 12.'
+  $('shrineSub').textContent = slot === 'main' ? 'Choose your melee attack. It swings on its own at whatever is in reach; Magic Shield (Space) takes the big hits. You start with these two; more slots open at levels 5, 8 and 12.'
     : slot === 'guard' ? 'A shrine of frost. Take Frost Ward into your bag, then swap it with Magic Shield in the gem panel (G) if you like.'
     : `${S.n} unlocked at level ${S.unlock}. ${offer.length > 1 ? 'Choose one' : 'Take it'}; the others may drop later.`;
   $('shrineCards').innerHTML = offer.map(id => gemCard(id)).join('');

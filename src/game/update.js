@@ -1,13 +1,13 @@
-// One game tick: player, monsters, projectiles, ground effects, loot.
+// One game tick: player, monsters, enemy projectiles, ground effects, loot.
 import { G, P, S } from '../core/state.js';
 import { ctl } from '../input/input.js';
 import { dist } from '../core/util.js';
 import { pushOut } from '../world/map.js';
 import { materialize, buildHash, updEnemy, separate, updEnemyProjectiles } from './enemies.js';
-import { castNova, useFlask, updProjectiles } from './skills.js';
+import { castNova, useFlask } from './skills.js';
 import { updSlots, updShrine } from './gems.js';
 import { TICK } from './casts.js';
-import { explode, updPatches, processQueue } from './combat.js';
+import { updPatches, processQueue } from './combat.js';
 import { pickUp, updItems } from './items.js';
 import { newMap, respawn } from './maps.js';
 import { save } from './save.js';
@@ -70,7 +70,6 @@ export function update(dt) {
   materialize(); buildHash();
   for (const e of G.enemies) updEnemy(e, dt);
   separate();
-  updProjectiles(dt, explode);
   updEnemyProjectiles(dt);
   updPatches(dt);
   for (const f of TICK) f(dt);

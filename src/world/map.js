@@ -45,13 +45,6 @@ export function pushOut(e) {
   e.x = clamp(e.x, -HALF + e.r, HALF - e.r); e.z = clamp(e.z, -HALF + e.r, HALF - e.r);
 }
 export const blocked = (x, z, r) => x < -HALF + r || x > HALF - r || z < -HALF + r || z > HALF - r || (G.layout && wallHit(G.layout, x, z, r)) || G.obst.some(o => (x - o.x) ** 2 + (z - o.z) ** 2 < (o.r + r) ** 2);
-// A clear shot: a projectile of radius r flies from a to b without touching a wall or prop (stricter than los, which
-// only checks the centre line with some slack). The last `end` units are skipped: the target is there.
-export function clearShot(ax, az, bx, bz, r = .2, end = .5) {
-  const dx = bx - ax, dz = bz - az, L = Math.hypot(dx, dz); if (L <= end) return true;
-  for (let t = .3; t < L - end; t += .3) if (blocked(ax + dx * t / L, az + dz * t / L, r)) return false;
-  return true;
-}
 export function los(ax, az, bx, bz) {
   const dx = bx - ax, dz = bz - az, L = Math.hypot(dx, dz) || 1;
   for (const o of G.obst) { const t = clamp(((o.x - ax) * dx + (o.z - az) * dz) / (L * L), 0, 1); if (dist(ax + dx * t, az + dz * t, o.x, o.z) < o.r - .1) return false; }

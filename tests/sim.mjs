@@ -43,14 +43,14 @@ try {
   {
     const pc = v => Math.round(v * 100) + '%', less = v => pc(1 - v) + ' less', U = SUPPORTS, M = id => GEMS[id].mile;
     const want = {
-      twin: ['+' + U.twin.proj + ' projectile', less(U.twin.more)], searing: ['+' + U.searing.pierce + ' enemy'], ignite: [pc(U.ignite.share), U.ignite.dur + 's'],
-      chainboom: [pc(U.chainboom.chance)], shatter: [pc(U.shatter.pct)], forked: ['+' + U.forked.chains], conduit: [pc(U.conduit.shockMore)], warding: [pc(U.warding.shieldPct)],
-      split: [U.split.lances + ' lances', less(U.split.mult)], army: ['+' + U.army.cap + ' skeleton', less(U.army.more)], volley: [U.volley.targets === 2 ? 'two' : String(U.volley.targets), less(U.volley.mult)],
+      sweep: [less(U.sweep.more)], brittle: [pc(U.brittle.taken), U.brittle.dur + 's'], aftershock: [U.aftershock.delay + 's', pc(U.aftershock.mult)],
+      raise: [pc(U.raise.chance), 'up to ' + U.raise.cap], ignite: [pc(U.ignite.share), U.ignite.dur + 's'],
+      shatter: [pc(U.shatter.pct)], forked: ['+' + U.forked.chains], conduit: [pc(U.conduit.shockMore)], warding: [pc(U.warding.shieldPct)], volley: [U.volley.targets === 2 ? 'two' : String(U.volley.targets), less(U.volley.mult)],
       twinmeteor: [less(U.twinmeteor.mult)], quickstep: ['+' + U.quickstep.ch + ' charge'], lingering: [pc(U.lingering.dur)],
     };
     const mile = {
-      fireball: ['Pierces ' + M('fireball').add.pierce], frostlance: [M('frostlance').pierce + ' more'], arc: ['+' + M('arc').add.chains + ' chains'], nova: ['+' + pc(M('nova').add.novaR)],
-      totem: [pc(M('totem').dur - 1)], meteor: ['+' + pc(M('meteor').radius - 1)], skeletons: ['+' + M('skeletons').cap + ' skeleton'], shield: [pc(M('shield').add.shieldPct)],
+      cleave: [pc(M('cleave').arc - 1) + ' wider', pc(M('cleave').reach - 1) + ' further'], fstrike: ['Every ' + M('fstrike').every + 'rd', M('fstrike').freeze + 's'], slam: ['+' + pc(M('slam').radius - 1)], arc: ['+' + M('arc').add.chains + ' chains'], nova: ['+' + pc(M('nova').add.novaR)],
+      totem: [pc(M('totem').dur - 1)], meteor: ['+' + pc(M('meteor').radius - 1)], shield: [pc(M('shield').add.shieldPct)],
       ward: ['+' + pc(M('ward').radius - 1)], dash: ['+' + M('dash').add.dashCh + ' charge'],
     };
     const bad = [...Object.entries(want).filter(([k, w]) => w.some(t => !U[k].d.includes(t))).map(([k]) => k), ...Object.entries(mile).filter(([k, w]) => w.some(t => !GEMS[k].ms[5].includes(t))).map(([k]) => k + ' (milestone)')];
@@ -65,18 +65,18 @@ try {
       const D = window.__dbg, P = D.P, out = {};
       D.start(true);
       out.packs = D.packs().length;
-      // A fresh character: the Main shrine is open; take Fireball.
-      out.shrineOpen = document.getElementById('mShrine').classList.contains('show') && document.querySelectorAll('#shrineCards .pc').length === 3;
-      document.querySelector('#shrineCards .pc[data-k="fireball"]').click();
-      // Scripted player: walk toward the nearest living pack, hold the Main gem (Fireball), raise Magic Shield on a rhythm.
+      // A fresh character: the Main shrine is open with the three melee gems; take Ember Cleave.
+      out.shrineOpen = document.getElementById('mShrine').classList.contains('show') && [...document.querySelectorAll('#shrineCards .pc')].map(c => c.dataset.k).sort().join() === 'cleave,fstrike,slam';
+      document.querySelector('#shrineCards .pc[data-k="cleave"]').click();
+      // Scripted player: walk toward the nearest living pack and into melee; the Main gem auto-attacks. Magic Shield on a rhythm.
       D.ctl.aim = null; // a stray headless pointer event can leave a mouse aim point; auto-aim like touch does
-      D.ctl.main = true; var px = 1e9, pz = 1e9;
+      D.setAutoAtk(true); var px = 1e9, pz = 1e9;
       for (let step = 0; step < 240; step++) {
         const alive = D.packs().filter(p => !p.spawned || p.list.some(e => !e.deathT));
         const tgt = alive.sort((a, b) => Math.hypot(a.x - P.x, a.z - P.z) - Math.hypot(b.x - P.x, b.z - P.z))[0];
         // Close in on the nearest awake monster (so props can't block every shot), else walk to the nearest pack.
         const foe = D.enemies().filter(e => !e.deathT && e.awake).sort((a, b) => Math.hypot(a.x - P.x, a.z - P.z) - Math.hypot(b.x - P.x, b.z - P.z))[0];
-        const goal = foe && Math.hypot(foe.x - P.x, foe.z - P.z) < 14 ? foe : tgt, keep = goal === foe ? 3 : 6;
+        const goal = foe && Math.hypot(foe.x - P.x, foe.z - P.z) < 14 ? foe : tgt, keep = goal === foe ? 1.4 : 6;
         if (goal) {
           const dx = goal.x - P.x, dz = goal.z - P.z, d = Math.hypot(dx, dz); D.ctl.mx = d > keep ? dx / d : 0; D.ctl.mz = d > keep ? dz / d : 0;
           if (d > keep && Math.hypot(P.x - px, P.z - pz) < .3) { P.x = goal.x - dx / d * keep; P.z = goal.z - dz / d * keep; } // stuck on a prop: hop closer
@@ -84,7 +84,7 @@ try {
         if (step % 60 === 0) D.ctl.tap.guard = true;
         var px = P.x, pz = P.z; P.life = Math.max(P.life, 60); D.sim(10);
       }
-      D.ctl.main = false; D.ctl.mx = D.ctl.mz = 0;
+      D.ctl.mx = D.ctl.mz = 0;
       out.mainGem = P.gems.find(g => g.id === P.bar.main).lvl;
       out.rigged = D.chars.ready && D.G.heroM.rigged && D.enemies().some(e => e.model.rigged);
       out.dressed = D.G.dressed && D.G.obst.length > 40 && D.G.torches.length > 10;
@@ -104,12 +104,12 @@ try {
       return out;
     });
     console.log('  arpg:', JSON.stringify(r));
-    check(r.shrineOpen, 'arpg: a new character is offered the Main shrine (3 gems)');
+    check(r.shrineOpen, 'arpg: a new character is offered the Main shrine (Ember Cleave, Frost Strike, Thunder Slam)');
     check(r.mainGem >= 2, `arpg: the Main gem levelled from kills (gem level ${r.mainGem})`);
     check(r.rigged, 'arpg: KayKit character models loaded for hero and monsters');
     check(r.dressed, 'arpg: map built from the KayKit dungeon pieces');
     check(r.packs >= 18, `arpg: map has packs (${r.packs})`);
-    check(r.kills > 20, `arpg: player fought through packs (${r.kills} kills)`);
+    check(r.kills > 20, `arpg: player fought through packs in melee with the auto-attack (${r.kills} kills)`);
     check(r.lvl >= 2, `arpg: player levelled up (level ${r.lvl})`);
     check(r.loot > 0, `arpg: monsters dropped loot (${r.loot})`);
     check(r.inv >= 4, `arpg: loot picked up into the bag (${r.inv})`);
@@ -118,7 +118,7 @@ try {
     check(r.boss && r.bossCast, 'arpg: boss spawned and used abilities');
     check(r.portal && r.tier === 2, `arpg: boss kill opens portal to map 2 (tier ${r.tier})`);
     if (process.env.SCREENSHOT) {
-      await page.evaluate(() => { const D = window.__dbg, P = D.P; const pk = D.packs().find(p => !p.spawned); if (pk) { P.x = pk.x - 6; P.z = pk.z + 3; } D.sim(25); D.castNova(); D.castFireball(); D.castArc(); D.sim(3); });
+      await page.evaluate(() => { const D = window.__dbg, P = D.P; const pk = D.packs().find(p => !p.spawned); if (pk) { P.x = pk.x - 6; P.z = pk.z + 3; } D.sim(25); D.castNova(); D.strike('cleave'); D.castArc(); D.sim(3); });
       await new Promise(r => setTimeout(r, 300)); await page.screenshot({ path: process.env.SCREENSHOT });
     }
     check(errors.length === 0, `arpg: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
@@ -213,14 +213,17 @@ try {
       return {
         pack: D.arena({ tier: 1, fight: [['zombie', 3], ['archer', 1]] }),
         boss: D.arena({ tier: 1, guardian: true, maxT: 240 }),
+        careless: D.arena({ tier: 2, guardian: true, maxT: 240, bot: 'careless' }),
+        smart: D.arena({ tier: 2, guardian: true, maxT: 240 }),
         under: D.arena({ tier: 2, gear: 'start', guardian: true, maxT: 120 }),
         shield: (() => { D.castShield(); const a = D.P.shield / D.S.maxLife; const l = D.P.life; return { result: a > .3 ? 'ok' : 'none', t: Math.round(a * 100) / 100, lowest: l }; })(),
       };
     });
     console.log('  balance:', JSON.stringify(Object.fromEntries(Object.entries(r).map(([k, v]) => [k, `${v.result} ${v.t}s lowest ${v.lowest}`]))));
-    check(r.pack.result === 'clear' && r.pack.t > 3 && r.pack.t < 20, `balance: a tier 1 pack takes a few seconds with the starter staff (${r.pack.t}s)`);
+    check(r.pack.result === 'clear' && r.pack.t > 3 && r.pack.t < 20, `balance: a tier 1 pack takes a few seconds with the starter sword (${r.pack.t}s)`);
     check(r.boss.result === 'clear' && r.boss.t > 45 && r.boss.t < 180, `balance: tier 1 guardian can't be burned down (${r.boss.t}s)`);
-    check(r.under.result !== 'clear', `balance: starter staff can't beat the tier 2 guardian in 2 minutes (${r.under.result})`);
+    check(r.under.result !== 'clear', `balance: starter sword can't beat the tier 2 guardian in 2 minutes (${r.under.result})`);
+    check(r.smart.result === 'clear' && (r.careless.result === 'died' || r.careless.taken > r.smart.taken * 1.5), `balance: never Guarding or dodging the tier 2 guardian's slam does clearly worse (${r.careless.result}, ${r.careless.taken} taken vs ${r.smart.taken})`);
     check(r.shield.result === 'ok' && r.boss.shields > 0, `balance: Magic Shield absorbs ${Math.round(r.shield.t * 100)}% of max life and the bot uses it (${r.boss.shields} casts)`);
     check(errors.length === 0, `balance: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   }
@@ -234,7 +237,7 @@ try {
       D.start(true); P.shrined.guard = 1; // the Frost Ward shrine has its own check below
       out.freshBar = filled(); // only Guard until the Main shrine is taken
       out.guardGem = P.gems.find(g => g.id === P.bar.guard).gem;
-      D.takeShrine('main', 'fireball'); document.getElementById('mShrine').classList.remove('show');
+      D.takeShrine('main', 'cleave'); document.getElementById('mShrine').classList.remove('show');
       out.afterMain = filled();
       out.lockedFlex = D.placeGem(P.bar.main, 'flexA') === false; // level 1: Flex A is locked
       // Reach level 5: the Flex A shrine waits at the next map entrance; walking into it opens the choice.
@@ -252,27 +255,26 @@ try {
       const before = { arc: arc.xp + arc.lvl * 1e4, spare: spare.xp };
       window.__dbg.kill({ deathT: 0, x: P.x, z: P.z, xp: 30, rar: 0, type: 'zombie', aff: [], freeze: 0, h: 1, model: { g: {} } });
       out.barXp = arc.xp + arc.lvl * 1e4 - before.arc; out.bagXp = spare.xp - before.spare;
-      // Level 5 milestone: Fireball pierces 1 more.
-      const c0 = S.sk.fireball.pierce; arc.lvl = 5; D.recalc(); out.pierceGain = S.sk.fireball.pierce - c0;
+      // Level 5 milestone: Ember Cleave reaches further.
+      const c0 = D.meleeReach('cleave'); arc.lvl = 5; D.recalc(); out.reachGain = Math.round(D.meleeReach('cleave') / c0 * 100) / 100;
       // Save round-trip.
       D.save(); const sv = D.load();
       out.saved = sv.bar && sv.bar.main === P.bar.main && sv.gems.length === P.gems.length && sv.shrined.flexA === 1;
       D.begin(false); document.getElementById('mShrine').classList.remove('show');
       out.loaded = filled() === 'flexA,guard,main' && P.gems.find(g => g.id === P.bar.main).lvl === 5;
-      // An old save without gems is treated as fresh for gems: Main shrine on load.
-      const old = { ...sv }; delete old.gems; delete old.bar; delete old.shrined; localStorage.setItem('wd-arpg-1', JSON.stringify(old));
-      D.begin(false); out.oldSave = filled() === 'guard' && document.getElementById('mShrine').classList.contains('show');
+      // Saves from an older version (another key) are ignored: no migration while the game is unreleased.
+      localStorage.clear(); localStorage.setItem('wd-arpg-1', JSON.stringify(sv)); out.oldSave = D.load() === null;
       return out;
     });
     console.log('  gems:', JSON.stringify(r));
     check(r.freshBar === 'guard' && r.guardGem === 'shield' && r.afterMain === 'guard,main', `gems: a fresh character has exactly Main and Guard (Magic Shield) filled (${r.afterMain})`);
     check(r.lockedFlex, 'gems: Flex A is locked below level 5');
     check(r.shrineSlot === 'flexA' && r.ask === 'flexA', `gems: at level 5 a Flex A shrine appears and opens when walked into (${r.shrineSlot}, ${r.ask})`);
-    check(r.flexOffer.split(',').length === 3 && !r.flexOffer.split(',').includes('fireball') && r.afterFlex === 'flexA,guard,main' && r.flexGem === r.flexPick && r.shrineGone, `gems: the Flex shrine offers 3 gems you don't own and picking one fills the slot (offered ${r.flexOffer})`);
+    check(r.flexOffer.split(',').length === 3 && !r.flexOffer.split(',').includes('cleave') && r.afterFlex === 'flexA,guard,main' && r.flexGem === r.flexPick && r.shrineGone, `gems: the Flex shrine offers 3 gems you don't own and picking one fills the slot (offered ${r.flexOffer})`);
     check(r.barXp > 0 && r.bagXp > 0 && Math.abs(r.bagXp - r.barXp * .1) < 1, `gems: kills give bar gems XP and bag gems 10% (${r.barXp} / ${r.bagXp})`);
-    check(r.pierceGain === 1, `gems: Fireball's level 5 milestone pierces 1 more enemy (+${r.pierceGain})`);
+    check(r.reachGain === 1.15, `gems: Ember Cleave's level 5 milestone reaches 15% further (×${r.reachGain})`);
     check(r.saved && r.loaded, 'gems: saves round-trip the skill bar and the gem bag');
-    check(r.oldSave, 'gems: an old save without gems gets Magic Shield and the Main shrine');
+    check(r.oldSave, 'gems: saves from an older version are ignored (no migration before release)');
     check(errors.length === 0, `gems: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   }
 
@@ -281,20 +283,23 @@ try {
     const { page, errors } = await open('/');
     const r = await page.evaluate(() => {
       const D = window.__dbg, P = D.P, S = D.S, G = D.G, out = {};
-      D.start(true); P.shrined.guard = 1; D.takeShrine('main', 'fireball'); document.getElementById('mShrine').classList.remove('show');
+      D.start(true); P.shrined.guard = 1; D.takeShrine('main', 'cleave'); document.getElementById('mShrine').classList.remove('show');
       P.lvl = 5; P.shrined.flexA = 1; D.recalc();
       const fb = P.gems.find(g => g.id === P.bar.main), arc = D.addGem('arc'); D.placeGem(arc.id, 'flexA');
       out.socks = [D.sockCount('main'), D.sockCount('flexA'), D.sockCount('flexB'), D.sockCount('main', 15)].join(',');
-      const base = { proj: S.sk.fireball.proj, chains: S.sk.arc.chains, pierce: S.sk.fireball.pierce };
-      // Twin Flame fits Fireball, not Arc; socketed with Fireball it changes Fireball only.
-      const tw = D.addGem('twin');
+      const base = { chains: S.sk.arc.chains };
+      // Sweep fits Ember Cleave, not Arc; socketed with Cleave it changes Cleave only.
+      const tw = D.addGem('sweep');
       out.twinOnArc = D.socketGem(tw.id, 'flexA');
       out.twinOnFb = D.socketGem(tw.id, 'main');
-      out.afterTwin = { proj: S.sk.fireball.proj - base.proj, chains: S.sk.arc.chains - base.chains };
+      out.afterTwin = { sweep: S.sk.cleave.sweep, chains: S.sk.arc.chains - base.chains };
       const fk = D.addGem('forked'); out.forkedOnFb = D.socketGem(fk.id, 'main'); out.forkedOnArc = D.socketGem(fk.id, 'flexA');
-      out.afterForked = { proj: S.sk.fireball.proj - base.proj, chains: S.sk.arc.chains - base.chains, pierce: S.sk.fireball.pierce - base.pierce };
-      // The real cast: two fireballs leave the staff.
-      G.proj.length = 0; D.castFireball(); out.shots = G.proj.length;
+      out.afterForked = { sweep: S.sk.cleave.sweep, chains: S.sk.arc.chains - base.chains, arcSweep: S.sk.arc.sweep };
+      // The real swing: with Sweep, Ember Cleave hits a monster behind you too.
+      const behind = D.targets('cleave', P.x, P.z, 0).list.length; // nothing there yet
+      const z = D.spawnEnemy('zombie', P.x, P.z - 1.6, null, 0); D.sim(1);
+      out.shots = D.targets('cleave', P.x, P.z, 0).list.includes(z) && behind === 0;
+      z.hp = 0; D.kill(z);
       // Socketed supports earn full XP, like the gem they support.
       const x0 = { fb: fb.xp, tw: tw.xp };
       D.kill({ deathT: 0, x: P.x, z: P.z, xp: 30, rar: 0, type: 'zombie', aff: [], freeze: 0, h: 1, model: { g: {} } });
@@ -302,12 +307,7 @@ try {
       // Saves round-trip the sockets.
       D.save(); const sv = D.load(); out.savedSock = sv.sock && sv.sock.main[0] === tw.id && sv.sock.flexA[0] === fk.id;
       D.begin(false); document.getElementById('mShrine').classList.remove('show');
-      out.loaded = S.sk.fireball.proj === base.proj + 1 && S.sk.arc.chains === base.chains + 2;
-      // Old saves: notable passives that became supports give the points back and the gem (once).
-      const old = D.load(); old.passives = { multi: 2, inferno: 1, pyre: 1 }; old.pts = 0; localStorage.setItem('wd-arpg-1', JSON.stringify(old));
-      D.begin(false); document.getElementById('mShrine').classList.remove('show');
-      out.refund = P.pts === 3 && P.passives.pyre === 1 && !P.passives.multi && P.gems.filter(g => g.gem === 'twin').length === 1 && P.gems.some(g => g.gem === 'chainboom');
-      out.noNotables = !['multi', 'pierce', 'chain', 'ward', 'ignite', 'shatter', 'conduit', 'inferno'].some(k => D.PASS[k]);
+      out.loaded = S.sk.cleave.sweep && S.sk.arc.chains === base.chains + 2;
       // A guardian always drops a gem; walking over it puts it in the gem bag.
       const n0 = P.gems.length, boss = D.spawnEnemy('boss', P.x + 3, P.z, null, 0); D.kill(boss);
       const gd = G.ground.find(d => d.gem); out.bossGem = !!gd && (gd.gem.lvl >= 1);
@@ -327,10 +327,10 @@ try {
       // Every support, socketed with a gem it fits, casts cleanly and shows up in that skill's stats.
       P.lvl = 12; D.recalc(); const bad = [];
       for (const [sup, def] of Object.entries(D.SUPPORTS)) {
-        const gem = def.for[0], slot = D.GEMS[gem].kind === 'guard' ? 'guard' : D.GEMS[gem].kind === 'evade' ? 'evade' : 'flexB';
+        const gem = D.GEMS[def.for[0]] ? def.for[0] : 'fstrike', slot = D.GEMS[gem].kind === 'guard' ? 'guard' : D.GEMS[gem].kind === 'evade' ? 'evade' : 'flexB';
         const g = D.addGem(gem, 3), sg = D.addGem(sup); D.placeGem(g.id, slot);
         if (!D.socketGem(sg.id, slot) || !D.S.sk[gem].sup.includes(sup)) { bad.push(sup + ':socket'); continue; }
-        const k = S.sk[gem]; if ({ split: !k.split, volley: !k.volley, twinmeteor: !k.twin, lingering: k.dur !== 1.5, quickstep: k.ch !== 1, army: k.army !== 1 }[sup]) bad.push(sup + ':stats');
+        const k = S.sk[gem]; if ({ sweep: !k.sweep, brittle: !k.brittle, aftershock: !k.aftershock, raise: !k.raise, volley: !k.volley, twinmeteor: !k.twin, lingering: k.dur !== 1.5, quickstep: k.ch !== 1 }[sup]) bad.push(sup + ':stats');
         P.life = S.maxLife; D.spawnEnemy('zombie', P.x + 3, P.z, null, 0).awake = true; D.ctl.aim = [P.x + 3, P.z];
         try { D.cast(gem); D.sim(20); } catch (e) { bad.push(sup + ':' + e.message); }
       }
@@ -342,12 +342,11 @@ try {
     });
     console.log('  gems v2:', JSON.stringify(r));
     check(r.socks === '1,1,0,2', `gems v2: sockets per slot at level 5: Main 1, Flex A 1, locked Flex B 0; Main 2 at level 15 (${r.socks})`);
-    check(!r.twinOnArc && r.twinOnFb && r.afterTwin.proj === 1 && r.afterTwin.chains === 0, `gems v2: Twin Flame only fits Fireball and adds a projectile to it alone (${JSON.stringify(r.afterTwin)})`);
-    check(!r.forkedOnFb && r.forkedOnArc && r.afterForked.chains === 2 && r.afterForked.proj === 1 && r.afterForked.pierce === 0, `gems v2: Forked Sky in Flex A changes Arc only (${JSON.stringify(r.afterForked)})`);
-    check(r.shots === 2, `gems v2: a Fireball with Twin Flame fires 2 projectiles (${r.shots})`);
+    check(!r.twinOnArc && r.twinOnFb && r.afterTwin.sweep && r.afterTwin.chains === 0, `gems v2: Sweep only fits Ember Cleave and changes it alone (${JSON.stringify(r.afterTwin)})`);
+    check(!r.forkedOnFb && r.forkedOnArc && r.afterForked.chains === 2 && r.afterForked.sweep && !r.afterForked.arcSweep, `gems v2: Forked Sky in Flex A changes Arc only (${JSON.stringify(r.afterForked)})`);
+    check(r.shots, 'gems v2: Ember Cleave with Sweep hits a monster behind you');
     check(r.supXp, 'gems v2: a socketed support earns the same XP as its skill gem');
     check(r.savedSock && r.loaded, 'gems v2: supports and sockets round-trip through saves');
-    check(r.refund && r.noNotables, 'gems v2: old notable passives are gone from the cards; old saves get the points back and the support gems');
     check(r.bossGem && r.pickedGem, 'gems v2: a guardian drops a gem, and walking over it adds it to the gem bag');
     check(r.feedDup, 'gems v2: feeding a duplicate moves 100% of its XP and uses it up');
     check(r.feedLast && r.feedEmpty, 'gems v2: feeding your last copy moves 50% (same kind) and leaves a level 1 copy');
@@ -362,7 +361,7 @@ try {
     const { page, errors } = await open('/');
     const r = await page.evaluate(() => {
       const D = window.__dbg, P = D.P, S = D.S, G = D.G, out = {};
-      D.start(true); D.takeShrine('main', 'fireball'); document.getElementById('mShrine').classList.remove('show');
+      D.start(true); D.takeShrine('main', 'cleave'); document.getElementById('mShrine').classList.remove('show');
       // Frost Ward shrine: appears at level 3, takes Ward into the bag, Magic Shield stays in Guard.
       out.noShrineEarly = !D.shrineDue().includes('guard');
       P.lvl = 3; D.recalc(); out.due = D.shrineDue().includes('guard');
@@ -416,7 +415,7 @@ try {
     const { page, errors } = await open('/');
     const r = await page.evaluate(() => {
       const D = window.__dbg, P = D.P, S = D.S, G = D.G, ctl = D.ctl, out = {};
-      D.start(true); D.takeShrine('main', 'fireball'); document.getElementById('mShrine').classList.remove('show');
+      D.start(true); D.takeShrine('main', 'cleave'); document.getElementById('mShrine').classList.remove('show');
       P.lvl = 8; D.recalc(); D.newMap(1); const pk = G.packs[0]; P.x = pk.x - 7; P.z = pk.z; D.sim(3);
       // A tough stand-in monster five units away, kept in place so the skills have something to hit.
       const dummy = () => { const e = G.enemies.find(x => !x.deathT); e.x = P.x + 5; e.z = P.z; e.vx = e.vz = 0; e.hp = e.maxHp = 1e6; e.awake = true; ctl.aim = [e.x, e.z]; return e; };
@@ -448,58 +447,102 @@ try {
     check(errors.length === 0, `totem/meteor: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   }
 
-  // ---------- Skill gems: Frost Lance (package A) ----------
+  // ---------- Melee Main gems (src/game/sk/strike.js) and the auto-attack (game/gems.js autoTarget) ----------
   {
     const { page, errors } = await open('/');
     const r = await page.evaluate(() => {
-      const D = window.__dbg, P = D.P, S = D.S, G = D.G, out = {};
-      D.start(true); D.takeShrine('main', 'fireball'); document.getElementById('mShrine').classList.remove('show');
-      const gem = D.addGem('frostlance'); D.placeGem(gem.id, 'main');
-      out.onBar = P.gems.find(g => g.id === P.bar.main).gem;
-      // Find a direction with 14 clear units in front of the hero, line monsters up along it.
-      let dir = [0, 1]; for (const d of [[0, 1], [1, 0], [0, -1], [-1, 0], [.7, .7], [-.7, .7], [.7, -.7], [-.7, -.7]]) { let ok = true; for (let t = 1; t < 15; t += .5) if (D.blocked(P.x + d[0] * t, P.z + d[1] * t, .5)) ok = false; if (ok) { dir = d; break; } }
-      const line = () => { G.enemies.length = 0; const es = []; for (let i = 0; i < 7; i++) { const e = D.spawnEnemy('zombie', P.x + dir[0] * (4 + i * 1.2), P.z + dir[1] * (4 + i * 1.2), null, 0); e.hp = e.maxHp = 1e6; es.push(e); } D.ctl.aim = [P.x + dir[0] * 10, P.z + dir[1] * 10]; D.sim(1); return es; };
-      const fire = () => { const ok = D.cast('frostlance'); out.cast = out.cast || ok; D.sim(30); };
-      let es = line(); fire();
-      out.hit = es.filter(e => e.hp < e.maxHp).length; out.chilled = es.filter(e => e.chill > 0 || e.hp < e.maxHp).length;
-      gem.lvl = 5; D.recalc(); es = line(); fire(); out.hit5 = es.filter(e => e.hp < e.maxHp).length;
-      D.ctl.aim = null; return out;
+      const D = window.__dbg, P = D.P, S = D.S, G = D.G, ctl = D.ctl, out = {};
+      D.start(true); D.takeShrine('main', 'cleave'); document.getElementById('mShrine').classList.remove('show');
+      D.arena({ tier: 1, fight: [], maxT: .1, sock: {} }); // an open floor with no monsters, Ember Cleave in Main
+      D.setAutoAtk(false); // scripted swings only, until the auto-attack checks below
+      const clear = () => { for (const e of G.enemies) { e.deathT = 1; e.gone = true; } D.sim(1); };
+      const foe = (dx, dz, awake = true) => { const e = D.spawnEnemy('zombie', P.x + dx, P.z + dz, null, 0); e.hp = e.maxHp = 1e6; e.spd = 0; e.atkT = 99; e.awake = awake; return e; };
+      const swing = (gem, at = [P.x, P.z + 5]) => { P.aimAt = at; D.strike(gem); P.aimAt = null; D.sim(15); };
+      const hurt = e => e.hp < e.maxHp;
+      // Each gem: hits what's in its shape in front, not behind.
+      out.shape = {};
+      for (const gem of ['cleave', 'fstrike', 'slam']) {
+        clear(); const front = foe(0, 1.5), side = foe(1.6, .3), back = foe(0, -1.8);
+        swing(gem); out.shape[gem] = [hurt(front), hurt(side), hurt(back)].map(Number).join('');
+      }
+      // Frost Strike chills; its level 5 milestone freezes on every 3rd strike.
+      clear(); let e = foe(0, 1.5); swing('fstrike'); out.chill = e.chill > 0;
+      const g = P.gems.find(x => x.id === P.bar.main); g.gem = 'fstrike'; g.lvl = 5; D.recalc(); P.atkN = 0;
+      swing('fstrike'); const f1 = e.freeze > 0; swing('fstrike'); const f2 = e.freeze > 0; swing('fstrike'); out.freeze3 = !f1 && !f2 && e.freeze > 0;
+      // Thunder Slam knocks back harder than Cleave.
+      clear(); e = foe(0, 1.8); e.hp = e.maxHp = 1e6; const z0 = e.z; P.aimAt = [P.x, P.z + 5]; D.strike('slam'); P.aimAt = null; D.sim(14); out.kbSlam = e.z - z0;
+      clear(); e = foe(0, 1.5); const z1 = e.z; P.aimAt = [P.x, P.z + 5]; D.strike('cleave'); P.aimAt = null; D.sim(9); out.kbCleave = e.z - z1;
+      // Supports: Brittle marks (more damage taken), Aftershock hits again, Ignite burns.
+      g.gem = 'fstrike'; g.lvl = 1; D.recalc(); const sup = id => { const x = D.addGem(id); D.socketGem(x.id, 'main'); return x; };
+      clear(); const br = sup('brittle'); e = foe(0, 1.5); swing('fstrike'); out.brittle = e.shock > 0 && e.shockMore === D.SUPPORTS.brittle.taken; D.unsocket('main', 0);
+      g.gem = 'slam'; D.recalc(); clear(); sup('aftershock'); e = foe(0, 1.6); P.aimAt = [P.x, P.z + 5]; D.strike('slam'); P.aimAt = null;
+      D.sim(12); const h1 = e.maxHp - e.hp; D.sim(20); out.aftershock = h1 > 0 && e.maxHp - e.hp > h1 * 1.2; D.unsocket('main', 0);
+      g.gem = 'cleave'; D.recalc(); clear(); sup('ignite'); e = foe(0, 1.5); swing('cleave'); out.ignite = e.burnT > 0; D.unsocket('main', 0); D.recalc();
+      // Auto-attack: swings at an awake monster in reach, never at a sleeping one or one out of reach; steering away pauses it; HOLD turns it off.
+      const auto = () => { const c = P.castSeq; P.castT = 0; D.sim(20); return P.castSeq - c; };
+      clear(); D.setAutoAtk(true); ctl.mx = ctl.mz = 0;
+      const sleeper = foe(0, 1.4, false); out.noSleeper = auto() === 0; sleeper.deathT = 1; sleeper.gone = true;
+      const far = foe(0, 6); out.noFar = auto() === 0; far.deathT = 1; far.gone = true;
+      const near = foe(0, 1.4); out.swings = auto(); out.hitNear = hurt(near);
+      ctl.mz = -1; out.awayPaused = auto() === 0; ctl.mz = 1; const toward = auto(); ctl.mz = 0; P.x = 0; P.z = 0; near.x = 0; near.z = 1.4; out.toward = toward > 0;
+      D.setAutoAtk(false); out.holdOff = auto() === 0;
+      ctl.main = true; ctl.aim = [P.x, P.z + 3]; out.holdSwings = auto() > 0; ctl.main = false; ctl.aim = null; D.setAutoAtk(true);
+      out.btn = document.getElementById('bAtk').textContent;
+      // Priority: a rare in reach before a nearer normal monster.
+      clear(); const n1 = foe(.9, .9), rare = D.spawnEnemy('zombie', P.x - 1.6, P.z, null, 2); rare.awake = true; rare.spd = 0;
+      out.rareFirst = D.autoTarget('cleave') === rare;
+      return out;
     });
-    console.log('  frostlance:', JSON.stringify(r));
-    check(r.onBar === 'frostlance' && r.cast, 'frostlance: goes on the Main slot and casts');
-    check(r.hit >= 3 && r.hit <= 5, `frostlance: pierces a line of monsters but not all of them (${r.hit} of 7 hit)`);
-    check(r.hit5 === r.hit + 2, `frostlance: level 5 pierces 2 more (${r.hit5})`);
-    check(errors.length === 0, `frostlance: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
+    console.log('  melee:', JSON.stringify(r));
+    check(r.shape.cleave === '110' && r.shape.fstrike === '100' && r.shape.slam === '110', `melee: Cleave hits the wide front, Frost Strike a narrow one, Slam a circle ahead; none hit behind (${JSON.stringify(r.shape)})`);
+    check(r.chill && r.freeze3, 'melee: Frost Strike chills, and at level 5 every 3rd strike freezes');
+    check(r.kbSlam > r.kbCleave && r.kbCleave >= 0 && r.kbCleave < .6, `melee: Thunder Slam knocks back, Cleave only nudges (${r.kbSlam.toFixed(2)} vs ${r.kbCleave.toFixed(2)})`);
+    check(r.brittle && r.aftershock && r.ignite, `melee: Brittle marks, Aftershock hits again, Ignite burns (${r.brittle}, ${r.aftershock}, ${r.ignite})`);
+    check(r.noSleeper && r.noFar && r.swings > 0 && r.hitNear, `melee: auto-attack swings at an awake monster in reach, not a sleeping or distant one (${r.swings} swings)`);
+    check(r.awayPaused && r.toward, 'melee: steering away by hand pauses the auto-attack; walking toward it keeps swinging');
+    check(r.holdOff && r.holdSwings && r.btn === 'ATTACK: AUTO', `melee: ATTACK: HOLD stops the auto-attack and holding the button still swings (${r.btn})`);
+    check(r.rareFirst, 'melee: the auto-attack goes for a rare before a nearer normal monster');
+    check(errors.length === 0, `melee: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   }
 
-  // ---------- Raise Skeletons: the minion Main gem (src/game/sk/skeletons.js) ----------
+  // ---------- Raise Skeletons: a support gem; the socketed skill's kills rise (src/game/sk/skeletons.js) ----------
   {
     const { page, errors } = await open('/');
     const r = await page.evaluate(() => {
       const D = window.__dbg, P = D.P, G = D.G, out = {};
-      D.start(true); D.takeShrine('main', 'skeletons'); document.getElementById('mShrine').classList.remove('show');
-      D.arena({ tier: 1, fight: [], maxT: .1, main: 'skeletons' }); // an open floor with no monsters
+      D.start(true); D.takeShrine('main', 'cleave'); document.getElementById('mShrine').classList.remove('show');
+      D.arena({ tier: 1, fight: [], maxT: .1, sock: { main: ['raise'] } }); // an open floor, Ember Cleave + Raise Skeletons
+      D.setAutoAtk(false); // scripted swings only
+      out.socketed = D.S.sk.cleave.raise;
       const sk = () => D.minions().filter(m => !m.deathT).length;
-      out.cap = D.skel.cap();
-      for (let i = 0; i < 8; i++) { D.ctl.tap.main = true; D.sim(12); }
+      const R = D.SUPPORTS.raise, chance = R.chance; out.cap = D.skel.cap();
+      // Kills by the socketed skill raise skeletons, up to the cap.
+      R.chance = 1;
+      for (let i = 0; i < 6; i++) { const z = D.spawnEnemy('zombie', P.x, P.z + 1.4, null, 0); z.awake = true; z.hp = 1; P.aimAt = [P.x, P.z + 5]; D.strike('cleave'); P.aimAt = null; D.sim(12); }
       out.raised = sk(); out.capped = out.raised === out.cap;
-      { const before = D.minions().filter(m => !m.deathT); D.ctl.tap.main = true; D.sim(1); const after = D.minions().filter(m => !m.deathT); out.kept = after.length === out.cap && before.every(m => after.includes(m)); } // at the cap with a healthy army a recast does nothing
-      // A zombie walks in: the skeletons kill it, and the kill counts for the player.
-      const k0 = P.kills, z = D.spawnEnemy('zombie', P.x + 5, P.z, null, 0); z.awake = true;
-      let t = 0; while (!z.deathT && t < 900) { D.sim(10); t += 10; }
-      out.killed = !!z.deathT; out.killT = Math.round(t * .033 * 10) / 10; out.kills = P.kills - k0;
+      // Kills by another skill don't count.
+      D.newMap(1); D.arena({ tier: 1, fight: [], maxT: .1, sock: { main: ['raise'] } }); D.setAutoAtk(false); D.sim(2);
+      const z2 = D.spawnEnemy('zombie', P.x + 2, P.z, null, 0); z2.awake = true; z2.hp = 1; D.sim(1); D.castNova(); D.sim(5); out.otherSkill = !!z2.deathT && sk() === 0;
+      // A raised skeleton fights: it kills a zombie on its own, the kill counts for you, and doesn't raise another.
+      D.skel.raise(P.x + 1, P.z, 'cleave'); R.chance = 1;
+      const k0 = P.kills, z = D.spawnEnemy('zombie', P.x + 6, P.z, null, 0); z.awake = true;
+      let t = 0; while (!z.deathT && t < 900) { P.x = -30; P.z = 0; D.sim(10); t += 10; } // stay out of it so only the skeleton fights
+      R.chance = chance;
+      out.killed = !!z.deathT; out.killT = Math.round(t * .033 * 10) / 10; out.kills = P.kills - k0; out.noChain = sk() === 1;
       out.hurtOne = D.minions().some(m => m.hp < m.maxHp); // it swung at a skeleton before dying
       out.rigged = D.minions().every(m => m.model.rigged === D.chars.ready);
-      D.newMap(1); out.cleared = D.minions().length === 0;
+      // Taking the support off the bar: the army crumbles. A new map clears them.
+      D.skel.raise(P.x + 1, P.z, 'cleave'); D.unsocket('main', 0); D.sim(5); out.crumbled = sk() === 0;
+      D.newMap(1); out.cleared = D.minions().length === 0; D.setAutoAtk(true);
       return out;
     });
     console.log('  skeletons:', JSON.stringify(r));
-    check(r.cap === 3 && r.capped, `skeletons: raising respects the cap (${r.raised} of ${r.cap})`);
-    check(r.kept, 'skeletons: recasting with a full, healthy army replaces nobody');
-    check(r.killed && r.kills === 1, `skeletons: minions kill a monster on their own and the kill counts (${r.killT}s)`);
+    check(r.socketed && r.cap === 3 && r.capped, `skeletons: kills by the socketed skill rise as skeletons, up to the cap (${r.raised} of ${r.cap})`);
+    check(r.otherSkill, 'skeletons: kills by a skill without the support raise nothing');
+    check(r.killed && r.kills === 1 && r.noChain, `skeletons: a skeleton kills a monster on its own, the kill counts for you and raises no more (${r.killT}s)`);
     check(r.hurtOne, 'skeletons: monsters in reach attack the minions');
     check(r.rigged, 'skeletons: minions use the rigged skeleton when characters loaded');
-    check(r.cleared, 'skeletons: minions are cleared with the map');
+    check(r.crumbled && r.cleared, 'skeletons: they crumble when the support leaves the bar and are cleared with the map');
     check(errors.length === 0, `skeletons: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   }
 
@@ -508,14 +551,14 @@ try {
     const { page, errors } = await open('/');
     const r = await page.evaluate(() => {
       const D = window.__dbg, P = D.P, S = D.S, G = D.G, ctl = D.ctl, out = {};
-      D.start(true); D.takeShrine('main', 'fireball'); document.getElementById('mShrine').classList.remove('show');
-      out.noMana = P.mana === undefined && S.maxMana === undefined && !D.SK.fireball.cost && !document.getElementById('manaF');
+      D.start(true); D.takeShrine('main', 'cleave'); document.getElementById('mShrine').classList.remove('show');
+      out.noMana = P.mana === undefined && S.maxMana === undefined && !D.SK.cleave.cost && !document.getElementById('manaF');
       D.arena({ tier: 1, fight: [], maxT: .1 }); // an open floor with no monsters
       const z = D.spawnEnemy('zombie', P.x + 6, P.z, null, 0); z.hp = z.maxHp = 1e9; z.spd = 0; ctl.aim = [z.x, z.z];
-      // Fireballs held for 6 s, without and with Surge: no mana means the plain rate never stops, Surge is faster.
-      const casts = surge => { P.surge = S.surgeMax; P.spent = false; P.surgeWait = 0; ctl.surge = surge; const c = P.castSeq; ctl.main = true; D.sim(180); ctl.main = false; ctl.surge = false; return P.castSeq - c; };
+      // Ember Cleave held for 10 s, without and with Surge: no mana means the plain rate never stops, Surge is faster.
+      const casts = surge => { P.surge = S.surgeMax; P.spent = false; P.surgeWait = 0; ctl.surge = surge; const c = P.castSeq; ctl.main = true; D.sim(300); ctl.main = false; ctl.surge = false; return P.castSeq - c; };
       out.plain = casts(false); out.surged = casts(true);
-      out.drained = Math.round((S.surgeMax - P.surge) * 10) / 10; // about 6 s used
+      out.drained = Math.round((S.surgeMax - P.surge) * 10) / 10; // about 10 s used
       // Run it dry: spent until it refills to SURGE.restart, and refilling waits SURGE.delay after you stop.
       P.surge = .2; ctl.surge = true; D.sim(15); out.spent = P.spent && P.surge === 0; out.offWhenSpent = P.surgeK === 0 && !ctl.surge;
       ctl.surge = false; D.sim(30); out.waits = P.surge === 0; D.sim(120); out.refills = P.surge > 0;
@@ -531,19 +574,13 @@ try {
       const rolls = (il, boost) => Array.from({ length: 400 }, () => D.rollItem(il, boost).rar);
       out.cryptUniques = [1, 5].flatMap(t => rolls(t, .6)).filter(r => r === 3).length;
       out.laterUniques = rolls(6, .6).filter(r => r === 3).length;
-      // An old save: mana affixes go (a ring's mana implicit becomes life), Blood Magic's point comes back.
-      localStorage.setItem('wd-arpg-1', JSON.stringify({ lvl: 3, xp: 0, pts: 0, tier: 1, inv: [], passives: { blood: 1, pyre: 1 },
-        gear: { ring: { slot: 'ring', rar: 1, base: 'Iron Ring', name: 'Old Ring', il: 1, mods: [['manaF', 14], ['mregen', 2], ['crit', .03]] } } }));
-      D.start(false); document.getElementById('mShrine').classList.remove('show');
-      out.oldRing = JSON.stringify(P.gear.ring.mods); out.oldPts = P.pts; out.oldPass = Object.keys(P.passives).join();
       return out;
     });
     console.log('  surge:', JSON.stringify(r));
-    check(r.oldRing === '[["lifeF",10],["crit",0.03]]' && r.oldPts === 1 && r.oldPass === 'pyre', `surge: old saves lose mana affixes and get Blood Magic's point back (${r.oldRing}, ${r.oldPts} pt)`);
     check(r.noMana, 'surge: there is no mana (no pool, no costs, no orb)');
-    check(r.plain >= 7, `surge: held Fireball never runs dry (${r.plain} casts in 6 s)`);
+    check(r.plain >= 11, `surge: held Ember Cleave never runs dry (${r.plain} swings in 10 s)`);
     check(r.surged >= r.plain * 1.25, `surge: surging casts faster (${r.surged} vs ${r.plain})`);
-    check(r.drained > 5 && r.drained < 7, `surge: the gauge drains about 1 s per second (${r.drained})`);
+    check(r.drained > 9 && r.drained < 11, `surge: the gauge drains about 1 s per second (${r.drained})`);
     check(r.spent && r.offWhenSpent, 'surge: an empty gauge stops the bonus and switches Surge off (spent)');
     check(r.cryptUniques === 0 && r.laterUniques > 0, `loot: no uniques in the Crypt, they start in the next region (${r.laterUniques} of 400 at tier 6)`);
     check(r.waits && r.refills, 'surge: the gauge refills after a short wait');
@@ -558,12 +595,12 @@ try {
     const { page, errors } = await open('/');
     const r = await page.evaluate(() => {
       const D = window.__dbg, P = D.P, out = {};
-      D.setRide(true); D.start(true); D.takeShrine('main', 'fireball'); document.getElementById('mShrine').classList.remove('show');
+      D.setRide(true); D.start(true); D.takeShrine('main', 'cleave'); document.getElementById('mShrine').classList.remove('show');
       // Not pedalling: the hero must not move even with the D-pad held.
       D.ride.pw = 0; D.ride.held.right = true; const x0 = P.x; D.sim(60); out.stillAt0W = Math.abs(P.x - x0) < .01;
       D.ride.held.right = false;
-      // Pedalling at ~80% FTP with autopilot on and A (Fireball) held: the hero should go and clear packs alone.
-      D.ride.pw = 200; D.ctl.auto = true; D.ctl.main = true;
+      // Pedalling at ~80% FTP with autopilot on: the hero walks into packs and the auto-attack clears them, no buttons.
+      D.ride.pw = 200; D.ctl.auto = true; D.setAutoAtk(true);
       // Measure the path walked, not distance from the start: the autopilot can loop back toward the entrance.
       let walked = 0, lx = P.x, lz = P.z;
       for (let i = 0; i < 150; i++) {
@@ -577,7 +614,7 @@ try {
     console.log('  ride:', JSON.stringify(r));
     check(r.stillAt0W, 'ride: hero stands still at 0 W');
     check(r.travelled > 10, `ride: autopilot moves the hero (${r.travelled.toFixed(1)} units walked)`);
-    check(r.kills >= 10, `ride: autopilot + held Fireball clears monsters (${r.kills} kills)`);
+    check(r.kills >= 10, `ride: autopilot + auto-attack clears monsters (${r.kills} kills)`);
     check(errors.length === 0, `ride: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   }
 

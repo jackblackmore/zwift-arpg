@@ -10,8 +10,9 @@ export const RIDE = {
   surge: { from: .8, full: 1.05 },
   // Cast speed bonus per rpm above `from`, capped.
   cadence: { from: 80, per: .004, max: .15 },
-  // Autopilot (Y): walk toward the nearest fight / loot / pack; hold at `keep`, back off inside `kite`.
-  autopilot: { engage: 14, keep: 6.5, kite: 3.5, loot: 15 },
+  // Autopilot (Y): walk toward the nearest fight / loot / pack. With a melee Main gem it closes to `reach` × the swing's reach and
+  // stands there (`keep` without one); an awake guardian or rare within `focus` comes first.
+  autopilot: { engage: 14, reach: .75, keep: 2, focus: 6, loot: 15 },
   keys: { powerUp: 'w', powerDown: 's', cadUp: 'd', cadDown: 'a', step: 120, cadStep: 40 }, // per second while held
 };
 

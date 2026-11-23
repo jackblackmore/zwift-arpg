@@ -1,17 +1,19 @@
 // Autopilot for RIDE mode: steer toward the nearest fight, then loot, then the next pack along the route (room to room, side rooms
 // as detours; `steer` finds the way round walls), then the boss / portal.
-// Holds at casting range and backs off when monsters get too close, so the rider only pedals and casts.
+// A melee hero: it walks into the fight and stays in swing reach (the Main gem auto-attacks), so the rider pedals and times the
+// Guard, Evade, Flex and Surge buttons. No kiting.
 import { G, P } from '../core/state.js';
 import { RIDE } from '../data/ride.js';
 import { dist } from '../core/util.js';
 import { steer } from './enemies.js';
-import { los, clearShot } from '../world/map.js';
+import { los } from '../world/map.js';
+import { barGem, meleeReach } from './gems.js';
+import { GEMS } from '../data/gems.js';
 
 // Stuck detection: if we've been trying to move but haven't, sidestep for a moment.
 const ST = { x: 0, z: 0, t: 0, side: 0, sideT: 0 };
 
 const toward = (x, z) => steer(P, x, z);
-const away = (x, z) => steer(P, P.x * 2 - x, P.z * 2 - z);
 
 export function autopilot(dt = .033) {
   const d = pick();
@@ -27,8 +29,10 @@ function pick() {
   let best = null, bd = A.engage;
   for (const e of G.enemies) { if (e.deathT) continue; const d = dist(e.x, e.z, P.x, P.z); if (d < bd && (e.awake || los(P.x, P.z, e.x, e.z))) { bd = d; best = e; } } // not sleepers behind walls
   if (best) {
-    if (bd > A.keep || !clearShot(P.x, P.z, best.x, best.z)) return toward(best.x, best.z); // close in, or move until shots won't clip a rock or wall
-    if (bd < A.kite) return away(best.x, best.z);
+    // Fight the guardian or a rare in reach before the nearest; walk in until it's inside the Main gem's reach, then stand.
+    const g = barGem('main'), reach = g && GEMS[g.gem].melee ? meleeReach(g.gem) * A.reach : A.keep;
+    for (const e of G.enemies) if (!e.deathT && e.awake && (e.type === 'boss' || e.rar === 2) && dist(e.x, e.z, P.x, P.z) < A.focus) { best = e; bd = dist(e.x, e.z, P.x, P.z); break; }
+    if (bd > reach + best.r || !los(P.x, P.z, best.x, best.z)) return toward(best.x, best.z);
     return [0, 0];
   }
   let loot = null, ld = A.loot;
