@@ -20,6 +20,9 @@ export const P = {
   // cd = per-slot cooldown / charges ({ cd, ch, t }); shrined = slots whose shrine has been used.
   // sock = slot → support gem ids in its sockets; newGems = gems picked up since the gem panel was last opened.
   gems: [], bar: {}, sock: {}, cd: {}, shrined: {}, newGems: 0,
+  // Fight mechanics (game/sk/guard.js, game/sk/roll.js): blocking, the parry window, posture (0..1) and its drain wait, guard
+  // broken stun, riposte window, the roll in progress, the swing token (a block or roll cancels the queued swing), autopilot pause.
+  blocking: false, parryT: 0, parryCd: 0, posture: 0, postWait: 0, broken: 0, riposteT: 0, rollT: 0, rollVx: 0, rollVz: 0, rollDir: 'Forward', swingTok: 0, apPause: 0,
   dead: 0, walkT: 0, moving: false, invuln: 0, fbN: 0, autoNovaT: 5, moveX: 0, moveZ: 1, castSeq: 0, lastCast: null,
 };
 

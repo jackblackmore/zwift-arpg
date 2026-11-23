@@ -1,7 +1,7 @@
 // Balance report: instant maths, no browser. Uses the game's own data and formulas (src/game/formulas.js).
 // For each map tier at its par character level, with each gear profile, prints kill speeds (without and with Surge),
 // danger and XP, and flags anything outside the targets in src/data/balance.js.
-// Usage: npm run balance [-- maxTier]   (default 5, the Crypt). MAIN=<gem> picks the Main gem (default PAR_MAIN, Ember Cleave).
+// Usage: npm run balance [-- maxTier]   (default 5, the Crypt). MAIN=<gem> picks the Main gem (default PAR_MAIN, the Sword).
 // The Main gem at the tier's par gem level (PAR_GEM) with its par support (parSock), nothing else, so it's a floor on real kill speed.
 // Melee hits ESTIMATE.targets monsters per swing in a pack (gemDps in formulas.js), one on a rare or the guardian.
 import { computeStats, gemDps, monsterStats, gearProfile, xpNeedFor, packCount } from '../src/game/formulas.js';

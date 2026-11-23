@@ -1,18 +1,22 @@
 // Balance arena: one fight with the real game code and a scripted player, no level run needed.
 // Used by `npm run arena` (tests/arena.mjs) and `__dbg.arena(spec)` in the browser console.
 //   spec: { tier, lvl, gear: 'start' | 'magic' | 'rare', fight: [[type, count], ...], rar: 0 | 1 | 2 (for the whole group),
-//           rare: type (adds one rare), guardian: true, maxT: seconds, bot: 'smart' (default) | 'careless',
+//           rare: type (adds one rare), guardian: true, maxT: seconds, bot: 'smart' (default) | 'perfect' | 'careless',
 //           bar: { slot: [gemId, level] } (default: parBar(tier) in data/balance.js), main: gemId (swap the Main gem, same level),
 //           sock: { slot: [supportId, ...] } (default: parSock(tier, Main gem); {} for none), surge: false (never surge) }
 // The bot uses whatever is on the bar. With a melee Main gem it walks into reach of its target (guardian and rares first, then the
 // nearest) and lets the auto-attack swing; a held ranged gem is held on the target from casting range. It taps press gems (Main or
 // Flex) when enough monsters are in reach (SK[...].bot), drinks flasks under half life, and surges against rares, guardians and
-// crowds of four or more. 'smart' (default) also plays the timing game: Guard when a hit is coming (a monster in reach winding up,
-// the guardian's slam on you) or life drops under 70%, step out of the guardian's slam, and Evade when it can't step out in time or
-// is low and surrounded. 'careless' never Guards, Evades or steps out. Obstacles are cleared so fights repeat.
+// crowds of four or more. It never steps out of anything: like the autopilot, it stands in reach, so defence is all timing
+// (design notes "Fight mechanics"). With the Knight's Shield and Roll it plays the timing game at a reaction skill (SKILL below):
+// it decides once per threat whether it reacts in time. A swing it sees coming: parry (else block, else nothing). A heavy (slam,
+// bloater, burning pulse): roll just before it lands (else block). An unblockable (charge, volatile blast): roll (else nothing).
+// Bolts and arrows flying at it: block. 'careless' never Guards or Evades. A Guard gem other than the shield (Magic Shield, Frost
+// Ward) is cast when a hit is coming. Obstacles are cleared so fights repeat.
 import { G, P, S } from '../core/state.js';
 import { ctl } from '../input/input.js';
 import { SK } from '../data/skills.js';
+import { FIGHT, BLAST, RARE } from '../data/monsters.js';
 import { parLevel, PAR_GEAR, parBar, parSock } from '../data/balance.js';
 import { GEMS, BAR } from '../data/gems.js';
 import { addGem, barGem, readySlots, socketGem, meleeReach } from './gems.js';
@@ -23,11 +27,14 @@ import { spawnEnemy, wake } from './enemies.js';
 import { update } from './update.js';
 
 const DT = .033;
+// Reaction skill: the chance it answers each kind of threat in time. smart is a good rider; perfect never misses.
+const SKILL = { smart: { parry: .7, roll: .9, bolt: .85 }, perfect: { parry: 1, roll: 1, bolt: 1 } };
 
 export function arena(spec) {
   const tier = spec.tier || 1, lvl = spec.lvl || parLevel(tier);
   clearMap(); G.tier = tier; G.packs = []; G.bossSpec = null; G.obst = []; G.layout = null; G.mapKills = 0;
-  Object.assign(P, { lvl, passives: {}, gear: gearProfile(spec.gear || PAR_GEAR(tier), tier), dead: 0, invuln: 0, shield: 0, shieldT: 0, castT: 0, flaskT: 0, kills: 0, taken: 0, takenBy: {}, gems: [], bar: {}, sock: {}, cd: {}, shrined: { main: 1, flexA: 1, flexB: 1, guard: 1, evade: 1 } });
+  Object.assign(P, { lvl, passives: {}, gear: gearProfile(spec.gear || PAR_GEAR(tier), tier), dead: 0, invuln: 0, shield: 0, shieldT: 0, castT: 0,
+    blocking: false, parryT: 0, parryCd: 0, posture: 0, broken: 0, riposteT: 0, rollT: 0, apPause: 0, flaskT: 0, kills: 0, taken: 0, takenBy: {}, gems: [], bar: {}, sock: {}, cd: {}, shrined: { main: 1, flexA: 1, flexB: 1, guard: 1, evade: 1 } });
   const bar = { ...(spec.bar || parBar(tier)) };
   if (spec.main && bar.main) { bar.main = [spec.main, bar.main[1]]; for (const s of BAR) if (s !== 'main' && bar[s] && bar[s][0] === spec.main) delete bar[s]; }
   for (const [slot, [gem, gl]] of Object.entries(bar)) P.bar[slot] = addGem(gem, gl).id;
@@ -47,8 +54,12 @@ export function arena(spec) {
   if (spec.guardian) { const b = spawnEnemy('boss', 2, 0, null, 0); b.abilT = 3; b.rot = 0; foes.push(b); }
   foes.forEach(wake);
   const maxT = spec.maxT || 180;
-  const melee = mainD && mainD.melee, careless = spec.bot === 'careless';
-  let t = 0, surged = 0, flasks = 0, shields = 0, evades = 0, lowest = 1;
+  const melee = mainD && mainD.melee, careless = spec.bot === 'careless', skill = SKILL[spec.bot] || SKILL.smart;
+  const shieldGuard = guardSlot && GEMS[barGem(guardSlot).gem].shield;
+  let t = 0, surged = 0, flasks = 0, shields = 0, evades = 0, lowest = 1, seq = P.castSeq;
+  const n = { parry: 0, blockhit: 0, broken: 0, roll: 0 };
+  // One decision per threat (a monster's swing, a guardian ability, a bolt, a blast): does it react in time?
+  const seen = new WeakMap(), react = (o, key, p) => { let m = seen.get(o); if (!m) seen.set(o, m = {}); if (!(key in m)) m[key] = Math.random() < p ? 'ok' : Math.random() < .5 ? 'block' : 'miss'; return m[key]; };
   ctl.autoAtk = true;
   while (t < maxT) {
     const alive = G.enemies.filter(e => !e.deathT);
@@ -63,14 +74,7 @@ export function arena(spec) {
     const want = melee ? meleeReach(main.gem) * .75 + focus.r : 9;
     ctl.mx = ctl.mz = 0;
     if (fd > want) { ctl.mx = (focus.x - P.x) / fd; ctl.mz = (focus.z - P.z) / fd; }
-    // The guardian's slam lands where you stood when it started: a smart bot steps out, or evades if it's late.
-    const boss = alive.find(e => e.type === 'boss'), slam = boss && boss.cast && boss.cast.kind === 'slam' ? boss.cast : null;
-    const inSlam = slam && Math.hypot(P.x - slam.x, P.z - slam.z) < slam.r + P.r + .3;
     ctl.autoAtk = true;
-    if (inSlam && !careless) { // out of the circle, away from its centre (or from the guardian if standing on the centre), sideways
-      const sd = Math.hypot(P.x - slam.x, P.z - slam.z), o = sd > .3 ? slam : boss, od = Math.hypot(P.x - o.x, P.z - o.z) || 1;
-      const ax = (P.x - o.x) / od, az = (P.z - o.z) / od; ctl.mx = ax * .6 - az * .8; ctl.mz = az * .6 + ax * .8; ctl.autoAtk = false;
-    }
     ctl.aim = [focus.x, focus.z];
     if (mainD && mainD.held) ctl.main = !melee && fd < 10;
     // Surge (unless spec.surge === false) against a rare or guardian, or when four or more monsters are close.
@@ -81,21 +85,43 @@ export function arena(spec) {
       if (ready(s) && within(reach(K) * (K.radius && barGem(s).gem === 'nova' ? S.sk.nova.novaR : 1)) >= need) ctl.tap[s] = true;
     }
     if (P.life < S.maxLife * .5 && P.flask >= 1 && P.flaskT <= 0) ctl.flask = true;
+    ctl.guard = false;
     if (!careless) {
-      const coming = alive.some(e => e.windup > 0 && dd(e) < e.r + (e.range || 1) + 1.2) || (inSlam && slam.t < .5);
-      if (guardSlot && ready(guardSlot) && P.shield <= 0 && (coming || (P.life < S.maxLife * .7 && nd < 3))) { ctl.tap[guardSlot] = true; shields++; }
-      if (evadeSlot && ready(evadeSlot) && ((inSlam && slam.t < .25) || (P.life < S.maxLife * .4 && within(2.5) >= 3))) {
-        const from = inSlam ? slam : near, ad = Math.hypot(P.x - from.x, P.z - from.z) || 1; // dash away from the danger
-        ctl.aim = [P.x + (P.x - from.x) / ad * 6, P.z + (P.z - from.z) / ad * 6]; ctl.tap[evadeSlot] = true; evades++;
+      const boss = alive.find(e => e.type === 'boss'), bc = boss && boss.cast;
+      const swingAt = alive.filter(e => e.windup > 0 && e.ai !== 'ranged' && dd(e) < e.range + e.r + P.r + FIGHT.reach + .3);
+      const inSlam = bc && bc.kind === 'slam' && Math.hypot(P.x - bc.x, P.z - bc.z) < bc.r + P.r;
+      if (shieldGuard) {
+        let hold = false, tap = false, roll = false;
+        const B = SK.block, rollIn = SK.roll.invuln * .6;
+        // Swings: parry just before they land, else hold the block (or eat it).
+        for (const e of swingAt) { const r = react(e, 'swing' + e.atkSeq, skill.parry); if (r === 'ok') { if (e.windup <= B.parry * .7) tap = true; else hold = hold || e.windup < B.parry * 2; } else if (r === 'block') hold = true; }
+        // Heavies: roll as they land, else block.
+        const heavy = (o, key, left) => { const r = react(o, key, skill.roll); if (r === 'ok') { if (left <= rollIn) roll = true; } else if (r === 'block') hold = true; };
+        if (inSlam) heavy(bc, 'slam', bc.t);
+        if (bc && bc.kind === 'charge') { const r = react(bc, 'charge', skill.roll); if (r === 'ok' && bc.t <= .12) roll = true; }
+        for (const e of alive) {
+          if (e.fuse > 0 && dd(e) < BLAST.bloater.r + P.r) heavy(e, 'fuse', e.fuse);
+          if (e.fireAura && dd(e) < RARE.burning.r + P.r && e.auraT < RARE.burning.windup) heavy(e, 'pulse' + Math.floor(t / RARE.burning.every), e.auraT);
+        }
+        for (const q of G.queue) if (q.k === 'bloat' && Math.hypot(P.x - q.x, P.z - q.z) < q.r + P.r) { if (q.kind === 'unblockable') { if (react(q, 'blast', skill.roll) === 'ok' && q.t <= rollIn) roll = true; } else heavy(q, 'blast', q.t); }
+        // Bolts and arrows flying at it: block them.
+        for (const p of G.eproj) { const dx = P.x - p.x, dz = P.z - p.z, dl = Math.hypot(dx, dz); if (dl < 3.5 && (p.vx * dx + p.vz * dz) > 0 && react(p, 'bolt', skill.bolt) === 'ok') hold = true; }
+        if (roll && evadeSlot && ready(evadeSlot)) { ctl.tap[evadeSlot] = true; evades++; }
+        else { if (tap) ctl.tap[guardSlot] = true; ctl.guard = hold || tap; }
+      } else {
+        const coming = swingAt.length || (inSlam && bc.t < .5);
+        if (guardSlot && ready(guardSlot) && P.shield <= 0 && (coming || (P.life < S.maxLife * .7 && nd < 3))) { ctl.tap[guardSlot] = true; shields++; }
+        if (evadeSlot && ready(evadeSlot) && inSlam && bc.t < .25) { ctl.tap[evadeSlot] = true; evades++; }
       }
     }
     const fl = P.flask; update(DT); t += DT; if (P.flask < fl - .5) flasks++; lowest = Math.min(lowest, P.life / S.maxLife);
+    if (P.castSeq !== seq) { seq = P.castSeq; if (P.lastCast in n) n[P.lastCast]++; }
   }
-  ctl.main = false; ctl.surge = false; ctl.tap = {}; ctl.autoAtk = true; ctl.mx = ctl.mz = 0; ctl.aim = null;
+  ctl.main = false; ctl.guard = false; ctl.surge = false; ctl.tap = {}; ctl.autoAtk = true; ctl.mx = ctl.mz = 0; ctl.aim = null;
   const left = G.enemies.filter(e => !e.deathT && foes.includes(e)).length;
   return {
     result: P.dead > 0 ? 'died' : left ? 'timeout' : 'clear', t: Math.round(t * 10) / 10, kills: P.kills,
-    taken: Math.round(P.taken), takenBy: Object.fromEntries(Object.entries(P.takenBy).map(([k, v]) => [k, Math.round(v)])), lowest: Math.round(lowest * 100) / 100, flasks, shields, evades, surged: Math.round(surged * 10) / 10,
+    taken: Math.round(P.taken), takenBy: Object.fromEntries(Object.entries(P.takenBy).map(([k, v]) => [k, Math.round(v)])), lowest: Math.round(lowest * 100) / 100, flasks, shields, evades, parries: n.parry, blocks: n.blockhit, breaks: n.broken, rolls: n.roll, surged: Math.round(surged * 10) / 10,
     lvl, life: S.maxLife, bar: BAR.filter(s => barGem(s)).map(s => barGem(s).gem + barGem(s).lvl).join(' '), sup: Object.values(S.sk).flatMap(k => k.sup).join(' '),
   };
 }

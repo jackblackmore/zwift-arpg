@@ -50,7 +50,6 @@ function begin(fresh) {
     newMap(sv.tier || 1);
   }
   G.started = true; $('mMenu').classList.remove('show'); syncPause();
-  if (shrineDue().includes('main')) openShrine('main');
 }
 
 // ---- boot ----

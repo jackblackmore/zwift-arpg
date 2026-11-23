@@ -16,6 +16,7 @@ const ST = { x: 0, z: 0, t: 0, side: 0, sideT: 0 };
 const toward = (x, z) => steer(P, x, z);
 
 export function autopilot(dt = .033) {
+  if (P.apPause > 0) return [0, 0]; // just evaded: don't walk straight back into it
   const d = pick();
   if (Math.hypot(d[0], d[1]) < .01) { ST.t = 0; return d; }
   if (ST.sideT > 0) { ST.sideT -= dt; return [d[0] * .3 - d[1] * ST.side, d[1] * .3 + d[0] * ST.side]; }

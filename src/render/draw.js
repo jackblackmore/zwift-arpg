@@ -13,12 +13,18 @@ const TV = new T.Vector3();
 function toScreen(x, y, z) { TV.set(x, y, z).project(cam); return TV.z > 1 ? null : [(TV.x + 1) / 2 * V.W, (1 - TV.y) / 2 * V.H]; }
 
 // Hero clips: a swing or cast plays once (fast) and hands back to run/idle; death holds until respawn. [clip, speed]
-const HERO = { cleave: ['Melee_1H_Attack_Slice_Horizontal', 2.2], fstrike: ['Melee_1H_Attack_Stab', 2.4], slam: ['Melee_2H_Attack_Chop', 1.7], arc: ['Ranged_Magic_Spellcasting', 1.6], nova: ['Ranged_Magic_Raise', 3.2], dash: ['Dodge_Forward', 1.4], shield: ['Ranged_Magic_Raise', 3.2], blink: ['Dodge_Forward', 2.2], ward: ['Ranged_Magic_Summon', 1.8], totem: ['Ranged_Magic_Summon', 1.8], meteor: ['Spellcast_Long', 1.8] };
+const HERO = { sword: ['Melee_1H_Attack_Slice_Diagonal', 2.2], cleave: ['Melee_1H_Attack_Slice_Horizontal', 2.2], fstrike: ['Melee_1H_Attack_Stab', 2.4], slam: ['Melee_2H_Attack_Chop', 1.7], arc: ['Ranged_Magic_Spellcasting', 1.6], nova: ['Ranged_Magic_Raise', 3.2], dash: ['Dodge_Forward', 1.4], shield: ['Ranged_Magic_Raise', 3.2], blink: ['Dodge_Forward', 2.2], ward: ['Ranged_Magic_Summon', 1.8], totem: ['Ranged_Magic_Summon', 1.8], meteor: ['Spellcast_Long', 1.8],
+  // Fight mechanics (game/sk/guard.js, game/sk/roll.js). While the shield is up and nothing else plays, Melee_Blocking loops.
+  block: ['Melee_Block', 3], blockhit: ['Melee_Block_Hit', 2.4], parry: ['Melee_Block_Attack', 2.6], broken: ['Hit_B', .9] };
+const ROLL = { Forward: 'Dodge_Forward', Backward: 'Dodge_Backward', Left: 'Dodge_Left', Right: 'Dodge_Right' };
 function animHero(M, dt) {
   M.lock = (M.lock || 0) - dt;
   if (P.dead > 0) { if (M.cur !== 'Death_A') M.play('Death_A', { once: true, fade: .1 }); }
-  else if (P.castSeq !== M.seq) { M.seq = P.castSeq; const [n, sp] = HERO[P.lastCast] || HERO.cleave; M.lock = M.play(n, { once: true, speed: sp, fade: .06 }) / sp * .7; }
-  else if (M.lock <= 0) { if (P.moving) M.play('Running_A', { speed: S.ms * ((P.eff && P.eff.move) || 1) / 5 }); else M.play('Idle'); }
+  else if (P.castSeq !== M.seq) {
+    M.seq = P.castSeq; const [n, sp] = P.lastCast === 'roll' ? [ROLL[P.rollDir], 2.4] : HERO[P.lastCast] || HERO.sword;
+    M.lock = M.play(n, { once: true, speed: sp, fade: .06 }) / sp * (P.lastCast === 'broken' ? 1 : .7);
+  }
+  else if (M.lock <= 0) { if (P.blocking) M.play('Melee_Blocking', { fade: .08 }); else if (P.moving) M.play('Running_A', { speed: S.ms * ((P.eff && P.eff.move) || 1) / 5 }); else M.play('Idle'); }
   M.mixer.update(dt);
 }
 
@@ -32,7 +38,7 @@ export function draw(dt) {
   const M = G.heroM; M.g.visible = P.dead <= 0; M.g.position.set(P.x, P.moving ? Math.abs(Math.cos(P.walkT)) * .05 : 0, P.z);
   const dr = ((P.face - M.g.rotation.y + Math.PI * 3) % (Math.PI * 2)) - Math.PI; M.g.rotation.y += dr * Math.min(1, dt * 16);
   if (M.rigged) animHero(M, G.paused ? 0 : dt);
-  else { const w = P.moving ? Math.sin(P.walkT) : 0; M.legL.rotation.x = w * .7; M.legR.rotation.x = -w * .7; M.armL.rotation.x = -w * .5; M.armR.rotation.x = P.castAnim > 0 ? -1.5 : w * .4; }
+  else { const w = P.moving ? Math.sin(P.walkT) : 0; M.legL.rotation.x = w * .7; M.legR.rotation.x = -w * .7; M.armL.rotation.x = P.blocking ? -1.4 : -w * .5; M.armR.rotation.x = P.castAnim > 0 ? -1.5 : w * .4; }
   bubble.visible = P.shield > 0 && P.dead <= 0;
   if (bubble.visible) { bubble.position.set(P.x, 1, P.z); bubble.material.opacity = .08 + .17 * Math.min(1, P.shield / (S.maxLife * .35)) + Math.sin(gt * 8) * .03; }
   plight.position.set(P.x, 3, P.z);
@@ -59,9 +65,22 @@ export function draw(dt) {
     const bw = e.rar === 2 ? 60 : e.rar === 1 ? 38 : 28;
     ctx.fillStyle = '#000c'; ctx.fillRect(s[0] - bw / 2 - 1, s[1] - 1, bw + 2, 6);
     ctx.fillStyle = e.freeze > 0 ? '#7fd8ff' : '#c02020'; ctx.fillRect(s[0] - bw / 2, s[1], bw * Math.max(0, e.hp / e.maxHp), 4);
+    if (e.stagMax) { // stagger bar (game/combat.js stagger): fills toward a stun; flashes while staggered
+      ctx.fillStyle = '#000c'; ctx.fillRect(s[0] - bw / 2 - 1, s[1] + 5, bw + 2, 4);
+      ctx.fillStyle = e.stun > 0 ? (Math.sin(G.gt * 20) > 0 ? '#fff' : '#ffb040') : '#ffb040'; ctx.fillRect(s[0] - bw / 2, s[1] + 6, bw * (e.stun > 0 ? 1 : e.stag), 2);
+    }
     if (e.rar === 2) {
       ctx.font = '800 13px Cinzel, serif'; ctx.fillStyle = '#ffd23f'; ctx.fillText(e.name, s[0], s[1] - 18);
       ctx.font = '400 10px JetBrains Mono, monospace'; ctx.fillStyle = '#c8b070'; ctx.fillText(e.aff.map(a => RAREAFF[a]).join(' · '), s[0], s[1] - 7);
+    }
+  }
+  // Your posture (game/sk/guard.js): a bar over the hero while it isn't empty, red when nearly full, and while guard broken.
+  if (P.dead <= 0 && (P.posture > .01 || P.broken > 0)) {
+    const s = toScreen(P.x, 2.35, P.z);
+    if (s) {
+      const k = P.broken > 0 ? 1 : P.posture, w = 54;
+      ctx.fillStyle = '#000c'; ctx.fillRect(s[0] - w / 2 - 1, s[1] - 1, w + 2, 6);
+      ctx.fillStyle = P.broken > 0 ? (Math.sin(G.gt * 20) > 0 ? '#ff3030' : '#fff') : k > .7 ? '#ff5030' : '#e8d8a8'; ctx.fillRect(s[0] - w / 2 * k, s[1], w * k, 4); // fills from the middle out, Sekiro style
     }
   }
   for (const m of G.minions) { // minion life bars (green), only once hurt

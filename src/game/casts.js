@@ -1,5 +1,5 @@
 // Skill gem → cast function, plus per-tick updaters and map-clear hooks for skills that leave things in the world.
-// Arc, Frost Nova, Magic Shield and Flame Dash live in game/skills.js; the melee attacks share game/sk/strike.js. Each newer skill lives in its own module, src/game/sk/<gem>.js, whose
+// Arc, Frost Nova, Magic Shield and Flame Dash live in game/skills.js; the Knight's Shield isn't cast (game/sk/guard.js runs it from updPlayer); the melee attacks share game/sk/strike.js. Each newer skill lives in its own module, src/game/sk/<gem>.js, whose
 // default export is { cast, tick?, clear? }: cast() returns true if it went off; tick(dt) runs every
 // game tick (minions, totems, delayed impacts); clear() removes its scene objects when the map is cleared.
 // To add a skill: write the module, then add one import and one entry to MODS below.
@@ -12,9 +12,10 @@ import blink from './sk/blink.js';
 import ward from './sk/ward.js';
 import totem from './sk/totem.js';
 import meteor from './sk/meteor.js';
+import roll from './sk/roll.js';
 
 const MODS = {
-  blink, ward, totem, meteor,
+  blink, ward, totem, meteor, roll,
 };
 
 export const CAST = { arc: () => castArc(), nova: () => castNova(), shield: castShield, dash: castDash };
