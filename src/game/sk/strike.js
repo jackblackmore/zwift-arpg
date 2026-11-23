@@ -1,4 +1,4 @@
-// Melee Main attacks: Ember Cleave, Frost Strike and Thunder Slam (data/gems.js GEMS with `melee`; tuning in data/skills.js SK,
+// Melee Main attacks: the Sword (the plain starting attack), Ember Cleave, Frost Strike and Thunder Slam (data/gems.js GEMS with `melee`; tuning in data/skills.js SK,
 // milestones in GEMS[id].mile, supports in SUPPORTS). One module drives all three from data.
 // A swing faces the aim point (game/skills.js aim; the auto-attack in game/gems.js sets it to its target) and lands `windup` s later
 // from where you stand then: a cone in front of you (Cleave, Strike) or a circle in front of you (Slam). A connecting swing gives a
@@ -11,12 +11,12 @@ import { HERO } from '../../data/balance.js';
 import { rand, pick, dist } from '../../core/util.js';
 import { SFX } from '../../core/audio.js';
 import { flashLight } from '../../render/scene.js';
-import { sparks, glows, emit, ringFx, flashFx } from '../../render/fx.js';
+import { sparks, glows, emit, ringFx, flashFx, floatT } from '../../render/fx.js';
 import { near } from '../enemies.js';
 import { hit, addPatch } from '../combat.js';
 import { aim, castArc } from '../skills.js';
 
-const COL = { fire: [0xff8a3c, 0xffd060, 0xff4a10], cold: [0xbff0ff, 0xffffff, 0x7fd8ff], light: [0xe0c8ff, 0xb06bff, 0xffffff] };
+const COL = { phys: [0xe8ecf4, 0xffffff, 0xb0b8c8], fire: [0xff8a3c, 0xffd060, 0xff4a10], cold: [0xbff0ff, 0xffffff, 0x7fd8ff], light: [0xe0c8ff, 0xb06bff, 0xffffff] };
 const wrap = a => ((a + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
 // How fast you swing now (gear, tree, effort and Surge), for the windup.
 const rate = () => S.cast * ((P.eff && P.eff.cast) || 1);
@@ -41,11 +41,13 @@ export function targets(id, x, z, a) {
 }
 
 export function strike(id) {
-  const [ax, az] = aim(), a = Math.atan2(ax - P.x, az - P.z), n = P.atkN = (P.atkN || 0) + 1;
+  const [ax, az] = aim(), a = Math.atan2(ax - P.x, az - P.z), n = P.atkN = (P.atkN || 0) + 1, tok = P.swingTok;
   P.face = a; P.castAnim = .3; P.castSeq++; P.lastCast = id; SFX.swing();
-  G.queue.push({ k: 'later', t: SK[id].windup / rate(), fn: () => land(id, a, n, 1) });
+  G.queue.push({ k: 'later', t: SK[id].windup / rate(), fn: () => { if (P.swingTok === tok) land(id, a, n, 1); } });
   return true;
 }
+// Raising the shield or rolling drops the swing being wound up (game/sk/guard.js, game/sk/roll.js) and frees the next one.
+export function cancelSwing() { P.swingTok = (P.swingTok || 0) + 1; P.castT = 0; P.castAnim = 0; }
 
 // The hit. n: which swing this is (Frost Strike's milestone, Heart of the Storm). mult: × the damage (Aftershock's echo).
 function land(id, a, n, mult, at) {
@@ -54,8 +56,11 @@ function land(id, a, n, mult, at) {
   const T = at ? { list: [], ...at } : targets(id, P.x, P.z, a);
   if (at) near(at.cx, at.cz, at.r, e => T.list.push(e));
   const freezeNow = id === 'fstrike' && M && n % M.every === 0 && mult === 1;
+  // A riposte: the first swing to connect after a parry (data/skills.js SK.block) hits harder (and so staggers more).
+  const rip = mult === 1 && !at && T.list.length && P.riposteT > 0 ? SK.block.riposte : 1;
+  if (rip > 1) { P.riposteT = 0; floatT(P.x, 2.6, P.z, 'RIPOSTE', '#ffd23f', 15); }
   for (const e of T.list) {
-    const d = dist(e.x, e.z, P.x, P.z) || 1, dmg = hit(e, K.mult * mult, elem, { gem: id, kx: (e.x - P.x) / d, kz: (e.z - P.z) / d, kb: K.kb });
+    const d = dist(e.x, e.z, P.x, P.z) || 1, dmg = hit(e, K.mult * mult * rip, elem, { gem: id, kx: (e.x - P.x) / d, kz: (e.z - P.z) / d, kb: K.kb });
     if (e.deathT) continue;
     if (k.ignite) { const IG = SUPPORTS.ignite; e.burnT = IG.dur; e.burnDps = Math.max(e.burnDps, dmg * IG.share / IG.dur); }
     if (K.chill) e.chill = Math.max(e.chill, K.chill);

@@ -14,7 +14,7 @@ Status: ✅ done · ▶ next · ☐ later
 | 3 | Gems v2: support gems, sockets, guardian gem drops, feeding | ✅ |
 | 3½ | No mana: held skills limited by cast time, the Surge gauge as the only resource | ✅ |
 | 3¾ | Go melee: retire the mage Main gems, melee Main gems, Raise Skeletons as a support, melee hero and autopilot | ✅ |
-| 3⅞ | Fight mechanics: shield block and parry, Roll from level 1, posture and stagger, telegraphs (Sekiro and Dark Souls) | ▶ |
+| 3⅞ | Fight mechanics: shield block and parry, Roll from level 1, posture and stagger, telegraphs (Sekiro and Dark Souls). Part 1 (prototype with a plain Sword) ✅, part 2 after playtesting | ▶ |
 | 4 | Passive tree (replaces the level-up card draft) | ☐ |
 | 5 | Defence: armour, resistances, typed monster damage | ☐ |
 | 6 | Gear rework: affixes and uniques for the new stat sheet | ☐ |
@@ -233,6 +233,10 @@ Status: ✅ done · ▶ next · ☐ later
 ## Step 3⅞: Fight mechanics ▶
 
 **Decision (Nov 2026):** threats that were built for a kiting caster aren't fair on a melee hero the autopilot parks in reach. Fights move toward Sekiro and Dark Souls: every big threat is answered by a button (the shield or a roll), never by where you stand. Design and the owner's calls: "Fight mechanics" in `docs/design-notes.md`. Do this before the passive tree, because tree nodes (block, posture, stagger, riposte) and step 5's defence build on it.
+
+**Part 1 done (Nov 2026): a prototype to test the mechanics before committing more** (the owner's call: don't rework the skills yet, and start with a basic attack, no fire, ice or lightning). What was built and the arena results are under "Built: fight mechanics prototype" in the design notes. In short: a plain Sword, the Knight's Shield (block, parry, posture, guard break, riposte), Roll from level 1, stagger on guardians and rares, telegraph colours and sounds, the guardian's parryable swing, heavy slam, fanned nova and unblockable charge, defusable bloaters, unblockable volatile blasts, pulsing burning rares, and an arena bot with reaction skill.
+
+**Part 2, after the owner has played it:** tune from playtesting (parry window, posture, stagger fill), then channels broken by stagger (and a short effort in RIDE mode), shield arts (build step 4 below), Flame Dash through the target, elites' parryable swings. The brief below is the full plan; most of it is done in prototype form, and what is left is listed here.
 
 **Goal:** a level 1 knight can beat the first guardian by parrying, blocking and rolling on time, and clearly can't by just standing there. Every threat in the Crypt has a readable telegraph, a sound and a button that beats it.
 

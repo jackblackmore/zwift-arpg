@@ -2,7 +2,8 @@
 // Data in data/gems.js. Design: "Gem model in detail" in docs/design-notes.md.
 import * as T from 'three';
 import { G, P, S } from '../core/state.js';
-import { GEMS, SUPPORTS, SLOT_DEFS, BAR, SHRINES, START_GUARD, GEM, supFits, gemDef } from '../data/gems.js';
+import { GEMS, SUPPORTS, SLOT_DEFS, BAR, SHRINES, START_MAIN, START_GUARD, START_EVADE, GEM, supFits, gemDef } from '../data/gems.js';
+import { RIDE } from '../data/ride.js';
 import { SK } from '../data/skills.js';
 import { ctl } from '../input/input.js';
 import { dist } from '../core/util.js';
@@ -62,10 +63,10 @@ export function addGem(gem, lvl = 1) {
   P.gems.push(g); return g;
 }
 
-// A brand-new character (or an old save from before gems): Magic Shield in Guard, everything else from shrines.
+// A brand-new character: the Sword in Main, the Knight's Shield in Guard and Roll in Evade; everything else from shrines.
 export function freshGems() {
-  P.gems = []; P.bar = {}; P.sock = {}; P.cd = {}; P.shrined = {};
-  P.bar.guard = addGem(START_GUARD).id;
+  P.gems = []; P.bar = {}; P.sock = {}; P.cd = {}; P.shrined = { main: 1 };
+  P.bar.main = addGem(START_MAIN).id; P.bar.guard = addGem(START_GUARD).id; P.bar.evade = addGem(START_EVADE).id;
   recalc(); readySlots();
 }
 
@@ -91,9 +92,11 @@ const cast = gem => CAST[gem] ? CAST[gem]() : false;
 function tryPress(slot, g) {
   const st = slotState(slot), K = SK[GEMS[g.gem].sk];
   if (st.cd > 0) return;
-  if (K.charges) { if (st.ch < 1 || !cast(g.gem)) return; st.ch--; return; }
-  if (cast(g.gem) && K.cd) st.cd = K.cd;
+  if (K.charges) { if (st.ch < 1 || !cast(g.gem)) return; st.ch--; pressed(slot); return; }
+  if (cast(g.gem)) { if (K.cd) st.cd = K.cd; pressed(slot); }
 }
+// Fired after any press gem goes off from a slot: an Evade makes the autopilot hold still for a moment.
+function pressed(slot) { if (slot === 'evade') P.apPause = RIDE.autopilot.evadePause; }
 // Called every tick from updPlayer. fx: effort modifiers (cast speed).
 export function updSlots(dt, fx) {
   for (const slot of BAR) {
@@ -102,7 +105,9 @@ export function updSlots(dt, fx) {
     if (st.ch < max) { st.t += rec; if (st.t >= K.recharge) { st.t = 0; st.ch++; } } else { st.t = 0; st.ch = max; }
   }
   // Held gems share one cast timer; the first held button in bar order wins. With none held, a melee Main gem auto-attacks.
-  if (P.castT <= 0) {
+  // Nothing swings or casts while you block, roll or are guard broken (game/sk/guard.js, game/sk/roll.js).
+  const busy = P.blocking || P.rollT > 0 || P.broken > 0;
+  if (P.castT <= 0 && !busy) {
     let held = false;
     for (const slot of BAR) {
       const g = barGem(slot); if (!g || !GEMS[g.gem].held || !ctl[slot]) continue;
@@ -113,8 +118,9 @@ export function updSlots(dt, fx) {
     if (tg) { P.aimAt = [tg.x, tg.z]; if (cast(g.gem)) P.castT = SK[GEMS[g.gem].sk].cast / (S.cast * fx.cast); P.aimAt = null; }
   }
   for (const slot of BAR) {
-    const want = ctl.tap[slot] || ctl[slot]; ctl.tap[slot] = false;
-    const g = barGem(slot); if (!want || !g || GEMS[g.gem].held) continue;
+    const want = ctl.tap[slot] || (ctl[slot] && slot !== 'evade'); ctl.tap[slot] = false; // one Evade per press, never held
+    const g = barGem(slot); if (!want || !g || GEMS[g.gem].held || GEMS[g.gem].shield || P.broken > 0) continue;
+    if (P.rollT > 0 || (P.blocking && GEMS[g.gem].kind !== 'evade')) continue; // you can roll out of a block, not cast from one
     tryPress(slot, g);
   }
 }

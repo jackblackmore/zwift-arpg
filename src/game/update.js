@@ -12,9 +12,11 @@ import { pickUp, updItems } from './items.js';
 import { newMap, respawn } from './maps.js';
 import { save } from './save.js';
 import { autopilot } from './autopilot.js';
+import { updGuard } from './sk/guard.js';
+import { stepRoll } from './sk/roll.js';
 import { RIDE } from '../data/ride.js';
 import { EXTRA } from '../data/items.js';
-import { SURGE } from '../data/skills.js';
+import { SURGE, SK } from '../data/skills.js';
 import { clamp } from '../core/util.js';
 
 // Effort (RIDE mode): how %FTP and cadence scale movement and casting, and how hard you want to surge (0..1).
@@ -44,12 +46,15 @@ export function updSurge(want, dt) {
 function updPlayer(dt) {
   const fx = P.eff = effortMods(ctl.effort);
   let mx = ctl.mx, mz = ctl.mz;
+  updGuard(dt, ctl.guard, !!ctl.tap.guard); P.apPause -= dt;
   if (ctl.auto && Math.hypot(mx, mz) < .08) [mx, mz] = autopilot(dt);
-  const ml = Math.hypot(mx, mz), spd = S.ms * fx.move * (P.castAnim > 0 ? .65 : 1);
+  if (P.broken > 0) mx = mz = 0; // guard broken: stunned
+  const ml = Math.hypot(mx, mz), spd = S.ms * fx.move * (P.blocking ? SK.block.move : P.castAnim > 0 ? .65 : 1);
   P.moving = ml > .08 && spd > .05;
-  if (P.moving) {
+  if (P.rollT > 0) stepRoll(dt);
+  else if (P.moving) {
     P.x += mx * spd * dt; P.z += mz * spd * dt; P.walkT += dt * spd * 2.3;
-    P.moveX = mx / ml; P.moveZ = mz / ml; if (P.castAnim <= 0) P.face = Math.atan2(mx, mz);
+    P.moveX = mx / ml; P.moveZ = mz / ml; if (P.castAnim <= 0 && !P.blocking) P.face = Math.atan2(mx, mz);
   }
   pushOut(P);
   P.life = Math.min(S.maxLife, P.life + (S.lregen + (P.flaskT > 0 ? P.flaskRate : 0)) * dt); if (P.flaskT > 0) P.flaskT -= dt;

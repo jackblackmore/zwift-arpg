@@ -15,7 +15,9 @@ import { makePortal } from './maps.js';
 import * as skel from './sk/skeletons.js';
 import { HERO, RARITY, COMBAT } from '../data/balance.js';
 import { DROP } from '../data/items.js';
-import { BLAST, RARE } from '../data/monsters.js';
+import { BLAST, RARE, STAGGER, ANIM } from '../data/monsters.js';
+import { TELL } from '../data/graphics.js';
+import { shieldHit } from './sk/guard.js';
 import { SUPPORTS } from '../data/gems.js';
 import { tierHp, hitBase } from './formulas.js';
 
@@ -31,6 +33,8 @@ export function hit(e, mult, elem, src = {}) {
   let d = hitBase(S, gem) * mult * (S.dmg + (S[elem] || 0)) * ((K && K.more) || 1) * rand(COMBAT.spread[0], COMBAT.spread[1]);
   const crit = Math.random() < S.crit; if (crit) d *= HERO.critMult;
   if (e.shock > 0) d *= 1 + (e.shockMore || SK.arc.shockMore); // Conduit (Arc's support) marks the shocks it makes
+  if (e.stun > 0 && e.stagMax) d *= 1 + STAGGER.taken; // staggered: wide open
+  else if (e.stagMax && !src.dot) stagger(e, d / e.maxHp * STAGGER.dmg * (1 + STAGGER.surge * (P.surgeK || 0)));
   e.hp -= d; e.flash = .07; e.lastElem = elem; e.lastGem = src.by || gem; e.lastHit = Math.max(e.lastHit || 0, d);
   if (!src.dot) {
     floatT(e.x, e.h + .3, e.z, Math.round(d), crit ? '#ffe060' : ECOL[elem] || '#fff', crit ? 17 : 12);
@@ -39,6 +43,27 @@ export function hit(e, mult, elem, src = {}) {
   }
   if (e.hp <= 0) kill(e);
   return d;
+}
+
+// Stagger (data/monsters.js STAGGER): guardians and rares fill a bar (e.stag, 0..1); full means stunned for a few seconds, its
+// wind-up or ability cancelled. Normal monsters have no bar: a parry stuns them briefly instead (parried below).
+export function stagger(e, amt) {
+  if (!e.stagMax || e.stun > 0 || e.deathT) return;
+  e.stag = Math.min(1, (e.stag || 0) + amt); e.stagWait = STAGGER.delay;
+  if (e.stag < 1) return;
+  e.stag = 0; stun(e, STAGGER.stunT);
+  floatT(e.x, e.h + .6, e.z, 'STAGGERED', '#ffb040', 18, 1.4); flashFx(e.x, e.h * .6, e.z, TELL.stagger, e.r * 5, .35); burst(e.x, e.h * .7, e.z, TELL.stagger, 30, 5);
+  shake(.35); stop(.12); SFX.parry();
+}
+function stun(e, t) {
+  e.stun = t; e.windup = 0; e.cast = null; e.charging = null; e.fuse = 0;
+  if (e.model.rigged) { const [n, sp] = ANIM.stun, d = e.model.play(n, { once: true, speed: sp * 3 / Math.max(1, t), fade: .05 }); e.lock = d / (sp * 3 / Math.max(1, t)); }
+}
+// You parried monster e (game/sk/guard.js): stagger a guardian or rare, stun anything else for a moment.
+export function parried(e) {
+  if (e.deathT) return;
+  if (e.stagMax) stagger(e, e.type === 'boss' ? STAGGER.parry : STAGGER.parryRare);
+  else stun(e, STAGGER.minorStun);
 }
 
 export function kill(e) {
@@ -55,7 +80,8 @@ export function kill(e) {
   else if (e.type !== 'boss' && Math.random() < (e.rar === 1 ? DROP.magic : DROP.normal)) dropItem(e.x, e.z, 0);
   if (e.shatter && e.freeze > 0) G.queue.push({ k: 'shatter', x: e.x, z: e.z, hp: e.maxHp }); // frozen by a Frost Nova with Shatter
   if (S.sk[e.lastGem] && S.sk[e.lastGem].raise) skel.onKill(e); // Raise Skeletons support on the skill that killed it
-  if (e.type === 'bloater' || e.aff.includes('volatile')) { const B = e.type === 'bloater' ? BLAST.bloater : BLAST.volatile; G.queue.push({ k: 'bloat', x: e.x, z: e.z, t: B.delay, dmg: e.dmg * B.dmg, r: B.r }); }
+  // Death blasts: a bloater only when its fuse ran out (killing it first defuses it); a volatile rare always.
+  if ((e.type === 'bloater' && e.fused) || e.aff.includes('volatile')) { const B = e.type === 'bloater' ? BLAST.bloater : BLAST.volatile; G.queue.push({ k: 'bloat', x: e.x, z: e.z, t: B.delay, dmg: e.dmg * B.dmg, r: B.r, kind: B.kind }); }
   if (e.aff.includes('splitting')) for (let i = 0; i < RARE.splitting.n; i++) { const r = spawnEnemy(RARE.splitting.type, e.x + rand(-1, 1), e.z + rand(-1, 1), null, 1); r.awake = true; G.mapTotal++; }
   if (e.type === 'boss') {
     banner('THE WARDEN FALLS', '#ff4fd8', 'A portal opens · step through for a harder map'); shake(1); stop(.3); $('bossbar').style.display = 'none';
@@ -65,17 +91,22 @@ export function kill(e) {
   }
 }
 
-// src: what hit you (a monster type, 'slam', 'nova', 'arrow', 'blast', 'aura'), tallied after shields in P.takenBy for the arena.
-export function hurtP(d, src = '?') {
-  if (P.dead > 0 || P.invuln > 0) return;
+// src: what hit you (a monster type, 'slam', 'nova', 'arrow', 'blast', 'aura', 'charge'), tallied after shields in P.takenBy for the arena.
+// o: { from: {x, z} where it comes from, kind: 'hit' (parry or block) | 'heavy' (block for less, or roll) | 'unblockable' (roll),
+// by: the monster, for a parry's stagger }. The Knight's Shield (game/sk/guard.js) takes it first. Returns what happened:
+// 'miss' (dead or untouchable, e.g. rolling), 'parry', 'block', 'broken' or 'hit'.
+export function hurtP(d, src = '?', o = {}) {
+  if (P.dead > 0 || P.invuln > 0) return 'miss';
+  d = shieldHit(d, o); if (o.result === 'parry') return 'parry';
   d *= 1 - S.dr; if (P.wardT > 0) d *= 1 - SK.ward.dr;
-  if (P.shield > 0) { const a = Math.min(P.shield, d); P.shield -= a; d -= a; floatT(P.x, 2.4, P.z, Math.round(a), '#9fc8ff', 12); if (d <= 0) return; }
+  if (P.shield > 0) { const a = Math.min(P.shield, d); P.shield -= a; d -= a; floatT(P.x, 2.4, P.z, Math.round(a), '#9fc8ff', 12); if (d <= 0) return o.result || 'hit'; }
   P.life -= d; P.taken = (P.taken || 0) + d; if (P.takenBy) P.takenBy[src] = (P.takenBy[src] || 0) + d;
   floatT(P.x, 2.1, P.z, Math.round(d), '#ff5050', 13); G.vign = Math.min(.9, G.vign + .35); SFX.hurt();
   if (P.life <= 0) {
     P.life = 0; P.dead = 2.6; banner('YOU HAVE DIED', '#ff3030', 'Respawning at the map entrance');
     burst(P.x, 1, P.z, 0xff2020, 50, 5); P.xp = Math.max(0, P.xp - xpNeed(P.lvl) * COMBAT.deathXp);
   }
+  return o.result || 'hit';
 }
 
 export function addPatch(x, z, r, t, gem) { const g = new T.Group(); g.add(decal(0xff4a10, r * 2.6)); g.position.set(x, 0, z); scene.add(g); G.patches.push({ x, z, r, t, max: t, tick: 0, g, gem }); }
@@ -103,7 +134,7 @@ export function processQueue(dt) {
     if (q.k === 'bloat') {
       const r = q.r;
       ringFx(q.x, q.z, r, 0x9ad060, .35, .5); flashFx(q.x, .8, q.z, 0x9ad060, r * 2.5, .3); burst(q.x, .6, q.z, 0x9ad060, 30, 6); burst(q.x, .6, q.z, 0x5a8a20, 15, 4); SFX.boom(); shake(.15);
-      if (dist(P.x, P.z, q.x, q.z) < r + P.r) hurtP(q.dmg, 'blast');
+      if (dist(P.x, P.z, q.x, q.z) < r + P.r) hurtP(q.dmg, 'blast', { from: q, kind: q.kind });
       near(q.x, q.z, r, e => { e.hp -= BLAST.vsMonsters * tierHp(G.tier); if (e.hp <= 0) kill(e); });
     }
   }

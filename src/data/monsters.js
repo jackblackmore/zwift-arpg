@@ -15,10 +15,11 @@ export const RISE = {
   standing: { pose: 'Skeletons_Inactive_Standing_Pose', clip: 'Skeletons_Awaken_Standing', speed: 1.5 },
   taunt: { clip: 'Skeletons_Taunt', speed: 1 },
 };
-// Other clips: deaths (picked at random), hit reactions (when a hit takes at least `minHit` of max life), boss casts.
+// Other clips: deaths (picked at random), hit reactions (when a hit takes at least `minHit` of max life), boss casts, stagger.
 export const ANIM = {
   deaths: ['Death_A', 'Death_B', 'Skeletons_Death'], hits: ['Hit_A', 'Hit_B'], hitSpeed: 1.6, minHit: .12,
-  bossCast: { slam: ['Melee_2H_Attack_Spin', 1], nova: ['Ranged_Magic_Shoot', .8], summon: ['Ranged_Magic_Summon', 1.8] },
+  bossCast: { slam: ['Melee_2H_Attack_Spin', 1], nova: ['Ranged_Magic_Shoot', .8], summon: ['Ranged_Magic_Summon', 1.8], charge: ['Skeletons_Taunt', 1.2] },
+  stun: ['Hit_B', .5], // staggered (STAGGER)
 };
 
 // Per-tier scaling. hp: monster life multiplier per map tier (index 0 = tier 1), then +hpAfter per tier.
@@ -40,20 +41,30 @@ export const RN2 = ['maw', 'tooth', 'spine', 'gnaw', 'husk', 'grip', 'fang', 'sk
 
 // Boss ability rotation and timings. vsMinion: damage multiplier on its swings and slams against minions (Raise Skeletons).
 //   aggro: wake range. enrage: below this share of life it enters phase 2 (enrageSpd × speed, abilGap2 between abilities, double nova, summon2 runners).
-//   slam: `slamDmg` × its damage in slamR, telegraphed slamT (slamT2 in phase 2) seconds. nova: novaBolts bolts at novaSpeed for novaDmg × its damage (phase 2: a second wave novaGap s later).
-export const BOSS = { vsMinion: 1.4, aggro: 13, rotation: ['slam', 'nova', 'slam', 'summon'], abilGap: 3.8, abilGap2: 2.6, enrage: .5, enrageSpd: 1.3,
-  slamR: 2.9, slamDmg: 2.8, slamT: 1.2, slamT2: .9, novaBolts: 14, novaDmg: .7, novaSpeed: 6.5, novaGap: .38, summon: 3, summon2: 5, summonType: 'runner' };
+//   slam (heavy): `slamDmg` × its damage in slamR around where you stood, telegraphed slamT (slamT2 in phase 2) seconds.
+//   nova: after novaT s, a fan of novaBolts bolts `novaSpread` radians wide aimed at you, at novaSpeed, for novaDmg × its damage
+//   each (blockable from the front; phase 2: a second fan novaGap s later). Phase 2 uses rotation2, which adds the charge
+//   (unblockable): a `t` s purple wind-up, then it rushes `range` at `speed` through where you stood for `dmg` × its damage.
+export const BOSS = { vsMinion: 1.4, aggro: 13, rotation: ['slam', 'nova', 'slam', 'summon'], rotation2: ['slam', 'charge', 'nova', 'slam', 'summon', 'charge'], abilGap: 3.8, abilGap2: 2.6, enrage: .5, enrageSpd: 1.3,
+  slamR: 2.9, slamDmg: 4.5, slamT: 1.2, slamT2: .95, novaBolts: 7, novaSpread: .9, novaDmg: .8, novaSpeed: 7, novaGap: .45, novaT: .7, summon: 3, summon2: 5, summonType: 'runner',
+  charge: { t: 1.1, dmg: 4.5, speed: 16, range: 9, hitR: .5 } };
 
+// Stagger (design notes "Fight mechanics"): guardians and rares have a stagger bar (0..1). A parry adds `parry` (`parryRare` on a
+// rare), a hit adds `dmg` × the share of max life it took, more while you surge (× 1 + `surge` × how hard). Full: stunned for
+// `stunT` s, taking `taken` more damage; the bar drains `drain` per second once `delay` s pass without adding to it.
+// A parried normal monster is stunned for `minorStun` s.
+export const STAGGER = { parry: .3, parryRare: .5, dmg: 1.5, surge: 1, stunT: 3, taken: .3, drain: .06, delay: 2.5, minorStun: .9 };
 // Status effects on monsters. chill: speed × chillSpd, attack and shot cooldowns × chillCd. Burns tick every burnTick s.
 export const STATUS = { chillSpd: .5, chillCd: 1.6, burnTick: .5 };
 // How monsters fight. windup: seconds from starting a swing to the hit (melee, boss, ranged). reach: extra hit range on top of
 //   range + both radii when the swing lands. Archers: arrows at arrowSpeed (aim jitter ± arrowJitter), flee inside flee, close in beyond
 //   chase or without sight, shot cooldown × shotJitter. Enemy projectiles live projLife s. Bloaters: start a `fuse` s fuse within `trigger`.
-export const FIGHT = { windup: { melee: .32, boss: .55, ranged: .45 }, reach: .45, arrowSpeed: 11, arrowJitter: .05, flee: 4.5, chase: 9, shotJitter: [.85, 1.2], projLife: 3, bomb: { trigger: 1.9, fuse: .85 } };
-// Death blasts. bloater: a bloater's own (radius r, `dmg` × its damage, after `delay` s); volatile: a rare's affix.
+export const FIGHT = { windup: { melee: .32, boss: .7, ranged: .45 }, reach: .45, arrowSpeed: 11, arrowJitter: .05, flee: 4.5, chase: 9, shotJitter: [.85, 1.2], projLife: 3, bomb: { trigger: 1.9, fuse: .85 } };
+// Death blasts. bloater: a bloater's own (radius r, `dmg` × its damage, after `delay` s), only when its fuse runs out (kill it first
+// to defuse it); volatile: a rare's affix, on any death. `kind`: how you answer it (heavy: block or roll; unblockable: roll).
 // Both also hurt nearby monsters for `vsMonsters` × the tier's life multiplier.
-export const BLAST = { bloater: { r: 2.2, dmg: .7, delay: .15 }, volatile: { r: 2.6, dmg: 1.2, delay: .9 }, vsMonsters: 20 };
+export const BLAST = { bloater: { r: 2.2, dmg: .7, delay: .15, kind: 'heavy' }, volatile: { r: 2.6, dmg: 1.2, delay: .9, kind: 'unblockable' }, vsMonsters: 20 };
 // Rare monsters: size and radius multipliers, affixes rolled (more from tier `moreFrom`), and what each affix does.
-//   fortified's life is in data/balance.js RARITY.rare. burning: an aura hurting you for `dps` damage per second (× the tier's damage growth), dealt every `tick` s, within r.
+//   fortified's life is in data/balance.js RARITY.rare. burning: a fire pulse (heavy) every `every` s within r for `dmg` (× the tier's damage growth), telegraphed `windup` s.
 export const RARE = { size: 1.4, radius: 1.35, affixes: 2, moreFrom: 3, more: 3,
-  hasted: { spd: 1.5, cd: .7 }, frenzied: { cd: .55, dmg: 1.1 }, fortified: { size: 1.12 }, burning: { r: 2.75, dps: 6, tick: .5 }, splitting: { n: 3, type: 'runner' } };
+  hasted: { spd: 1.5, cd: .7 }, frenzied: { cd: .55, dmg: 1.1 }, fortified: { size: 1.12 }, burning: { r: 2.75, dmg: 16, every: 3.2, windup: .8 }, splitting: { n: 3, type: 'runner' } };

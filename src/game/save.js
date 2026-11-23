@@ -3,7 +3,7 @@
 // saves are ignored (the menu offers only NEW).
 import { G, P } from '../core/state.js';
 
-export const KEY = 'wd-arpg-2';
+export const KEY = 'wd-arpg-3';
 let store = null; try { store = window.localStorage; store.getItem('x'); } catch (e) { store = null; }
 
 export function save(nextTier) {

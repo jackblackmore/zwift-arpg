@@ -55,6 +55,7 @@ const NEW_CLIPS = [
   'Melee_1H_Attack_Chop', 'Melee_1H_Attack_Slice_Diagonal', 'Melee_1H_Attack_Slice_Horizontal', 'Melee_1H_Attack_Stab',
   'Melee_Unarmed_Attack_Punch_A', 'Melee_Unarmed_Attack_Kick', 'Melee_2H_Attack_Chop', 'Melee_2H_Attack_Slice', 'Melee_2H_Attack_Spin', 'Melee_2H_Idle',
   'Ranged_2H_Shoot', 'Ranged_Magic_Shoot', 'Ranged_Magic_Raise', 'Ranged_Magic_Summon', 'Ranged_Magic_Spellcasting', 'Dodge_Forward',
+  'Melee_Block', 'Melee_Blocking', 'Melee_Block_Hit', 'Melee_Block_Attack', 'Dodge_Backward', 'Dodge_Left', 'Dodge_Right', 'Lie_Down', 'Lie_StandUp',
 ];
 await animLib(['General', 'MovementAdvanced', 'CombatMelee', 'CombatRanged', 'Special'].map(n => join(AN, `Rig_Medium_${n}.glb`)), join(OUT, 'anims_new.glb'), { keep: NEW_CLIPS });
 

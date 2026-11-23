@@ -26,7 +26,7 @@ export const XP_CURVE = { base: 40, exp: 1.55 };
 export const ITEM_SCALE = { flat: .22, pct: .07 };
 // The bag's "is this an upgrade?" estimate (game/stats.js estimate) and the maths report: extra damage per Arc chain, and how
 // many monsters a melee swing hits on average in a clumped pack (by gem; Sweep hits all round, Aftershock adds a half-strength slam).
-export const ESTIMATE = { perChain: .3, targets: { cleave: 2.4, fstrike: 1.5, slam: 1.8 }, sweep: 1.35 };
+export const ESTIMATE = { perChain: .3, targets: { sword: 1.9, cleave: 2.4, fstrike: 1.5, slam: 1.8 }, sweep: 1.35 };
 
 // Par character level for each map tier: the level you should be when you start that map.
 // Tiers 1–5 are the Crypt's five levels (the region boss comes after); later tiers add `PAR_AFTER` each.
@@ -35,9 +35,10 @@ export const PAR_AFTER = 1.6;
 // Par level of the Main gem on each tier (it earns the same XP as the character, from level 1, capped at GEM.cap).
 export const PAR_GEM = [1, 4, 7, 9, 10];
 export const parGem = t => Math.min(10, t <= PAR_GEM.length ? PAR_GEM[t - 1] : 10);
-// The skill bar the tools assume at a tier: Ember Cleave main, Magic Shield guard, Frost Nova in Flex A once it unlocks (level 5).
-export const PAR_MAIN = 'cleave';
-export const parBar = t => { const l = parLevel(t), g = parGem(t), bar = { main: [PAR_MAIN, g], guard: ['shield', g] }; if (l >= 5) bar.flexA = ['nova', Math.max(1, g - 2)]; if (l >= 8) bar.evade = ['dash', Math.max(1, g - 3)]; return bar; };
+// The skill bar the tools assume at a tier: the starting bar (Sword, Knight's Shield, Roll), plus Frost Nova in Flex A once it
+// unlocks (level 5). While the fight mechanics are tested (build order step 3⅞) the par Main gem is the plain Sword.
+export const PAR_MAIN = 'sword';
+export const parBar = t => { const l = parLevel(t), g = parGem(t), bar = { main: [PAR_MAIN, g], guard: ['block', g], evade: ['roll', g] }; if (l >= 5) bar.flexA = ['nova', Math.max(1, g - 2)]; return bar; };
 // Par supports (step 3): from tier 2 the Main gem has its first support (the guardian of tier 1 always drops a gem, and the
 // region pool favours supports for gems you own). PAR_SUPPORT: which one each Main gem gets. parSock(t, mainGem) → { slot: [supportId] }.
 export const PAR_SUPPORT = { cleave: 'ignite', fstrike: 'brittle', slam: 'aftershock', arc: 'forked', nova: 'shatter', totem: 'volley', meteor: 'twinmeteor' };

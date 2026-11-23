@@ -58,7 +58,7 @@ export function newMap(t) {
 
 // After death: back to the entrance at full health. Monsters keep their damage; the boss resets.
 export function respawn() {
-  P.x = G.start.x; P.z = G.start.z; P.life = S.maxLife; P.surge = S.surgeMax; P.spent = false; P.flask = SK.flask.max; P.invuln = COMBAT.respawnInvuln;
+  P.x = G.start.x; P.z = G.start.z; P.life = S.maxLife; P.surge = S.surgeMax; P.spent = false; P.flask = SK.flask.max; P.invuln = COMBAT.respawnInvuln; Object.assign(P, { blocking: false, parryT: 0, posture: 0, broken: 0, riposteT: 0, rollT: 0, apPause: 0 });
   G.eproj.forEach(o => scene.remove(o.g)); G.eproj = [];
-  for (const e of G.enemies) if (!e.deathT && e.type === 'boss') { e.hp = e.maxHp; e.awake = false; e.x = e.sx; e.z = e.sz; e.cast = null; e.phase2 = false; $('bossbar').style.display = 'none'; }
+  for (const e of G.enemies) if (!e.deathT && e.type === 'boss') { e.hp = e.maxHp; e.awake = false; e.x = e.sx; e.z = e.sz; e.cast = null; e.charging = null; e.stag = 0; e.stun = 0; e.rot = 0; e.phase2 = false; $('bossbar').style.display = 'none'; }
 }

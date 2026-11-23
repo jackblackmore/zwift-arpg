@@ -21,3 +21,7 @@ export const STYLES = {
 // `scale` fits them to ours. `bright` darkens their textures to sit with the crypt lighting; the floor gets `floor` on top.
 // `torch`: extra scale for torches and brazier candles.
 export const DUNGEON = { scale: .8, bright: .72, floor: .55, torch: 1.3 };
+
+// Telegraph colours by how you answer them (design notes "Fight mechanics"): parry (a yellow flash on the swing), heavy (red
+// ground: block or roll), unblockable (purple: roll only). The same colour marks the '!' over the hero. stagger: the stagger bar.
+export const TELL = { parry: 0xffd23f, heavy: 0xff3030, unblockable: 0xb040ff, stagger: 0xffb040 };

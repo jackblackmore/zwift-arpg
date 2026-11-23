@@ -29,7 +29,8 @@ export function hud(dt) {
   const ib = $('invBadge'); ib.style.display = P.newItems ? 'block' : 'none'; ib.textContent = P.newItems;
   $('bGems').classList.toggle('glow', P.newGems > 0 || (BAR.some(s => unlocked(s) && !barGem(s)) && P.gems.some(g => !BAR.some(s => P.bar[s] === g.id))));
   const pb = $('passBadge'); pb.style.display = P.pts ? 'block' : 'none'; pb.textContent = P.pts; $('bPass').classList.toggle('glow', P.pts > 0);
-  const boss = G.bossSpec && G.bossSpec.e; if (boss && !boss.deathT) $('bossHp').style.width = (boss.hp / boss.maxHp * 100) + '%';
+  const boss = G.bossSpec && G.bossSpec.e;
+  if (boss && !boss.deathT) { $('bossHp').style.width = (boss.hp / boss.maxHp * 100) + '%'; $('bossStag').style.width = ((boss.stun > 0 ? 1 : boss.stag || 0) * 100) + '%'; $('bossStag').classList.toggle('stun', boss.stun > 0); }
   rideHud(slotLook);
   T.mm -= .07; if (T.mm > 0 || !G.mmBase) return; T.mm = .2;
   minimap();

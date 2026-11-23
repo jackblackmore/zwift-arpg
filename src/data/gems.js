@@ -7,6 +7,8 @@
 
 export const GEMS = {
   // Melee attacks (src/game/sk/strike.js): `melee` marks them. The Main gem auto-attacks what's in reach (game/gems.js).
+  // Sword: the plain starting attack (physical, no milestone yet) while the fight mechanics are tested (build order step 3⅞).
+  sword: { n: 'Sword', kind: 'attack', held: 1, melee: 1, sk: 'sword', elem: 'phys', icon: '🗡', col: '#d8dce8', d: 'A plain sword swing at whatever is in front of you', ms: {}, mile: {} },
   cleave: { n: 'Ember Cleave', kind: 'attack', held: 1, melee: 1, sk: 'cleave', elem: 'fire', icon: '⚔', col: '#ff8a3c', d: 'A wide burning swing that hits everything in front of you', ms: { 5: 'Swings 25% wider and reaches 15% further' }, mile: { arc: 1.25, reach: 1.15 } },
   fstrike: { n: 'Frost Strike', kind: 'attack', held: 1, melee: 1, sk: 'fstrike', elem: 'cold', icon: '✦', col: '#9fe8ff', d: 'A quick, narrow, hard-hitting strike that chills', ms: { 5: 'Every 3rd strike freezes what it hits for 0.8s' }, mile: { every: 3, freeze: .8 } },
   slam: { n: 'Thunder Slam', kind: 'attack', held: 1, melee: 1, sk: 'slam', elem: 'light', icon: '⚒', col: '#c98bff', d: 'A slow overhead slam: a big hit in a circle in front of you that knocks back and can shock', ms: { 5: '+25% radius' }, mile: { radius: 1.25 } },
@@ -14,6 +16,10 @@ export const GEMS = {
   nova: { n: 'Frost Nova', kind: 'attack', held: 0, sk: 'nova', elem: 'cold', icon: '❄', col: '#7fd8ff', d: 'A ring of frost that damages and freezes everything around you', ms: { 5: '+25% radius' }, mile: { add: { novaR: .25 } } },
   totem: { n: 'Flame Totem', kind: 'attack', held: 0, sk: 'totem', elem: 'fire', icon: '♨', col: '#ff7a2a', d: 'Plants a totem that shoots fire bolts at the nearest monster for a few seconds', ms: { 5: 'Lasts 50% longer' }, mile: { dur: 1.5 } },
   meteor: { n: 'Meteor', kind: 'attack', held: 0, sk: 'meteor', elem: 'fire', icon: '☄', col: '#ff5a1a', d: 'Calls a meteor down on the aimed spot: a big fire hit and burning ground', ms: { 5: '+30% radius' }, mile: { radius: 1.3 } },
+  // The knight's shield (src/game/sk/guard.js): hold Guard to block, press just before a hit to parry. The starting Guard gem.
+  block: { n: "Knight's Shield", kind: 'guard', held: 0, shield: 1, sk: 'block', icon: '🛡', col: '#e8d8a8', d: 'Hold to block hits from the front. Press just before a hit lands to parry: no damage, and the attacker staggers', ms: {}, mile: {} },
+  // Roll (src/game/sk/roll.js): the starting Evade gem. Untouchable for a moment.
+  roll: { n: 'Roll', kind: 'evade', held: 0, sk: 'roll', icon: '↻', col: '#c8e0ff', d: 'Roll out of the way, untouchable for a moment. Rolls the way you steer, or away from the nearest threat', ms: {}, mile: {} },
   shield: { n: 'Magic Shield', kind: 'guard', held: 0, sk: 'shield', icon: '◎', col: '#7fb8ff', d: 'A barrier that absorbs damage for a few seconds', ms: { 5: 'Absorbs 25% more' }, mile: { add: { shieldPct: .25 } } },
   blink: { n: 'Blink', kind: 'evade', held: 0, sk: 'blink', elem: 'cold', icon: '⇝', col: '#9fe8ff', d: 'Teleport away from the nearest threat, untouchable for a moment', ms: { 5: 'Leaves a frost burst behind that chills' }, mile: { burstR: 3, burstMult: .9, burstChill: 3 } },
   ward: { n: 'Frost Ward', kind: 'guard', held: 0, sk: 'ward', elem: 'cold', icon: '❅', col: '#8fe0ff', d: 'A ring of frost around you: monsters inside are slowed and chilled, and you take less damage', ms: { 5: '+25% radius' }, mile: { radius: 1.25 } },
@@ -27,14 +33,15 @@ export const SLOT_DEFS = {
   flexA: { n: 'Flex A', unlock: 5, kinds: ['attack'], key: 'RMB', sock: [[5, 1], [25, 2]] },
   flexB: { n: 'Flex B', unlock: 12, kinds: ['attack'], key: 'Q', sock: [[12, 1], [25, 2]] },
   guard: { n: 'Guard', unlock: 1, shrineLvl: 3, kinds: ['guard'], key: 'SPACE', sock: [[1, 1]] },
-  evade: { n: 'Evade', unlock: 8, kinds: ['evade'], key: 'E', sock: [[8, 1]] },
+  evade: { n: 'Evade', unlock: 1, shrineLvl: 8, kinds: ['evade'], key: 'E', sock: [[8, 1]] },
 };
 export const BAR = Object.keys(SLOT_DEFS);
 
-// Shrines: one per slot unlock, pick 1 of the offered gems. Guard is filled with Magic Shield automatically.
-// Flex shrines skip attack gems you already own while there are others to offer (so the melee gems you didn't pick come last).
-export const SHRINES = { main: ['cleave', 'fstrike', 'slam'], flexA: ['nova', 'arc', 'meteor', 'totem', 'cleave', 'fstrike', 'slam'], flexB: ['nova', 'arc', 'meteor', 'totem', 'cleave', 'fstrike', 'slam'], evade: ['dash', 'blink'], guard: ['ward'] };
-export const START_GUARD = 'shield';
+// Shrines: one per slot unlock, pick 1 of the offered gems. A new character starts with the Sword, the Knight's Shield and Roll
+// (START_*), so Main has no shrine. Evade's shrine at level 8 (shrineLvl) offers a gem to replace Roll; Guard's at level 3 puts
+// Frost Ward in the bag. Flex shrines skip attack gems you already own while there are others to offer.
+export const SHRINES = { flexA: ['nova', 'arc', 'meteor', 'totem', 'cleave', 'fstrike', 'slam'], flexB: ['nova', 'arc', 'meteor', 'totem', 'cleave', 'fstrike', 'slam'], evade: ['dash', 'blink'], guard: ['ward'] };
+export const START_MAIN = 'sword', START_GUARD = 'block', START_EVADE = 'roll';
 
 // Gem levels. Base damage = base × grow^(level − 1), for every gem (skill `mult` in data/skills.js scales it per skill).
 // Gems earn the same XP as the character from kills (`offBar` share when not on the bar) and level on the character's curve.

@@ -6,6 +6,7 @@ export const SK = {
   //   cleave/fstrike: everything within `reach` (+ the monster's radius) of you and inside a cone `arc` degrees wide.
   //   slam: a circle of `radius` centred `reach` in front of you. kb: knockback (× the default), stop: hit-stop on a connecting swing.
   //   Ember Cleave can ignite (support). Frost Strike chills for `chill` s. Thunder Slam shocks `shockChance` of the time (Arc's shock).
+  sword: { cast: .7, mult: 1, windup: .12, reach: 2.2, arc: 110, kb: .3, stop: .035 },
   cleave: { cast: .8, mult: .93, windup: .12, reach: 2.4, arc: 150, kb: .35, stop: .035 },
   fstrike: { cast: .62, mult: .95, windup: .1, reach: 2.1, arc: 90, kb: .2, stop: .03, chill: 2 },
   slam: { cast: 1.3, mult: 1.5, windup: .3, reach: 1.5, radius: 1.9, kb: 1, stop: .07, shockChance: .35 },
@@ -28,6 +29,16 @@ export const SK = {
       attacks: [['Melee_1H_Attack_Chop', 1.9], ['Melee_1H_Attack_Stab', 1.9], ['Melee_1H_Attack_Slice_Diagonal', 1.8]] },
     model: { col: 0x9adfc0, head: 0xd8ffe8, eye: 0x40ffb0, scale: .8 },
   },
+  // Knight's Shield (src/game/sk/guard.js; design notes "Fight mechanics"). Blocking covers hits from within `arc` degrees of where
+  //   you face (you turn to the nearest threat while blocking) and moves you at `move` × speed. A block takes off `block` of a normal
+  //   hit, `heavy` of a heavy one and `elem` of an elemental one. Posture (0..1): a blocked hit adds `posture` × its damage as a share
+  //   of max life; a parry adds `parryPosture` of that. It drains `drain` per second once `drainDelay` s pass without a blocked hit.
+  //   Full posture breaks your guard: stunned for `breakT` s, taking `brokenMul` × damage. A press opens a `parry` s window (not again
+  //   for `parryCd` s unless a parry lands). A parry makes your next swing within `riposteT` s a riposte: `riposte` × its damage.
+  block: { arc: 150, move: .45, block: .75, heavy: .5, elem: .5, posture: 1.5, parryPosture: .1, drain: .3, drainDelay: 1, breakT: 1.6, brokenMul: 1.5,
+    parry: .35, parryCd: .7, riposteT: 2, riposte: 1.8 },
+  // Roll: the starting Evade gem (src/game/sk/roll.js). Covers `range` in `dur` s, untouchable for `invuln` s; `charges` charges.
+  roll: { charges: 2, recharge: 2.2, range: 4, dur: .42, invuln: .4 },
   // Magic Shield: absorbs `absorb` × max life (more with shieldPct) for `dur` seconds. The starting Guard skill.
   shield: { absorb: .35, dur: 5, cd: 10 },
   // Flame Dash: the first Evade gem (level 8 shrine). Gems with `charges` hold that many casts, recharging one per `recharge` seconds.

@@ -65,9 +65,9 @@ try {
       const D = window.__dbg, P = D.P, out = {};
       D.start(true);
       out.packs = D.packs().length;
-      // A fresh character: the Main shrine is open with the three melee gems; take Ember Cleave.
-      out.shrineOpen = document.getElementById('mShrine').classList.contains('show') && [...document.querySelectorAll('#shrineCards .pc')].map(c => c.dataset.k).sort().join() === 'cleave,fstrike,slam';
-      document.querySelector('#shrineCards .pc[data-k="cleave"]').click();
+      // A fresh character starts with the Sword, the Knight's Shield and Roll, and no Main shrine.
+      const gemIn = s => (P.gems.find(g => g.id === P.bar[s]) || {}).gem;
+      out.shrineOpen = !document.getElementById('mShrine').classList.contains('show') && gemIn('main') === 'sword' && gemIn('guard') === 'block' && gemIn('evade') === 'roll';
       // Scripted player: walk toward the nearest living pack and into melee; the Main gem auto-attacks. Magic Shield on a rhythm.
       D.ctl.aim = null; // a stray headless pointer event can leave a mouse aim point; auto-aim like touch does
       D.setAutoAtk(true); var px = 1e9, pz = 1e9;
@@ -104,7 +104,7 @@ try {
       return out;
     });
     console.log('  arpg:', JSON.stringify(r));
-    check(r.shrineOpen, 'arpg: a new character is offered the Main shrine (Ember Cleave, Frost Strike, Thunder Slam)');
+    check(r.shrineOpen, 'arpg: a new character starts with the Sword, the Knight\'s Shield and Roll, and no Main shrine');
     check(r.mainGem >= 2, `arpg: the Main gem levelled from kills (gem level ${r.mainGem})`);
     check(r.rigged, 'arpg: KayKit character models loaded for hero and monsters');
     check(r.dressed, 'arpg: map built from the KayKit dungeon pieces');
@@ -216,15 +216,15 @@ try {
         careless: D.arena({ tier: 2, guardian: true, maxT: 240, bot: 'careless' }),
         smart: D.arena({ tier: 2, guardian: true, maxT: 240 }),
         under: D.arena({ tier: 2, gear: 'start', guardian: true, maxT: 120 }),
-        shield: (() => { D.castShield(); const a = D.P.shield / D.S.maxLife; const l = D.P.life; return { result: a > .3 ? 'ok' : 'none', t: Math.round(a * 100) / 100, lowest: l }; })(),
+        perfect: D.arena({ tier: 2, guardian: true, maxT: 240, bot: 'perfect' }),
       };
     });
     console.log('  balance:', JSON.stringify(Object.fromEntries(Object.entries(r).map(([k, v]) => [k, `${v.result} ${v.t}s lowest ${v.lowest}`]))));
     check(r.pack.result === 'clear' && r.pack.t > 3 && r.pack.t < 20, `balance: a tier 1 pack takes a few seconds with the starter sword (${r.pack.t}s)`);
     check(r.boss.result === 'clear' && r.boss.t > 45 && r.boss.t < 180, `balance: tier 1 guardian can't be burned down (${r.boss.t}s)`);
     check(r.under.result !== 'clear', `balance: starter sword can't beat the tier 2 guardian in 2 minutes (${r.under.result})`);
-    check(r.smart.result === 'clear' && (r.careless.result === 'died' || r.careless.taken > r.smart.taken * 1.5), `balance: never Guarding or dodging the tier 2 guardian's slam does clearly worse (${r.careless.result}, ${r.careless.taken} taken vs ${r.smart.taken})`);
-    check(r.shield.result === 'ok' && r.boss.shields > 0, `balance: Magic Shield absorbs ${Math.round(r.shield.t * 100)}% of max life and the bot uses it (${r.boss.shields} casts)`);
+    check(r.smart.result === 'clear' && (r.careless.result === 'died' || r.careless.taken > r.smart.taken * 3), `balance: never parrying, blocking or rolling against the tier 2 guardian does far worse (${r.careless.result}, ${r.careless.taken} taken vs ${r.smart.taken})`);
+    check(r.perfect.result === 'clear' && r.perfect.taken < r.smart.taken && r.smart.parries > 5 && r.smart.rolls > 2, `balance: perfect timing takes less than a good rider (${r.perfect.taken} vs ${r.smart.taken}), who parries and rolls (${r.smart.parries} parries, ${r.smart.rolls} rolls)`);
     check(errors.length === 0, `balance: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   }
 
@@ -235,9 +235,10 @@ try {
       const D = window.__dbg, P = D.P, S = D.S, G = D.G, out = {};
       const filled = () => Object.keys(P.bar).filter(s => P.bar[s]).sort().join(',');
       D.start(true); P.shrined.guard = 1; // the Frost Ward shrine has its own check below
-      out.freshBar = filled(); // only Guard until the Main shrine is taken
+      out.freshBar = filled(); // the starting bar: Sword, Knight's Shield, Roll
       out.guardGem = P.gems.find(g => g.id === P.bar.guard).gem;
-      D.takeShrine('main', 'cleave'); document.getElementById('mShrine').classList.remove('show');
+      out.mainGem0 = P.gems.find(g => g.id === P.bar.main).gem;
+      D.placeGem(D.addGem('cleave').id, 'main'); document.getElementById('mShrine').classList.remove('show');
       out.afterMain = filled();
       out.lockedFlex = D.placeGem(P.bar.main, 'flexA') === false; // level 1: Flex A is locked
       // Reach level 5: the Flex A shrine waits at the next map entrance; walking into it opens the choice.
@@ -261,16 +262,16 @@ try {
       D.save(); const sv = D.load();
       out.saved = sv.bar && sv.bar.main === P.bar.main && sv.gems.length === P.gems.length && sv.shrined.flexA === 1;
       D.begin(false); document.getElementById('mShrine').classList.remove('show');
-      out.loaded = filled() === 'flexA,guard,main' && P.gems.find(g => g.id === P.bar.main).lvl === 5;
+      out.loaded = filled() === 'evade,flexA,guard,main' && P.gems.find(g => g.id === P.bar.main).lvl === 5;
       // Saves from an older version (another key) are ignored: no migration while the game is unreleased.
       localStorage.clear(); localStorage.setItem('wd-arpg-1', JSON.stringify(sv)); out.oldSave = D.load() === null;
       return out;
     });
     console.log('  gems:', JSON.stringify(r));
-    check(r.freshBar === 'guard' && r.guardGem === 'shield' && r.afterMain === 'guard,main', `gems: a fresh character has exactly Main and Guard (Magic Shield) filled (${r.afterMain})`);
+    check(r.freshBar === 'evade,guard,main' && r.mainGem0 === 'sword' && r.guardGem === 'block' && r.afterMain === 'evade,guard,main', `gems: a fresh character has the Sword, the Knight's Shield and Roll (${r.freshBar})`);
     check(r.lockedFlex, 'gems: Flex A is locked below level 5');
     check(r.shrineSlot === 'flexA' && r.ask === 'flexA', `gems: at level 5 a Flex A shrine appears and opens when walked into (${r.shrineSlot}, ${r.ask})`);
-    check(r.flexOffer.split(',').length === 3 && !r.flexOffer.split(',').includes('cleave') && r.afterFlex === 'flexA,guard,main' && r.flexGem === r.flexPick && r.shrineGone, `gems: the Flex shrine offers 3 gems you don't own and picking one fills the slot (offered ${r.flexOffer})`);
+    check(r.flexOffer.split(',').length === 3 && !r.flexOffer.split(',').includes('cleave') && r.afterFlex === 'evade,flexA,guard,main' && r.flexGem === r.flexPick && r.shrineGone, `gems: the Flex shrine offers 3 gems you don't own and picking one fills the slot (offered ${r.flexOffer})`);
     check(r.barXp > 0 && r.bagXp > 0 && Math.abs(r.bagXp - r.barXp * .1) < 1, `gems: kills give bar gems XP and bag gems 10% (${r.barXp} / ${r.bagXp})`);
     check(r.reachGain === 1.15, `gems: Ember Cleave's level 5 milestone reaches 15% further (×${r.reachGain})`);
     check(r.saved && r.loaded, 'gems: saves round-trip the skill bar and the gem bag');
@@ -283,7 +284,7 @@ try {
     const { page, errors } = await open('/');
     const r = await page.evaluate(() => {
       const D = window.__dbg, P = D.P, S = D.S, G = D.G, out = {};
-      D.start(true); P.shrined.guard = 1; D.takeShrine('main', 'cleave'); document.getElementById('mShrine').classList.remove('show');
+      D.start(true); P.shrined.guard = 1; D.placeGem(D.addGem('cleave').id, 'main'); document.getElementById('mShrine').classList.remove('show');
       P.lvl = 5; P.shrined.flexA = 1; D.recalc();
       const fb = P.gems.find(g => g.id === P.bar.main), arc = D.addGem('arc'); D.placeGem(arc.id, 'flexA');
       out.socks = [D.sockCount('main'), D.sockCount('flexA'), D.sockCount('flexB'), D.sockCount('main', 15)].join(',');
@@ -361,14 +362,15 @@ try {
     const { page, errors } = await open('/');
     const r = await page.evaluate(() => {
       const D = window.__dbg, P = D.P, S = D.S, G = D.G, out = {};
-      D.start(true); D.takeShrine('main', 'cleave'); document.getElementById('mShrine').classList.remove('show');
-      // Frost Ward shrine: appears at level 3, takes Ward into the bag, Magic Shield stays in Guard.
+      D.start(true); D.placeGem(D.addGem('cleave').id, 'main'); document.getElementById('mShrine').classList.remove('show');
+      // Frost Ward shrine: appears at level 3, takes Ward into the bag, the Knight's Shield stays in Guard.
       out.noShrineEarly = !D.shrineDue().includes('guard');
       P.lvl = 3; D.recalc(); out.due = D.shrineDue().includes('guard');
       const w = D.takeShrine('guard', 'ward');
-      out.wardInBag = !!w && P.gems.find(g => g.id === P.bar.guard).gem === 'shield' && !D.shrineDue().includes('guard');
+      out.wardInBag = !!w && P.gems.find(g => g.id === P.bar.guard).gem === 'block' && !D.shrineDue().includes('guard');
       D.placeGem(w.id, 'guard'); out.wardSlotted = P.gems.find(g => g.id === P.bar.guard).gem === 'ward';
-      // Evade slot (level 8): offered Flame Dash and Blink.
+      // Evade shrine (level 8, the slot has Roll from level 1): offered Flame Dash and Blink.
+      P.lvl = 7; D.recalc(); out.noEvadeEarly = !D.shrineDue().includes('evade');
       P.lvl = 8; D.recalc(); D.openShrine('evade'); out.evadeOffer = [...document.querySelectorAll('#shrineCards .pc')].map(c => c.dataset.k).join(',');
       document.getElementById('mShrine').classList.remove('show');
       D.takeShrine('evade', 'blink'); document.getElementById('mShrine').classList.remove('show');
@@ -403,11 +405,80 @@ try {
     });
     console.log('  skills D:', JSON.stringify(r));
     check(r.noShrineEarly && r.due && r.wardInBag && r.wardSlotted, `skills D: Frost Ward shrine at level 3 gives Ward to the bag, swappable into Guard`);
-    check(r.evadeOffer.split(',').sort().join() === 'blink,dash', `skills D: the Evade shrine offers Flame Dash and Blink (${r.evadeOffer})`);
+    check(r.noEvadeEarly && r.evadeOffer.split(',').sort().join() === 'blink,dash', `skills D: the Evade shrine at level 8 offers Flame Dash and Blink (${r.evadeOffer})`);
     check(r.blinked && r.blinkAway && r.blinkClear, `skills D: Blink moves the player away from a nearby monster, with invulnerability`);
     check(r.wallBad === 0 && r.wallMoved > 5, `skills D: Blink never lands in a wall (${r.wallBad} bad of ${r.wallMoved})`);
     check(r.wardChill && r.wardDmg && r.wardDr && r.wardEnds, `skills D: Frost Ward chills and damages monsters inside only, cuts damage taken, and ends (${JSON.stringify(r)})`);
     check(errors.length === 0, `skills D: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
+  }
+
+  // ---------- Fight mechanics: the Knight's Shield (block, parry, posture), Roll, stagger, telegraph kinds ----------
+  {
+    const { page, errors } = await open('/');
+    const r = await page.evaluate(() => {
+      const D = window.__dbg, P = D.P, S = D.S, G = D.G, ctl = D.ctl, out = {};
+      D.start(true); ctl.aim = null; ctl.mx = ctl.mz = 0; D.setAutoAtk(false);
+      const clear = () => { G.enemies.forEach(e => { e.deathT = 1; e.gone = true; }); G.eproj = []; G.queue = []; Object.assign(P, { invuln: 0, life: S.maxLife, posture: 0, broken: 0, blocking: false, parryT: 0, parryCd: 0, riposteT: 0, rollT: 0 }); ctl.guard = false; ctl.tap = {}; P.x = G.start.x; P.z = G.start.z; };
+      const foe = (type, dx, dz) => { const e = D.spawnEnemy(type, P.x + dx, P.z + dz, null, 0); e.awake = true; e.spd = 0; e.atkT = 99; e.hp = e.maxHp = 1e6; return e; };
+      // Parry: a press just before the hit lands takes nothing and stuns the attacker.
+      clear(); let z = foe('zombie', 0, 1.2); D.sim(1);
+      ctl.tap.guard = true; D.sim(1); const l0 = P.life;
+      out.parry = D.hurtP(20, 'zombie', { from: z, by: z }) === 'parry' && P.life === l0 && z.stun > 0 && P.riposteT > 0;
+      // Block: held past the parry window, a hit from the front is reduced and fills posture; from behind it isn't blocked.
+      ctl.guard = true; D.sim(15); const l1 = P.life;
+      out.blockRes = D.hurtP(20, 'zombie', { from: z, by: z }); out.blockTaken = Math.round((l1 - P.life) * 100) / 100; out.posture = P.posture;
+      out.block = out.blockRes === 'block' && out.blockTaken > 0 && out.blockTaken < 20 * .5 && P.posture > 0 && P.blocking;
+      out.behind = D.hurtP(10, 'zombie', { from: { x: P.x - Math.sin(P.face) * 2, z: P.z - Math.cos(P.face) * 2 } }) === 'hit';
+      // Posture drains once you stop taking blocked hits.
+      const p0 = P.posture; ctl.guard = false; D.sim(60); out.drains = P.posture < p0;
+      // A full posture bar breaks your guard: stunned, can't move, and hits land harder.
+      clear(); z = foe('zombie', 0, 1.2); ctl.guard = true; D.sim(15);
+      let res = ''; for (let i = 0; i < 20 && res !== 'broken'; i++) res = D.hurtP(S.maxLife * .2, 'zombie', { from: z });
+      const bx = P.x; ctl.mx = 1; D.sim(5); ctl.mx = 0;
+      out.broken = res === 'broken' && P.broken > 0 && !P.blocking && Math.abs(P.x - bx) < .01;
+      const l2 = P.life; D.hurtP(10, 'zombie', { from: z }); out.brokenHurts = l2 - P.life > 10 * (1 - S.dr) * 1.2;
+      // Unblockable: goes through a block and breaks the guard.
+      clear(); z = foe('zombie', 0, 1.2); ctl.guard = true; D.sim(15);
+      out.unblockable = D.hurtP(20, 'charge', { from: z, kind: 'unblockable' }) === 'broken' && P.broken > 0;
+      // Heavy: a block takes off less than a normal hit.
+      clear(); z = foe('zombie', 0, 1.2); ctl.guard = true; D.sim(15); const l3 = P.life; D.hurtP(20, 'slam', { from: z, kind: 'heavy' }); out.heavyBlock = l3 - P.life > 20 * (1 - S.dr) * .4;
+      // Raising the shield cancels the swing being wound up.
+      clear(); ctl.guard = false; z = foe('zombie', 0, 1.2); D.sim(1); P.aimAt = [z.x, z.z]; D.strike('sword'); P.aimAt = null; ctl.tap.guard = true; D.sim(10);
+      out.cancelled = z.hp === z.maxHp;
+      // A riposte: the first swing after a parry hits harder.
+      clear(); z = foe('zombie', 0, 1.2); D.sim(1); const swing = () => { const h = z.hp; P.aimAt = [z.x, z.z]; D.strike('sword'); P.aimAt = null; D.sim(10); return h - z.hp; };
+      const plain = swing(); P.riposteT = 2; const rip = swing(); out.riposte = rip > plain * 1.4 && P.riposteT <= 0;
+      // Roll: from Evade, away from the threat, untouchable, and the autopilot holds still after it.
+      clear(); z = foe('zombie', 0, 1.2); D.sim(1); const d0 = Math.hypot(z.x - P.x, z.z - P.z);
+      ctl.tap.evade = true; D.sim(1); out.rollPause = P.apPause > 0 && P.rollT > 0;
+      out.rollMiss = D.hurtP(50, 'slam', { from: z, kind: 'heavy' }) === 'miss'; D.sim(15);
+      out.rollAway = Math.hypot(z.x - P.x, z.z - P.z) > d0 + 2.5 && !D.blocked(P.x, P.z, P.r);
+      // Stagger: parrying the guardian fills its bar; full, it's stunned (its ability cancelled) and takes more damage.
+      clear(); const b = D.spawnEnemy('boss', P.x, P.z + 2.2, null, 0); b.awake = true; b.abilT = 99; b.atkT = 99; b.spd = 0;
+      b.cast = { kind: 'slam', t: 5, x: P.x, z: P.z, r: 2 }; const st = [];
+      for (let i = 0; i < 6 && !(b.stun > 0); i++) { P.parryCd = 0; ctl.tap.guard = true; D.sim(1); D.hurtP(10, 'boss', { from: b, by: b }); st.push(Math.round(b.stag * 100) / 100); }
+      out.stagSteps = st.join(','); out.stunned = b.stun > 0 && !b.cast;
+      ctl.guard = false; D.sim(12); const hb = b.hp; P.aimAt = [b.x, b.z]; D.strike('sword'); P.aimAt = null; D.sim(10); const stunHit = hb - b.hp;
+      b.stun = 0; b.stag = 0; D.sim(1); const hb2 = b.hp; P.aimAt = [b.x, b.z]; D.strike('sword'); P.aimAt = null; D.sim(10); out.stunTaken = stunHit > (hb2 - b.hp) * 1.15;
+      // Bloaters: killed before the fuse runs out, no blast; a fuse that runs out blows up.
+      clear(); const bl = foe('bloater', 0, 4); D.kill(bl); out.defused = !G.queue.some(q => q.k === 'bloat');
+      const bl2 = foe('bloater', 0, 1); bl2.spd = 0; D.sim(40); out.fused = bl2.deathT > 0 && bl2.fused;
+      // The guardian's swings and slams carry a telegraph cue over the hero.
+      clear(); ctl.guard = false;
+      return out;
+    });
+    console.log('  fight:', JSON.stringify(r));
+    check(r.parry, 'fight: a press just before a hit parries it: no damage, the attacker is stunned, a riposte is ready');
+    check(r.block && r.behind, `fight: holding Guard blocks a hit from the front (${r.blockTaken} of 20 taken) and fills posture, but not one from behind`);
+    check(r.drains, 'fight: posture drains when you stop taking blocked hits');
+    check(r.broken && r.brokenHurts, 'fight: a full posture bar breaks your guard: stunned, and hits land harder');
+    check(r.unblockable && r.heavyBlock, 'fight: unblockable hits break a block; a blocked heavy still hurts more than a blocked hit');
+    check(r.cancelled, 'fight: raising the shield cancels the swing being wound up');
+    check(r.riposte, 'fight: the first swing after a parry is a riposte that hits harder');
+    check(r.rollPause && r.rollMiss && r.rollAway, 'fight: Roll (Evade) moves you away from the threat, untouchable, and the autopilot holds still after it');
+    check(r.stunned && r.stunTaken, `fight: parries fill the guardian's stagger bar (${r.stagSteps}); full, it's stunned, its ability cancelled, and takes more damage`);
+    check(r.defused && r.fused, 'fight: a bloater killed before its fuse runs out doesn\'t blow up; one whose fuse runs out does');
+    check(errors.length === 0, `fight: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   }
 
   // ---------- Flame Totem and Meteor (Flex gems): damage, milestone, cleanup on map clear ----------
@@ -415,7 +486,7 @@ try {
     const { page, errors } = await open('/');
     const r = await page.evaluate(() => {
       const D = window.__dbg, P = D.P, S = D.S, G = D.G, ctl = D.ctl, out = {};
-      D.start(true); D.takeShrine('main', 'cleave'); document.getElementById('mShrine').classList.remove('show');
+      D.start(true); D.placeGem(D.addGem('cleave').id, 'main'); document.getElementById('mShrine').classList.remove('show');
       P.lvl = 8; D.recalc(); D.newMap(1); const pk = G.packs[0]; P.x = pk.x - 7; P.z = pk.z; D.sim(3);
       // A tough stand-in monster five units away, kept in place so the skills have something to hit.
       const dummy = () => { const e = G.enemies.find(x => !x.deathT); e.x = P.x + 5; e.z = P.z; e.vx = e.vz = 0; e.hp = e.maxHp = 1e6; e.awake = true; ctl.aim = [e.x, e.z]; return e; };
@@ -452,7 +523,7 @@ try {
     const { page, errors } = await open('/');
     const r = await page.evaluate(() => {
       const D = window.__dbg, P = D.P, S = D.S, G = D.G, ctl = D.ctl, out = {};
-      D.start(true); D.takeShrine('main', 'cleave'); document.getElementById('mShrine').classList.remove('show');
+      D.start(true); D.placeGem(D.addGem('cleave').id, 'main'); document.getElementById('mShrine').classList.remove('show');
       D.arena({ tier: 1, fight: [], maxT: .1, sock: {} }); // an open floor with no monsters, Ember Cleave in Main
       D.setAutoAtk(false); // scripted swings only, until the auto-attack checks below
       const clear = () => { for (const e of G.enemies) { e.deathT = 1; e.gone = true; } D.sim(1); };
@@ -510,8 +581,8 @@ try {
     const { page, errors } = await open('/');
     const r = await page.evaluate(() => {
       const D = window.__dbg, P = D.P, G = D.G, out = {};
-      D.start(true); D.takeShrine('main', 'cleave'); document.getElementById('mShrine').classList.remove('show');
-      D.arena({ tier: 1, fight: [], maxT: .1, sock: { main: ['raise'] } }); // an open floor, Ember Cleave + Raise Skeletons
+      D.start(true); D.placeGem(D.addGem('cleave').id, 'main'); document.getElementById('mShrine').classList.remove('show');
+      D.arena({ tier: 1, fight: [], maxT: .1, main: 'cleave', sock: { main: ['raise'] } }); // an open floor, Ember Cleave + Raise Skeletons
       D.setAutoAtk(false); // scripted swings only
       out.socketed = D.S.sk.cleave.raise;
       const sk = () => D.minions().filter(m => !m.deathT).length;
@@ -521,7 +592,7 @@ try {
       for (let i = 0; i < 6; i++) { const z = D.spawnEnemy('zombie', P.x, P.z + 1.4, null, 0); z.awake = true; z.hp = 1; P.aimAt = [P.x, P.z + 5]; D.strike('cleave'); P.aimAt = null; D.sim(12); }
       out.raised = sk(); out.capped = out.raised === out.cap;
       // Kills by another skill don't count.
-      D.newMap(1); D.arena({ tier: 1, fight: [], maxT: .1, sock: { main: ['raise'] } }); D.setAutoAtk(false); D.sim(2);
+      D.newMap(1); D.arena({ tier: 1, fight: [], maxT: .1, main: 'cleave', sock: { main: ['raise'] } }); D.setAutoAtk(false); D.sim(2);
       const z2 = D.spawnEnemy('zombie', P.x + 2, P.z, null, 0); z2.awake = true; z2.hp = 1; D.sim(1); D.castNova(); D.sim(5); out.otherSkill = !!z2.deathT && sk() === 0;
       // A raised skeleton fights: it kills a zombie on its own, the kill counts for you, and doesn't raise another.
       D.skel.raise(P.x + 1, P.z, 'cleave'); R.chance = 1;
@@ -551,7 +622,7 @@ try {
     const { page, errors } = await open('/');
     const r = await page.evaluate(() => {
       const D = window.__dbg, P = D.P, S = D.S, G = D.G, ctl = D.ctl, out = {};
-      D.start(true); D.takeShrine('main', 'cleave'); document.getElementById('mShrine').classList.remove('show');
+      D.start(true); D.placeGem(D.addGem('cleave').id, 'main'); document.getElementById('mShrine').classList.remove('show');
       out.noMana = P.mana === undefined && S.maxMana === undefined && !D.SK.cleave.cost && !document.getElementById('manaF');
       D.arena({ tier: 1, fight: [], maxT: .1 }); // an open floor with no monsters
       const z = D.spawnEnemy('zombie', P.x + 6, P.z, null, 0); z.hp = z.maxHp = 1e9; z.spd = 0; ctl.aim = [z.x, z.z];
@@ -595,7 +666,7 @@ try {
     const { page, errors } = await open('/');
     const r = await page.evaluate(() => {
       const D = window.__dbg, P = D.P, out = {};
-      D.setRide(true); D.start(true); D.takeShrine('main', 'cleave'); document.getElementById('mShrine').classList.remove('show');
+      D.setRide(true); D.start(true); D.placeGem(D.addGem('cleave').id, 'main'); document.getElementById('mShrine').classList.remove('show');
       // Not pedalling: the hero must not move even with the D-pad held.
       D.ride.pw = 0; D.ride.held.right = true; const x0 = P.x; D.sim(60); out.stillAt0W = Math.abs(P.x - x0) < .01;
       D.ride.held.right = false;
