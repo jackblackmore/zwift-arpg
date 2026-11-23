@@ -46,6 +46,7 @@ export const SFX = {
   cue: k => { if (!lim('cue' + k, .2)) return; if (k === 'parry') { tone(1320, .12, 'triangle', .06, 1); tone(1760, .1, 'triangle', .04, 1, .06); } else if (k === 'heavy') { tone(110, .35, 'sawtooth', .07, .7); noise(.3, .05, 300, .6, 0, 'lowpass'); } else { tone(233, .45, 'square', .05, .8); tone(247, .45, 'square', .05, .8); } },
   block: () => { if (lim('block', .06)) { tone(420, .1, 'square', .04, .5); noise(.1, .1, 900, 1.2); } },
   parry: () => { tone(1800, .35, 'triangle', .09, .6); tone(2700, .25, 'sine', .05, .7); noise(.12, .12, 5000, 1.5); },
+  finisher: () => { tone(70, .6, 'sine', .25, .35); noise(.45, .25, 220, .7, 0, 'lowpass'); noise(.25, .14, 3200, 1.2, .03); tone(1100, .5, 'triangle', .06, .5, .04); },
   broken: () => { tone(160, .5, 'sawtooth', .08, .4); noise(.4, .15, 600, .6); },
   roar: () => { tone(80, .8, 'sawtooth', .07, .6); noise(.6, .08, 400, .7); },
 };

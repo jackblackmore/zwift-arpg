@@ -33,7 +33,10 @@ export function hit(e, mult, elem, src = {}) {
   let d = hitBase(S, gem) * mult * (S.dmg + (S[elem] || 0)) * ((K && K.more) || 1) * rand(COMBAT.spread[0], COMBAT.spread[1]);
   const crit = Math.random() < S.crit; if (crit) d *= HERO.critMult;
   if (e.shock > 0) d *= 1 + (e.shockMore || SK.arc.shockMore); // Conduit (Arc's support) marks the shocks it makes
-  if (e.stun > 0 && e.stagMax) d *= 1 + STAGGER.taken; // staggered: wide open
+  if (e.stun > 0 && e.stagMax) { // staggered: wide open, and the first hero hit is a finisher
+    d *= 1 + STAGGER.taken;
+    if (e.finisher && !src.dot && src.by !== 'minion') { e.finisher = false; d *= STAGGER.finisher; finisherFx(e); }
+  }
   else if (e.stagMax && !src.dot) stagger(e, d / e.maxHp * STAGGER.dmg * (1 + STAGGER.surge * (P.surgeK || 0)));
   e.hp -= d; e.flash = .07; e.lastElem = elem; e.lastGem = src.by || gem; e.lastHit = Math.max(e.lastHit || 0, d);
   if (!src.dot) {
@@ -51,9 +54,16 @@ export function stagger(e, amt) {
   if (!e.stagMax || e.stun > 0 || e.deathT) return;
   e.stag = Math.min(1, (e.stag || 0) + amt); e.stagWait = STAGGER.delay;
   if (e.stag < 1) return;
-  e.stag = 0; stun(e, STAGGER.stunT);
+  e.stag = 0; stun(e, STAGGER.stunT); e.finisher = true; P.staggers++;
   floatT(e.x, e.h + .6, e.z, 'STAGGERED', '#ffb040', 18, 1.4); flashFx(e.x, e.h * .6, e.z, TELL.stagger, e.r * 5, .35); burst(e.x, e.h * .7, e.z, TELL.stagger, 30, 5);
   shake(.35); stop(.12); SFX.parry();
+}
+// A finisher (Sekiro's deathblow) lands: a white flash, a heavy crunch and big text, so it reads as the payoff for breaking it.
+function finisherFx(e) {
+  P.finishers++;
+  floatT(e.x, e.h + 1, e.z, 'FINISHER', '#ffffff', 24, 1.6); flashFx(e.x, e.h * .6, e.z, 0xffffff, e.r * 7, .3);
+  burst(e.x, e.h * .7, e.z, 0xfff0c0, 50, 7); burst(e.x, e.h * .7, e.z, TELL.stagger, 30, 4); flashLight(e.x, e.z, 0xfff0d0, 6, .35);
+  shake(.6); stop(.2); SFX.finisher();
 }
 function stun(e, t) {
   e.stun = t; e.windup = 0; e.cast = null; e.charging = null; e.fuse = 0;
@@ -62,6 +72,7 @@ function stun(e, t) {
 // You parried monster e (game/sk/guard.js): stagger a guardian or rare, stun anything else for a moment.
 export function parried(e) {
   if (e.deathT) return;
+  if (e.type === 'boss') P._bp = (P._bp || 0) + 1; //TMP
   if (e.stagMax) stagger(e, e.type === 'boss' ? STAGGER.parry : STAGGER.parryRare);
   else stun(e, STAGGER.minorStun);
 }
@@ -98,6 +109,7 @@ export function kill(e) {
 export function hurtP(d, src = '?', o = {}) {
   if (P.dead > 0 || P.invuln > 0) return 'miss';
   d = shieldHit(d, o); if (o.result === 'parry') return 'parry';
+  if (o.by && o.by.stagMax && o.result !== 'block' && !(o.by.stun > 0)) o.by.stag = Math.max(0, (o.by.stag || 0) - STAGGER.recover); // it landed one: it steadies
   d *= 1 - S.dr; if (P.wardT > 0) d *= 1 - SK.ward.dr;
   if (P.shield > 0) { const a = Math.min(P.shield, d); P.shield -= a; d -= a; floatT(P.x, 2.4, P.z, Math.round(a), '#9fc8ff', 12); if (d <= 0) return o.result || 'hit'; }
   P.life -= d; P.taken = (P.taken || 0) + d; if (P.takenBy) P.takenBy[src] = (P.takenBy[src] || 0) + d;

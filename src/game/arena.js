@@ -28,13 +28,13 @@ import { update } from './update.js';
 
 const DT = .033;
 // Reaction skill: the chance it answers each kind of threat in time. smart is a good rider; perfect never misses.
-const SKILL = { smart: { parry: .7, roll: .9, bolt: .85 }, perfect: { parry: 1, roll: 1, bolt: 1 } };
+const SKILL = { smart: { parry: .7, roll: .9, bolt: .85, brace: true }, perfect: { parry: 1, roll: 1, bolt: 1, brace: false } };
 
 export function arena(spec) {
   const tier = spec.tier || 1, lvl = spec.lvl || parLevel(tier);
   clearMap(); G.tier = tier; G.packs = []; G.bossSpec = null; G.obst = []; G.layout = null; G.mapKills = 0;
   Object.assign(P, { lvl, passives: {}, gear: gearProfile(spec.gear || PAR_GEAR(tier), tier), dead: 0, invuln: 0, shield: 0, shieldT: 0, castT: 0,
-    blocking: false, parryT: 0, parryCd: 0, posture: 0, broken: 0, riposteT: 0, rollT: 0, apPause: 0, flaskT: 0, kills: 0, taken: 0, takenBy: {}, gems: [], bar: {}, sock: {}, cd: {}, shrined: { main: 1, flexA: 1, flexB: 1, guard: 1, evade: 1 } });
+    blocking: false, parryT: 0, parryCd: 0, posture: 0, broken: 0, riposteT: 0, rollT: 0, apPause: 0, flaskT: 0, kills: 0, staggers: 0, finishers: 0, _bp: 0, taken: 0, takenBy: {}, gems: [], bar: {}, sock: {}, cd: {}, shrined: { main: 1, flexA: 1, flexB: 1, guard: 1, evade: 1 } });
   const bar = { ...(spec.bar || parBar(tier)) };
   if (spec.main && bar.main) { bar.main = [spec.main, bar.main[1]]; for (const s of BAR) if (s !== 'main' && bar[s] && bar[s][0] === spec.main) delete bar[s]; }
   for (const [slot, [gem, gl]] of Object.entries(bar)) P.bar[slot] = addGem(gem, gl).id;
@@ -94,7 +94,7 @@ export function arena(spec) {
         let hold = false, tap = false, roll = false;
         const B = SK.block, rollIn = SK.roll.invuln * .6;
         // Swings: parry just before they land, else hold the block (or eat it).
-        for (const e of swingAt) { const r = react(e, 'swing' + e.atkSeq, skill.parry); if (r === 'ok') { if (e.windup <= B.parry * .7) tap = true; else hold = hold || e.windup < B.parry * 2; } else if (r === 'block') hold = true; }
+        for (const e of swingAt) { const r = react(e, 'swing' + e.atkSeq, skill.parry); if (r === 'ok') { if (e.windup <= B.parry * .7) tap = true; else hold = hold || (skill.brace && e.windup < B.parry * 2); } else if (r === 'block') hold = true; }
         // Heavies: roll as they land, else block.
         const heavy = (o, key, left) => { const r = react(o, key, skill.roll); if (r === 'ok') { if (left <= rollIn) roll = true; } else if (r === 'block') hold = true; };
         if (inSlam) heavy(bc, 'slam', bc.t);
@@ -121,7 +121,7 @@ export function arena(spec) {
   const left = G.enemies.filter(e => !e.deathT && foes.includes(e)).length;
   return {
     result: P.dead > 0 ? 'died' : left ? 'timeout' : 'clear', t: Math.round(t * 10) / 10, kills: P.kills,
-    taken: Math.round(P.taken), takenBy: Object.fromEntries(Object.entries(P.takenBy).map(([k, v]) => [k, Math.round(v)])), lowest: Math.round(lowest * 100) / 100, flasks, shields, evades, parries: n.parry, blocks: n.blockhit, breaks: n.broken, rolls: n.roll, surged: Math.round(surged * 10) / 10,
+    taken: Math.round(P.taken), takenBy: Object.fromEntries(Object.entries(P.takenBy).map(([k, v]) => [k, Math.round(v)])), lowest: Math.round(lowest * 100) / 100, flasks, shields, evades, parries: n.parry, blocks: n.blockhit, breaks: n.broken, rolls: n.roll, staggers: P.staggers, finishers: P.finishers, bp: P._bp, surged: Math.round(surged * 10) / 10,
     lvl, life: S.maxLife, bar: BAR.filter(s => barGem(s)).map(s => barGem(s).gem + barGem(s).lvl).join(' '), sup: Object.values(S.sk).flatMap(k => k.sup).join(' '),
   };
 }
