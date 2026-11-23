@@ -88,6 +88,8 @@ try {
       out.mainGem = P.gems.find(g => g.id === P.bar.main).lvl;
       out.rigged = D.chars.ready && D.G.heroM.rigged && D.enemies().some(e => e.model.rigged);
       out.dressed = D.G.dressed && D.G.obst.length > 40 && D.G.torches.length > 10;
+      // Loot is sparse (normal packs mostly give XP), so make sure a rare is among the kills: rares always drop an item.
+      const rr = D.spawnEnemy('zombie', P.x + 1, P.z, null, 2); D.kill(rr); D.sim(30);
       out.kills = P.kills; out.lvl = P.lvl; out.loot = P.inv.length + D.items().length;
       for (let i = 0; i < 4; i++) D.dropItem(P.x, P.z, .5);
       D.sim(40); for (const d of D.items()) { P.x = d.x; P.z = d.z; D.sim(2); } out.inv = P.inv.length; // walk over anything that bounced away
@@ -212,7 +214,7 @@ try {
       const D = window.__dbg; D.start(true);
       return {
         pack: D.arena({ tier: 1, fight: [['zombie', 3], ['archer', 1]] }),
-        boss: D.arena({ tier: 1, guardian: true, maxT: 240 }),
+        boss: D.arena({ tier: 1, guardian: true, maxT: 240, bot: 'perfect' }), // how long it takes, not whether you survive (a good rider sometimes dies here)
         careless: D.arena({ tier: 2, guardian: true, maxT: 240, bot: 'careless' }),
         smart: D.arena({ tier: 2, guardian: true, maxT: 240 }),
         under: D.arena({ tier: 2, gear: 'start', guardian: true, maxT: 120 }),
@@ -315,7 +317,7 @@ try {
       D.sim(40); if (gd) { P.x = gd.x; P.z = gd.z; D.sim(2); }
       out.pickedGem = P.gems.length === n0 + 1 && P.newGems > 0 && gd && P.gems[P.gems.length - 1].gem === gd.gem.gem;
       // Feeding: a duplicate goes in at 100% and is used up; your last copy of a gem stays behind at level 1.
-      const bar = P.gems.find(g => g.id === P.bar.flexA), tot = g => { let n = g.xp; for (let l = 1; l < g.lvl; l++) n += 40 * Math.pow(l, 1.55) | 0; return n; };
+      const bar = P.gems.find(g => g.id === P.bar.flexA), tot = g => { let n = g.xp; for (let l = 1; l < g.lvl; l++) n += D.xpNeedFor(l); return n; };
       const dup = D.addGem('arc', 3), t0 = tot(bar) , give = tot(dup), cnt = P.gems.length;
       const f1 = D.feedGem(dup.id, bar.id);
       out.feedDup = !!f1 && f1.share === 1 && !f1.last && P.gems.length === cnt - 1 && Math.abs(f1.gain - give) < 2 && bar.lvl >= 2;

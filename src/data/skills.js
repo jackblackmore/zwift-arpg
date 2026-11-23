@@ -51,7 +51,7 @@ export const SK = {
   ward: { cd: 12, radius: 4, dur: 5, tick: .5, mult: .12, dr: .3, chill: .35 },
   // Burning ground (Flame Dash, Meteor, Wattbringer): `mult` × the gem's base every `tick` s, lasting `life` s.
   burn: { mult: .22, tick: .25, life: 2.4 },
-  flask: { heal: .6, dur: 2.5, max: 3, perKill: .1, perRare: 1 },
+  flask: { heal: .6, dur: 2.5, max: 3, perKill: .05, perRare: 1 },
 };
 // Surge gauge: the only resource. While surging, casts are `bonus` faster and cooldowns and charges recover `bonus` faster.
 // It holds `max` seconds of full surge (more with surge capacity) and drains 1 per second at full surge (RIDE: less on a small surge).
