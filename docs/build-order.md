@@ -10,8 +10,8 @@ Status: ✅ done · ▶ next · ☐ later
 |---|---|---|
 | 0 | First balance pass and balance tools (`npm run balance`, `npm run arena`) | ✅ |
 | 1 | Gems v1: skill bar, gem-only skills, shrines, gem levels | ✅ |
-| 2 | More skills: Frost Lance, Raise Skeletons, Blink, Flex and Guard options | ▶ |
-| 3 | Gems v2: support gems, sockets, guardian gem drops, feeding | ☐ |
+| 2 | More skills: Frost Lance, Raise Skeletons, Blink, Flex and Guard options | ✅ |
+| 3 | Gems v2: support gems, sockets, guardian gem drops, feeding | ▶ |
 | 4 | Passive tree (replaces the level-up card draft) | ☐ |
 | 5 | Defence: armour, resistances, typed monster damage | ☐ |
 | 6 | Gear rework: affixes and uniques for the new stat sheet | ☐ |
@@ -117,7 +117,9 @@ Status: ✅ done · ▶ next · ☐ later
 
 ---
 
-## Step 2: More skills ▶
+## Step 2: More skills ✅
+
+**Done (Nov 2026).** What was built and the balance results are under "Built: more skills, step 2" in the design notes. The brief below is kept for reference.
 
 **Goal:** enough gems that every shrine is a real 1-of-3 choice, and the design's three starting builds exist. Design: "Skill variety" in the design notes.
 
@@ -135,7 +137,7 @@ Status: ✅ done · ▶ next · ☐ later
 - **Balance:** each Main gem should clear a par pack in about the same time (`npm run arena` with each on the bar).
 
 **How it's being built (Nov 2026).** A shared foundation first, then the gems in parallel, one branch each, merged and balanced together.
-- **Foundation (done):**
+- **Foundation:**
   - `src/game/casts.js` maps gem id → cast function. Each new skill is its own module `src/game/sk/<gem>.js` exporting `{ cast, tick?, clear? }` and registered with one line in `MODS`; `tick(dt)` runs every game tick, `clear()` on map clear.
   - Charges are generic: any `SK` entry with `charges` and `recharge` (Flame Dash's milestone and gear still add to its own).
   - Milestones: newer gems read `S.mile[gemId]` (true at gem level 5 on the bar) instead of adding to the `MILESTONES` table.
@@ -151,7 +153,7 @@ Status: ✅ done · ▶ next · ☐ later
 
 - **Then:** merge, fill the shrine lists (Main: Fireball, Frost Lance, Raise Skeletons; Flex: Arc, Frost Nova, Flame Totem, Meteor and any unused Main gem; Evade: Flame Dash, Blink; Guard: Magic Shield, Frost Ward), and balance with `MAIN=<gem> npm run arena` until every Main gem clears a par pack in about the same time.
 
-## Step 3: Gems v2 ☐
+## Step 3: Gems v2 ▶
 
 **Goal:** support gems change how a skill works, gems drop as loot, and spare gems can be fed into the ones you use. Design: "Gem model in detail" in the design notes.
 
