@@ -134,6 +134,23 @@ Status: ✅ done · ▶ next · ☐ later
   - a cast animation from the gallery
 - **Balance:** each Main gem should clear a par pack in about the same time (`npm run arena` with each on the bar).
 
+**How it's being built (Nov 2026).** A shared foundation first, then the gems in parallel, one branch each, merged and balanced together.
+- **Foundation (done):**
+  - `src/game/casts.js` maps gem id → cast function. Each new skill is its own module `src/game/sk/<gem>.js` exporting `{ cast, tick?, clear? }` and registered with one line in `MODS`; `tick(dt)` runs every game tick, `clear()` on map clear.
+  - Charges are generic: any `SK` entry with `charges` and `recharge` (Flame Dash's milestone and gear still add to its own).
+  - Milestones: newer gems read `S.mile[gemId]` (true at gem level 5 on the bar) instead of adding to the `MILESTONES` table.
+  - Arena bot is generic: press gems fire when enough monsters are in reach (`SK[...].bot = { range, crowd }`), Guard when monsters close in, Evade when one is on top of it at low life. `MAIN=<gem> npm run arena` swaps the Main gem.
+- **Parallel work packages:**
+
+  | Package | Gems | Slot | Notes |
+  |---|---|---|---|
+  | A | Frost Lance | Main | Held. Slow, piercing cold lance, big single hits |
+  | B | Raise Skeletons | Main | Press. Minions that follow and fight; monster AI pointed at monsters |
+  | C | Flame Totem, Meteor | Flex | Press. Totem casts at nearby monsters; Meteor is a delayed big area hit |
+  | D | Blink, Frost Ward | Evade, Guard | Blink teleports away from the nearest threat; Ward slows monsters near you |
+
+- **Then:** merge, fill the shrine lists (Main: Fireball, Frost Lance, Raise Skeletons; Flex: Arc, Frost Nova, Flame Totem, Meteor and any unused Main gem; Evade: Flame Dash, Blink; Guard: Magic Shield, Frost Ward), and balance with `MAIN=<gem> npm run arena` until every Main gem clears a par pack in about the same time.
+
 ## Step 3: Gems v2 ☐
 
 - **Support gems and sockets on the skill bar** (design notes: "Gem model in detail", skill bar table). The current passive notables become supports: Twin Flame, Searing Lance, Forked Sky, Shatter, Conduit, Ignite, Chain Reaction, Warding.

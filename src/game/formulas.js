@@ -11,7 +11,8 @@ export const flatScale = il => 1 + .22 * (il - 1), pctScale = il => 1 + .07 * (i
 
 // Base damage of a skill gem at a level (before flat spell damage from gear).
 export const gemBase = (lvl = 1) => GEM.base * Math.pow(GEM.grow, Math.min(GEM.cap, lvl) - 1);
-// Level 5 milestones of the gems on the bar ({ gemId: level }), added to the raw stat sums.
+// Level 5 milestones of the gems on the bar ({ gemId: level }), added to the raw stat sums. Newer gems skip this table and
+// read S.mile[gemId] (true when that gem is on the bar at its milestone level) in their own code.
 const MILESTONES = { fireball: s => s.pierce += 1, arc: s => s.chains += 2, nova: s => s.novaR += .25, shield: s => s.shieldPct += .25, dash: s => s.dashCh += 1 };
 
 // Derived stats from gear, passives, character level and the gems on the skill bar ({ gemId: level }).
@@ -24,7 +25,7 @@ export function computeStats(gear, passives = {}, lvl = 1, gems = {}) {
   const H = HERO, l = lvl - 1;
   return {
     maxLife: Math.max(20, Math.round((H.life + H.lifePer * l + s.lifeF) * (1 + s.lifePct))), maxMana: Math.round(H.mana + H.manaPer * l + s.manaF),
-    lregen: H.lregen + s.lregen, mregen: H.mregen + s.mregen, spell: H.spell + H.spellPer * l + s.spell, gems: Object.fromEntries(Object.entries(gems).map(([id, g]) => [id, gemBase(g)])), novaR: 1 + s.novaR, dmg: 1 + s.dmg, fire: s.fire, cold: s.cold, light: s.light,
+    lregen: H.lregen + s.lregen, mregen: H.mregen + s.mregen, spell: H.spell + H.spellPer * l + s.spell, gems: Object.fromEntries(Object.entries(gems).map(([id, g]) => [id, gemBase(g)])), mile: Object.fromEntries(Object.entries(gems).filter(([, g]) => g >= 5).map(([id]) => [id, true])), novaR: 1 + s.novaR, dmg: 1 + s.dmg, fire: s.fire, cold: s.cold, light: s.light,
     cast: 1 + s.cast, ms: H.ms * (1 + s.ms), crit: H.crit + s.crit, aoe: 1 + s.aoe, proj: 1 + s.proj, chains: H.chains + s.chains, lok: s.lok, mok: s.mok, pierce: s.pierce,
     dashMax: 1 + s.dashCh, shieldMul: 1 + s.shieldPct, freeze: 1 + s.freeze, dr: Math.min(.6, s.dr), blood: !!s.blood, ignite: !!s.ignite, shatter: !!s.shatter, conduit: !!s.conduit, chainboom: !!s.chainboom,
     burnGround: !!s.burnGround, storm: !!s.storm, autoNova: !!s.autoNova,

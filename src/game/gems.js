@@ -13,7 +13,7 @@ import { SFX } from '../core/audio.js';
 import { blocked } from '../world/map.js';
 import { xpNeedFor } from './formulas.js';
 import { recalc } from './stats.js';
-import { castFireball, castArc, castNova, castShield, castDash } from './skills.js';
+import { CAST } from './casts.js';
 
 export const gemById = id => P.gems.find(g => g.id === id) || null;
 export const unlocked = slot => P.lvl >= SLOT_DEFS[slot].unlock;
@@ -37,7 +37,9 @@ export function freshGems() {
 }
 
 const slotState = slot => P.cd[slot] || (P.cd[slot] = { cd: 0, ch: 0, t: 0 });
-function readySlot(slot) { const st = slotState(slot); st.cd = 0; st.t = 0; st.ch = S.dashMax; }
+// Charge gems (SK[...].charges, e.g. Flame Dash): how many charges the slot's gem holds. Flame Dash's milestone and gear add S.dashMax − 1.
+export function chargeMax(slot) { const g = barGem(slot), K = g && SK[GEMS[g.gem].sk]; return K && K.charges ? K.charges + (g.gem === 'dash' ? S.dashMax - 1 : 0) : 0; }
+function readySlot(slot) { const st = slotState(slot); st.cd = 0; st.t = 0; st.ch = chargeMax(slot); }
 export function readySlots() { for (const s of BAR) readySlot(s); }
 
 // Put gem `id` in `slot`. Moving a gem from another slot swaps the two when the other one fits there.
@@ -51,28 +53,20 @@ export function placeGem(id, slot) {
 export function clearSlot(slot) { P.bar[slot] = null; recalc(); }
 
 // ---- casting ----
-function cast(gem) {
-  switch (gem) {
-    case 'fireball': return castFireball();
-    case 'arc': return castArc();
-    case 'nova': return castNova();
-    case 'shield': return castShield();
-    case 'dash': return castDash();
-  }
-  return false;
-}
+const cast = gem => CAST[gem] ? CAST[gem]() : false;
 // Press gems: one cast per tap; holding the button recasts whenever it's ready.
 function tryPress(slot, g) {
   const st = slotState(slot), K = SK[GEMS[g.gem].sk];
   if (st.cd > 0) return;
-  if (g.gem === 'dash') { if (st.ch < 1 || !cast('dash')) return; st.ch--; return; }
+  if (K.charges) { if (st.ch < 1 || !cast(g.gem)) return; st.ch--; return; }
   if (cast(g.gem) && K.cd) st.cd = K.cd;
 }
 // Called every tick from updPlayer. fx: effort modifiers (cast speed).
 export function updSlots(dt, fx) {
   for (const slot of BAR) {
-    const st = slotState(slot); st.cd -= dt;
-    if (st.ch < S.dashMax) { st.t += dt; if (st.t >= SK.dash.recharge) { st.t = 0; st.ch++; } } else { st.t = 0; st.ch = S.dashMax; }
+    const st = slotState(slot), max = chargeMax(slot); st.cd -= dt; if (!max) continue;
+    const g = barGem(slot), K = SK[GEMS[g.gem].sk];
+    if (st.ch < max) { st.t += dt; if (st.t >= K.recharge) { st.t = 0; st.ch++; } } else { st.t = 0; st.ch = max; }
   }
   // Held gems share one cast timer; the first held button in bar order wins.
   if (P.castT <= 0) for (const slot of BAR) {

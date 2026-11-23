@@ -1,5 +1,5 @@
 // Balance arena: scripted fights with the real game code, one encounter at a time (no level runs).
-// Run `npm run build` first. Usage: npm run arena [-- maxTier]   (SEED=n changes the fixed random seed)
+// Run `npm run build` first. Usage: npm run arena [-- maxTier]   (SEED=n changes the fixed random seed; MAIN=gemId swaps the Main gem)
 // Each row is one fight at the tier's par level and par gear (src/data/balance.js) unless the row says otherwise.
 // The bot kites in circles, holds Fireball, novas when crowded and flasks at half life: a good player.
 // 'standing still' rows never kite: a careless player. Real play sits between the two.
@@ -7,7 +7,7 @@ import { preview } from 'vite';
 import puppeteer from 'puppeteer-core';
 import { existsSync } from 'node:fs';
 
-const maxTier = Number(process.argv[2]) || 5, SEED = Number(process.env.SEED) || 1234;
+const maxTier = Number(process.argv[2]) || 5, SEED = Number(process.env.SEED) || 1234, MAIN = process.env.MAIN || undefined;
 const chrome = process.env.CHROME_PATH || ['/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser', '/opt/pw-browsers/chromium'].find(existsSync);
 if (!chrome) { console.error('No Chrome found. Set CHROME_PATH.'); process.exit(1); }
 
@@ -40,14 +40,14 @@ try {
   await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.__dbg && window.__dbg.ready(), { timeout: 20000 });
   await page.evaluate(() => window.__dbg.start(true));
-  console.log('Watt Dungeon arena · real game code, scripted player · times in game seconds\n');
+  console.log(`Watt Dungeon arena · real game code, scripted player · times in game seconds${MAIN ? ' · Main gem: ' + MAIN : ''}\n`);
   console.log('tier lvl gear   encounter                     result   time   taken  lowest  flasks  starved');
   for (let t = 1; t <= maxTier; t++) {
     for (const enc of encounters(t, x => Math.round(x * (1 + .2 * (t - 1))))) {
-      const r = await page.evaluate((t, enc) => {
+      const r = await page.evaluate((t, enc, main) => {
         const D = window.__dbg, par = D.parLevel(t);
-        return { ...D.arena({ ...enc, tier: t, lvl: enc.under ? par - enc.under : undefined }), gear: enc.gear || D.parGear(t) };
-      }, t, enc);
+        return { ...D.arena({ ...enc, tier: t, main, lvl: enc.under ? par - enc.under : undefined }), gear: enc.gear || D.parGear(t) };
+      }, t, enc, MAIN);
       const bad = r.result !== 'clear' ? '  ✗' : '';
       console.log(`${String(t).padStart(4)} ${String(r.lvl).padStart(3)} ${r.gear.padEnd(6)} ${enc.name.padEnd(29)} ${r.result.padEnd(7)} ${(r.t + 's').padStart(6)} ${String(r.taken).padStart(6)} ${(Math.round(r.lowest * 100) + '%').padStart(7)} ${String(r.flasks).padStart(7)} ${(r.starved + 's').padStart(8)}${bad}`);
     }

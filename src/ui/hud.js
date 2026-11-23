@@ -48,8 +48,8 @@ function skillSlot(s, res) {
   }
   if (!D) { el.querySelector('.n').textContent = ''; el.querySelector('.cd').style.height = '0%'; el.classList.remove('nomana', 'act'); return; }
   el.classList.toggle('nomana', res < K.cost); el.classList.toggle('act', !!ctl[s]);
-  el.querySelector('.n').textContent = g.gem === 'dash' ? `${st.ch || 0}×` : K.cost;
-  const cd = g.gem === 'dash' ? (st.ch >= 1 ? 0 : 1 - (st.t || 0) / K.recharge) : K.cd ? Math.max(0, st.cd || 0) / K.cd : 0;
+  el.querySelector('.n').textContent = K.charges ? `${st.ch || 0}×` : K.cost;
+  const cd = K.charges ? (st.ch >= 1 ? 0 : 1 - (st.t || 0) / K.recharge) : K.cd ? Math.max(0, st.cd || 0) / K.cd : 0;
   el.querySelector('.cd').style.height = (cd * 100) + '%';
 }
 
