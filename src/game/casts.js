@@ -7,9 +7,11 @@ import { castFireball, castArc, castNova, castShield, castDash } from './skills.
 
 import blink from './sk/blink.js';
 import ward from './sk/ward.js';
+import totem from './sk/totem.js';
+import meteor from './sk/meteor.js';
 
 const MODS = {
-  blink, ward,
+  blink, ward, totem, meteor,
 };
 
 export const CAST = { fireball: castFireball, arc: () => castArc(), nova: () => castNova(), shield: castShield, dash: castDash };

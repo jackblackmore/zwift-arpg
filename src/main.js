@@ -114,7 +114,7 @@ requestAnimationFrame(frame);
   $('build').textContent = `v${B.version}${B.commit ? ' · ' + B.commit : ''} · built ${d.toLocaleString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`; }
 
 window.__dbg = {
-  G, P, S, ctl, Q, chars, ride, setRide,
+  G, P, S, ctl, Q, chars, ride, setRide, scene,
   ready: () => (chars.ready || chars.failed) && G.loaded, cycleQuality, cycleStyle,
   start: fresh => begin(fresh !== false),
   sim: n => { for (let i = 0; i < n; i++) { update(.033); updFx(.033); } },

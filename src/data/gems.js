@@ -7,6 +7,8 @@ export const GEMS = {
   fireball: { n: 'Fireball', kind: 'attack', held: 1, sk: 'fireball', elem: 'fire', icon: '✹', col: '#ff8a3c', d: 'Hurls a fireball that explodes on impact', ms: { 5: 'Pierces 1 enemy' } },
   arc: { n: 'Arc', kind: 'attack', held: 1, sk: 'arc', elem: 'light', icon: 'ϟ', col: '#c98bff', d: 'Lightning that chains between enemies', ms: { 5: '+2 chains' } },
   nova: { n: 'Frost Nova', kind: 'attack', held: 0, sk: 'nova', elem: 'cold', icon: '❄', col: '#7fd8ff', d: 'A ring of frost that damages and freezes everything around you', ms: { 5: '+25% radius' } },
+  totem: { n: 'Flame Totem', kind: 'attack', held: 0, sk: 'totem', elem: 'fire', icon: '♨', col: '#ff7a2a', d: 'Plants a totem that shoots fire bolts at the nearest monster for a few seconds', ms: { 5: 'Lasts 50% longer' } },
+  meteor: { n: 'Meteor', kind: 'attack', held: 0, sk: 'meteor', elem: 'fire', icon: '☄', col: '#ff5a1a', d: 'Calls a meteor down on the aimed spot: a big fire hit and burning ground', ms: { 5: '+30% radius' } },
   shield: { n: 'Magic Shield', kind: 'guard', held: 0, sk: 'shield', icon: '◎', col: '#7fb8ff', d: 'A barrier that absorbs damage for a few seconds', ms: { 5: 'Absorbs 25% more' } },
   blink: { n: 'Blink', kind: 'evade', held: 0, sk: 'blink', elem: 'cold', icon: '⇝', col: '#9fe8ff', d: 'Teleport away from the nearest threat, untouchable for a moment', ms: { 5: 'Leaves a frost burst behind that chills' } },
   ward: { n: 'Frost Ward', kind: 'guard', held: 0, sk: 'ward', elem: 'cold', icon: '❅', col: '#8fe0ff', d: 'A ring of frost around you: monsters inside are slowed and chilled, and you take less damage', ms: { 5: '+25% radius' } },
@@ -25,7 +27,7 @@ export const BAR = Object.keys(SLOT_DEFS);
 
 // Shrines: one per slot unlock, pick 1 of the offered gems. Guard is filled with Magic Shield automatically.
 // Flex shrines skip attack gems you already own while there are others to offer (Frost Lance and friends arrive in step 2).
-export const SHRINES = { main: ['fireball', 'arc', 'nova'], flexA: ['fireball', 'arc', 'nova'], flexB: ['fireball', 'arc', 'nova'], evade: ['dash', 'blink'], guard: ['ward'] };
+export const SHRINES = { main: ['fireball', 'arc', 'nova'], flexA: ['fireball', 'arc', 'nova', 'totem', 'meteor'], flexB: ['fireball', 'arc', 'nova', 'totem', 'meteor'], evade: ['dash', 'blink'], guard: ['ward'] };
 export const START_GUARD = 'shield';
 
 // Gem levels. Base damage = base × grow^(level − 1), for every gem (skill `mult` in data/skills.js scales it per skill).
