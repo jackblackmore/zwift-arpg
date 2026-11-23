@@ -24,8 +24,10 @@ import { PASS } from './data/passives.js';
 import { START_WEAPON, parLevel, PAR_GEAR } from './data/balance.js';
 import { arena } from './game/arena.js';
 import { kill } from './game/combat.js';
+import { spawnEnemy } from './game/enemies.js';
 import { castFireball, castArc, castNova, castDash, castShield } from './game/skills.js';
 import { dropItem } from './game/items.js';
+import * as skel from './game/sk/skeletons.js';
 import { hud } from './ui/hud.js';
 import { initPanels, syncPause, openInv, openPass, toggleInv, togglePass, toggleGems, openGems, openShrine, closeAll, equip } from './ui/panels.js';
 import { freshGems, readySlots, takeShrine, shrineDue, refreshShrine, placeGem, addGem } from './game/gems.js';
@@ -118,4 +120,5 @@ window.__dbg = {
   enemies: () => G.enemies, packs: () => G.packs, items: () => G.ground,
   arena, parLevel, parGear: PAR_GEAR, newMap, kill, dropItem, castFireball, castArc, castNova, castDash, castShield, openInv, openPass, openGems, openShrine, equip,
   takeShrine, shrineDue, placeGem, addGem, recalc, save, load, begin,
+  skel, minions: () => G.minions, spawnEnemy, // Raise Skeletons: skel.cast(), skel.cap(), skel.living()
 };

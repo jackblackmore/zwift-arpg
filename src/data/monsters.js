@@ -38,5 +38,5 @@ export const RAREAFF = { hasted: 'Hasted', fortified: 'Fortified', burning: 'Bur
 export const RN1 = ['Gut', 'Rot', 'Grim', 'Bile', 'Ash', 'Hollow', 'Mire', 'Dread', 'Blight', 'Cinder', 'Gloom', 'Wretch'];
 export const RN2 = ['maw', 'tooth', 'spine', 'gnaw', 'husk', 'grip', 'fang', 'skull', 'hide', 'bone'];
 
-// Boss ability rotation and timings.
-export const BOSS = { rotation: ['slam', 'nova', 'slam', 'summon'], abilGap: 3.8, abilGap2: 2.6, slamR: 2.9, novaBolts: 14, summon: 5, summon2: 7 };
+// Boss ability rotation and timings. vsMinion: damage multiplier on its swings and slams against minions (Raise Skeletons).
+export const BOSS = { vsMinion: 1.4, rotation: ['slam', 'nova', 'slam', 'summon'], abilGap: 3.8, abilGap2: 2.6, slamR: 2.9, novaBolts: 14, summon: 5, summon2: 7 };

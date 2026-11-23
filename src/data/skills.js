@@ -3,6 +3,17 @@ export const SK = {
   fireball: { cost: 7, cast: .55, speed: 17, life: .8, spread: .17, pierceMult: .8, radius: 1.9 },
   arc: { cost: 10, cast: .6, mult: .9, range: 11, chainRange: 5.5, shockChance: .3, shockT: 3 },
   nova: { cost: 18, cd: 6, radius: 4.2, mult: 1.4, freeze: 1.3, bot: { crowd: 2 } },
+  // Raise Skeletons: each cast raises one minion (game/sk/skeletons.js); at the cap a recast replaces the most hurt one if it's below `replace` life (else it does nothing, free).
+  //   cap: skeletons at once, +1 for each gem level in capAt (+1 more from the level 5 milestone). life: at gem level 1, × lifeGrow per level.
+  //   Hits are `mult` × the gem's base (physical: only generic % damage applies), every `atk` seconds (faster with cast speed).
+  //   They rise up to `raiseAt` toward your aim, can't act for `riseT` of their rise clip, chase awake monsters within `leash` of you, return when you're `leash` + 2 away, and jump back to you beyond `warp`.
+  skeletons: {
+    cost: 9, cd: .3, replace: .6, cap: 3, capAt: [8], life: 45, lifeGrow: 1.06, mult: 1.05, atk: 1.05, reach: .7, spd: 5.6, r: .32, h: 1.45, raiseAt: 3, riseT: .5,
+    leash: 10, follow: 2.2, warp: 24, bot: { range: 14 },
+    look: { kind: 'minion', weapon: 'blade', tint: 0xb8ffd8, glow: 0x0c3a26, walk: 'Running_A', idle: 'Skeletons_Idle', rise: 'floor',
+      attacks: [['Melee_1H_Attack_Chop', 1.9], ['Melee_1H_Attack_Stab', 1.9], ['Melee_1H_Attack_Slice_Diagonal', 1.8]] },
+    model: { col: 0x9adfc0, head: 0xd8ffe8, eye: 0x40ffb0, scale: .8 },
+  },
   // Magic Shield: absorbs `absorb` × max life (more with shieldPct) for `dur` seconds. The starting Guard skill.
   shield: { cost: 15, absorb: .35, dur: 5, cd: 10 },
   // Flame Dash: the first Evade gem (level 8 shrine). Gems with `charges` hold that many casts, recharging one per `recharge` seconds.

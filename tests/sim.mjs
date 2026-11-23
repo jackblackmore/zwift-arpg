@@ -256,6 +256,37 @@ try {
     check(errors.length === 0, `gems: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   }
 
+  // ---------- Raise Skeletons: the minion Main gem (src/game/sk/skeletons.js) ----------
+  {
+    const { page, errors } = await open('/');
+    const r = await page.evaluate(() => {
+      const D = window.__dbg, P = D.P, G = D.G, out = {};
+      D.start(true); D.takeShrine('main', 'skeletons'); document.getElementById('mShrine').classList.remove('show');
+      D.arena({ tier: 1, fight: [], maxT: .1, main: 'skeletons' }); // an open floor with no monsters
+      const sk = () => D.minions().filter(m => !m.deathT).length;
+      out.cap = D.skel.cap();
+      for (let i = 0; i < 8; i++) { P.mana = 100; D.ctl.tap.main = true; D.sim(12); }
+      out.raised = sk(); out.capped = out.raised === out.cap;
+      P.mana = 30; D.ctl.tap.main = true; D.sim(1); out.manaKept = P.mana >= 30 && sk() === out.cap; // at the cap with a healthy army a recast is free
+      // A zombie walks in: the skeletons kill it, and the kill counts for the player.
+      const k0 = P.kills, z = D.spawnEnemy('zombie', P.x + 5, P.z, null, 0); z.awake = true;
+      let t = 0; while (!z.deathT && t < 900) { D.sim(10); t += 10; }
+      out.killed = !!z.deathT; out.killT = Math.round(t * .033 * 10) / 10; out.kills = P.kills - k0;
+      out.hurtOne = D.minions().some(m => m.hp < m.maxHp); // it swung at a skeleton before dying
+      out.rigged = D.minions().every(m => m.model.rigged === D.chars.ready);
+      D.newMap(1); out.cleared = D.minions().length === 0;
+      return out;
+    });
+    console.log('  skeletons:', JSON.stringify(r));
+    check(r.cap === 3 && r.capped, `skeletons: raising respects the cap (${r.raised} of ${r.cap})`);
+    check(r.manaKept, 'skeletons: recasting with a full, healthy army costs nothing');
+    check(r.killed && r.kills === 1, `skeletons: minions kill a monster on their own and the kill counts (${r.killT}s)`);
+    check(r.hurtOne, 'skeletons: monsters in reach attack the minions');
+    check(r.rigged, 'skeletons: minions use the rigged skeleton when characters loaded');
+    check(r.cleared, 'skeletons: minions are cleared with the map');
+    check(errors.length === 0, `skeletons: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
+  }
+
   // ---------- ARPG in RIDE mode (simulated Zwift Ride + KICKR) ----------
   {
     const { page, errors } = await open('/');
