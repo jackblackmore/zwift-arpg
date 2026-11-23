@@ -24,12 +24,12 @@ export function aim() {
 
 export function castFireball() {
   const F = SK.fireball; if (!pay(F.cost)) return false;
-  const [ax, az] = aim(), base = Math.atan2(ax - P.x, az - P.z), n = S.proj;
+  const [ax, az] = aim(), base = Math.atan2(ax - P.x, az - P.z), k = S.sk.fireball, n = k.proj;
   P.face = base; P.castAnim = .22; P.castSeq++; P.lastCast = 'shoot';
   for (let i = 0; i < n; i++) {
-    const a = base + (i - (n - 1) / 2) * F.spread, g = new T.Group(); g.add(glowSprite(0xff6a1a, 1.4), glowSprite(0xffe0a0, .55));
+    const a = base + (i % 2 ? 1 : -1) * Math.ceil(i / 2) * F.spread, g = new T.Group(); // the first flies at the aim point, extras fan out either side g.add(glowSprite(0xff6a1a, 1.4), glowSprite(0xffe0a0, .55));
     g.position.set(P.x + Math.sin(a) * .7, 1.2, P.z + Math.cos(a) * .7); scene.add(g);
-    G.proj.push({ x: g.position.x, z: g.position.z, dx: Math.sin(a), dz: Math.cos(a), sp: F.speed, life: F.life, pierce: S.pierce, hitS: new Set(), g, storm: false });
+    G.proj.push({ x: g.position.x, z: g.position.z, dx: Math.sin(a), dz: Math.cos(a), sp: F.speed, life: F.life, pierce: k.pierce, hitS: new Set(), g, storm: false });
   }
   P.fbN++; if (S.storm && P.fbN % 4 === 0) G.proj[G.proj.length - 1].storm = true;
   SFX.fire(); return true;
@@ -48,10 +48,10 @@ export function castArc(fx = P.x, fz = P.z, free = false) {
     if (!free) { const L = Math.min(6, dist(tx, tz, fx, fz)), a = Math.atan2(tx - fx, tz - fz); pts.push({ x: fx + Math.sin(a) * L, z: fz + Math.cos(a) * L }); boltFx(pts, 0xb06bff); SFX.arc(); }
     return true;
   }
-  const hitS = new Set(); let cur = first;
-  for (let k = 0; k <= S.chains && cur; k++) {
+  const hitS = new Set(), K = S.sk.arc; let cur = first;
+  for (let k = 0; k <= K.chains && cur; k++) {
     hitS.add(cur); pts.push({ x: cur.x, z: cur.z });
-    hit(cur, A.mult, 'light', { gem: 'arc' }); if (S.conduit || Math.random() < A.shockChance) cur.shock = A.shockT;
+    hit(cur, A.mult, 'light', { gem: 'arc' }); if (K.conduit || Math.random() < A.shockChance) { cur.shock = A.shockT; cur.conduit = K.conduit; }
     for (let i = 0; i < 4; i++) emit(sparks, cur.x, 1.1, cur.z, rand(-4, 4), rand(1, 4), rand(-4, 4), .3, 0xe0c8ff, 4, 2);
     let nx = null, nd = A.chainRange; const c = cur;
     near(c.x, c.z, A.chainRange, e => { if (hitS.has(e)) return; const d = dist(e.x, e.z, c.x, c.z); if (d < nd) { nd = d; nx = e; } });
@@ -63,10 +63,10 @@ export function castArc(fx = P.x, fz = P.z, free = false) {
 export function castNova(free = false) {
   const N = SK.nova;
   if (!free) { if (!pay(N.cost)) return false; P.castAnim = .25; P.castSeq++; P.lastCast = 'nova'; }
-  const r = N.radius * S.aoe * S.novaR;
+  const K = S.sk.nova, r = N.radius * S.aoe * K.novaR;
   near(P.x, P.z, r, e => {
     const d = dist(e.x, e.z, P.x, P.z) || 1; hit(e, N.mult, 'cold', { gem: 'nova', kx: (e.x - P.x) / d, kz: (e.z - P.z) / d });
-    if (!e.deathT) { if (e.type === 'boss') e.chill = 3; else e.freeze = N.freeze * S.freeze; }
+    if (!e.deathT) { if (e.type === 'boss') e.chill = 3; else { e.freeze = N.freeze * S.freeze; e.shatter = K.shatter; } }
   });
   ringFx(P.x, P.z, r, 0x9fe8ff, .45, .1); ringFx(P.x, P.z, r * .7, 0xffffff, .3, .1); flashFx(P.x, .6, P.z, 0x7fd8ff, r * 2.2, .35);
   for (let i = 0; i < 60; i++) { const a = rand(0, 6.28), s = rand(5, 11) * S.aoe; emit(sparks, P.x, rand(.3, 1.2), P.z, Math.cos(a) * s, rand(0, 2), Math.sin(a) * s, rand(.35, .5), pick([0xbff0ff, 0xffffff, 0x7fd8ff]), 2, 3); }
@@ -75,7 +75,7 @@ export function castNova(free = false) {
 
 export function castShield() {
   const H = SK.shield; if (!pay(H.cost)) return false;
-  P.shield = S.maxLife * H.absorb * S.shieldMul; P.shieldT = H.dur;
+  P.shield = S.maxLife * H.absorb * S.sk.shield.shieldMul; P.shieldT = H.dur;
   P.castAnim = .2; P.castSeq++; P.lastCast = 'shield';
   ringFx(P.x, P.z, 1.3, 0x7fb8ff, .35, .1); flashFx(P.x, 1, P.z, 0x7fb8ff, 3, .3);
   for (let i = 0; i < 24; i++) { const a = rand(0, 6.28); emit(glows, P.x + Math.cos(a) * .9, rand(.2, 1.8), P.z + Math.sin(a) * .9, 0, rand(.3, 1), 0, rand(.3, .6), 0x9fc8ff); }

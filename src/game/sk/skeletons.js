@@ -20,7 +20,7 @@ import { aim } from '../skills.js';
 
 const K = SK.skeletons;
 const lvl = () => barLevels().skeletons || 1;
-export const cap = () => { const l = lvl(); return K.cap + K.capAt.filter(a => l >= a).length + (S.mile && S.mile.skeletons ? 1 : 0); };
+export const cap = () => { const l = lvl(); return K.cap + K.capAt.filter(a => l >= a).length + (S.mile && S.mile.skeletons ? 1 : 0) + ((S.sk && S.sk.skeletons.army) || 0); };
 export const living = () => G.minions.filter(m => !m.deathT);
 
 function raise(x, z) {

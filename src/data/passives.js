@@ -1,5 +1,5 @@
 // Passive skills offered on level up (pick 1 of 3). note: 1 = notable, 2 = keystone (rarer).
-// gem: only offered once you own that skill gem. fn(s, n) adds n stacks to the raw stat sums in game/stats.js computeStats.
+// The notables that changed one skill are support gems now (data/gems.js SUPPORTS). fn(s, n) adds n stacks to the raw stat sums in game/stats.js computeStats.
 export const PASS = {
   pyre: { n: 'Pyromancy', d: '+15% fire damage', max: 5, c: '#ff8a3c', fn: (s, n) => s.fire += .15 * n },
   rime: { n: 'Rime', d: '+15% cold damage and +15% freeze duration', max: 5, c: '#7fd8ff', fn: (s, n) => { s.cold += .15 * n; s.freeze += .15 * n; } },
@@ -12,13 +12,5 @@ export const PASS = {
   crit: { n: 'Precision', d: '+5% critical strike chance', max: 4, c: '#ffffff', fn: (s, n) => s.crit += .05 * n },
   vast: { n: 'Magnitude', d: '+15% area of effect', max: 4, c: '#ffb070', fn: (s, n) => s.aoe += .15 * n },
   hunger: { n: 'Soul Hunger', d: 'Gain 3 life and 2 mana per kill', max: 3, c: '#ff6a8a', fn: (s, n) => { s.lok += 3 * n; s.mok += 2 * n; } },
-  multi: { gem: 'fireball', n: 'Twin Flame', d: 'Fireball fires +1 projectile', max: 2, note: 1, c: '#ff8a3c', fn: (s, n) => s.proj += n },
-  pierce: { gem: 'fireball', n: 'Searing Lance', d: 'Fireball pierces +1 enemy before exploding', max: 2, note: 1, c: '#ff8a3c', fn: (s, n) => s.pierce += n },
-  chain: { gem: 'arc', n: 'Forked Sky', d: 'Arc chains +2 more times', max: 3, note: 1, c: '#c98bff', fn: (s, n) => s.chains += 2 * n },
-  ward: { gem: 'shield', n: 'Warding', d: 'Magic Shield absorbs 30% more', max: 2, note: 1, c: '#7fb8ff', fn: (s, n) => s.shieldPct += .3 * n },
-  ignite: { gem: 'fireball', n: 'Ignite', d: 'Fireball explosions burn enemies for 60% of the hit over 3s', max: 1, note: 1, c: '#ff5a2a', fn: s => s.ignite = 1 },
-  shatter: { gem: 'nova', n: 'Shatter', d: 'Frozen enemies explode on death, freezing and damaging foes nearby', max: 1, note: 1, c: '#7fd8ff', fn: s => s.shatter = 1 },
-  conduit: { gem: 'arc', n: 'Conduit', d: 'Arc always shocks. Shocked enemies take 35% more damage', max: 1, note: 1, c: '#c98bff', fn: s => s.conduit = 1 },
-  inferno: { gem: 'fireball', n: 'Chain Reaction', d: 'Enemies killed by fire have a 30% chance to explode', max: 1, note: 1, c: '#ff5a2a', fn: s => s.chainboom = 1 },
   blood: { n: 'Blood Magic', d: 'KEYSTONE · Skills cost life instead of mana. +25% damage, +30% life', max: 1, note: 2, c: '#ff3030', fn: s => { s.blood = 1; s.dmg += .25; s.lifePct += .3; } },
 };

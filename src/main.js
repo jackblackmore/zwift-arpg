@@ -26,13 +26,14 @@ import { START_WEAPON, parLevel, parBar, PAR_GEAR } from './data/balance.js';
 import { arena } from './game/arena.js';
 import { kill, hurtP } from './game/combat.js';
 import { castFireball, castArc, castNova, castDash, castShield } from './game/skills.js';
-import { dropItem } from './game/items.js';
+import { dropItem, dropGem, pickUp } from './game/items.js';
 import * as skel from './game/sk/skeletons.js';
 import { hud } from './ui/hud.js';
 import { initPanels, syncPause, openInv, openPass, toggleInv, togglePass, toggleGems, openGems, openShrine, closeAll, equip } from './ui/panels.js';
 import { CAST } from './game/casts.js';
-import { freshGems, readySlots, takeShrine, shrineDue, refreshShrine, placeGem, addGem } from './game/gems.js';
-import { GEMS, SLOT_DEFS } from './data/gems.js';
+import { freshGems, readySlots, takeShrine, shrineDue, refreshShrine, placeGem, addGem, socketGem, unsocket, feedGem, feedPreview, sockCount } from './game/gems.js';
+import { GEMS, SUPPORTS, SLOT_DEFS, OLD_NOTABLES } from './data/gems.js';
+import { toast } from './render/fx.js';
 
 function begin(fresh) {
   audio();
@@ -42,15 +43,21 @@ function begin(fresh) {
     P.gear.weapon = { ...START_WEAPON, id: G.itemId++, mods: START_WEAPON.mods.map(m => [...m]) };
     freshGems(); newMap(1); save();
   } else {
-    Object.assign(P, { lvl: sv.lvl, xp: sv.xp, gear: sv.gear || {}, inv: sv.inv || [], passives: Object.fromEntries(Object.entries(sv.passives || {}).filter(([k]) => PASS[k])), pts: sv.pts || 0, offer: null });
+    Object.assign(P, { lvl: sv.lvl, xp: sv.xp, gear: sv.gear || {}, inv: sv.inv || [], passives: Object.fromEntries(Object.entries(sv.passives || {}).filter(([k]) => PASS[k])), pts: sv.pts || 0, offer: null, newGems: 0 });
     G.itemId = sv.itemId || 100;
     // Saves from before gems have none: treat them as a fresh character for gems (the Main shrine is offered now).
     if (Array.isArray(sv.gems) && sv.gems.length) {
-      Object.assign(P, { gems: sv.gems.filter(g => GEMS[g.gem]), bar: {}, cd: {}, shrined: sv.shrined || {} });
+      Object.assign(P, { gems: sv.gems.filter(g => GEMS[g.gem] || SUPPORTS[g.gem]), bar: {}, cd: {}, shrined: sv.shrined || {} });
       if (!P.gems.some(g => g.gem === 'ward')) delete P.shrined.guard; // saves from before the Frost Ward shrine
-      for (const s in sv.bar || {}) if (SLOT_DEFS[s] && P.gems.some(g => g.id === sv.bar[s])) P.bar[s] = sv.bar[s];
+      for (const s in sv.bar || {}) if (SLOT_DEFS[s] && P.gems.some(g => g.id === sv.bar[s] && GEMS[g.gem])) P.bar[s] = sv.bar[s];
+      P.sock = {};
+      for (const s in sv.sock || {}) if (SLOT_DEFS[s]) P.sock[s] = (sv.sock[s] || []).map(id => P.gems.some(g => g.id === id && SUPPORTS[g.gem]) ? id : null);
       recalc(); readySlots();
     } else freshGems();
+    // Saves from before support gems: the notable passives that became supports give their points back, and the gem.
+    const moved = Object.entries(sv.passives || {}).filter(([k]) => OLD_NOTABLES[k] && !PASS[k]);
+    for (const [k, n] of moved) { P.pts += n; if (!P.gems.some(g => g.gem === OLD_NOTABLES[k])) addGem(OLD_NOTABLES[k]); }
+    if (moved.length) { P.newGems = moved.length; toast(`<b style="color:#ffd23f">Notable passives are support gems now</b> · ${moved.length} point${moved.length > 1 ? 's' : ''} back (P) and the gems are in your bag (G)`); }
     newMap(sv.tier || 1);
   }
   G.started = true; $('mMenu').classList.remove('show'); syncPause();
@@ -121,6 +128,6 @@ window.__dbg = {
   sim: n => { for (let i = 0; i < n; i++) { update(.033); updFx(.033); } },
   enemies: () => G.enemies, packs: () => G.packs, items: () => G.ground,
   arena, parLevel, parBar, parGear: PAR_GEAR, newMap, kill, dropItem, castFireball, castArc, castNova, castDash, castShield, openInv, openPass, openGems, openShrine, equip,
-  takeShrine, shrineDue, placeGem, addGem, recalc, save, load, begin, CAST, blocked, spawnEnemy, hurtP, cast: id => CAST[id](),
+  takeShrine, shrineDue, placeGem, addGem, socketGem, unsocket, feedGem, feedPreview, sockCount, dropGem, pickUp, PASS, GEMS, SUPPORTS, recalc, save, load, begin, CAST, blocked, spawnEnemy, hurtP, cast: id => CAST[id](),
   skel, minions: () => G.minions, // Raise Skeletons: skel.cast(), skel.cap(), skel.living()
 };

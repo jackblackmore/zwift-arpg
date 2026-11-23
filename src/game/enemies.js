@@ -268,4 +268,5 @@ export function separate() {
     const dx = e.x - P.x, dz = e.z - P.z, dd = Math.hypot(dx, dz), m = e.r + P.r;
     if (dd < m && dd > .001 && P.dead <= 0) { const p = m - dd; e.x += dx / dd * p * .7; e.z += dz / dd * p * .7; P.x -= dx / dd * p * .3; P.z -= dz / dd * p * .3; }
   }
+  if (P.dead <= 0) pushOut(P); // a crowd can shove the hero: keep them out of walls and props
 }

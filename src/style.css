@@ -36,6 +36,12 @@ button.glow{border-color:#ffd23f;box-shadow:0 0 12px #ffd23f99;animation:gl 1s e
 .sk.locked{opacity:.45;font-size:16px;cursor:default}.sk.locked .lv{color:var(--dim)}
 .sk.empty{color:var(--dim);font-size:20px}
 #gemBar{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.gcol{display:flex;flex-direction:column;gap:4px;min-width:0}
+.socks{display:flex;gap:3px;justify-content:center;flex-wrap:wrap}
+.cell.scell{width:30px;height:30px;aspect-ratio:auto;font-size:16px;border-radius:50%;color:var(--dim)}
+.cell.scell.off{opacity:.45;text-decoration:line-through}
+.cell.scell.locked{font:700 8px 'JetBrains Mono';opacity:.4;cursor:default}
+.cell.gcell.sup{border-style:dashed}
 #gemBag{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;margin-bottom:10px}
 @media (max-width:640px){#gemBag{grid-template-columns:repeat(5,1fr)}}
 .cell.gcell{font-size:28px;flex-direction:column;aspect-ratio:auto;height:64px}

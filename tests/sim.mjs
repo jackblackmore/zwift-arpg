@@ -233,7 +233,7 @@ try {
       window.__dbg.kill({ deathT: 0, x: P.x, z: P.z, xp: 30, rar: 0, type: 'zombie', aff: [], freeze: 0, h: 1, model: { g: {} } });
       out.barXp = arc.xp + arc.lvl * 1e4 - before.arc; out.bagXp = spare.xp - before.spare;
       // Level 5 milestone: Fireball pierces 1 more.
-      const c0 = S.pierce; arc.lvl = 5; D.recalc(); out.pierceGain = S.pierce - c0;
+      const c0 = S.sk.fireball.pierce; arc.lvl = 5; D.recalc(); out.pierceGain = S.sk.fireball.pierce - c0;
       // Save round-trip.
       D.save(); const sv = D.load();
       out.saved = sv.bar && sv.bar.main === P.bar.main && sv.gems.length === P.gems.length && sv.shrined.flexA === 1;
@@ -254,6 +254,87 @@ try {
     check(r.saved && r.loaded, 'gems: saves round-trip the skill bar and the gem bag');
     check(r.oldSave, 'gems: an old save without gems gets Magic Shield and the Main shrine');
     check(errors.length === 0, `gems: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
+  }
+
+  // ---------- Gems v2: support gems and sockets, gem drops, feeding (step 3) ----------
+  {
+    const { page, errors } = await open('/');
+    const r = await page.evaluate(() => {
+      const D = window.__dbg, P = D.P, S = D.S, G = D.G, out = {};
+      D.start(true); P.shrined.guard = 1; D.takeShrine('main', 'fireball'); document.getElementById('mShrine').classList.remove('show');
+      P.lvl = 5; P.shrined.flexA = 1; D.recalc();
+      const fb = P.gems.find(g => g.id === P.bar.main), arc = D.addGem('arc'); D.placeGem(arc.id, 'flexA');
+      out.socks = [D.sockCount('main'), D.sockCount('flexA'), D.sockCount('flexB'), D.sockCount('main', 15)].join(',');
+      const base = { proj: S.sk.fireball.proj, chains: S.sk.arc.chains, pierce: S.sk.fireball.pierce };
+      // Twin Flame fits Fireball, not Arc; socketed with Fireball it changes Fireball only.
+      const tw = D.addGem('twin');
+      out.twinOnArc = D.socketGem(tw.id, 'flexA');
+      out.twinOnFb = D.socketGem(tw.id, 'main');
+      out.afterTwin = { proj: S.sk.fireball.proj - base.proj, chains: S.sk.arc.chains - base.chains };
+      const fk = D.addGem('forked'); out.forkedOnFb = D.socketGem(fk.id, 'main'); out.forkedOnArc = D.socketGem(fk.id, 'flexA');
+      out.afterForked = { proj: S.sk.fireball.proj - base.proj, chains: S.sk.arc.chains - base.chains, pierce: S.sk.fireball.pierce - base.pierce };
+      // The real cast: two fireballs leave the staff.
+      G.proj.length = 0; P.mana = S.maxMana; D.castFireball(); out.shots = G.proj.length;
+      // Socketed supports earn full XP, like the gem they support.
+      const x0 = { fb: fb.xp, tw: tw.xp };
+      D.kill({ deathT: 0, x: P.x, z: P.z, xp: 30, rar: 0, type: 'zombie', aff: [], freeze: 0, h: 1, model: { g: {} } });
+      out.supXp = tw.xp - x0.tw === fb.xp - x0.fb && tw.xp > x0.tw;
+      // Saves round-trip the sockets.
+      D.save(); const sv = D.load(); out.savedSock = sv.sock && sv.sock.main[0] === tw.id && sv.sock.flexA[0] === fk.id;
+      D.begin(false); document.getElementById('mShrine').classList.remove('show');
+      out.loaded = S.sk.fireball.proj === base.proj + 1 && S.sk.arc.chains === base.chains + 2;
+      // Old saves: notable passives that became supports give the points back and the gem (once).
+      const old = D.load(); old.passives = { multi: 2, inferno: 1, pyre: 1 }; old.pts = 0; localStorage.setItem('wd-arpg-1', JSON.stringify(old));
+      D.begin(false); document.getElementById('mShrine').classList.remove('show');
+      out.refund = P.pts === 3 && P.passives.pyre === 1 && !P.passives.multi && P.gems.filter(g => g.gem === 'twin').length === 1 && P.gems.some(g => g.gem === 'chainboom');
+      out.noNotables = !['multi', 'pierce', 'chain', 'ward', 'ignite', 'shatter', 'conduit', 'inferno'].some(k => D.PASS[k]);
+      // A guardian always drops a gem; walking over it puts it in the gem bag.
+      const n0 = P.gems.length, boss = D.spawnEnemy('boss', P.x + 3, P.z, null, 0); D.kill(boss);
+      const gd = G.ground.find(d => d.gem); out.bossGem = !!gd && (gd.gem.lvl >= 1);
+      D.sim(40); if (gd) { P.x = gd.x; P.z = gd.z; D.sim(2); }
+      out.pickedGem = P.gems.length === n0 + 1 && P.newGems > 0 && gd && P.gems[P.gems.length - 1].gem === gd.gem.gem;
+      // Feeding: a duplicate goes in at 100% and is used up; your last copy of a gem stays behind at level 1.
+      const bar = P.gems.find(g => g.id === P.bar.flexA), tot = g => { let n = g.xp; for (let l = 1; l < g.lvl; l++) n += 40 * Math.pow(l, 1.55) | 0; return n; };
+      const dup = D.addGem('arc', 3), t0 = tot(bar) , give = tot(dup), cnt = P.gems.length;
+      const f1 = D.feedGem(dup.id, bar.id);
+      out.feedDup = !!f1 && f1.share === 1 && !f1.last && P.gems.length === cnt - 1 && Math.abs(f1.gain - give) < 2 && bar.lvl >= 2;
+      const met = D.addGem('meteor', 3), f0 = P.gems.find(g => g.id === P.bar.main), before = f0.lvl * 1e5 + f0.xp;
+      const f2 = D.feedGem(met.id, f0.id);
+      out.feedLast = !!f2 && f2.last && f2.share === .5 && P.gems.includes(met) && met.lvl === 1 && met.xp === 0 && f0.lvl * 1e5 + f0.xp > before;
+      out.feedEmpty = D.feedPreview(met.id, f0.id) === null;            // a fresh level 1 gem has nothing to give
+      out.feedBar = D.feedPreview(f0.id, bar.id) === null;              // only spare gems can be fed
+      out.feedOther = D.feedPreview(D.addGem('ward', 2).id, f0.id).share === .25; // guard into attack: different kind
+      // Every support, socketed with a gem it fits, casts cleanly and shows up in that skill's stats.
+      P.lvl = 12; D.recalc(); const bad = [];
+      for (const [sup, def] of Object.entries(D.SUPPORTS)) {
+        const gem = def.for[0], slot = D.GEMS[gem].kind === 'guard' ? 'guard' : D.GEMS[gem].kind === 'evade' ? 'evade' : 'flexB';
+        const g = D.addGem(gem, 3), sg = D.addGem(sup); D.placeGem(g.id, slot);
+        if (!D.socketGem(sg.id, slot) || !D.S.sk[gem].sup.includes(sup)) { bad.push(sup + ':socket'); continue; }
+        const k = S.sk[gem]; if ({ split: !k.split, volley: !k.volley, twinmeteor: !k.twin, lingering: k.dur !== 1.5, quickstep: k.ch !== 1, army: k.army !== 1 }[sup]) bad.push(sup + ':stats');
+        P.mana = S.maxMana; P.life = S.maxLife; D.spawnEnemy('zombie', P.x + 3, P.z, null, 0).awake = true; D.ctl.aim = [P.x + 3, P.z];
+        try { D.cast(gem); D.sim(20); } catch (e) { bad.push(sup + ':' + e.message); }
+      }
+      out.allSupports = bad.join(',') || 'ok';
+      D.ctl.aim = null;
+      // The gem panel shows sockets and lists supports in the bag.
+      D.openGems(true); out.panel = document.querySelectorAll('#gemBar .scell').length >= 2 && !!document.querySelector('#gemBar .scell[data-s="main"]'); D.openGems(false);
+      return out;
+    });
+    console.log('  gems v2:', JSON.stringify(r));
+    check(r.socks === '1,1,0,2', `gems v2: sockets per slot at level 5: Main 1, Flex A 1, locked Flex B 0; Main 2 at level 15 (${r.socks})`);
+    check(!r.twinOnArc && r.twinOnFb && r.afterTwin.proj === 1 && r.afterTwin.chains === 0, `gems v2: Twin Flame only fits Fireball and adds a projectile to it alone (${JSON.stringify(r.afterTwin)})`);
+    check(!r.forkedOnFb && r.forkedOnArc && r.afterForked.chains === 2 && r.afterForked.proj === 1 && r.afterForked.pierce === 0, `gems v2: Forked Sky in Flex A changes Arc only (${JSON.stringify(r.afterForked)})`);
+    check(r.shots === 2, `gems v2: a Fireball with Twin Flame fires 2 projectiles (${r.shots})`);
+    check(r.supXp, 'gems v2: a socketed support earns the same XP as its skill gem');
+    check(r.savedSock && r.loaded, 'gems v2: supports and sockets round-trip through saves');
+    check(r.refund && r.noNotables, 'gems v2: old notable passives are gone from the cards; old saves get the points back and the support gems');
+    check(r.bossGem && r.pickedGem, 'gems v2: a guardian drops a gem, and walking over it adds it to the gem bag');
+    check(r.feedDup, 'gems v2: feeding a duplicate moves 100% of its XP and uses it up');
+    check(r.feedLast && r.feedEmpty, 'gems v2: feeding your last copy moves 50% (same kind) and leaves a level 1 copy');
+    check(r.feedBar && r.feedOther, 'gems v2: gems in use can\'t be fed; a different kind gives 25%');
+    check(r.allSupports === 'ok', `gems v2: every support sockets with its gem, changes that skill's stats and casts without errors (${r.allSupports})`);
+    check(r.panel, 'gems v2: the gem panel shows the sockets');
+    check(errors.length === 0, `gems v2: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   }
 
   // ---------- Skill gems: Blink (Evade) and Frost Ward (Guard) ----------

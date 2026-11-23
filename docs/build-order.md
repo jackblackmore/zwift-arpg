@@ -11,8 +11,8 @@ Status: ✅ done · ▶ next · ☐ later
 | 0 | First balance pass and balance tools (`npm run balance`, `npm run arena`) | ✅ |
 | 1 | Gems v1: skill bar, gem-only skills, shrines, gem levels | ✅ |
 | 2 | More skills: Frost Lance, Raise Skeletons, Blink, Flex and Guard options | ✅ |
-| 3 | Gems v2: support gems, sockets, guardian gem drops, feeding | ▶ |
-| 4 | Passive tree (replaces the level-up card draft) | ☐ |
+| 3 | Gems v2: support gems, sockets, guardian gem drops, feeding | ✅ |
+| 4 | Passive tree (replaces the level-up card draft) | ▶ |
 | 5 | Defence: armour, resistances, typed monster damage | ☐ |
 | 6 | Gear rework: affixes and uniques for the new stat sheet | ☐ |
 | 7 | Balance pass 2: the whole character, every Crypt tier | ☐ |
@@ -153,7 +153,10 @@ Status: ✅ done · ▶ next · ☐ later
 
 - **Then:** merge, fill the shrine lists (Main: Fireball, Frost Lance, Raise Skeletons; Flex: Arc, Frost Nova, Flame Totem, Meteor and any unused Main gem; Evade: Flame Dash, Blink; Guard: Magic Shield, Frost Ward), and balance with `MAIN=<gem> npm run arena` until every Main gem clears a par pack in about the same time.
 
-## Step 3: Gems v2 ▶
+## Step 3: Gems v2 ✅
+
+**Done (Nov 2026).** What was built and the balance results are under "Built: gems v2, step 3" in the design notes. The brief below is kept for reference.
+
 
 **Goal:** support gems change how a skill works, gems drop as loot, and spare gems can be fed into the ones you use. Design: "Gem model in detail" in the design notes.
 
@@ -175,7 +178,7 @@ Status: ✅ done · ▶ next · ☐ later
 3. **Balance:** the tools' par bar gains par supports (`parBar` in `src/data/balance.js`). Losing the notable passives makes level-up cards weaker; that's fine until the tree (step 4) replaces them.
 4. **Tests:** socketing a support changes only its own skill; supports round-trip through saves; a guardian drops a gem; feeding moves XP and never deletes your last copy.
 
-## Step 4: Passive tree ☐
+## Step 4: Passive tree ▶
 
 - **The tree:**
   - small (60–80 nodes) and readable on a phone; replaces the pick-1-of-3 level-up cards

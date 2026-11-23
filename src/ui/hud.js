@@ -26,7 +26,7 @@ export function hud(dt) {
   for (const s of BAR) skillSlot(s, res);
   $('sFl').querySelector('.n').textContent = Math.floor(P.flask); $('sFl').querySelector('.cd').style.height = P.flask < SK.flask.max ? (100 - (P.flask % 1) * 100) + '%' : '0%';
   const ib = $('invBadge'); ib.style.display = P.newItems ? 'block' : 'none'; ib.textContent = P.newItems;
-  $('bGems').classList.toggle('glow', BAR.some(s => unlocked(s) && !barGem(s)) && P.gems.some(g => !BAR.some(s => P.bar[s] === g.id)));
+  $('bGems').classList.toggle('glow', P.newGems > 0 || (BAR.some(s => unlocked(s) && !barGem(s)) && P.gems.some(g => !BAR.some(s => P.bar[s] === g.id))));
   const pb = $('passBadge'); pb.style.display = P.pts ? 'block' : 'none'; pb.textContent = P.pts; $('bPass').classList.toggle('glow', P.pts > 0);
   const boss = G.bossSpec && G.bossSpec.e; if (boss && !boss.deathT) $('bossHp').style.width = (boss.hp / boss.maxHp * 100) + '%';
   rideHud(slotLook);
@@ -63,7 +63,7 @@ function minimap() {
     const s = e.type === 'boss' ? 12 : e.rar === 2 ? 7 : 4; mmc.fillRect(X(e.x) - s / 2, X(e.z) - s / 2, s, s);
   }
   if (G.bossSpec && !G.bossSpec.spawned && seen(G.bossSpot.x, G.bossSpot.z)) { mmc.fillStyle = '#ff4fd8'; mmc.beginPath(); mmc.arc(X(G.bossSpot.x), X(G.bossSpot.z), 7, 0, 7); mmc.fill(); }
-  for (const d of G.ground) if (d.it.rar >= 2 && seen(d.x, d.z)) { mmc.fillStyle = RCSS[d.it.rar]; mmc.fillRect(X(d.x) - 3, X(d.z) - 3, 6, 6); }
+  for (const d of G.ground) if (d.it.rar >= 2 && seen(d.x, d.z)) { mmc.fillStyle = d.it.col || RCSS[d.it.rar]; mmc.fillRect(X(d.x) - 3, X(d.z) - 3, 6, 6); }
   if (G.portal) { mmc.strokeStyle = '#b06bff'; mmc.lineWidth = 3; mmc.beginPath(); mmc.arc(X(G.portal.x), X(G.portal.z), 8, 0, 7); mmc.stroke(); }
   mmc.save(); mmc.translate(X(P.x), X(P.z)); mmc.rotate(-P.face + Math.PI); mmc.fillStyle = '#fff';
   mmc.beginPath(); mmc.moveTo(0, -9); mmc.lineTo(6, 6); mmc.lineTo(-6, 6); mmc.fill(); mmc.restore();
