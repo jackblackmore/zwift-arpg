@@ -25,13 +25,31 @@ Status: ✅ done · ▶ next · ☐ later
 | 11 | Crypt Trial boss (workout fight, RIDE mode) | ☐ |
 | 12 | Bluetooth (Zwift Ride, KICKR) | ☐ |
 
-**Built since (Nov 2026):** the harder start (design notes, Balance: "Harder start"), route choice at junctions (design notes, "Route choice") and the map viewer at `/maps/` (generated layouts by seed; `?seed=N` plays one).
+## Where we're up to (handover, late Nov 2026)
 
-**Next up (Nov 2026):**
-1. **The owner plays the harder start** (design notes, Balance: "Harder start") and reports back: does the first map feel a little underpowered, is 5 swings per zombie good or slow, does loot feel earned, is the first guardian hard but fair, how does the parry window feel?
-2. **Step 3⅞ part 2** (brief below): tune from that, make stagger pay off, then guardian channels, shield arts, elites' heavy swings.
-3. **Step 4, the passive tree**, now with block, posture, parry and riposte nodes.
-4. Then steps 5–7 (defence, gear, balance pass 2) to finish the character, then step 10 (level generation v2) before step 9 (Crypt content), then step 11.
+**The game today:** a melee knight in the Ashen Crypt (5 map tiers, room-and-corridor levels, the Pale Warden guardian). Fights are Sekiro-style timing: a plain Sword that auto-attacks, the Knight's Shield (hold to block, tap to parry, posture), Roll from level 1, stagger on guardians and rares, telegraphs by colour and sound. The start is deliberately hard: slow levels, sparse loot (mostly plain items), monsters that punish not defending. The owner played it: **"much better, I have to use the shield and little surges or I die."** In RIDE mode the autopilot stops at junction rooms for a D-pad choice. `/maps/` shows generated layouts by seed.
+
+**Owner's calls since the last plan** (all in `docs/design-notes.md`): fights are Sekiro and Dark Souls ("Fight mechanics"); start underpowered ("Harder start"); route choice like Zwift junctions and Hades doors ("Route choice"); level generation v2 with room roles, door signs showing the kind of room, a measured 30-minute budget, doors and fog gates, set pieces, forks later, backtracking is fine ("Level generation v2").
+
+**Not decided yet: don't build these without asking.**
+- **Ambush rooms.** Proposal (not agreed): a swarm from every side in 3 waves, no rare in it, rewarded with XP and a guaranteed item but never gems. Open: does dying reset it; are ambushes mostly on side branches.
+- **Shrine rooms (gamble).** What the buff or risk is.
+- **Gem drops.** The owner wants gems **very controlled** so there's a reason to keep playing. Proposal (not agreed): gems only from the guardian (1), elite rooms (15–20%) and shrines; none from normal rares (25% today). Don't change gem drop rates until the owner confirms.
+- **Elite vs ambush split** (proposal: elite is one strong named enemy for quality loot, ambush is many weak ones for quantity).
+
+**Autopilot queue: what a session can build without asking, in order.** One PR per item, merged when `npm run build && npm test` pass (CLAUDE.md). After each item, add a line under "Built while the owner was away" below, so the owner can review it in one place: what changed, how to try it, the arena or test numbers, and anything that needs the owner's call.
+1. **Stagger payoff** (step 3⅞ part 2, item 2): a finisher on staggered guardians and rares, so the arena's perfect bot is at least 15% faster than the good rider.
+2. **Guardian channels** (step 3⅞ part 2, item 3), including the RIDE short-effort bonus.
+3. **Shield arts** (item 4): Magic Shield and Frost Ward change the block and parry.
+4. **Elites' heavy swings, Flame Dash through the target, a Sword level 5 milestone** (items 5 and 6).
+5. **Measure a level** (step 10, build step 1): a headless full-level run at par reporting minutes (walking, fighting, junction waits), plus a level-time estimate in `npm run balance`. Record the number in the design notes. Don't change level length yet, just measure.
+6. **Doors** (step 10, build step 2): door records in the generator, signs at the real doorways, door frames, a fog gate on the guardian's arena. Show doors in the map viewer.
+7. **Room roles framework** (step 10, build step 3) with only the agreed roles: combat, elite, treasure, rest, guardian. Door signs show the role. Leave ambush and shrine out until they're decided. Show roles in the map viewer.
+8. **Passive tree** (step 4), if there's time: a first version with the fight nodes and keystone ideas in its brief.
+
+**Don't, without asking:** change gem drop rates, build ambush or shrine rooms, delete content, make big asset changes, upgrade three.js, start Bluetooth. Keep the difficulty where the owner liked it: if a change makes fights easier or harder, say so with arena numbers.
+
+**Built while the owner was away:** (nothing yet: sessions add a line per merged PR, newest last)
 
 ---
 
