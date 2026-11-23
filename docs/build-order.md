@@ -13,7 +13,8 @@ Status: ✅ done · ▶ next · ☐ later
 | 2 | More skills: Frost Lance, Raise Skeletons, Blink, Flex and Guard options | ✅ |
 | 3 | Gems v2: support gems, sockets, guardian gem drops, feeding | ✅ |
 | 3½ | No mana: held skills limited by cast time, the Surge gauge as the only resource | ✅ |
-| 4 | Passive tree (replaces the level-up card draft) | ▶ |
+| 3¾ | Go melee: retire the mage Main gems, melee Main gems, melee hero and autopilot | ▶ |
+| 4 | Passive tree (replaces the level-up card draft) | ☐ |
 | 5 | Defence: armour, resistances, typed monster damage | ☐ |
 | 6 | Gear rework: affixes and uniques for the new stat sheet | ☐ |
 | 7 | Balance pass 2: the whole character, every Crypt tier | ☐ |
@@ -183,7 +184,49 @@ Status: ✅ done · ▶ next · ☐ later
 
 **Done (Nov 2026).** Mana is gone; held skills are limited by cast time, press skills by cooldowns, and the Surge gauge is the only resource. Details and balance results: "Built: no mana, Surge gauge" in the design notes.
 
-## Step 4: Passive tree ▶
+## Step 3¾: Go melee ▶
+
+**Decision (Nov 2026):** the hero becomes a melee fighter. Why: ranged ARPG skill is positioning (kiting, slowing, keeping range), and on the bike the autopilot does all of it, so a ranged hero on autopilot plays itself. Melee moves the skill to timing (Guard before the hit, Frost Nova when surrounded, Evade out of a bad spot, Surge when it counts), which a rider can do with button presses. The autopilot only has to walk in, which also ends it backing into corners while kiting. **Surge stays exactly as built** (faster attacks, cooldowns and charges); don't add new Surge effects in this step.
+
+**Goal:** a new character picks a melee Main attack at the first shrine, auto-attacks what's in reach, and fights in the thick of a pack where Guard, Evade and Flex skills matter. Every fight still clears in the arena and balance targets pass.
+
+**Keep:** every Guard, Evade and Flex gem (Magic Shield, Frost Ward, Blink, Flame Dash, Arc, Frost Nova, Flame Totem, Meteor) and their supports (Forked Sky, Conduit, Shatter, Warding, Volley, Twin Meteor, Quick Step, Lingering Frost, Ignite). Surge, sparse loot, the gem system, shrines, sockets and feeding are all unchanged.
+
+**Retire** (delete the code; git history keeps it):
+- Main gems **Fireball, Frost Lance, Raise Skeletons**. Where they live:
+  - data: `GEMS`, `SHRINES` (main and both Flex lists), `GEM_POOL` in `src/data/gems.js`; `SK.fireball`, `SK.frostlance`, `SK.skeletons` in `src/data/skills.js`
+  - code: `castFireball` and `updProjectiles` in `src/game/skills.js` (Fireballs are the only `G.proj` user; check the totem doesn't share it); `explode()` in `src/game/combat.js` (Fireball explosion, also used by Chain Reaction and the Storm unique); `src/game/sk/frostlance.js`; `src/game/sk/skeletons.js` plus minion aggro in `src/game/enemies.js` (`G.minions`, `hurtMinions`); `MODS`/`CAST` in `src/game/casts.js`
+  - hero clips in `HERO` in `src/render/draw.js` (shoot, lance, skeletons)
+- Their supports: **Twin Flame, Searing Lance, Chain Reaction, Split, Bigger Army**. `OLD_NOTABLES` in `gems.js` maps old passives to some of them; point those at the new melee supports. **Ignite** stays and moves to the fire melee gem (`for: ['cleave', 'meteor']`).
+- Affixes that only meant something for Fireball: `proj` ("Fireball fires +# projectile") and `pierce` in `src/data/items.js`. Generalise `OLD_MANA` into a list of retired stats so old saves drop them too (`src/main.js`).
+- Uniques that need Fireball: rework **Wattbringer** (`proj`, `burnGround`: "Fireball explosions leave burning ground") and **Heart of the Storm** (`storm`: "Every 4th Fireball casts Arc") to work off the Main attack, e.g. "your Main attack's hits leave burning ground", "every 4th Main attack also casts Arc at the target". Uniques can't drop in the Crypt any more, so this only has to work, not be tuned.
+- Fireball is also the default in places: `estimate()` in `src/game/stats.js` (bag compare), `ESTIMATE` and `PAR_SUPPORT`/`parBar` in `src/data/balance.js`, `scripts/balance.mjs` (Fireball-only maths), the arena bot. Grep for `fireball`, `frostlance`, `skeletons`, `proj`, `pierce`.
+
+**Build:**
+1. **Melee Main gems** (held, `kind: 'attack'`), one shared module `src/game/sk/strike.js` driven by data, each with a level 5 milestone and one support. Suggested starting set (names and numbers are a first guess; tune them):
+
+   | Gem | Element | Shape | Feel | Support |
+   |---|---|---|---|---|
+   | Ember Cleave | fire | wide arc in front (~150°, reach ~2.4) | the all-rounder, hits the whole front of a pack | Sweep: hits all the way round you, less damage |
+   | Frost Strike | cold | narrow arc (~90°), higher damage | single target and rares; chills | Brittle: hit enemies take more damage from everything for a few seconds (reuse the shock status) |
+   | Thunder Slam | lightning | slower, a circle in front | big hits, knockback, shock chance | Aftershock: a second, weaker slam a moment later |
+
+   - Hits land straight away (or after a short windup) with hit-stop and a small knockback, so monsters don't keep getting pushed out of reach. Feel matters: tune hit-stop, knockback and the swing clip together.
+   - Flex shrines: drop Fireball and Frost Lance from the lists; the two melee gems you didn't pick can be offered there.
+2. **Auto-attack.** The Main gem attacks on its own when an awake monster is in reach and you aren't steering away (manual movement input pauses it; autopilot movement doesn't). Target priority: guardian and rares first, then the nearest. Desktop: holding LMB still attacks toward the cursor. A top-bar toggle ("ATTACK: AUTO / HOLD"), stored per device (localStorage), written into `ctl` by the devices like every other input. Don't attack sleeping monsters, so you don't pull rooms by accident.
+3. **Autopilot** (`src/game/autopilot.js`, `RIDE.autopilot` in `src/data/ride.js`): close to the Main gem's reach and fight; no kiting. Keep `clearShot` only for ranged Flex gems (or drop it if nothing needs it).
+4. **Hero model and clips.** `char_knight.glb` and `char_barbarian.glb` already exist in `public/gallery/`; the game's hero is `public/models/hero_mage.glb` (`FILES.hero` in `src/render/characters.js`), generated by `scripts/prep-models.mjs` (see its header for where the packs come from). Pick one (knight with a sword and shield reads best for Magic Shield), give it melee swing and slam clips in `HERO` in `src/render/draw.js`, and keep the primitive fallback working when `chars.ready` is false.
+5. **Balance.** Melee stands in the pack, so the old "melee packs barely touch a kiting player" gap flips: expect to raise hero life or add a little life on hit, and re-tune monster melee damage. The face-tank target (a pack kills you in 4–14 s standing still) may need to become "standing still without using Guard", and the danger should come from big hits you can react to rather than chip damage. Tools:
+   - `npm run balance`: Main-gem maths for the melee gems (targets hit per swing instead of `AOE_TARGETS` per explosion).
+   - `npm run arena`: the bot closes in instead of kiting. Add a row per tier where the bot **never uses Guard or Evade**; it should do clearly worse than the normal bot (more damage taken, more flasks, or deaths on rares and guardians). If it doesn't, melee hasn't bought the strategy we want; say so in the design notes.
+   - `MAIN=<gem> npm run arena` for each melee gem: each should clear a par pack in about the same time.
+6. **Old saves.** Retired gems are filtered out on load already (`GEMS[g.gem] || SUPPORTS[g.gem]` in `src/main.js`). If that leaves the Main slot empty, re-offer the Main shrine (clear `P.shrined.main`), and let the new Main gem start at the level of the best retired Main gem so nobody loses progress. Retired supports and affixes are dropped the same way.
+7. **Tests** (`tests/sim.mjs`): replace the Frost Lance and Raise Skeletons blocks with melee ones (a swing hits monsters in its arc and not behind; each milestone and support applies; auto-attack fires only at awake monsters in reach and pauses while steering away; the toggle turns it off). Update every test that picks Fireball at the shrine or checks Twin Flame, Searing Lance or Fireball's milestone (gems, gems v2, ride, balance guard rails, the screenshot run). Old-save test: a save with Fireball on the bar loads, re-offers the Main shrine, and the new gem keeps the level.
+8. **Docs:** home screen text in `index.html` (mentions Fireball, Frost Lance, Raise Skeletons), `README.md`, the gem tables and examples in `docs/design-notes.md` (Character, Gem model, Skill variety and the Crypt walkthrough all assume a caster), `CLAUDE.md` if anything there changes. Record what was built and the balance results under "Balance" in the design notes, and tick this step.
+
+**Done when:** a new character can only pick melee Main gems, auto-attacks in melee, the autopilot fights up close, old saves load without losing progress, every arena fight clears, the no-Guard row does visibly worse, and `npm run build && npm test` pass.
+
+## Step 4: Passive tree ☐
 
 - **The tree:**
   - small (60–80 nodes) and readable on a phone; replaces the pick-1-of-3 level-up cards
