@@ -51,8 +51,9 @@ export const BOSS = { vsMinion: 1.4, aggro: 13, rotation: ['slam', 'nova', 'slam
 
 // Stagger (design notes "Fight mechanics"): guardians and rares have a stagger bar (0..1). A parry adds `parry` (`parryRare` on a
 // rare), a hit adds `dmg` × the share of max life it took, more while you surge (× 1 + `surge` × how hard). Full: stunned for
-// `stunT` s, taking `taken` more damage, and the first hit you land on it is a finisher (Sekiro's deathblow): `finisher` × its
-// damage on top. The bar drains `drain` per second once `delay` s pass without adding to it.
+// `stunT` s, taking `taken` more damage, and the first hit you land on it is a finisher (Sekiro's deathblow) that deals `finisher` ×
+// that. A hit it lands on you (not blocked or parried) knocks the bar back by `recover`: it steadies, so a broken guard
+// is earned by timing, not by trading hits. The bar drains `drain` per second once `delay` s pass without adding to it.
 // A parried normal monster is stunned for `minorStun` s.
 export const STAGGER = { parry: .5, parryRare: .5, dmg: .5, surge: 1, stunT: 3, taken: .15, finisher: 3, recover: .6, drain: .06, delay: 2.5, minorStun: .9 };
 // Status effects on monsters. chill: speed × chillSpd, attack and shot cooldowns × chillCd. Burns tick every burnTick s.

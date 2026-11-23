@@ -72,7 +72,6 @@ function stun(e, t) {
 // You parried monster e (game/sk/guard.js): stagger a guardian or rare, stun anything else for a moment.
 export function parried(e) {
   if (e.deathT) return;
-  if (e.type === 'boss') P._bp = (P._bp || 0) + 1; //TMP
   if (e.stagMax) stagger(e, e.type === 'boss' ? STAGGER.parry : STAGGER.parryRare);
   else stun(e, STAGGER.minorStun);
 }
