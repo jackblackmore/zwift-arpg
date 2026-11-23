@@ -5,6 +5,7 @@
 
 export const GEMS = {
   fireball: { n: 'Fireball', kind: 'attack', held: 1, sk: 'fireball', elem: 'fire', icon: '✹', col: '#ff8a3c', d: 'Hurls a fireball that explodes on impact', ms: { 5: 'Pierces 1 enemy' } },
+  frostlance: { n: 'Frost Lance', kind: 'attack', held: 1, sk: 'frostlance', elem: 'cold', icon: '↟', col: '#9fe8ff', d: 'Hurls a fast lance of ice that pierces enemies and chills them', ms: { 5: 'Pierces 2 more enemies' } },
   arc: { n: 'Arc', kind: 'attack', held: 1, sk: 'arc', elem: 'light', icon: 'ϟ', col: '#c98bff', d: 'Lightning that chains between enemies', ms: { 5: '+2 chains' } },
   nova: { n: 'Frost Nova', kind: 'attack', held: 0, sk: 'nova', elem: 'cold', icon: '❄', col: '#7fd8ff', d: 'A ring of frost that damages and freezes everything around you', ms: { 5: '+25% radius' } },
   shield: { n: 'Magic Shield', kind: 'guard', held: 0, sk: 'shield', icon: '◎', col: '#7fb8ff', d: 'A barrier that absorbs damage for a few seconds', ms: { 5: 'Absorbs 25% more' } },
@@ -23,7 +24,7 @@ export const BAR = Object.keys(SLOT_DEFS);
 
 // Shrines: one per slot unlock, pick 1 of the offered gems. Guard is filled with Magic Shield automatically.
 // Flex shrines skip attack gems you already own while there are others to offer (Frost Lance and friends arrive in step 2).
-export const SHRINES = { main: ['fireball', 'arc', 'nova'], flexA: ['fireball', 'arc', 'nova'], flexB: ['fireball', 'arc', 'nova'], evade: ['dash'] };
+export const SHRINES = { main: ['fireball', 'frostlance', 'arc', 'nova'], flexA: ['fireball', 'arc', 'nova'], flexB: ['fireball', 'arc', 'nova'], evade: ['dash'] };
 export const START_GUARD = 'shield';
 
 // Gem levels. Base damage = base × grow^(level − 1), for every gem (skill `mult` in data/skills.js scales it per skill).

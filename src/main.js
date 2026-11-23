@@ -11,7 +11,7 @@ import { Q, applyQuality, cycleQuality, cycleStyle } from './render/post.js';
 import { STYLES } from './data/graphics.js';
 import { updFx } from './render/fx.js';
 import { draw } from './render/draw.js';
-import { buildMap } from './world/map.js';
+import { buildMap, blocked } from './world/map.js';
 import { loadDungeon } from './world/dungeon.js';
 import { ctl } from './input/input.js';
 import { pollInput, initDevices } from './input/devices.js';
@@ -28,6 +28,8 @@ import { castFireball, castArc, castNova, castDash, castShield } from './game/sk
 import { dropItem } from './game/items.js';
 import { hud } from './ui/hud.js';
 import { initPanels, syncPause, openInv, openPass, toggleInv, togglePass, toggleGems, openGems, openShrine, closeAll, equip } from './ui/panels.js';
+import { spawnEnemy } from './game/enemies.js';
+import { CAST } from './game/casts.js';
 import { freshGems, readySlots, takeShrine, shrineDue, refreshShrine, placeGem, addGem } from './game/gems.js';
 import { GEMS, SLOT_DEFS } from './data/gems.js';
 
@@ -117,5 +119,5 @@ window.__dbg = {
   sim: n => { for (let i = 0; i < n; i++) { update(.033); updFx(.033); } },
   enemies: () => G.enemies, packs: () => G.packs, items: () => G.ground,
   arena, parLevel, parGear: PAR_GEAR, newMap, kill, dropItem, castFireball, castArc, castNova, castDash, castShield, openInv, openPass, openGems, openShrine, equip,
-  takeShrine, shrineDue, placeGem, addGem, recalc, save, load, begin,
+  takeShrine, shrineDue, placeGem, addGem, recalc, save, load, begin, spawnEnemy, blocked, cast: id => CAST[id](),
 };
