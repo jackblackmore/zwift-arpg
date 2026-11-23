@@ -14,7 +14,8 @@ Status: ✅ done · ▶ next · ☐ later
 | 3 | Gems v2: support gems, sockets, guardian gem drops, feeding | ✅ |
 | 3½ | No mana: held skills limited by cast time, the Surge gauge as the only resource | ✅ |
 | 3¾ | Go melee: retire the mage Main gems, melee Main gems, Raise Skeletons as a support, melee hero and autopilot | ✅ |
-| 4 | Passive tree (replaces the level-up card draft) | ▶ |
+| 3⅞ | Fight mechanics: shield block and parry, Roll from level 1, posture and stagger, telegraphs (Sekiro and Dark Souls) | ▶ |
+| 4 | Passive tree (replaces the level-up card draft) | ☐ |
 | 5 | Defence: armour, resistances, typed monster damage | ☐ |
 | 6 | Gear rework: affixes and uniques for the new stat sheet | ☐ |
 | 7 | Balance pass 2: the whole character, every Crypt tier | ☐ |
@@ -229,7 +230,36 @@ Status: ✅ done · ▶ next · ☐ later
 
 **Done when:** a new character can only pick melee Main gems, auto-attacks in melee, the autopilot fights up close, old saves load without losing progress, every arena fight clears, the no-Guard row does visibly worse, and `npm run build && npm test` pass.
 
-## Step 4: Passive tree ▶
+## Step 3⅞: Fight mechanics ▶
+
+**Decision (Nov 2026):** threats that were built for a kiting caster aren't fair on a melee hero the autopilot parks in reach. Fights move toward Sekiro and Dark Souls: every big threat is answered by a button (the shield or a roll), never by where you stand. Design and the owner's calls: "Fight mechanics" in `docs/design-notes.md`. Do this before the passive tree, because tree nodes (block, posture, stagger, riposte) and step 5's defence build on it.
+
+**Goal:** a level 1 knight can beat the first guardian by parrying, blocking and rolling on time, and clearly can't by just standing there. Every threat in the Crypt has a readable telegraph, a sound and a button that beats it.
+
+**Build:**
+1. **Data.**
+   - `GUARD` and `ROLL` numbers in `src/data/skills.js`: block reduction (physical and elemental), block move speed, parry window, riposte bonus, posture max, block and heavy posture costs, posture drain, guard-break stun; roll invulnerability, distance, charges, recharge, and the autopilot pause after an Evade.
+   - `STAGGER` in `src/data/monsters.js`: bar size per tier and rarity (guardians and rares only), how much parries, heavy hits, ripostes and Surge fill it, stun length, damage taken while stunned, drain.
+   - Telegraph types on monster attacks (`parry`, `heavy`, `unblockable`, `channel`) in `FIGHT`, `BOSS`, `BLAST`, `RARE`.
+2. **Guard is the shield** (`src/game/sk/`, a new `guard.js`). Hold to block (front arc, slower movement, posture cost), press just before a hit to parry (no damage, stagger, the next swing is a riposte). The shield blocks projectiles from the front. Guard and Evade cancel the Main gem's swing windup. `hurtP` in `src/game/combat.js` learns the attack's telegraph type and direction.
+3. **Player posture** (`P.posture`), with a HUD bar near the life orb. A full bar breaks your guard: stunned, and the next hit crits.
+4. **Guard gems become shield arts:** Magic Shield (a parry grants a barrier) and Frost Ward (parries chill and leave a short frost ring) change the block and parry instead of being timed casts. Update the support gems (Warding, Lingering Frost) to match, and their text in `gems.js`.
+5. **Roll:** a new starting Evade gem (`GEMS.roll`, `START_EVADE`). Evade unlocks at level 1. With no direction held it rolls away from the nearest threat. Every Evade gem gets invulnerability frames; Flame Dash goes through the target. The autopilot (`src/game/autopilot.js`) pauses after any Evade. The level 8 Evade shrine offers Blink or Flame Dash.
+6. **Stagger** on guardians and rares: a bar under the boss bar (and over rares), stun and bonus damage when it's full, channels cancelled by filling it. Surge fills it faster. In RIDE mode a short effort spike during a channel fills it faster (tuning in `src/data/ride.js`).
+7. **Threats rebuilt** (table in the design notes): the guardian's swing is parryable, the slam is a heavy, the nova fans at the hero (block or roll), and enrage adds an unblockable charge and a channel. The bloater blast is a heavy and killing it before the fuse ends defuses it. The volatile blast is unblockable. The burning aura pulses. Elites' heavier swings are parryable.
+8. **Telegraph readability:** a colour per type (`src/data/graphics.js`), a distinct sound per type (`SFX`), and a cue over the hero. Parry windows are generous in the Crypt (about 0.35 s) and tighten with tier.
+9. **Hero clips:** add `Melee_Block`, `Melee_Blocking`, `Melee_Block_Hit`, `Melee_Block_Attack`, `Dodge_Backward/Left/Right`, `Lie_Down`, `Lie_StandUp` to `HERO_CLIPS` in `scripts/prep-models.mjs` (and `scripts/prep-hero.mjs` if the hero takes its clips from there), rerun it, and wire them in `HERO` in `src/render/draw.js`. The primitive fallback still has to work.
+10. **Inputs:** Guard is now held for block and pressed for parry, on every device. Evade's touch button is visible from level 1. RIDE: check the right shifter can be held.
+11. **Balance:** missed guardian heavies take about 35–50% of par life. The arena bot gets a reaction setting: perfect, good rider (about 70% of parries, 90% of rolls, with a reaction delay) and none. Targets: the good rider beats every guardian at par; no defence loses guardians and struggles with rares; perfect is clearly faster. Report it under "Balance" in the design notes.
+12. **Save:** bump `KEY` in `src/game/save.js` (the bar gains Roll and Guard changes).
+13. **Tests** (`tests/sim.mjs`): a parry inside the window takes no damage and staggers; a block reduces damage and costs posture; a full posture bar breaks your guard; Roll's invulnerability frames avoid a slam; an unblockable hit goes through a block; filling a channel's stagger cancels it; a fresh character has Roll; the autopilot pauses after an Evade; Guard cancels a swing windup. Update the guard rails that assume a stand-and-fight bot.
+14. **Docs:** `index.html` home screen controls text, `README.md`, the design notes ("Built: fight mechanics"), `CLAUDE.md` if the Guard description changes. Tick this step.
+
+**Done when:** every Crypt threat has a telegraph, sound and button answer; the arena's good-rider bot beats every guardian at par and the no-defence bot doesn't; and `npm run build && npm test` pass.
+
+## Step 4: Passive tree ☐
+
+- **Fight mechanics first (step 3⅞):** add block, posture, parry and stagger nodes, and a riposte keystone.
 
 - **The tree:**
   - small (60–80 nodes) and readable on a phone; replaces the pick-1-of-3 level-up cards
