@@ -20,8 +20,7 @@ button.glow{border-color:#ffd23f;box-shadow:0 0 12px #ffd23f99;animation:gl 1s e
 .orb i{position:absolute;left:0;right:0;bottom:0;height:100%}
 .orb span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:700 13px 'JetBrains Mono';text-shadow:0 1px 3px #000,0 0 4px #000}
 #orbL{left:14px}#orbL i{background:radial-gradient(circle at 40% 30%,#ff6a5a,#a01010 55%,#500404)}
-#orbR{right:14px}#orbR i{background:radial-gradient(circle at 40% 30%,#6a9aff,#1030b0 55%,#040a50)}
-#orbL.blood i{background:radial-gradient(circle at 40% 30%,#ff9a5a,#c02010 55%,#600404)}
+#orbR{right:14px}#orbR i{background:radial-gradient(circle at 40% 30%,#ffe27a,#d08a10 55%,#5a3204)}#orbR.surging{box-shadow:0 0 0 3px #ffd23f,0 0 26px #ffb020cc}#orbR.spent i{filter:saturate(.25) brightness(.7)}
 #xp{position:fixed;left:50%;transform:translateX(-50%);bottom:4px;width:min(420px,50vw);height:5px;background:#1a1208;border:1px solid #3a2a1a;border-radius:3px;overflow:hidden;z-index:3;pointer-events:none}
 #xp i{display:block;height:100%;background:linear-gradient(90deg,#8a6a20,#ffd23f);width:0}
 #skills{position:fixed;left:50%;transform:translateX(-50%);bottom:16px;display:flex;gap:6px;z-index:3}
@@ -30,7 +29,7 @@ button.glow{border-color:#ffd23f;box-shadow:0 0 12px #ffd23f99;animation:gl 1s e
 .sk .k{position:absolute;left:3px;top:1px;font:700 9px 'JetBrains Mono';color:var(--dim);z-index:2}
 .sk .n{position:absolute;right:3px;bottom:1px;font:700 10px 'JetBrains Mono';color:var(--ink);z-index:2}
 .sk .cd{position:absolute;left:0;right:0;bottom:0;background:#000b;z-index:1;height:0}
-.sk.nomana{filter:saturate(.2) brightness(.6)}
+.sk.on{box-shadow:0 0 0 2px #ffd23f,0 0 16px #ffb020aa}
 .sk.act{border-color:var(--gold)}
 .sk .lv{position:absolute;right:3px;top:1px;font:700 9px 'JetBrains Mono';color:#ffd23f;z-index:2}
 .sk.locked{opacity:.45;font-size:16px;cursor:default}.sk.locked .lv{color:var(--dim)}
@@ -102,12 +101,12 @@ button.pri{background:var(--gold);color:#1a1008;border-color:var(--gold)}
 body.touch .orb{width:64px;height:64px;bottom:auto;top:96px}
 body.touch #orbL{left:10px}body.touch #orbR{left:80px;right:auto}
 body.touch .orb span{font-size:10px}
-body.touch #skills{left:auto;right:12px;transform:none;bottom:16px;display:grid;grid-template-columns:repeat(3,72px);grid-template-areas:"ev fb fa" "fl gd mn";gap:8px;justify-items:center;align-items:center}
+body.touch #skills{left:auto;right:12px;transform:none;bottom:16px;display:grid;grid-template-columns:repeat(3,72px);grid-template-areas:"su . ." "ev fb fa" "fl gd mn";gap:8px;justify-items:center;align-items:center}
 body.touch .sk .k,body.touch .sk .lv{display:none}
 body.touch .sk .n{right:0;left:0;bottom:6px;text-align:center}
 body.touch .sk{width:64px;height:64px;border-radius:50%}
 body.touch #sk-main{grid-area:mn;width:72px;height:72px;font-size:32px}
-body.touch #sk-flexA{grid-area:fa}body.touch #sk-flexB{grid-area:fb}body.touch #sk-guard{grid-area:gd}body.touch #sk-evade{grid-area:ev}body.touch #sFl{grid-area:fl}
+body.touch #sk-flexA{grid-area:fa}body.touch #sk-flexB{grid-area:fb}body.touch #sk-guard{grid-area:gd}body.touch #sk-evade{grid-area:ev}body.touch #sFl{grid-area:fl}body.touch #sSu{grid-area:su;width:56px;height:56px}
 body.touch .sk.locked{visibility:hidden}
 body.touch #toasts{top:170px}
 body.touch #mm{width:110px;height:110px}

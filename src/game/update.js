@@ -14,16 +14,31 @@ import { save } from './save.js';
 import { autopilot } from './autopilot.js';
 import { RIDE } from '../data/ride.js';
 import { EXTRA } from '../data/items.js';
+import { SURGE } from '../data/skills.js';
 import { clamp } from '../core/util.js';
 
-// Effort (RIDE mode): how %FTP and cadence scale movement, mana and casting. 1 when not riding.
+// Effort (RIDE mode): how %FTP and cadence scale movement and casting, and how hard you want to surge (0..1).
+// Not riding: everything 1 and surge from the Surge button (ctl.surge).
 export function effortMods(E) {
-  if (!E) return { move: 1, mana: 1, cast: 1 };
-  const M = RIDE.move, rel = E.rel;
+  if (!E) return { move: 1, cast: 1, surge: ctl.surge ? 1 : 0 };
+  const M = RIDE.move, W = RIDE.power, U = RIDE.surge, rel = E.rel;
   const move = rel < M.stop ? 0 : rel < M.full ? (rel - M.stop) / (M.full - M.stop) : Math.min(M.max, 1 + (rel - M.full) * .5);
-  const mana = Math.min(RIDE.mana.max, RIDE.mana.base + RIDE.mana.perFtp * rel);
-  const cast = 1 + clamp((E.cad - RIDE.cadence.from) * RIDE.cadence.per, 0, RIDE.cadence.max);
-  return { move, mana, cast };
+  const power = rel >= W.endurance ? 1 : W.slowest + (1 - W.slowest) * clamp((rel - W.low) / (W.endurance - W.low), 0, 1);
+  const cast = power * (1 + clamp((E.cad - RIDE.cadence.from) * RIDE.cadence.per, 0, RIDE.cadence.max));
+  return { move, cast, surge: clamp((rel - U.from) / (U.full - U.from), 0, 1) };
+}
+
+// The Surge gauge (data/skills.js SURGE). Sets P.surgeK (how hard you're surging now, 0..1) and returns the speed multiplier.
+export function updSurge(want, dt) {
+  if (P.spent && P.surge >= S.surgeMax * SURGE.restart) P.spent = false;
+  if (want > 0 && !P.spent && P.surge > 0) {
+    P.surgeK = want; P.surge = Math.max(0, P.surge - want * dt); P.surgeWait = SURGE.delay;
+    if (P.surge <= 0) P.spent = true;
+  } else {
+    P.surgeK = 0; P.surgeWait -= dt;
+    if (P.surgeWait <= 0) P.surge = Math.min(S.surgeMax, P.surge + S.surgeRe * dt);
+  }
+  return 1 + SURGE.bonus * P.surgeK;
 }
 
 function updPlayer(dt) {
@@ -38,7 +53,7 @@ function updPlayer(dt) {
   }
   pushOut(P);
   P.life = Math.min(S.maxLife, P.life + (S.lregen + (P.flaskT > 0 ? P.flaskRate : 0)) * dt); if (P.flaskT > 0) P.flaskT -= dt;
-  if (!S.blood) P.mana = Math.min(S.maxMana, P.mana + S.mregen * fx.mana * dt);
+  fx.cd = updSurge(fx.surge, dt); fx.cast *= fx.cd;
   P.castT -= dt; P.castAnim -= dt; P.invuln -= dt;
   if (P.shieldT > 0) { P.shieldT -= dt; if (P.shieldT <= 0) P.shield = 0; }
   updSlots(dt, fx);

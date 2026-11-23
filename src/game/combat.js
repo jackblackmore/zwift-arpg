@@ -48,7 +48,7 @@ export function kill(e) {
   burst(e.x, 1, e.z, col, e.type === 'boss' ? 120 : e.rar === 2 ? 40 : 12, e.type === 'boss' ? 9 : 4);
   if (e.aura) e.aura.visible = false; if (e.fireAura) e.fireAura.visible = false;
   gainXp(e.xp * (e.rar === 2 ? RARITY.rare.xp : e.rar === 1 ? RARITY.magic.xp : 1) * (1 + TIER.xp * (G.tier - 1)));
-  P.life = Math.min(S.maxLife, P.life + S.lok); P.mana = Math.min(S.maxMana, P.mana + S.mok);
+  P.life = Math.min(S.maxLife, P.life + S.lok);
   P.flask = Math.min(SK.flask.max, P.flask + (e.rar === 2 ? SK.flask.perRare : SK.flask.perKill));
   if (e.rar === 2) { const D = DROP.rare; dropItem(e.x, e.z, D.boost); if (Math.random() < D.second) dropItem(e.x, e.z, D.boost2); if (Math.random() < DROP.gem) dropGem(e.x, e.z); stop(.06); shake(.3); }
   else if (e.type !== 'boss' && Math.random() < (e.rar === 1 ? DROP.magic : DROP.normal)) dropItem(e.x, e.z, 0);
@@ -74,12 +74,6 @@ export function hurtP(d) {
     P.life = 0; P.dead = 2.6; banner('YOU HAVE DIED', '#ff3030', 'Respawning at the map entrance');
     burst(P.x, 1, P.z, 0xff2020, 50, 5); P.xp = Math.max(0, P.xp - xpNeed(P.lvl) * COMBAT.deathXp);
   }
-}
-
-// Spend mana (or life with Blood Magic). Returns false if the player can't afford it.
-export function pay(cost) {
-  if (S.blood) { if (P.life <= cost + 1) return false; P.life -= cost; return true; }
-  if (P.mana < cost) return false; P.mana -= cost; return true;
 }
 
 // A Fireball explosion: `mult` × its damage in `radius` (default the Fireball's own; Chain Reaction passes a smaller one).

@@ -1,7 +1,8 @@
 // Balance arena: scripted fights with the real game code, one encounter at a time (no level runs).
 // Run `npm run build` first. Usage: npm run arena [-- maxTier]   (SEED=n changes the fixed random seed; MAIN=gemId swaps the Main gem)
 // Each row is one fight at the tier's par level and par gear (src/data/balance.js) unless the row says otherwise.
-// The bot kites in circles, holds Fireball, novas when crowded and flasks at half life: a good player.
+// The bot kites in circles, holds Fireball, novas when crowded, flasks at half life and surges on rares, guardians and crowds: a good player.
+// 'surged' is how long it spent surging (the Surge gauge holds data/skills.js SURGE.max seconds).
 // 'standing still' rows never kite: a careless player. Real play sits between the two.
 import { preview } from 'vite';
 import puppeteer from 'puppeteer-core';
@@ -20,6 +21,7 @@ const encounters = (t, n) => [
   { name: 'magic pack', fight: [['zombie', n(3)], ['archer', n(1)]], rar: 1 },
   { name: 'rare + pack', fight: [['zombie', n(3)]], rare: 'zombie' },
   { name: 'guardian', guardian: true, maxT: 240 },
+  { name: 'guardian, never surging', guardian: true, maxT: 240, surge: false },
   { name: 'guardian (starter staff)', guardian: true, gear: 'start', maxT: 240, skip: t === 1 },
   { name: 'mixed pack, standing still', fight: [['zombie', n(3)], ['archer', n(1)]], bot: 'stand' },
   { name: 'magic pack, standing still', fight: [['zombie', n(3)], ['archer', n(1)]], rar: 1, bot: 'stand' },
@@ -41,7 +43,7 @@ try {
   await page.waitForFunction(() => window.__dbg && window.__dbg.ready(), { timeout: 20000 });
   await page.evaluate(() => window.__dbg.start(true));
   console.log(`Watt Dungeon arena · real game code, scripted player · times in game seconds${MAIN ? ' · Main gem: ' + MAIN : ''}\n`);
-  console.log('tier lvl gear   encounter                     result   time   taken  lowest  flasks  starved');
+  console.log('tier lvl gear   encounter                     result   time   taken  lowest  flasks   surged');
   for (let t = 1; t <= maxTier; t++) {
     for (const enc of encounters(t, x => Math.round(x * (1 + .2 * (t - 1))))) {
       const r = await page.evaluate((t, enc, main) => {
@@ -49,7 +51,7 @@ try {
         return { ...D.arena({ ...enc, tier: t, main, lvl: enc.under ? par - enc.under : undefined }), gear: enc.gear || D.parGear(t) };
       }, t, enc, MAIN);
       const bad = r.result !== 'clear' ? '  ✗' : '';
-      console.log(`${String(t).padStart(4)} ${String(r.lvl).padStart(3)} ${r.gear.padEnd(6)} ${enc.name.padEnd(29)} ${r.result.padEnd(7)} ${(r.t + 's').padStart(6)} ${String(r.taken).padStart(6)} ${(Math.round(r.lowest * 100) + '%').padStart(7)} ${String(r.flasks).padStart(7)} ${(r.starved + 's').padStart(8)}${bad}`);
+      console.log(`${String(t).padStart(4)} ${String(r.lvl).padStart(3)} ${r.gear.padEnd(6)} ${enc.name.padEnd(29)} ${r.result.padEnd(7)} ${(r.t + 's').padStart(6)} ${String(r.taken).padStart(6)} ${(Math.round(r.lowest * 100) + '%').padStart(7)} ${String(r.flasks).padStart(7)} ${(r.surged + 's').padStart(8)}${bad}`);
     }
     console.log('');
   }

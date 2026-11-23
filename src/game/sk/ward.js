@@ -11,14 +11,14 @@ import { scene } from '../../render/scene.js';
 import { decal } from '../../render/assets.js';
 import { glows, emit, ringFx, flashFx } from '../../render/fx.js';
 import { near } from '../enemies.js';
-import { hit, pay } from '../combat.js';
+import { hit } from '../combat.js';
 
 let ring = null, tickT = 0, radius = 0;
 const drop = () => { if (ring) { scene.remove(ring); ring = null; } };
 
 export default {
   cast() {
-    const W = SK.ward; if (!pay(W.cost)) return false;
+    const W = SK.ward;
     radius = W.radius * S.aoe * (S.mile.ward ? GEMS.ward.mile.radius : 1);
     P.wardT = W.dur * S.sk.ward.dur; tickT = 0; P.castAnim = .2; P.castSeq++; P.lastCast = 'ward';
     drop(); ring = new T.Group(); ring.add(decal(0x7fd8ff, radius * 2.2)); scene.add(ring);

@@ -11,13 +11,13 @@ import { glowSprite } from '../../render/assets.js';
 import { sparks, glows, emit, flashFx } from '../../render/fx.js';
 import { blocked } from '../../world/map.js';
 import { near } from '../enemies.js';
-import { hit, pay } from '../combat.js';
+import { hit } from '../combat.js';
 import { aim } from '../skills.js';
 
 let lances = [];
 
 function cast() {
-  const K = SK.frostlance; if (!pay(K.cost)) return false;
+  const K = SK.frostlance;
   const [ax, az] = aim(), a = Math.atan2(ax - P.x, az - P.z), Sp = SUPPORTS.split, n = S.sk.frostlance.split ? Sp.lances : 1, mult = K.mult * (n > 1 ? Sp.mult : 1);
   for (let i = 0; i < n; i++) {
     const b = a + (i % 2 ? 1 : -1) * Math.ceil(i / 2) * Sp.spread, g = new T.Group();

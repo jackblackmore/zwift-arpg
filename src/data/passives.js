@@ -7,10 +7,9 @@ export const PASS = {
   power: { n: 'Raw Power', d: '+10% damage with all skills', max: 5, c: '#e6dcc6', fn: (s, n) => s.dmg += .1 * n },
   haste: { n: 'Quick Hands', d: '+8% cast speed', max: 5, c: '#ffd23f', fn: (s, n) => s.cast += .08 * n },
   vital: { n: 'Vitality', d: '+20 maximum life and +1 life regenerated per second', max: 5, c: '#ff5a5a', fn: (s, n) => { s.lifeF += 20 * n; s.lregen += n; } },
-  mind: { n: 'Clarity', d: '+15 maximum mana and +1.5 mana regenerated per second', max: 5, c: '#6a9aff', fn: (s, n) => { s.manaF += 15 * n; s.mregen += 1.5 * n; } },
+  mind: { n: 'Second Wind', d: '+15% Surge capacity and the gauge refills 15% faster', max: 5, c: '#ffd23f', fn: (s, n) => { s.surge += .15 * n; s.surgeRe += .15 * n; } },
   swift: { n: 'Fleet Foot', d: '+8% movement speed', max: 3, c: '#5fe39a', fn: (s, n) => s.ms += .08 * n },
   crit: { n: 'Precision', d: '+5% critical strike chance', max: 4, c: '#ffffff', fn: (s, n) => s.crit += .05 * n },
   vast: { n: 'Magnitude', d: '+15% area of effect', max: 4, c: '#ffb070', fn: (s, n) => s.aoe += .15 * n },
-  hunger: { n: 'Soul Hunger', d: 'Gain 3 life and 2 mana per kill', max: 3, c: '#ff6a8a', fn: (s, n) => { s.lok += 3 * n; s.mok += 2 * n; } },
-  blood: { n: 'Blood Magic', d: 'KEYSTONE · Skills cost life instead of mana. +25% damage, +30% life', max: 1, note: 2, c: '#ff3030', fn: s => { s.blood = 1; s.dmg += .25; s.lifePct += .3; } },
+  hunger: { n: 'Soul Hunger', d: 'Gain 4 life per kill', max: 3, c: '#ff6a8a', fn: (s, n) => { s.lok += 4 * n; } },
 };

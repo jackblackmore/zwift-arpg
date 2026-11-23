@@ -162,7 +162,7 @@ Example: Pyromancer through the Crypt (illustrative numbers):
 
 ### Stats
 
-- **Today** (`src/game/formulas.js`, tuning in `src/data/balance.js`): one flat pool. Level gives base life and mana; base damage comes from the skill gem (gems v1, below); gear and passives all add into it; skill behaviour (projectiles, chains, pierce) sits in the same pool; defence is just life plus a little damage reduction; no attributes.
+- **Today** (`src/game/formulas.js`, tuning in `src/data/balance.js`): one flat pool. Level gives base life (there is no mana); base damage comes from the skill gem (gems v1, below); gear and passives all add into it; skill behaviour (projectiles, chains, pierce) sits in the same pool; defence is just life plus a little damage reduction; no attributes.
 - **Leaning:** one stat sheet fed by the three systems, each owning different parts:
 
 | | Gems | Passive tree | Gear |
@@ -248,7 +248,7 @@ Region themes and boss pairings are **open**; the shape (6 × 5 + Trial) is lean
 
 - **Leaning: underpowered early, loot makes the difference.** Character level adds a little damage and mostly life; gear adds most damage. A new hero has a plain starter staff and needs 4–5 Fireballs per skeleton. A full kit of magic gear roughly doubles to triples damage.
 - **Leaning: sawtooth power curve.** Inside a level you outgrow the monsters as drops come in; the next level steps monster life up again. The biggest step is Crypt 1 → 2, because that's when the starter staff is expected to be gone.
-- Skills cost more and cast slower than before, and mana runs out: Fireball can be held at a bit over half its full cast rate. Frost Nova has a 6 s cooldown.
+- **No mana (Nov 2026).** Running out of mana only meant walking around doing nothing, so it's gone. Held skills are limited by their cast time, press skills by cooldowns and charges, and the **Surge gauge** is the only resource (see "Built: no mana, Surge gauge" below). Frost Nova has a 6 s cooldown.
 - **Leaning: you start with a generic Magic Shield, not a movement skill.** It absorbs 35% of max life for 5 s on a 10 s cooldown, and fits every build (Flame Dash leaned too far toward a fire build). Movement skills come later through the Evade slot (level 8 shrine). It's the starting Guard gem (gems v1).
 - **Targets** (at par level with par gear; exact numbers in `src/data/balance.js`):
 
@@ -259,21 +259,28 @@ Region themes and boss pairings are **open**; the shape (6 × 5 + Trial) is lean
 | Rare | 8–25 s of single-target fire |
 | Guardian | 45–100 s; an under-geared hero can't burn it down |
 | Danger | A pack in melee kills you in 4–14 s if you stand still |
-| Mana | Fireball sustains 40–75% of its full cast rate |
+| Surge | Spending a full gauge on a guardian cuts it to 35–85 s (`guardianSurge`) |
 | Loot | A full magic kit is ×1.3–3 the starter staff's damage |
 
 ### Testing balance without playing a level
 
 Three layers, fastest first. Levels are the final polish pass, not the only check.
 
-1. **`npm run balance`** (instant, no browser): maths from the game's own data and formulas (`src/game/formulas.js`). For each tier at par level and with each gear profile (starter staff, average magic kit, average rare kit) it prints hits to kill, mana uptime, pack clear time, rare and guardian kill time, how long you survive standing in a pack, XP per map and the gain from loot. Anything outside the targets is flagged. Fireball only, so it's a floor on real kill speed.
-2. **`npm run arena`** (about 30 s, needs `npm run build`): real game code fights one encounter at a time (packs, magic, rare, guardian, under-geared, under-levelled) with a scripted player. A kiting bot plays well; "standing still" rows play carelessly; real play sits between them. Shows clear time, damage taken, lowest life, flasks used and time spent out of mana. In the browser: `__dbg.arena({ tier: 2, fight: [['zombie', 4]], gear: 'magic' })`.
+1. **`npm run balance`** (instant, no browser): maths from the game's own data and formulas (`src/game/formulas.js`). For each tier at par level and with each gear profile (starter staff, average magic kit, average rare kit) it prints hits to kill, pack clear time, rare and guardian kill time (without and with a full Surge gauge), how long you survive standing in a pack, XP per map and the gain from loot. Anything outside the targets is flagged. Fireball only, so it's a floor on real kill speed.
+2. **`npm run arena`** (about 30 s, needs `npm run build`): real game code fights one encounter at a time (packs, magic, rare, guardian, under-geared, under-levelled) with a scripted player. A kiting bot plays well; "standing still" rows play carelessly; real play sits between them. Shows clear time, damage taken, lowest life, flasks used and time spent surging (the bot surges on rares, guardians and crowds of four; a "never surging" guardian row shows what the gauge is worth). In the browser: `__dbg.arena({ tier: 2, fight: [['zombie', 4]], gear: 'magic' })`.
 3. **`npm test`** includes balance guard rails: a tier 1 pack isn't one-shot, the tier 1 guardian can't be burned down, and the starter staff can't beat the tier 2 guardian. These catch regressions on every push.
 
 Loop: change numbers in `src/data/` → `npm run balance` → `npm run arena` → play a level to feel it.
 
 - **First pass results (Nov 2026):** every par number is inside target. Known gaps: melee packs barely touch a kiting player (knockback from Fireball plus slow skeletons), so the danger comes from archers, magic packs and rares; XP runs slightly behind par (fine while maps are small); maps are still one open square, so levels are quick and you can still run straight to the guardian. Next: finish the character systems (gems, skills, tree, defence, gear) and balance them together; level layout comes after (see `docs/build-order.md`).
 - **Gems v1 (Nov 2026):** base damage moved from character level (`HERO.spellPer` is now 0) to the Main gem's level (`PAR_GEM` = 1, 4, 7, 9, 10 for tiers 1–5). Every par number in `npm run balance` is still inside target, and hits are within ~5% of before. In the arena the bot plays par bars (`parBar`: Fireball Main, Magic Shield, Frost Nova in Flex A from level 5); every par fight still clears. Guardians take 62–73 s (were 58–86 s); the tier 1 rare is quicker (19 s, was 30 s), the tier 2 rare slower (23 s, was 12 s). The starter staff still can't beat the tier 2, 4 or 5 guardian within 4 minutes; it just beats tier 3 (235 s).
+
+- **Built: no mana, Surge gauge (Nov 2026).** Before, the arena bot spent 40–81 s of every 55–97 s guardian fight out of mana. Now:
+  - **Mana is gone:** no pool, costs, orb, affixes (max mana, mana regen, mana per kill) or passives. Clarity became **Second Wind** (+15% Surge capacity and refill per point); Soul Hunger gives life only; **Blood Magic is removed** until it returns as Blood Rite in the passive tree (step 4). Old saves drop mana affixes (a ring's mana implicit becomes its new life implicit) and get passive points back for Blood Magic.
+  - **Held skills cast slower** to make up for never running dry: Fireball 0.75 s (was 0.55), Frost Lance 1.25 s (was 1.1), Arc 0.8 s (was 0.6). Guardian life ×1.3 (800 → 1040), because bosses were the fights mana used to slow down most.
+  - **Surge gauge** (`SURGE` in `src/data/skills.js`): 30 s of full surge; while surging, casts are 40% faster and cooldowns and charges recover 40% faster. It drains 1 s per second at full surge. Empty means **spent**: no surging until it refills to 30%. It refills at 0.35 s per second, starting 2 s after you stop, so a full refill takes about 90 s. Keyboard: hold Shift; touch: hold ⚡; RIDE: ride above 80% FTP (full surge from 105%), and below 65% FTP casts slow down (to half at 40%). The right orb is the gauge.
+  - **Results:** `npm run balance`: every par number inside target; par guardians take 72–76 s never surging and 60–64 s with a full gauge. `npm run arena` (seed 1234): guardians take 48–61 s with the surging bot (74 s on tier 1 with the starter staff) and 65–73 s without (102 s on tier 1), so the gauge is worth roughly 15–25%; the starter staff takes 147–211 s on tiers 2–5 (it can't win the tier 2 guardian inside the 2 minute guard rail). Packs clear a little slower than before (5–15 s), because the mana pool no longer gives a free burst at the start of each fight.
+  - **Autopilot fix found on the way:** it now waits for a clear shot (`clearShot` in `src/world/map.js`, the projectile's width along the whole line), not just line of sight, so it no longer stands still firing into a rock that clips every Fireball.
 
 ## Regions and levels
 
@@ -398,7 +405,7 @@ Ideas: deeper levels use more intense versions of the template; beats could be w
 - **Surge as a build axis, kept simple to start:** only **gauge capacity** (a few tree nodes, maybe one support gem).
   - Parked for later: surge strength, efficiency (diesel), on surge start / end effects, keystones such as Redline, surging speeding up cooldowns.
 - **Movement speed is a stat** (gems, tree, gear): faster clears and better escapes. Cap around +50% so the autopilot and screen stay readable.
-- **Skills use cooldowns, not mana.** The Surge gauge is the only resource, and it's effort-based. Cooldown reduction is a stat, capped around 40%. Blood Magic becomes **Blood Rite**: no cooldowns, every cast costs life.
+- **Skills use cooldowns, not mana** (built Nov 2026, see Balance). The Surge gauge is the only resource, and it's effort-based. Cooldown reduction is a stat, capped around 40%. Blood Magic becomes **Blood Rite**: no cooldowns, every cast costs life.
 ### Layer 2: Trials (shape settled, details deferred until we build them)
 
 - **A Trial is a short warm-up level** (~10–15 min, normal packs, no guardian), **then the boss arena**, where the fight is a structured workout with watt targets.

@@ -12,6 +12,7 @@ Status: ✅ done · ▶ next · ☐ later
 | 1 | Gems v1: skill bar, gem-only skills, shrines, gem levels | ✅ |
 | 2 | More skills: Frost Lance, Raise Skeletons, Blink, Flex and Guard options | ✅ |
 | 3 | Gems v2: support gems, sockets, guardian gem drops, feeding | ✅ |
+| 3½ | No mana: held skills limited by cast time, the Surge gauge as the only resource | ✅ |
 | 4 | Passive tree (replaces the level-up card draft) | ▶ |
 | 5 | Defence: armour, resistances, typed monster damage | ☐ |
 | 6 | Gear rework: affixes and uniques for the new stat sheet | ☐ |
@@ -178,12 +179,17 @@ Status: ✅ done · ▶ next · ☐ later
 3. **Balance:** the tools' par bar gains par supports (`parBar` in `src/data/balance.js`). Losing the notable passives makes level-up cards weaker; that's fine until the tree (step 4) replaces them.
 4. **Tests:** socketing a support changes only its own skill; supports round-trip through saves; a guardian drops a gem; feeding moves XP and never deletes your last copy.
 
+## Step 3½: No mana ✅
+
+**Done (Nov 2026).** Mana is gone; held skills are limited by cast time, press skills by cooldowns, and the Surge gauge is the only resource. Details and balance results: "Built: no mana, Surge gauge" in the design notes.
+
 ## Step 4: Passive tree ▶
 
 - **The tree:**
   - small (60–80 nodes) and readable on a phone; replaces the pick-1-of-3 level-up cards
   - regions for fire, cold and lightning around a core of defence and utility
-  - 3–4 keystones; Blood Magic moves here
+  - 3–4 keystones; Blood Magic comes back here as **Blood Rite** (no cooldowns, every cast costs life); it was removed with mana
+  - a few Surge capacity nodes (the first Surge build axis; Second Wind is the level-up card version)
   - cheap respecs
 - **Ownership (design notes: "Stats"):**
   - the tree gives % increases and survival

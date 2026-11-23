@@ -12,7 +12,7 @@ import { flashLight } from '../../render/scene.js';
 import { sparks, glows, emit, ringFx, flashFx } from '../../render/fx.js';
 import { blocked } from '../../world/map.js';
 import { near } from '../enemies.js';
-import { hit, pay } from '../combat.js';
+import { hit } from '../combat.js';
 
 // Direction (angle) away from the nearest threat.
 function awayAngle() {
@@ -36,7 +36,7 @@ export default {
     const B = SK.blink, a0 = awayAngle();
     let a = a0, L = reach(P.x, P.z, a0, B.range);
     if (L < B.range - .5) for (const off of [.8, -.8, 1.6, -1.6]) { const l = reach(P.x, P.z, a0 + off, B.range); if (l > L + .3) { L = l; a = a0 + off; } }
-    if (L < .6 || !pay(B.cost)) return false;
+    if (L < .6) return false;
     const sx = P.x, sz = P.z;
     P.x = sx + Math.sin(a) * L; P.z = sz + Math.cos(a) * L;
     P.face = a + Math.PI; P.invuln = Math.max(P.invuln, B.invuln); P.castSeq++; P.lastCast = 'blink';

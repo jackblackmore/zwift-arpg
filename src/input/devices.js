@@ -15,7 +15,7 @@ const mouse = { ndc: new T.Vector2(), has: false };
 export const joy = { on: false, id: null, bx: 0, by: 0, x: 0, y: 0 };
 const ray = new T.Raycaster(), gplane = new T.Plane(new T.Vector3(0, 1, 0), 0), TV = new T.Vector3();
 const UI = {}; // hooks for opening panels, set by main.js
-// Keyboard skill bar: Q Flex B, Space Guard, E Evade; 1–5 the whole bar in order (LMB Main and RMB Flex A on the mouse).
+// Keyboard skill bar (Shift held: Surge): Q Flex B, Space Guard, E Evade; 1–5 the whole bar in order (LMB Main and RMB Flex A on the mouse).
 const KEY_SLOT = { q: 'flexB', ' ': 'guard', e: 'evade', 1: 'main', 2: 'flexA', 3: 'flexB', 4: 'guard', 5: 'evade' };
 
 export function setTouch(v) { if (ctl.touch === v) return; ctl.touch = v; document.body.classList.toggle('touch', v); }
@@ -67,6 +67,7 @@ export function initDevices(ui) {
   };
   for (const s of BAR) skillBtn('sk-' + s, () => slotInput(s, true), () => slotInput(s, false));
   skillBtn('sFl', () => ctl.flask = true);
+  skillBtn('sSu', () => ctl.surge = true, () => ctl.surge = false);
 
   addEventListener('keydown', e => {
     const k = e.key.toLowerCase(); if (k === ' ') e.preventDefault();
@@ -80,7 +81,8 @@ export function initDevices(ui) {
     if (G.paused) return;
     if (KEY_SLOT[k]) slotInput(KEY_SLOT[k], true);
     if (k === 'f') ctl.flask = true;
+    if (k === 'shift') ctl.surge = true;
   });
-  addEventListener('keyup', e => { const k = e.key.toLowerCase(); keys[k] = false; if (rideKey(k, false)) return; if (KEY_SLOT[k]) slotInput(KEY_SLOT[k], false); });
+  addEventListener('keyup', e => { const k = e.key.toLowerCase(); keys[k] = false; if (rideKey(k, false)) return; if (KEY_SLOT[k]) slotInput(KEY_SLOT[k], false); if (k === 'shift') ctl.surge = false; });
   addEventListener('blur', () => { for (const k in keys) keys[k] = false; clearHeld(); });
 }
