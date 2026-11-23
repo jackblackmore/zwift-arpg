@@ -11,7 +11,8 @@ import { Q, applyQuality, cycleQuality, cycleStyle } from './render/post.js';
 import { STYLES } from './data/graphics.js';
 import { updFx } from './render/fx.js';
 import { draw } from './render/draw.js';
-import { buildMap } from './world/map.js';
+import { buildMap, blocked } from './world/map.js';
+import { spawnEnemy } from './game/enemies.js';
 import { loadDungeon } from './world/dungeon.js';
 import { ctl } from './input/input.js';
 import { pollInput, initDevices } from './input/devices.js';
@@ -21,14 +22,15 @@ import { recalc } from './game/stats.js';
 import { newMap } from './game/maps.js';
 import { save, load } from './game/save.js';
 import { PASS } from './data/passives.js';
-import { START_WEAPON, parLevel, PAR_GEAR } from './data/balance.js';
+import { START_WEAPON, parLevel, parBar, PAR_GEAR } from './data/balance.js';
 import { arena } from './game/arena.js';
-import { kill } from './game/combat.js';
+import { kill, hurtP } from './game/combat.js';
 import { castFireball, castArc, castNova, castDash, castShield } from './game/skills.js';
 import { dropItem } from './game/items.js';
 import { hud } from './ui/hud.js';
 import { initPanels, syncPause, openInv, openPass, toggleInv, togglePass, toggleGems, openGems, openShrine, closeAll, equip } from './ui/panels.js';
 import { freshGems, readySlots, takeShrine, shrineDue, refreshShrine, placeGem, addGem } from './game/gems.js';
+import { CAST } from './game/casts.js';
 import { GEMS, SLOT_DEFS } from './data/gems.js';
 
 function begin(fresh) {
@@ -44,6 +46,7 @@ function begin(fresh) {
     // Saves from before gems have none: treat them as a fresh character for gems (the Main shrine is offered now).
     if (Array.isArray(sv.gems) && sv.gems.length) {
       Object.assign(P, { gems: sv.gems.filter(g => GEMS[g.gem]), bar: {}, cd: {}, shrined: sv.shrined || {} });
+      if (!P.gems.some(g => g.gem === 'ward')) delete P.shrined.guard; // saves from before the Frost Ward shrine
       for (const s in sv.bar || {}) if (SLOT_DEFS[s] && P.gems.some(g => g.id === sv.bar[s])) P.bar[s] = sv.bar[s];
       recalc(); readySlots();
     } else freshGems();
@@ -116,6 +119,6 @@ window.__dbg = {
   start: fresh => begin(fresh !== false),
   sim: n => { for (let i = 0; i < n; i++) { update(.033); updFx(.033); } },
   enemies: () => G.enemies, packs: () => G.packs, items: () => G.ground,
-  arena, parLevel, parGear: PAR_GEAR, newMap, kill, dropItem, castFireball, castArc, castNova, castDash, castShield, openInv, openPass, openGems, openShrine, equip,
-  takeShrine, shrineDue, placeGem, addGem, recalc, save, load, begin,
+  arena, parLevel, parBar, parGear: PAR_GEAR, newMap, kill, dropItem, castFireball, castArc, castNova, castDash, castShield, openInv, openPass, openGems, openShrine, equip,
+  takeShrine, shrineDue, placeGem, addGem, recalc, save, load, begin, CAST, blocked, spawnEnemy, hurtP,
 };

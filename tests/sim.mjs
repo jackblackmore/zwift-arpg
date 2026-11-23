@@ -211,7 +211,7 @@ try {
     const r = await page.evaluate(() => {
       const D = window.__dbg, P = D.P, S = D.S, G = D.G, out = {};
       const filled = () => Object.keys(P.bar).filter(s => P.bar[s]).sort().join(',');
-      D.start(true);
+      D.start(true); P.shrined.guard = 1; // the Frost Ward shrine has its own check below
       out.freshBar = filled(); // only Guard until the Main shrine is taken
       out.guardGem = P.gems.find(g => g.id === P.bar.guard).gem;
       D.takeShrine('main', 'arc'); document.getElementById('mShrine').classList.remove('show');
@@ -254,6 +254,60 @@ try {
     check(r.saved && r.loaded, 'gems: saves round-trip the skill bar and the gem bag');
     check(r.oldSave, 'gems: an old save without gems gets Magic Shield and the Main shrine');
     check(errors.length === 0, `gems: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
+  }
+
+  // ---------- Skill gems: Blink (Evade) and Frost Ward (Guard) ----------
+  {
+    const { page, errors } = await open('/');
+    const r = await page.evaluate(() => {
+      const D = window.__dbg, P = D.P, S = D.S, G = D.G, out = {};
+      D.start(true); D.takeShrine('main', 'fireball'); document.getElementById('mShrine').classList.remove('show');
+      // Frost Ward shrine: appears at level 3, takes Ward into the bag, Magic Shield stays in Guard.
+      out.noShrineEarly = !D.shrineDue().includes('guard');
+      P.lvl = 3; D.recalc(); out.due = D.shrineDue().includes('guard');
+      const w = D.takeShrine('guard', 'ward');
+      out.wardInBag = !!w && P.gems.find(g => g.id === P.bar.guard).gem === 'shield' && !D.shrineDue().includes('guard');
+      D.placeGem(w.id, 'guard'); out.wardSlotted = P.gems.find(g => g.id === P.bar.guard).gem === 'ward';
+      // Evade slot (level 8): offered Flame Dash and Blink.
+      P.lvl = 8; D.recalc(); D.openShrine('evade'); out.evadeOffer = [...document.querySelectorAll('#shrineCards .pc')].map(c => c.dataset.k).join(',');
+      document.getElementById('mShrine').classList.remove('show');
+      D.takeShrine('evade', 'blink'); document.getElementById('mShrine').classList.remove('show');
+      const clear = () => { G.enemies.forEach(e => { e.deathT = 1; e.gone = true; }); G.eproj = []; P.mana = S.maxMana; P.invuln = 0; P.life = S.maxLife; };
+      const walls = D.blocked;
+      // Blink: a monster 2 units to the east, in the open: we end up farther west, and never in a wall.
+      clear(); const r0 = G.layout ? G.layout.rooms[0] : null; // start room
+      P.x = G.start.x; P.z = G.start.z; D.ctl.mx = D.ctl.mz = 0; D.ctl.aim = null;
+      const m = D.spawnEnemy('zombie', P.x + 2, P.z, null, 0); m.awake = true; D.sim(1);
+      const d0 = Math.hypot(m.x - P.x, m.z - P.z), x0 = P.x, z0 = P.z;
+      out.blinked = D.CAST.blink(); const d1 = Math.hypot(m.x - P.x, m.z - P.z);
+      out.blinkAway = d1 > d0 + 2 && Math.hypot(P.x - x0, P.z - z0) <= 6.6 && P.invuln > .3;
+      out.blinkClear = !walls(P.x, P.z, P.r);
+      // Blink into a wall: from every spot of the start room, with the threat on each side, never end up in a wall.
+      let bad = 0, moved = 0;
+      for (let k = 0; k < 40; k++) {
+        clear(); const a = k * .157; P.x = G.start.x + Math.cos(a) * 1.5; P.z = G.start.z + Math.sin(a) * 1.5;
+        if (walls(P.x, P.z, P.r)) continue;
+        const t = D.spawnEnemy('zombie', P.x + Math.cos(k) * 1.5, P.z + Math.sin(k) * 1.5, null, 0); t.awake = true;
+        const px = P.x, pz = P.z; if (D.CAST.blink()) moved++; if (walls(P.x, P.z, P.r)) bad++;
+      }
+      out.wallBad = bad; out.wallMoved = moved;
+      // Frost Ward: chills and damages a monster inside, not one far away, and cuts damage taken.
+      clear(); P.x = G.start.x; P.z = G.start.z; P.mana = S.maxMana;
+      const a = D.spawnEnemy('zombie', P.x + 2, P.z, null, 0), b = D.spawnEnemy('zombie', P.x + 9, P.z, null, 0); a.awake = b.awake = true; a.hp = a.maxHp = b.hp = b.maxHp = 1e6;
+      const life0 = P.life; D.CAST.ward(); D.sim(30);
+      out.wardChill = a.chill > 0 && !(b.chill > 0); out.wardDmg = a.hp < 1e6 && b.hp === 1e6;
+      P.invuln = 0; const h0 = P.life; D.hurtP(100); out.wardDr = Math.abs((h0 - P.life) - 100 * (1 - S.dr) * .7) < .5;
+      D.sim(200); out.wardEnds = !(P.wardT > 0);
+      clear();
+      return out;
+    });
+    console.log('  skills D:', JSON.stringify(r));
+    check(r.noShrineEarly && r.due && r.wardInBag && r.wardSlotted, `skills D: Frost Ward shrine at level 3 gives Ward to the bag, swappable into Guard`);
+    check(r.evadeOffer === 'dash,blink', `skills D: the Evade shrine offers Flame Dash and Blink (${r.evadeOffer})`);
+    check(r.blinked && r.blinkAway && r.blinkClear, `skills D: Blink moves the player away from a nearby monster, with invulnerability`);
+    check(r.wallBad === 0 && r.wallMoved > 5, `skills D: Blink never lands in a wall (${r.wallBad} bad of ${r.wallMoved})`);
+    check(r.wardChill && r.wardDmg && r.wardDr && r.wardEnds, `skills D: Frost Ward chills and damages monsters inside only, cuts damage taken, and ends (${JSON.stringify(r)})`);
+    check(errors.length === 0, `skills D: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   }
 
   // ---------- ARPG in RIDE mode (simulated Zwift Ride + KICKR) ----------
