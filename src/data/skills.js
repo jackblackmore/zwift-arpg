@@ -8,6 +8,10 @@ export const SK = {
   // Flame Dash: the first Evade gem (level 8 shrine). Gems with `charges` hold that many casts, recharging one per `recharge` seconds.
 // Optional `bot: { range, crowd }` tells the arena bot when to use a Flex or Main press gem: an enemy within `range` (default: radius or range, else 9), `crowd` of them (default 1).
   dash: { cost: 8, charges: 1, range: 7.5, recharge: 4, patchEvery: 1.1, invuln: .3 },
+  // Blink: teleports `range` away from the nearest threat. Milestone: a frost burst (burstMult x cold, chill) where you stood.
+  blink: { cost: 10, charges: 2, range: 6.5, recharge: 5, invuln: .45, burstR: 3, burstMult: .9, burstChill: 3 },
+  // Frost Ward: radius, duration, cold damage per tick, and `dr` less damage taken for you. Monsters inside are chilled.
+  ward: { cost: 18, cd: 12, radius: 4, dur: 5, tick: .5, mult: .12, dr: .3 },
   burn: { mult: .22, tick: .25, life: 2.4 },
   flask: { heal: .6, dur: 2.5, max: 3, perKill: .1, perRare: 1 },
 };

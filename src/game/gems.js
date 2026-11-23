@@ -31,7 +31,7 @@ export function addGem(gem, lvl = 1) {
 
 // A brand-new character (or an old save from before gems): Magic Shield in Guard, everything else from shrines.
 export function freshGems() {
-  P.gems = []; P.bar = {}; P.cd = {}; P.shrined = { guard: 1 };
+  P.gems = []; P.bar = {}; P.cd = {}; P.shrined = {};
   P.bar.guard = addGem(START_GUARD).id;
   recalc(); readySlots();
 }
@@ -100,7 +100,7 @@ export function gemXp(n) {
 }
 
 // ---- shrines: one per slot unlock (data/gems.js SHRINES) ----
-export const shrineDue = () => BAR.filter(s => SHRINES[s] && unlocked(s) && !P.shrined[s]);
+export const shrineDue = () => BAR.filter(s => SHRINES[s] && P.lvl >= (SLOT_DEFS[s].shrineLvl || SLOT_DEFS[s].unlock) && !P.shrined[s]);
 export function shrineOffer(slot) {
   const all = SHRINES[slot], fresh = all.filter(id => !ownsGem(id));
   return (fresh.length ? fresh : all).slice(0, 3);
@@ -109,7 +109,8 @@ export function takeShrine(slot, gem) {
   if (!SHRINES[slot] || P.shrined[slot] || !shrineOffer(slot).includes(gem)) return null;
   const main = gemById(P.bar.main), lvl = slot !== 'main' && main && GEMS[gem].kind === 'attack' ? Math.max(1, main.lvl - GEM.flexStart) : 1;
   const g = addGem(gem, lvl); P.shrined[slot] = 1;
-  placeGem(g.id, slot); SFX.lvl();
+  if (slot !== 'guard') placeGem(g.id, slot); // the Guard shrine gives Frost Ward to the bag: Magic Shield stays until you swap
+  SFX.lvl();
   refreshShrine();
   return g;
 }

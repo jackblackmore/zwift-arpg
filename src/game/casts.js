@@ -5,7 +5,11 @@
 // To add a skill: write the module, then add one import and one entry to MODS below.
 import { castFireball, castArc, castNova, castShield, castDash } from './skills.js';
 
+import blink from './sk/blink.js';
+import ward from './sk/ward.js';
+
 const MODS = {
+  blink, ward,
 };
 
 export const CAST = { fireball: castFireball, arc: () => castArc(), nova: () => castNova(), shield: castShield, dash: castDash };
