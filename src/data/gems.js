@@ -31,7 +31,7 @@ export const GEMS = {
 export const SLOT_DEFS = {
   main: { n: 'Main', unlock: 1, kinds: ['attack'], key: 'LMB', sock: [[1, 1], [15, 2], [30, 3], [45, 4]] },
   flexA: { n: 'Flex A', unlock: 5, kinds: ['attack'], key: 'RMB', sock: [[5, 1], [25, 2]] },
-  flexB: { n: 'Flex B', unlock: 12, kinds: ['attack'], key: 'Q', sock: [[12, 1], [25, 2]] },
+  flexB: { n: 'Flex B', unlock: 10, kinds: ['attack'], key: 'Q', sock: [[10, 1], [25, 2]] },
   guard: { n: 'Guard', unlock: 1, shrineLvl: 3, kinds: ['guard'], key: 'SPACE', sock: [[1, 1]] },
   evade: { n: 'Evade', unlock: 1, shrineLvl: 8, kinds: ['evade'], key: 'E', sock: [[8, 1]] },
 };

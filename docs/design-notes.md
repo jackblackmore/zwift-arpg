@@ -59,7 +59,7 @@ Skill bar:
 |---|---|---|---|
 | Main | Any attack skill gem | Level 1 | 4 (1 at L1, 2 at L15, 3 at L30, 4 at L45) |
 | Flex A | Any attack or support skill gem | Level 5 | 2 (1 on unlock, 2 at L25) |
-| Flex B | Any attack or support skill gem | Level 12 | 2 (1 on unlock, 2 at L25) |
+| Flex B | Any attack or support skill gem | Level 10 (was 12; moved with the slower levelling, Nov 2026) | 2 (1 on unlock, 2 at L25) |
 | Guard | Guard skill gems (shields, wards, decoys; shield arts from step 3⅞) | Level 1 | 1 |
 | Evade | Evade gems (Roll, Blink, Phase, Smoke, Decoy Swap, Flame Dash) | Level 8 (level 1 from step 3⅞, with Roll) | 1 |
 
@@ -67,7 +67,7 @@ Skill bar:
 - Gems can be moved between any slots that accept them at any time outside a Trial.
 
 Where skill gems come from (they drop as loot):
-- **Shrines: four, once per character, only in the first world (Crypt).** Ride 1: choose 1 of 3 Main gems (Ember Cleave, Frost Strike, Thunder Slam) plus Magic Shield. Level 5: Flex A. Level 8: Evade (from step 3⅞: Roll from the start, the level 8 shrine offers Blink or Flame Dash to replace it). Level 12: Flex B. Each is 1 of 3 options for that slot and appears at the entrance of the next level so it can't be missed.
+- **Shrines: four, once per character, only in the first world (Crypt).** Ride 1: choose 1 of 3 Main gems (Ember Cleave, Frost Strike, Thunder Slam) plus Magic Shield. Level 5: Flex A. Level 8: Evade (from step 3⅞: Roll from the start, the level 8 shrine offers Blink or Flame Dash to replace it). Level 10: Flex B. Each is 1 of 3 options for that slot and appears at the entrance of the next level so it can't be missed.
 - **Shrine gems for Flex slots start at Main gem level − 2** (only shrine gems).
 - Guardians: 1 guaranteed gem (skill or support) from the region pool.
 - Trial bosses: their own signature gems.
@@ -346,13 +346,21 @@ Region themes and boss pairings are **open**; the shape (6 × 5 + Trial) is lean
 
 | Thing | Target |
 |---|---|
-| Normal skeleton | 3–5 hits of the par Main gem (Ember Cleave); Thunder Slam takes fewer by design |
+| Normal skeleton | 4–6 hits of the par Main gem (the Sword); Thunder Slam takes fewer by design |
 | Normal pack | 4–15 s to clear |
 | Rare | 8–25 s of single-target hits |
 | Guardian | 45–100 s; an under-geared hero can't burn it down |
 | Danger | A pack in melee kills you in 4–14 s if you stand in it and never Guard |
 | Surge | Spending a full gauge on a guardian cuts it to 35–85 s (`guardianSurge`) |
 | Loot | A full magic kit is ×1.3–3 the starter sword's damage |
+
+**Harder start (Nov 2026, after the owner's first play of the fight prototype: "crazy easy", too much gear too quick, levelled too fast).** Aim: a challenge from the first pack, a little underpowered, gear that feels earned.
+- **Slower levels.** XP curve 65 × level^1.6 (was 40 × level^1.55); deeper maps give more XP (`TIER.xp` 1, was .5) so the track stays even. A character that full-clears every map arrives at levels 1, 4.1, 5.9, 7.8, 9.7 (the balance report now prints this track), so **par levels are now 1, 4, 6, 8, 10** (were 1, 4, 7, 10, 12) and par gem levels the same. The Crypt ends around level 11–12. Flex B unlocks at level 10 (was 12) so it still arrives in the Crypt. Gems level on the same curve, so they slow down too.
+- **Less gear.** Drops can now be plain (implicit only): 35% of drops are magic and 7% rare (was every drop magic or better, 20% rare). Normal monsters drop 1.2% (was 2.5%), magic 4% (was 8%); a rare's second item 10% (was 25%); the guardian drops 2 items (was 3). Rare packs are 15% of packs (was 25%), so rares feel special and fewer items come from them.
+- **Monsters bite.** Zombies 48 life and 8 damage (were 40 and 5.5), runners 24 and 5.5 (20 and 4), archers 32 and 10 (28 and 8). Normal swings wind up 0.42 s (was 0.32): heavier and readable enough to parry. The guardian's base damage is 10.5 (was 12, eased after the heavies went up). A new hero needs about 5 swings per zombie.
+- **Less free sustain.** Life on hit 0.4 per monster (was 1), flask charge per kill 0.05 (was 0.1): you heal by defending, not by swinging.
+- **Arena (seed 1234):** a good rider clears every pack and guardian at par (guardians 61–96 s) but the first guardian takes it to 32% with 2 flasks, and in repeated tier 1 runs it ends at 16–75% life (it can die). Never defending loses every guardian on every tier and costs 45–55% of life against a rare pack. `npm run balance`: every par number inside target.
+- **Open:** whether 4–5 swings per zombie feels good or slow once played; a plain item still fills an empty slot with its implicit, so the first map still gives a few upgrades.
 
 ### Testing balance without playing a level
 

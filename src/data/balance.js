@@ -5,7 +5,7 @@
 // Base damage comes from skill gems (data/gems.js GEM), not character level, so spell/spellPer stay 0.
 // lifeOnHit: life a melee swing gives back per monster it hits, for up to lifeOnHitMax monsters (melee stands in the pack).
 export const HERO = {
-  life: 120, lifePer: 12, lregen: 1, lifeOnHit: 1, lifeOnHitMax: 3,
+  life: 120, lifePer: 12, lregen: 1, lifeOnHit: .4, lifeOnHitMax: 3,
   spell: 0, spellPer: 0, crit: .05, ms: 5.4, chains: 3, critMult: 1.75,
 };
 // The weapon a new character starts with: a plain sword, nothing on it but its implicit.
@@ -21,7 +21,7 @@ export const RARITY = {
 // After dying you respawn at the map entrance, untouchable for respawnInvuln s.
 export const COMBAT = { spread: [.88, 1.12], deathXp: .1, respawnInvuln: 2 };
 // Experience to go from level l to l + 1: base × l^exp (the character and every gem use the same curve).
-export const XP_CURVE = { base: 40, exp: 1.55 };
+export const XP_CURVE = { base: 65, exp: 1.6 };
 // Item level scaling of rolled values: flat affixes +flat per item level above 1, percent affixes +pct per level.
 export const ITEM_SCALE = { flat: .22, pct: .07 };
 // The bag's "is this an upgrade?" estimate (game/stats.js estimate) and the maths report: extra damage per Arc chain, and how
@@ -30,10 +30,10 @@ export const ESTIMATE = { perChain: .3, targets: { sword: 1.9, cleave: 2.4, fstr
 
 // Par character level for each map tier: the level you should be when you start that map.
 // Tiers 1–5 are the Crypt's five levels (the region boss comes after); later tiers add `PAR_AFTER` each.
-export const PAR = [1, 4, 7, 10, 12];
+export const PAR = [1, 4, 6, 8, 10];
 export const PAR_AFTER = 1.6;
 // Par level of the Main gem on each tier (it earns the same XP as the character, from level 1, capped at GEM.cap).
-export const PAR_GEM = [1, 4, 7, 9, 10];
+export const PAR_GEM = [1, 4, 6, 8, 10];
 export const parGem = t => Math.min(10, t <= PAR_GEM.length ? PAR_GEM[t - 1] : 10);
 // The skill bar the tools assume at a tier: the starting bar (Sword, Knight's Shield, Roll), plus Frost Nova in Flex A once it
 // unlocks (level 5). While the fight mechanics are tested (build order step 3⅞) the par Main gem is the plain Sword.
@@ -48,7 +48,7 @@ export const parLevel = t => t <= PAR.length ? PAR[t - 1] : Math.round(PAR[PAR.l
 
 // What a balanced fight looks like at par. [low, high]; both tools flag numbers outside these.
 export const TARGETS = {
-  hitsNormal: [3, 5],     // single-target hits of the par Main gem (PAR_MAIN) to kill a normal zombie; big-hit gems (Thunder Slam) take fewer by design
+  hitsNormal: [4, 6],     // single-target hits of the par Main gem (PAR_MAIN) to kill a normal zombie (you start a little underpowered); big-hit gems (Thunder Slam) take fewer by design
   packClear: [4, 15],     // seconds to clear a normal pack
   rareKill: [8, 25],     // seconds of single-target hits to kill a rare
   guardian: [45, 100],    // seconds to kill the map's guardian, never surging

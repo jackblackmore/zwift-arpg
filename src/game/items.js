@@ -20,7 +20,8 @@ function rollVal(a, il) {
 }
 export function rollItem(il, boost = 0) {
   const r = Math.random(), uni = il >= DROP.uniqueFrom ? DROP.uniqueBase + boost * DROP.uniqueBoost : 0;
-  let rar = r < uni ? 3 : r < uni + DROP.rareBase + boost ? 2 : 1;
+  const rb = uni + DROP.rareBase + boost;
+  let rar = r < uni ? 3 : r < rb ? 2 : r < rb + DROP.magicBase + boost ? 1 : 0;
   const slot = pick(SLOTS);
   if (rar === 3) {
     const u = pick(UNIQ.filter(u => u.slot === slot));
@@ -29,9 +30,9 @@ export function rollItem(il, boost = 0) {
   const [ist, iv] = IMPL[slot];
   const it = { id: G.itemId++, slot, rar, base: pick(BASES[slot]), il, mods: [[ist, ist === 'ms' || ist === 'dmg' ? iv : Math.round(iv * flatScale(il))]], impl: 1 };
   const pool = AFF.filter(a => !a.slots || a.slots.includes(slot)).sort(() => Math.random() - .5);
-  const A = DROP.affixes[rar === 1 ? 'magic' : 'rare'], n = randi(A[0], A[1]), skip = DROP.rareAffixSkip[rar === 1 ? 'magic' : 'rare'];
+  const A = DROP.affixes[rar === 1 ? 'magic' : 'rare'], n = rar ? randi(A[0], A[1]) : 0, skip = DROP.rareAffixSkip[rar === 1 ? 'magic' : 'rare'];
   for (const a of pool) { if (it.mods.length - 1 >= n) break; if (a.rare && Math.random() < skip) continue; it.mods.push([a.st, rollVal(a, il)]); }
-  it.name = rar === 2 ? pick(RAREN1) + ' ' + pick(RAREN2) : `${AFFBY[it.mods[1][0]].mp} ${it.base}`;
+  it.name = rar === 2 ? pick(RAREN1) + ' ' + pick(RAREN2) : rar === 1 ? `${AFFBY[it.mods[1][0]].mp} ${it.base}` : it.base;
   return it;
 }
 export function modText(st, v) {

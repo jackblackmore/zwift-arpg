@@ -36,12 +36,16 @@ function avgPack(t) {
 let warn = 0;
 console.log(`Watt Dungeon balance report · ${GEMS[MAIN].n} only · ${GEMS[MAIN].melee ? ESTIMATE.targets[MAIN] + ' targets per swing in a pack' : 'single target'} · targets in src/data/balance.js`);
 console.log('  ↑ above target  ↓ below target  (checked on the par gear row, marked *)\n');
+// The level track: a character that full-clears every map from map 1 (XP carried over), to compare with the par levels.
+const track = { lv: 1, xp: 0 };
 for (let t = 1; t <= maxTier; t++) {
+  const atStart = track.lv + track.xp / xpNeedFor(track.lv);
   const lvl = parLevel(t), gl = parGem(t), gems = { [MAIN]: gl }, socks = { [MAIN]: (parSock(t, MAIN).main || []) }, pack = avgPack(t), boss = monsterStats('boss', t);
   const z = monsterStats('zombie', t), rare = monsterStats('zombie', t, 2);
   const xpMap = packCount(t) * pack.xp * (1 + TIER.xp * (t - 1)) * (1 + PACK.magicChance * (RARITY.magic.xp - 1)) + packCount(t) * PACK.rareChance * MT.zombie.xp * RARITY.rare.xp + MT.boss.xp;
   let lv = lvl, xp = xpMap; while (xp >= xpNeedFor(lv)) { xp -= xpNeedFor(lv); lv++; }
-  console.log(`Tier ${t} · par level ${lvl} · ${GEMS[MAIN].n} gem ${gl}${socks[MAIN].length ? ' + ' + socks[MAIN].join(', ') : ''} · zombie ${fmt(z.hp, 0)} hp · pack ~${fmt(pack.n)} monsters ${fmt(pack.hp, 0)} hp · rare ${fmt(rare.hp, 0)} hp · guardian ${fmt(boss.hp, 0)} hp · map XP takes you to level ${fmt(lv + xp / xpNeedFor(lv))}`);
+  track.xp += xpMap; while (track.xp >= xpNeedFor(track.lv)) { track.xp -= xpNeedFor(track.lv); track.lv++; }
+  console.log(`Tier ${t} · par level ${lvl} · ${GEMS[MAIN].n} gem ${gl}${socks[MAIN].length ? ' + ' + socks[MAIN].join(', ') : ''} · zombie ${fmt(z.hp, 0)} hp · pack ~${fmt(pack.n)} monsters ${fmt(pack.hp, 0)} hp · rare ${fmt(rare.hp, 0)} hp · guardian ${fmt(boss.hp, 0)} hp · map XP takes you to level ${fmt(lv + xp / xpNeedFor(lv))} · full clears from map 1 arrive at level ${fmt(atStart)}`);
   console.log('  gear   │ hit  │ zombie hits │ pack clear │ rare kill │ guardian │ surging  │ face-tank │ vs starter');
   const startDps = gemDps(computeStats(gearProfile('start'), {}, lvl, gems, socks), MAIN).dps;
   for (const kind of Object.keys(GEAR_PROFILES)) {
