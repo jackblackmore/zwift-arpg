@@ -422,6 +422,16 @@ Loop: change numbers in `src/data/` → `npm run balance` → `npm run arena` �
 - **Autopilot:** engages monsters it can see or that are awake, then loot, then the lowest-`rank` uncleared pack (so room to room along the route, side rooms as detours), then the guardian. Walking there goes through `steer`, so it takes corners.
 - **Decisions:** (1) Map grew from 68 to 141 units across; the enemy spatial hash offset went from 60 to 80 to cover it. (2) The walls are full cells for collision; the KayKit wall pieces sit on the edge of the floor cell, so the 3.2-unit-deep rock behind them is just dark. (3) The 20–30 minute target is not reached by walking: the route is about a minute to a minute and a half. The rest is fighting, so level length is now a pack count, monster HP and (later) beats question, to tune in step 7's balance pass. (4) Side rooms have no special content yet (just a chest and a few extra props); that belongs to the beats work.
 
+### Route choice (built Nov 2026)
+
+The owner's call after playing: the autopilot shouldn't decide which way to go out of a room; force the choice, Zwift junctions crossed with Hades doors. Code in `src/game/route.js`, tuning `RIDE.junction` in `src/data/ride.js`.
+- **When:** the autopilot has cleared the room it's in and picked up the loot, and the room has more than one way on that still leads to something to fight. It stops, a sign appears around the hero for each way (**Onward** toward the guardian, **Side room**, **Back** to something passed earlier, **Guardian** when the next room is the arena), the default glows gold, and a countdown runs: **5 s**.
+- **Picking:** a D-pad tap (arrow keys in RIDE mode) toward a sign picks it and the autopilot goes at once. With no pick it takes the default when the countdown ends, and for **4 s** more the sign stays up and a tap still changes the way. Holding the D-pad still steers by hand. The minimap shows the chosen way as a dashed gold line. Each room asks once per map.
+- **The default clears everything:** the room's side rooms first, then anything skipped behind you, then onward, so a full clear (which the par levels assume) needs no input. **Picking Onward by hand skips** the other ways for the rest of the map: the default stops going back for them (you can still pick them later).
+- **Which room a pack belongs to:** the room it stands in, or for a corridor pack the far (higher-rank) end of its corridor.
+- **Only in autopilot (RIDE).** With manual movement you walk where you like.
+- **Later (beats, step 10):** a sign can say what's behind the door (elite, shrine, treasure, breather), so the choice shapes the ride like picking a Zwift route.
+
 ### Beats (pacing inside a level)
 
 A beat is a moment where something changes. Levels follow an interest curve: waves of intensity, with each peak higher than the last, ending on the guardian. Normal packs keep a baseline between beats.
@@ -505,7 +515,7 @@ Ideas: deeper levels use more intense versions of the template; beats could be w
 ### Layer 1: movement and normal mode (leaning)
 
 - **Movement: the game drives, you decide (Zwift-style).** The autopilot follows the route through the level toward the next beat and the guardian, fights, loots and keeps your build's preferred range (from the main skill: snipers hang back, melee and Phase builds close in). At junctions the D-pad picks a direction; holding it nudges the character manually. On keyboard and touch, manual control is the default and autopilot is optional.
-  - Autopilot needs route awareness (beats, junctions, guardian), not just "nearest thing". Built so far: it follows the room route, and with a melee Main gem it closes to the swing's reach and stands there (no kiting).
+  - Autopilot needs route awareness (beats, junctions, guardian), not just "nearest thing". Built so far: it follows the room route, and with a melee Main gem it closes to the swing's reach and stands there (no kiting). **Junctions are built** (see "Route choice" below).
   - **Built (step 3¾):** the Main melee gem auto-attacks the guardian or a rare first, else the nearest awake monster in reach, on every device. Steering away by hand pauses it; the ATTACK toggle switches it to hold-to-attack.
 - **Pedalling is a gate for movement, not a speed dial.** Above ~30–40% FTP you move at a fixed speed; below, a slow walk; at 0 W you stop. (Change from today, where speed keeps rising to 125% at 125% FTP.)
 - **The main skill auto-attacks.** It picks the most important nearby target (elites first, then nearest). The same on every device; manual aim could be an option.

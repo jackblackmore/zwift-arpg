@@ -207,6 +207,47 @@ try {
     check(errors.length === 0, `autopilot route: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   }
 
+  // ---------- Route choice at junctions (game/route.js): wait for a pick, default to clearing everything, a tap picks ----------
+  {
+    const { page, errors } = await open('/');
+    const r = await page.evaluate(() => {
+      const D = window.__dbg, P = D.P, G = D.G, out = {};
+      D.start(true);
+      // A route room with a side room off it, and the next room along the route (new maps until one has it).
+      const find = L => L.route.findIndex((id, i) => i < L.route.length - 1 && L.edges.some(e => (e.a === id || e.b === id) && L.rooms[e.a === id ? e.b : e.a].kind === 'side'));
+      for (let n = 0; n < 20 && find(G.layout) < 0; n++) D.newMap(1);
+      const L = G.layout, k = find(L);
+      const C = L.rooms[L.route[k]], next = L.rooms[L.route[k + 1]];
+      const side = L.rooms[L.edges.map(e => e.a === C.id ? e.b : e.b === C.id ? e.a : -1).find(id => id >= 0 && L.rooms[id].kind === 'side')];
+      // Only two packs left on the map: one in the side room, one in the next room (both far enough not to spawn).
+      G.enemies.forEach(e => { e.deathT = 1; e.gone = true; });
+      const pk = (room) => ({ x: room.x, z: room.z, mem: [], spawned: false, awake: false, list: [], rank: room.rank });
+      const sp = pk(side), np = pk(next); G.packs = [sp, np];
+      D.resetRoute(); P.x = C.x; P.z = C.z; D.ctl.tapDir = null;
+      const t0 = D.routeTarget(.1); out.waits = t0 === 'wait' && !!G.jn;
+      out.kinds = G.jn ? G.jn.opts.map(o => o.kind).join(',') : '';
+      out.defaultSide = G.jn && G.jn.opts[G.jn.sel].kind === 'side';
+      let t = .1, res = 'wait'; while (res === 'wait' && t < 10) { res = D.routeTarget(.1); t += .1; }
+      out.waitSecs = Math.round(t * 10) / 10; out.toSide = res === sp && G.jn && G.jn.mode === 'go';
+      // During the grace period a tap toward the onward exit changes the way, and skips the side room.
+      const on = G.jn.opts.find(o => o.kind === 'onward'); D.ctl.tapDir = [Math.sign(on.door.x - P.x) * (Math.abs(on.door.x - P.x) > Math.abs(on.door.z - P.z) ? 1 : 0), Math.sign(on.door.z - P.z) * (Math.abs(on.door.z - P.z) >= Math.abs(on.door.x - P.x) ? 1 : 0)];
+      out.toNext = D.routeTarget(.1) === np && G.skip.has(side.id);
+      // A tap while waiting picks straight away.
+      D.resetRoute(); D.routeTarget(.1); D.ctl.tapDir = [Math.sign(side.x - P.x) * (Math.abs(side.x - P.x) > Math.abs(side.z - P.z) ? 1 : 0), Math.sign(side.z - P.z) * (Math.abs(side.z - P.z) >= Math.abs(side.x - P.x) ? 1 : 0)];
+      out.quick = D.routeTarget(.1) === sp && G.jn.picked;
+      // With only one way on, no stop.
+      D.resetRoute(); G.packs = [np]; out.noStop = D.routeTarget(.1) === np && !G.jn;
+      return out;
+    });
+    console.log('  route:', JSON.stringify(r));
+    check(r.waits && r.kinds.includes('side') && r.kinds.includes('onward') && r.defaultSide, `route: a cleared room with a side room and a way onward stops and offers both, defaulting to the side room (${r.kinds})`);
+    check(r.toSide && r.waitSecs >= 4.9 && r.waitSecs <= 5.2, `route: with no pick it takes the default after about 5 s (${r.waitSecs}s)`);
+    check(r.toNext, 'route: a D-pad tap during the grace period switches to Onward and skips the side room');
+    check(r.quick, 'route: a tap while waiting picks straight away');
+    check(r.noStop, 'route: with only one way on, the autopilot doesn\'t stop');
+    check(errors.length === 0, `route: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
+  }
+
   // ---------- Balance guard rails (arena: real fights, scripted player; full table via `npm run arena`) ----------
   {
     const { page, errors } = await open('/');

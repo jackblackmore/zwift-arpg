@@ -5,7 +5,8 @@ export const G = {
   tier: 1, mapKills: 0, mapTotal: 0, gt: 0, paused: true, started: false,
   minions: [], // allies: Raise Skeletons (game/sk/skeletons.js)
   enemies: [], eproj: [], patches: [], ground: [], floats: [], queue: [], effects: [],
-  packs: [], obst: [], torches: [], portal: null, bossSpec: null, shrine: null, shrineAsk: null, layout: null, // layout: the level grid (world/gen.js); null = open floor (arena)
+  packs: [], obst: [], jn: null, goal: null, skip: new Set(), jnDone: new Set(), // route choice at junctions (game/route.js)
+   torches: [], portal: null, bossSpec: null, shrine: null, shrineAsk: null, layout: null, // layout: the level grid (world/gen.js); null = open floor (arena)
   start: { x: 0, z: 0 }, bossSpot: { x: 0, z: 0 },
   world: null, mmBase: null, heroM: null,
   vign: 0, shakeA: 0, hitStop: 0, saveT: 30, bannerT: 0, labelRects: [], itemId: 1,

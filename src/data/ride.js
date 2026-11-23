@@ -14,6 +14,9 @@ export const RIDE = {
   // stands there (`keep` without one); an awake guardian or rare within `focus` comes first. After any Evade it stands still for
   // `evadePause` s, so a roll out of a slam isn't undone by walking straight back into it.
   autopilot: { engage: 14, reach: .75, keep: 2, focus: 6, loot: 15, evadePause: .8 },
+  // Route choice (game/route.js): at a cleared room with more than one way on, the autopilot waits `wait` s for a D-pad pick, then
+  // takes the default (clear everything); a pick still changes the way for `grace` s after that.
+  junction: { wait: 5, grace: 4 },
   keys: { powerUp: 'w', powerDown: 's', cadUp: 'd', cadDown: 'a', step: 120, cadStep: 40 }, // per second while held
 };
 

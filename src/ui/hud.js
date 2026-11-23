@@ -66,6 +66,7 @@ function minimap() {
   }
   if (G.bossSpec && !G.bossSpec.spawned && seen(G.bossSpot.x, G.bossSpot.z)) { mmc.fillStyle = '#ff4fd8'; mmc.beginPath(); mmc.arc(X(G.bossSpot.x), X(G.bossSpot.z), 7, 0, 7); mmc.fill(); }
   for (const d of G.ground) if (d.it.rar >= 2 && seen(d.x, d.z)) { mmc.fillStyle = d.it.col || RCSS[d.it.rar]; mmc.fillRect(X(d.x) - 3, X(d.z) - 3, 6, 6); }
+  if (G.jn) { const d = G.jn.opts[G.jn.sel].door; mmc.strokeStyle = '#ffd23f'; mmc.lineWidth = 3; mmc.setLineDash([6, 5]); mmc.beginPath(); mmc.moveTo(X(P.x), X(P.z)); mmc.lineTo(X(d.x), X(d.z)); mmc.stroke(); mmc.setLineDash([]); } // the way chosen at a junction (game/route.js)
   if (G.portal) { mmc.strokeStyle = '#b06bff'; mmc.lineWidth = 3; mmc.beginPath(); mmc.arc(X(G.portal.x), X(G.portal.z), 8, 0, 7); mmc.stroke(); }
   mmc.save(); mmc.translate(X(P.x), X(P.z)); mmc.rotate(-P.face + Math.PI); mmc.fillStyle = '#fff';
   mmc.beginPath(); mmc.moveTo(0, -9); mmc.lineTo(6, 6); mmc.lineTo(-6, 6); mmc.fill(); mmc.restore();
