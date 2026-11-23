@@ -103,7 +103,9 @@ export function gemXp(n) {
 export const shrineDue = () => BAR.filter(s => SHRINES[s] && unlocked(s) && !P.shrined[s]);
 export function shrineOffer(slot) {
   const all = SHRINES[slot], fresh = all.filter(id => !ownsGem(id));
-  return (fresh.length ? fresh : all).slice(0, 3);
+  // Stable until the character's gem count changes: rotate the list by it, so different shrines show different options.
+  const pool = fresh.length ? fresh : all, k = P.gems.length % pool.length;
+  return [...pool.slice(k), ...pool.slice(0, k)].slice(0, 3);
 }
 export function takeShrine(slot, gem) {
   if (!SHRINES[slot] || P.shrined[slot] || !shrineOffer(slot).includes(gem)) return null;

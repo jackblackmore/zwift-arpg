@@ -5,7 +5,11 @@
 // To add a skill: write the module, then add one import and one entry to MODS below.
 import { castFireball, castArc, castNova, castShield, castDash } from './skills.js';
 
+import totem from './sk/totem.js';
+import meteor from './sk/meteor.js';
+
 const MODS = {
+  totem, meteor,
 };
 
 export const CAST = { fireball: castFireball, arc: () => castArc(), nova: () => castNova(), shield: castShield, dash: castDash };

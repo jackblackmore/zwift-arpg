@@ -3,6 +3,10 @@ export const SK = {
   fireball: { cost: 7, cast: .55, speed: 17, life: .8, spread: .17, pierceMult: .8, radius: 1.9 },
   arc: { cost: 10, cast: .6, mult: .9, range: 11, chainRange: 5.5, shockChance: .3, shockT: 3 },
   nova: { cost: 18, cd: 6, radius: 4.2, mult: 1.4, freeze: 1.3, bot: { crowd: 2 } },
+  // Flame Totem: lasts `dur` s, a bolt every `interval` s at the nearest monster within `range` of the totem; placed within `place` of you. Milestone: dur × mileDur.
+  totem: { cost: 18, cd: 9, dur: 6, interval: .45, mult: .5, range: 9, place: 9, mileDur: 1.5, bot: { range: 9, crowd: 1 } },
+  // Meteor: lands `delay` s after the cast, within `range`; hits `radius`, leaves burning ground for `burn` s. Milestone: radius × mileR.
+  meteor: { cost: 24, cd: 10, delay: .8, mult: 1.7, radius: 2.6, range: 13, burn: 3, mileR: 1.3, bot: { range: 9, crowd: 2 } },
   // Magic Shield: absorbs `absorb` × max life (more with shieldPct) for `dur` seconds. The starting Guard skill.
   shield: { cost: 15, absorb: .35, dur: 5, cd: 10 },
   // Flame Dash: the first Evade gem (level 8 shrine). Gems with `charges` hold that many casts, recharging one per `recharge` seconds.
