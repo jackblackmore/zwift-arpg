@@ -2,9 +2,9 @@
 // For each map tier at its par character level, with each gear profile, prints kill speeds, mana sustain,
 // danger and XP, and flags anything outside the targets in src/data/balance.js.
 // Usage: npm run balance [-- maxTier]   (default 5, the Crypt). Fireball in Main at the tier's par gem level (PAR_GEM) with its par support
-// (parSock; Twin Flame's extra projectile is counted as landing 55% of the time, like the bag's estimate), nothing else, so it's a floor on real kill speed.
+// (parSock; Twin Flame's extra projectile is counted as landing ESTIMATE.extraProj of the time, like the bag's estimate), nothing else, so it's a floor on real kill speed.
 import { computeStats, avgHit, monsterStats, gearProfile, xpNeedFor, packCount } from '../src/game/formulas.js';
-import { TARGETS, parLevel, parGem, parSock, PAR_GEAR, AOE_TARGETS, GEAR_PROFILES } from '../src/data/balance.js';
+import { TARGETS, RARITY, ESTIMATE, parLevel, parGem, parSock, PAR_GEAR, AOE_TARGETS, GEAR_PROFILES } from '../src/data/balance.js';
 import { MT, TIER, PACKS, PACK } from '../src/data/monsters.js';
 import { SK } from '../src/data/skills.js';
 
@@ -17,8 +17,8 @@ function castTime(n, st) {
   const t0 = st.maxMana / drain, n0 = f * t0;
   return n <= n0 ? n / f : t0 + (n - n0) * F.cost / st.mregen;
 }
-// Fireballs per cast that land, on average: the first always, extras (Twin Flame) 55% of the time.
-const projLand = st => 1 + (st.sk.fireball.proj - 1) * .55;
+// Fireballs per cast that land, on average: the first always, extras (Twin Flame) ESTIMATE.extraProj of the time.
+const projLand = st => 1 + (st.sk.fireball.proj - 1) * ESTIMATE.extraProj;
 const flag = (v, [lo, hi]) => v < lo ? '↓' : v > hi ? '↑' : ' ';
 const fmt = (v, d = 1) => (Math.round(v * 10 ** d) / 10 ** d).toFixed(d);
 
@@ -38,7 +38,7 @@ console.log('  ↑ above target  ↓ below target  (checked on the par gear row,
 for (let t = 1; t <= maxTier; t++) {
   const lvl = parLevel(t), gl = parGem(t), gems = { fireball: gl }, socks = { fireball: (parSock(t).main || []) }, pack = avgPack(t), boss = monsterStats('boss', t);
   const z = monsterStats('zombie', t), rare = monsterStats('zombie', t, 2);
-  const xpMap = packCount(t) * pack.xp * (1 + TIER.xp * (t - 1)) * (1 + PACK.magicChance) + packCount(t) * PACK.rareChance * MT.zombie.xp * 8 + MT.boss.xp;
+  const xpMap = packCount(t) * pack.xp * (1 + TIER.xp * (t - 1)) * (1 + PACK.magicChance * (RARITY.magic.xp - 1)) + packCount(t) * PACK.rareChance * MT.zombie.xp * RARITY.rare.xp + MT.boss.xp;
   let lv = lvl, xp = xpMap; while (xp >= xpNeedFor(lv)) { xp -= xpNeedFor(lv); lv++; }
   console.log(`Tier ${t} · par level ${lvl} · Fireball gem ${gl}${socks.fireball.length ? ' + ' + socks.fireball.join(', ') : ''} · zombie ${fmt(z.hp, 0)} hp · pack ~${fmt(pack.n)} monsters ${fmt(pack.hp, 0)} hp · rare ${fmt(rare.hp, 0)} hp · guardian ${fmt(boss.hp, 0)} hp · map XP takes you to level ${fmt(lv + xp / xpNeedFor(lv))}`);
   console.log('  gear   │ hit  │ zombie hits │ uptime │ pack clear │ rare kill │ guardian │ face-tank │ vs starter');

@@ -3,6 +3,7 @@
 import * as T from 'three';
 import { P, S } from '../../core/state.js';
 import { SK } from '../../data/skills.js';
+import { GEMS, SUPPORTS } from '../../data/gems.js';
 import { rand, pick } from '../../core/util.js';
 import { SFX } from '../../core/audio.js';
 import { scene, flashLight } from '../../render/scene.js';
@@ -17,12 +18,12 @@ let lances = [];
 
 function cast() {
   const K = SK.frostlance; if (!pay(K.cost)) return false;
-  const [ax, az] = aim(), a = Math.atan2(ax - P.x, az - P.z), Sp = K.sup.split, n = S.sk.frostlance.split ? Sp.n : 1, mult = K.mult * (n > 1 ? Sp.mult : 1);
+  const [ax, az] = aim(), a = Math.atan2(ax - P.x, az - P.z), Sp = SUPPORTS.split, n = S.sk.frostlance.split ? Sp.lances : 1, mult = K.mult * (n > 1 ? Sp.mult : 1);
   for (let i = 0; i < n; i++) {
     const b = a + (i % 2 ? 1 : -1) * Math.ceil(i / 2) * Sp.spread, g = new T.Group();
     g.add(glowSprite(0x7fd8ff, 1.3), glowSprite(0xffffff, .5));
     g.position.set(P.x + Math.sin(b) * .8, 1.2, P.z + Math.cos(b) * .8); scene.add(g);
-    lances.push({ x: g.position.x, z: g.position.z, dx: Math.sin(b), dz: Math.cos(b), life: K.life, mult, pierce: K.pierce + (S.mile.frostlance ? K.msPierce : 0), hitS: new Set(), g });
+    lances.push({ x: g.position.x, z: g.position.z, dx: Math.sin(b), dz: Math.cos(b), life: K.life, mult, pierce: K.pierce + (S.mile.frostlance ? GEMS.frostlance.mile.pierce : 0), hitS: new Set(), g });
   }
   P.face = a; P.castAnim = .3; P.castSeq++; P.lastCast = 'lance';
   flashFx(P.x + Math.sin(a) * .8, 1.2, P.z + Math.cos(a) * .8, 0x7fd8ff, 2.5, .2); SFX.fire(); return true;

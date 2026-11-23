@@ -1,19 +1,19 @@
 // Pure balance maths: hero stats, item roll scaling, monster scaling, expected damage.
 // Imports only data, so the game, `npm run balance` (Node) and the arena all share one set of formulas.
 import { PASS } from '../data/passives.js';
-import { HERO, RARITY, START_WEAPON, GEAR_PROFILES, AFFIX_PRIORITY } from '../data/balance.js';
+import { HERO, RARITY, START_WEAPON, GEAR_PROFILES, AFFIX_PRIORITY, XP_CURVE, ITEM_SCALE } from '../data/balance.js';
 import { MT, TIER, PACK } from '../data/monsters.js';
 import { SLOTS, BASES, IMPL, AFF } from '../data/items.js';
 import { GEMS, GEM, SUPPORTS, supFits, FEED } from '../data/gems.js';
 
 // Item level scaling of rolled values (flat and percent affixes).
-export const flatScale = il => 1 + .22 * (il - 1), pctScale = il => 1 + .07 * (il - 1);
+export const flatScale = il => 1 + ITEM_SCALE.flat * (il - 1), pctScale = il => 1 + ITEM_SCALE.pct * (il - 1);
 
 // Base damage of a skill gem at a level (before flat spell damage from gear).
 export const gemBase = (lvl = 1) => GEM.base * Math.pow(GEM.grow, Math.min(GEM.cap, lvl) - 1);
-// Level 5 milestones, added to that gem's own copy of the raw stat sums. Newer gems skip this table and
-// read S.mile[gemId] (true when that gem is on the bar at its milestone level) in their own code.
-const MILESTONES = { fireball: s => s.pierce += 1, arc: s => s.chains += 2, nova: s => s.novaR += .25, shield: s => s.shieldPct += .25, dash: s => s.dashCh += 1 };
+// Level 5 milestones (data/gems.js GEMS[id].mile): `add` goes into that gem's own copy of the raw stat sums; the skill's own
+// code reads the other fields when S.mile[gemId] is true (that gem is on the bar at its milestone level).
+const MILE_LVL = 5;
 
 // Derived stats from gear, passives, character level, the gems on the skill bar ({ gemId: level }) and their supports
 // ({ gemId: [supportId, ...] }, only supports that fit). st.gems[id] is each bar gem's base damage; skills not on the bar
@@ -28,8 +28,8 @@ export function computeStats(gear, passives = {}, lvl = 1, gems = {}, socks = {}
   const H = HERO, l = lvl - 1, sk = {};
   for (const id in GEMS) {
     const t = { ...s };
-    if (gems[id] >= 5 && MILESTONES[id]) MILESTONES[id](t);
-    for (const sup of socks[id] || []) if (supFits(sup, id)) SUPPORTS[sup].fn(t);
+    const M = GEMS[id].mile; if (gems[id] >= MILE_LVL && M && M.add) for (const k in M.add) t[k] += M.add[k];
+    for (const sup of socks[id] || []) if (supFits(sup, id)) SUPPORTS[sup].fn(t, SUPPORTS[sup]);
     sk[id] = {
       proj: 1 + t.proj, pierce: t.pierce, chains: H.chains + t.chains, novaR: 1 + t.novaR, shieldMul: 1 + t.shieldPct, ch: t.ch + (id === 'dash' ? t.dashCh : 0),
       army: t.army, dur: 1 + t.dur, more: t.more, ignite: !!t.ignite, shatter: !!t.shatter, conduit: !!t.conduit, chainboom: !!t.chainboom, split: !!t.split, volley: !!t.volley, twin: !!t.twin,
@@ -38,7 +38,7 @@ export function computeStats(gear, passives = {}, lvl = 1, gems = {}, socks = {}
   }
   return {
     maxLife: Math.max(20, Math.round((H.life + H.lifePer * l + s.lifeF) * (1 + s.lifePct))), maxMana: Math.round(H.mana + H.manaPer * l + s.manaF),
-    lregen: H.lregen + s.lregen, mregen: H.mregen + s.mregen, spell: H.spell + H.spellPer * l + s.spell, gems: Object.fromEntries(Object.entries(gems).map(([id, g]) => [id, gemBase(g)])), mile: Object.fromEntries(Object.entries(gems).filter(([, g]) => g >= 5).map(([id]) => [id, true])), dmg: 1 + s.dmg, fire: s.fire, cold: s.cold, light: s.light,
+    lregen: H.lregen + s.lregen, mregen: H.mregen + s.mregen, spell: H.spell + H.spellPer * l + s.spell, gems: Object.fromEntries(Object.entries(gems).map(([id, g]) => [id, gemBase(g)])), mile: Object.fromEntries(Object.entries(gems).filter(([, g]) => g >= MILE_LVL).map(([id]) => [id, true])), dmg: 1 + s.dmg, fire: s.fire, cold: s.cold, light: s.light,
     cast: 1 + s.cast, ms: H.ms * (1 + s.ms), crit: H.crit + s.crit, aoe: 1 + s.aoe, lok: s.lok, mok: s.mok, sk,
     freeze: 1 + s.freeze, dr: Math.min(.6, s.dr), blood: !!s.blood, storm: !!s.storm, autoNova: !!s.autoNova,
   };
@@ -78,7 +78,7 @@ export function gearProfile(kind, il = 1) {
 }
 
 // Experience needed to go from level l to l + 1, and packs placed on a map of tier t.
-export const xpNeedFor = l => Math.round(40 * Math.pow(l, 1.55));
+export const xpNeedFor = l => Math.round(XP_CURVE.base * Math.pow(l, XP_CURVE.exp));
 export const packCount = t => Math.min(PACK.count[2], PACK.count[0] + PACK.count[1] * t);
 
 // Gem XP (AP): everything a gem has earned, from level 1. Feeding moves a share of it (data/gems.js FEED).

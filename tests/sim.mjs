@@ -11,6 +11,7 @@ import puppeteer from 'puppeteer-core';
 import { existsSync } from 'node:fs';
 import { generateLevel, walkField, cellOf } from '../src/world/gen.js'; // pure: layouts are checked here in Node as well as in the game
 import { HERO } from '../src/data/balance.js';
+import { GEMS, SUPPORTS } from '../src/data/gems.js';
 
 const chrome = process.env.CHROME_PATH || ['/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser'].find(existsSync);
 if (!chrome) { console.error('No Chrome found. Set CHROME_PATH.'); process.exit(1); }
@@ -38,6 +39,25 @@ async function open(path) {
 }
 
 try {
+  // ---------- Data: the text players read matches the numbers in src/data (supports and milestones) ----------
+  {
+    const pc = v => Math.round(v * 100) + '%', less = v => pc(1 - v) + ' less', U = SUPPORTS, M = id => GEMS[id].mile;
+    const want = {
+      twin: ['+' + U.twin.proj + ' projectile', less(U.twin.more)], searing: ['+' + U.searing.pierce + ' enemy'], ignite: [pc(U.ignite.share), U.ignite.dur + 's'],
+      chainboom: [pc(U.chainboom.chance)], shatter: [pc(U.shatter.pct)], forked: ['+' + U.forked.chains], conduit: [pc(U.conduit.shockMore)], warding: [pc(U.warding.shieldPct)],
+      split: [U.split.lances + ' lances', less(U.split.mult)], army: ['+' + U.army.cap + ' skeleton', less(U.army.more)], volley: [U.volley.targets === 2 ? 'two' : String(U.volley.targets), less(U.volley.mult)],
+      twinmeteor: [less(U.twinmeteor.mult)], quickstep: ['+' + U.quickstep.ch + ' charge'], lingering: [pc(U.lingering.dur)],
+    };
+    const mile = {
+      fireball: ['Pierces ' + M('fireball').add.pierce], frostlance: [M('frostlance').pierce + ' more'], arc: ['+' + M('arc').add.chains + ' chains'], nova: ['+' + pc(M('nova').add.novaR)],
+      totem: [pc(M('totem').dur - 1)], meteor: ['+' + pc(M('meteor').radius - 1)], skeletons: ['+' + M('skeletons').cap + ' skeleton'], shield: [pc(M('shield').add.shieldPct)],
+      ward: ['+' + pc(M('ward').radius - 1)], dash: ['+' + M('dash').add.dashCh + ' charge'],
+    };
+    const bad = [...Object.entries(want).filter(([k, w]) => w.some(t => !U[k].d.includes(t))).map(([k]) => k), ...Object.entries(mile).filter(([k, w]) => w.some(t => !GEMS[k].ms[5].includes(t))).map(([k]) => k + ' (milestone)')];
+    const missing = Object.keys(U).filter(k => !want[k]);
+    check(!bad.length && !missing.length, `data: support and milestone text matches their numbers${bad.length ? ' · out of step: ' + bad.join(', ') : ''}${missing.length ? ' · no text check for: ' + missing.join(', ') : ''}`);
+  }
+
   // ---------- ARPG ----------
   {
     const { page, errors } = await open('/');

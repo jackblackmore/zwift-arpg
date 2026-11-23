@@ -39,4 +39,21 @@ export const RN1 = ['Gut', 'Rot', 'Grim', 'Bile', 'Ash', 'Hollow', 'Mire', 'Drea
 export const RN2 = ['maw', 'tooth', 'spine', 'gnaw', 'husk', 'grip', 'fang', 'skull', 'hide', 'bone'];
 
 // Boss ability rotation and timings. vsMinion: damage multiplier on its swings and slams against minions (Raise Skeletons).
-export const BOSS = { vsMinion: 1.4, rotation: ['slam', 'nova', 'slam', 'summon'], abilGap: 3.8, abilGap2: 2.6, slamR: 2.9, novaBolts: 14, summon: 5, summon2: 7 };
+//   aggro: wake range. enrage: below this share of life it enters phase 2 (enrageSpd × speed, abilGap2 between abilities, double nova, summon2 runners).
+//   slam: `slamDmg` × its damage in slamR, telegraphed slamT (slamT2 in phase 2) seconds. nova: novaBolts bolts at novaSpeed for novaDmg × its damage (phase 2: a second wave novaGap s later).
+export const BOSS = { vsMinion: 1.4, aggro: 13, rotation: ['slam', 'nova', 'slam', 'summon'], abilGap: 3.8, abilGap2: 2.6, enrage: .5, enrageSpd: 1.3,
+  slamR: 2.9, slamDmg: 2, slamT: 1, slamT2: .75, novaBolts: 14, novaDmg: .7, novaSpeed: 6.5, novaGap: .38, summon: 5, summon2: 7, summonType: 'runner' };
+
+// Status effects on monsters. chill: speed × chillSpd, attack and shot cooldowns × chillCd. Burns tick every burnTick s.
+export const STATUS = { chillSpd: .5, chillCd: 1.6, burnTick: .5 };
+// How monsters fight. windup: seconds from starting a swing to the hit (melee, boss, ranged). reach: extra hit range on top of
+//   range + both radii when the swing lands. Archers: arrows at arrowSpeed (aim jitter ± arrowJitter), flee inside flee, close in beyond
+//   chase or without sight, shot cooldown × shotJitter. Enemy projectiles live projLife s. Bloaters: start a `fuse` s fuse within `trigger`.
+export const FIGHT = { windup: { melee: .32, boss: .55, ranged: .45 }, reach: .45, arrowSpeed: 11, arrowJitter: .05, flee: 4.5, chase: 9, shotJitter: [.85, 1.2], projLife: 3, bomb: { trigger: 1.9, fuse: .85 } };
+// Death blasts. bloater: a bloater's own (radius r, `dmg` × its damage, after `delay` s); volatile: a rare's affix.
+// Both also hurt nearby monsters for `vsMonsters` × the tier's life multiplier.
+export const BLAST = { bloater: { r: 2.2, dmg: .7, delay: .15 }, volatile: { r: 2.6, dmg: 1.2, delay: .9 }, vsMonsters: 20 };
+// Rare monsters: size and radius multipliers, affixes rolled (more from tier `moreFrom`), and what each affix does.
+//   fortified's life is in data/balance.js RARITY.rare. burning: an aura hurting you for `dps` damage per second (× the tier's damage growth), dealt every `tick` s, within r.
+export const RARE = { size: 1.4, radius: 1.35, affixes: 2, moreFrom: 3, more: 3,
+  hasted: { spd: 1.5, cd: .7 }, frenzied: { cd: .55, dmg: 1.1 }, fortified: { size: 1.12 }, burning: { r: 2.75, dps: 6, tick: .5 }, splitting: { n: 3, type: 'runner' } };

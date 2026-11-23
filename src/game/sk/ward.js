@@ -4,6 +4,7 @@
 import * as T from 'three';
 import { G, P, S } from '../../core/state.js';
 import { SK } from '../../data/skills.js';
+import { GEMS } from '../../data/gems.js';
 import { rand } from '../../core/util.js';
 import { SFX } from '../../core/audio.js';
 import { scene } from '../../render/scene.js';
@@ -18,7 +19,7 @@ const drop = () => { if (ring) { scene.remove(ring); ring = null; } };
 export default {
   cast() {
     const W = SK.ward; if (!pay(W.cost)) return false;
-    radius = W.radius * S.aoe * (S.mile.ward ? 1.25 : 1);
+    radius = W.radius * S.aoe * (S.mile.ward ? GEMS.ward.mile.radius : 1);
     P.wardT = W.dur * S.sk.ward.dur; tickT = 0; P.castAnim = .2; P.castSeq++; P.lastCast = 'ward';
     drop(); ring = new T.Group(); ring.add(decal(0x7fd8ff, radius * 2.2)); scene.add(ring);
     ringFx(P.x, P.z, radius, 0x9fe8ff, .45, .1); flashFx(P.x, .8, P.z, 0x7fd8ff, radius * 1.6, .3);
@@ -32,7 +33,7 @@ export default {
     const W = SK.ward;
     ring.position.set(P.x, 0, P.z); ring.scale.setScalar(1 + Math.sin(G.gt * 5) * .03); ring.rotation.y += dt * .6;
     if (Math.random() < dt * 20) { const a = rand(0, 6.28); emit(glows, P.x + Math.cos(a) * radius, .2, P.z + Math.sin(a) * radius, 0, rand(.4, 1.2), 0, rand(.3, .5), 0xbff0ff); }
-    near(P.x, P.z, radius, e => { e.chill = Math.max(e.chill, .35); });
+    near(P.x, P.z, radius, e => { e.chill = Math.max(e.chill, SK.ward.chill); });
     tickT -= dt;
     if (tickT <= 0) { tickT = W.tick; near(P.x, P.z, radius, e => hit(e, W.mult, 'cold', { gem: 'ward', dot: true })); }
   },

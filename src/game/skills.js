@@ -3,6 +3,8 @@
 import * as T from 'three';
 import { G, P, S, shake } from '../core/state.js';
 import { SK } from '../data/skills.js';
+import { SUPPORTS } from '../data/gems.js';
+import { EXTRA } from '../data/items.js';
 import { ctl } from '../input/input.js';
 import { rand, pick, dist } from '../core/util.js';
 import { SFX } from '../core/audio.js';
@@ -31,7 +33,7 @@ export function castFireball() {
     g.position.set(P.x + Math.sin(a) * .7, 1.2, P.z + Math.cos(a) * .7); scene.add(g);
     G.proj.push({ x: g.position.x, z: g.position.z, dx: Math.sin(a), dz: Math.cos(a), sp: F.speed, life: F.life, pierce: k.pierce, hitS: new Set(), g, storm: false });
   }
-  P.fbN++; if (S.storm && P.fbN % 4 === 0) G.proj[G.proj.length - 1].storm = true;
+  P.fbN++; if (S.storm && P.fbN % EXTRA.storm.every === 0) G.proj[G.proj.length - 1].storm = true;
   SFX.fire(); return true;
 }
 
@@ -51,7 +53,7 @@ export function castArc(fx = P.x, fz = P.z, free = false) {
   const hitS = new Set(), K = S.sk.arc; let cur = first;
   for (let k = 0; k <= K.chains && cur; k++) {
     hitS.add(cur); pts.push({ x: cur.x, z: cur.z });
-    hit(cur, A.mult, 'light', { gem: 'arc' }); if (K.conduit || Math.random() < A.shockChance) { cur.shock = A.shockT; cur.conduit = K.conduit; }
+    hit(cur, A.mult, 'light', { gem: 'arc' }); if (K.conduit || Math.random() < A.shockChance) { cur.shock = A.shockT; cur.shockMore = K.conduit ? SUPPORTS.conduit.shockMore : A.shockMore; }
     for (let i = 0; i < 4; i++) emit(sparks, cur.x, 1.1, cur.z, rand(-4, 4), rand(1, 4), rand(-4, 4), .3, 0xe0c8ff, 4, 2);
     let nx = null, nd = A.chainRange; const c = cur;
     near(c.x, c.z, A.chainRange, e => { if (hitS.has(e)) return; const d = dist(e.x, e.z, c.x, c.z); if (d < nd) { nd = d; nx = e; } });
@@ -66,7 +68,7 @@ export function castNova(free = false) {
   const K = S.sk.nova, r = N.radius * S.aoe * K.novaR;
   near(P.x, P.z, r, e => {
     const d = dist(e.x, e.z, P.x, P.z) || 1; hit(e, N.mult, 'cold', { gem: 'nova', kx: (e.x - P.x) / d, kz: (e.z - P.z) / d });
-    if (!e.deathT) { if (e.type === 'boss') e.chill = 3; else { e.freeze = N.freeze * S.freeze; e.shatter = K.shatter; } }
+    if (!e.deathT) { if (e.type === 'boss') e.chill = N.bossChill; else { e.freeze = N.freeze * S.freeze; e.shatter = K.shatter; } }
   });
   ringFx(P.x, P.z, r, 0x9fe8ff, .45, .1); ringFx(P.x, P.z, r * .7, 0xffffff, .3, .1); flashFx(P.x, .6, P.z, 0x7fd8ff, r * 2.2, .35);
   for (let i = 0; i < 60; i++) { const a = rand(0, 6.28), s = rand(5, 11) * S.aoe; emit(sparks, P.x, rand(.3, 1.2), P.z, Math.cos(a) * s, rand(0, 2), Math.sin(a) * s, rand(.35, .5), pick([0xbff0ff, 0xffffff, 0x7fd8ff]), 2, 3); }
@@ -92,7 +94,7 @@ export function castDash() {
   for (let t = 0; t <= L; t += .2) {
     const nx = sx + Math.sin(a) * t, nz = sz + Math.cos(a) * t; if (blocked(nx, nz, P.r)) break;
     P.x = nx; P.z = nz;
-    if (t - lastPatch >= D.patchEvery) { lastPatch = t; addPatch(nx, nz, .95 * S.aoe, SK.burn.life, 'dash'); }
+    if (t - lastPatch >= D.patchEvery) { lastPatch = t; addPatch(nx, nz, D.patchR * S.aoe, SK.burn.life, 'dash'); }
     for (let i = 0; i < 2; i++) emit(glows, nx + rand(-.2, .2), rand(.4, 1.4), nz + rand(-.2, .2), 0, rand(.5, 2), 0, rand(.3, .6), 0xff5a10, 0, 1);
   }
   P.face = a; P.invuln = D.invuln; P.castSeq++; P.lastCast = 'dash';

@@ -1,6 +1,7 @@
 // Map lifecycle: new map per tier, the boss portal, clearing and respawning.
 import * as T from 'three';
 import { G, P, S } from '../core/state.js';
+import { COMBAT } from '../data/balance.js';
 import { SK } from '../data/skills.js';
 import { dist, $ } from '../core/util.js';
 import { scene } from '../render/scene.js';
@@ -57,7 +58,7 @@ export function newMap(t) {
 
 // After death: back to the entrance at full health. Monsters keep their damage; the boss resets.
 export function respawn() {
-  P.x = G.start.x; P.z = G.start.z; P.life = S.maxLife; P.mana = S.maxMana; P.flask = SK.flask.max; P.invuln = 2;
+  P.x = G.start.x; P.z = G.start.z; P.life = S.maxLife; P.mana = S.maxMana; P.flask = SK.flask.max; P.invuln = COMBAT.respawnInvuln;
   G.eproj.forEach(o => scene.remove(o.g)); G.eproj = [];
   for (const e of G.enemies) if (!e.deathT && e.type === 'boss') { e.hp = e.maxHp; e.awake = false; e.x = e.sx; e.z = e.sz; e.cast = null; e.phase2 = false; $('bossbar').style.display = 'none'; }
 }
