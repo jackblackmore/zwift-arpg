@@ -53,7 +53,9 @@ export const RCOL = [0xc8c8c8, 0x8888ff, 0xffff77, 0xff9a3c], RCSS = ['#c8c8c8',
 // gem: chance a rare also drops a gem (guardians always drop one; pool and level in data/gems.js GEM_POOL, GEM_DROP).
 // rare: a rare's items (the first always, a second at `second` chance) and their rarity boosts. boss: the guardian's items and boosts (first, rest), one every `gap` s.
 // uniqueBase, rareBase: chance a drop is unique or rare; a boost adds to rareBase and uniqueBoost × it to uniqueBase.
+// uniqueFrom: the first map tier where uniques can drop (tier 6 = the region after the Crypt). Gear is meant to be sparse:
+// normal packs mostly give XP; rares and guardians are where the items are.
 // affixes: [min, max] rolled per rarity. rareAffixSkip: chance an affix marked `rare` is skipped on a magic and a rare item.
-export const DROP = { normal: .07, magic: .2, uniqueBase: .025, uniqueBoost: .4, rareBase: .25, bagSize: 30, gem: .25,
+export const DROP = { normal: .025, magic: .08, uniqueBase: .025, uniqueBoost: .4, uniqueFrom: 6, rareBase: .2, bagSize: 30, gem: .25,
   affixes: { magic: [1, 2], rare: [3, 5] }, rareAffixSkip: { magic: .85, rare: .4 },
-  rare: { boost: .15, second: .5, boost2: .1 }, boss: { n: 5, first: .6, rest: .25, gap: .12 } };
+  rare: { boost: .15, second: .25, boost2: .1 }, boss: { n: 3, first: .6, rest: .25, gap: .12 } };

@@ -33,7 +33,7 @@ export function updSurge(want, dt) {
   if (P.spent && P.surge >= S.surgeMax * SURGE.restart) P.spent = false;
   if (want > 0 && !P.spent && P.surge > 0) {
     P.surgeK = want; P.surge = Math.max(0, P.surge - want * dt); P.surgeWait = SURGE.delay;
-    if (P.surge <= 0) P.spent = true;
+    if (P.surge <= 0) { P.spent = true; ctl.surge = false; } // a tapped-on (touch) or held Surge has to be pressed again
   } else {
     P.surgeK = 0; P.surgeWait -= dt;
     if (P.surgeWait <= 0) P.surge = Math.min(S.surgeMax, P.surge + S.surgeRe * dt);

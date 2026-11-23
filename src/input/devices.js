@@ -67,7 +67,8 @@ export function initDevices(ui) {
   };
   for (const s of BAR) skillBtn('sk-' + s, () => slotInput(s, true), () => slotInput(s, false));
   skillBtn('sFl', () => ctl.flask = true);
-  skillBtn('sSu', () => ctl.surge = true, () => ctl.surge = false);
+  // Surge: touch taps it on and off (one thumb can't hold it and a skill); a mouse holds it like Shift. Running dry switches it off.
+  skillBtn('sSu', () => { ctl.surge = ctl.touch ? !ctl.surge : true; }, () => { if (!ctl.touch) ctl.surge = false; });
 
   addEventListener('keydown', e => {
     const k = e.key.toLowerCase(); if (k === ' ') e.preventDefault();

@@ -28,7 +28,7 @@ import { START_WEAPON, parLevel, parBar, PAR_GEAR } from './data/balance.js';
 import { arena } from './game/arena.js';
 import { kill, hurtP } from './game/combat.js';
 import { castFireball, castArc, castNova, castDash, castShield } from './game/skills.js';
-import { dropItem, dropGem, pickUp } from './game/items.js';
+import { dropItem, dropGem, pickUp, rollItem } from './game/items.js';
 import * as skel from './game/sk/skeletons.js';
 import { hud } from './ui/hud.js';
 import { initPanels, syncPause, openInv, openPass, toggleInv, togglePass, toggleGems, openGems, openShrine, closeAll, equip } from './ui/panels.js';
@@ -130,7 +130,7 @@ requestAnimationFrame(frame);
   $('build').textContent = `v${B.version}${B.commit ? ' · ' + B.commit : ''} · built ${d.toLocaleString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`; }
 
 window.__dbg = {
-  G, P, S, SK, ctl, Q, chars, ride, setRide, scene,
+  G, P, S, SK, rollItem, ctl, Q, chars, ride, setRide, scene,
   ready: () => (chars.ready || chars.failed) && G.loaded, cycleQuality, cycleStyle,
   start: fresh => begin(fresh !== false),
   sim: n => { for (let i = 0; i < n; i++) { update(.033); updFx(.033); } },

@@ -517,7 +517,7 @@ try {
       out.plain = casts(false); out.surged = casts(true);
       out.drained = Math.round((S.surgeMax - P.surge) * 10) / 10; // about 6 s used
       // Run it dry: spent until it refills to SURGE.restart, and refilling waits SURGE.delay after you stop.
-      P.surge = .2; ctl.surge = true; D.sim(15); out.spent = P.spent && P.surge === 0; out.offWhenSpent = P.surgeK === 0;
+      P.surge = .2; ctl.surge = true; D.sim(15); out.spent = P.spent && P.surge === 0; out.offWhenSpent = P.surgeK === 0 && !ctl.surge;
       ctl.surge = false; D.sim(30); out.waits = P.surge === 0; D.sim(120); out.refills = P.surge > 0;
       while (P.spent && G.gt < 1e4) D.sim(30); out.restartAt = Math.round(P.surge / S.surgeMax * 100) / 100;
       // RIDE: hard riding surges, endurance pace doesn't, easy riding casts slower.
@@ -527,6 +527,10 @@ try {
       pedal(.7); out.rideEnd = P.surgeK; out.castEnd = P.eff.cast;
       pedal(.3); out.castEasy = P.eff.cast;
       D.setRide(false);
+      // Loot: no uniques in the Crypt (tiers 1–5), even with a guardian's boost; they can drop from the next region.
+      const rolls = (il, boost) => Array.from({ length: 400 }, () => D.rollItem(il, boost).rar);
+      out.cryptUniques = [1, 5].flatMap(t => rolls(t, .6)).filter(r => r === 3).length;
+      out.laterUniques = rolls(6, .6).filter(r => r === 3).length;
       // An old save: mana affixes go (a ring's mana implicit becomes life), Blood Magic's point comes back.
       localStorage.setItem('wd-arpg-1', JSON.stringify({ lvl: 3, xp: 0, pts: 0, tier: 1, inv: [], passives: { blood: 1, pyre: 1 },
         gear: { ring: { slot: 'ring', rar: 1, base: 'Iron Ring', name: 'Old Ring', il: 1, mods: [['manaF', 14], ['mregen', 2], ['crit', .03]] } } }));
@@ -540,7 +544,8 @@ try {
     check(r.plain >= 7, `surge: held Fireball never runs dry (${r.plain} casts in 6 s)`);
     check(r.surged >= r.plain * 1.25, `surge: surging casts faster (${r.surged} vs ${r.plain})`);
     check(r.drained > 5 && r.drained < 7, `surge: the gauge drains about 1 s per second (${r.drained})`);
-    check(r.spent && r.offWhenSpent, 'surge: an empty gauge stops the bonus (spent)');
+    check(r.spent && r.offWhenSpent, 'surge: an empty gauge stops the bonus and switches Surge off (spent)');
+    check(r.cryptUniques === 0 && r.laterUniques > 0, `loot: no uniques in the Crypt, they start in the next region (${r.laterUniques} of 400 at tier 6)`);
     check(r.waits && r.refills, 'surge: the gauge refills after a short wait');
     check(r.restartAt >= .29 && r.restartAt < .4, `surge: spent until it refills to about 30% (${r.restartAt})`);
     check(r.rideHard === 1 && r.rideEnd === 0, 'surge: RIDE surges above endurance pace only');
