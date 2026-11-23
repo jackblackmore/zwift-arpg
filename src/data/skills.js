@@ -41,5 +41,5 @@ export const SK = {
 // Surge gauge: the only resource. While surging, casts are `bonus` faster and cooldowns and charges recover `bonus` faster.
 // It holds `max` seconds of full surge (more with surge capacity) and drains 1 per second at full surge (RIDE: less on a small surge).
 // When it runs dry you're spent: no surging until it refills to `restart` of full. It refills `refill` per second, starting
-// `delay` s after you stop surging. Keyboard: hold Shift; touch: hold the ⚡ button; RIDE: ride above endurance pace (data/ride.js).
+// `delay` s after you stop surging. Keyboard: hold Shift; touch: tap ⚡ on and off (it switches off when spent); RIDE: ride above endurance pace (data/ride.js).
 export const SURGE = { max: 30, bonus: .4, refill: .35, delay: 2, restart: .3 };

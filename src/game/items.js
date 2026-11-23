@@ -19,7 +19,8 @@ function rollVal(a, il) {
   return a.int ? Math.max(1, Math.round(a.a === a.b ? a.a : v)) : a.pct ? Math.round(v * 100) / 100 : a.dec ? Math.round(v * 10) / 10 : Math.round(v);
 }
 export function rollItem(il, boost = 0) {
-  const r = Math.random(); let rar = r < DROP.uniqueBase + boost * DROP.uniqueBoost ? 3 : r < DROP.rareBase + boost ? 2 : 1;
+  const r = Math.random(), uni = il >= DROP.uniqueFrom ? DROP.uniqueBase + boost * DROP.uniqueBoost : 0;
+  let rar = r < uni ? 3 : r < uni + DROP.rareBase + boost ? 2 : 1;
   const slot = pick(SLOTS);
   if (rar === 3) {
     const u = pick(UNIQ.filter(u => u.slot === slot));
