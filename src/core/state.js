@@ -18,7 +18,8 @@ export const P = {
   inv: [], gear: {}, passives: {}, pts: 0, offer: null, newItems: 0,
   // Skill gems (game/gems.js): gems = the gem bag, every gem owned ({ id, gem, lvl, xp }); bar = slot → gem id or null;
   // cd = per-slot cooldown / charges ({ cd, ch, t }); shrined = slots whose shrine has been used.
-  gems: [], bar: {}, cd: {}, shrined: {},
+  // sock = slot → support gem ids in its sockets; newGems = gems picked up since the gem panel was last opened.
+  gems: [], bar: {}, sock: {}, cd: {}, shrined: {}, newGems: 0,
   dead: 0, walkT: 0, moving: false, invuln: 0, fbN: 0, autoNovaT: 5, moveX: 0, moveZ: 1, castSeq: 0, lastCast: null,
 };
 

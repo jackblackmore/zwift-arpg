@@ -50,4 +50,5 @@ export const RAREN2 = ['Grasp', 'Song', 'Brand', 'Ward', 'Veil', 'Crown', 'Spire
 export const RCOL = [0xc8c8c8, 0x8888ff, 0xffff77, 0xff9a3c], RCSS = ['#c8c8c8', '#8888ff', '#ffff77', '#ff9a3c'];
 // Drop chances and rarity rolls.
 // normal/magic: chance a monster of that rarity drops an item (rares always drop 1–2, guardians 5).
-export const DROP = { normal: .07, magic: .2, uniqueBase: .025, rareBase: .25, bagSize: 30 };
+// gem: chance a rare also drops a gem (guardians always drop one; pool and level in data/gems.js GEM_POOL, GEM_DROP).
+export const DROP = { normal: .07, magic: .2, uniqueBase: .025, rareBase: .25, bagSize: 30, gem: .25 };

@@ -9,6 +9,9 @@ import { toast } from '../render/fx.js';
 import { SFX } from '../core/audio.js';
 import { save } from './save.js';
 import { flatScale, pctScale } from './formulas.js';
+import { GEMS, SUPPORTS, GEM_POOL, GEM_DROP, gemDef } from '../data/gems.js';
+import { parGem } from '../data/balance.js';
+import { addGem } from './gems.js';
 import { blocked } from '../world/map.js';
 
 function rollVal(a, il) {
@@ -49,7 +52,33 @@ export function dropItem(x, z, boost) {
   if (it.rar >= 2) SFX.loot(it.rar);
   return d;
 }
+// ---- gem drops (guardians always, rares sometimes: game/combat.js kill). They go to the gem bag, which has no limit. ----
+// A gem from the region's pool: supports that fit a skill gem you own weigh more, so most drops are usable.
+export function rollGem(tier) {
+  const pool = GEM_POOL.crypt, own = new Set(P.gems.map(g => g.gem));
+  const w = pool.map(id => SUPPORTS[id] && SUPPORTS[id].for.some(x => own.has(x) || [...own].some(o => GEMS[o] && GEMS[o].kind === x)) ? GEM_DROP.supportBias : 1);
+  let r = Math.random() * w.reduce((a, b) => a + b, 0), i = 0; while (r > w[i]) { r -= w[i]; i++; }
+  return { gem: pool[i], lvl: Math.max(1, parGem(tier) - GEM_DROP.lvlUnder) };
+}
+export const gemName = gd => `${gemDef(gd.gem).n}${SUPPORTS[gd.gem] ? ' (support)' : ''} · L${gd.lvl}`;
+export function dropGem(x, z, gd = rollGem(G.tier)) {
+  const D = gemDef(gd.gem), col = new T.Color(D.col).getHex(), g = new T.Group();
+  const m = new T.Mesh(gemGeo, new T.MeshLambertMaterial({ color: col, emissive: col, emissiveIntensity: .6 })); m.scale.setScalar(.32); g.add(m);
+  const beam = new T.Mesh(GCY, new T.MeshBasicMaterial({ color: col, transparent: true, opacity: .4, blending: T.AdditiveBlending, depthWrite: false }));
+  beam.scale.set(.12, 9, .12); beam.position.y = 4.5; g.add(beam); g.add(decal(col, 2.2));
+  const a = rand(0, 6.28), s = rand(.8, 2);
+  // `it` is the label the world and minimap draw (name, colour); `gem` is what goes into the bag.
+  const d = { it: { name: '◆ ' + gemName(gd), col: D.col, rar: 2 }, gem: gd, x, z, y: .4, vx: Math.cos(a) * s, vz: Math.sin(a) * s, vy: 5, g, t: 0, landed: false };
+  g.position.set(x, .4, z); scene.add(g); G.ground.push(d); SFX.loot(2);
+  return d;
+}
+const gemGeo = new T.OctahedronGeometry(1, 0);
+
 export function pickUp(d) {
+  if (d.gem) {
+    const D = gemDef(d.gem.gem); addGem(d.gem.gem, d.gem.lvl); P.newGems = (P.newGems || 0) + 1; scene.remove(d.g); d.gone = true;
+    toast(`<span style="color:${D.col}">◆ ${gemName(d.gem)}</span> · added to your gems (G)`); SFX.loot(2); save(); return;
+  }
   if (P.inv.length >= DROP.bagSize) { if (!d.full) { toast('<span style="color:#ff6a5a">Bag is full</span> · press I to clear space'); d.full = 1; } return; }
   P.inv.push(d.it); P.newItems++; scene.remove(d.g); d.gone = true;
   toast(`<span class="r${d.it.rar}">${d.it.name}</span>`); if (d.it.rar < 2) SFX.loot(1);

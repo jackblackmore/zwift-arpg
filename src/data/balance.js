@@ -25,6 +25,11 @@ export const PAR_GEM = [1, 4, 7, 9, 10];
 export const parGem = t => Math.min(10, t <= PAR_GEM.length ? PAR_GEM[t - 1] : 10);
 // The skill bar the tools assume at a tier: Fireball main, Magic Shield guard, Frost Nova in Flex A once it unlocks (level 5).
 export const parBar = t => { const l = parLevel(t), g = parGem(t), bar = { main: ['fireball', g], guard: ['shield', g] }; if (l >= 5) bar.flexA = ['nova', Math.max(1, g - 2)]; if (l >= 8) bar.evade = ['dash', Math.max(1, g - 3)]; return bar; };
+// Par supports (step 3): from tier 2 the Main gem has its first support (the guardian of tier 1 always drops a gem, and the
+// region pool favours supports for gems you own). PAR_SUPPORT: which one each Main gem gets. parSock(t, mainGem) → { slot: [supportId] }.
+export const PAR_SUPPORT = { fireball: 'twin', frostlance: 'split', skeletons: 'army', arc: 'forked', nova: 'shatter', totem: 'volley', meteor: 'twinmeteor' };
+export const PAR_SUPPORT_FROM = 2;
+export const parSock = (t, main = 'fireball') => t >= PAR_SUPPORT_FROM && PAR_SUPPORT[main] ? { main: [PAR_SUPPORT[main]] } : {};
 export const parLevel = t => t <= PAR.length ? PAR[t - 1] : Math.round(PAR[PAR.length - 1] + PAR_AFTER * (t - PAR.length));
 
 // What a balanced fight looks like at par. [low, high]; both tools flag numbers outside these.

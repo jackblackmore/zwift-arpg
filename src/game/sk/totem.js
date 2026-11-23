@@ -1,5 +1,5 @@
 // Flame Totem (Flex, press): plants a totem at the aim point that spits fire bolts at the nearest monster in range.
-// One totem at a time: recasting moves it. Milestone (gem level 5): lasts 50% longer.
+// One totem at a time: recasting moves it. Milestone (gem level 5): lasts 50% longer. Volley support: shoots the two nearest.
 import * as T from 'three';
 import { P, S } from '../../core/state.js';
 import { SK } from '../../data/skills.js';
@@ -48,12 +48,12 @@ function cast() {
   SFX.fire(); return true;
 }
 
-function shoot(tg, from) {
+function shoot(tg, from, mult = SK.totem.mult) {
   const K = SK.totem, x0 = from.x, y0 = 2.25, z0 = from.z, x1 = tg.x, z1 = tg.z, d = dist(x0, z0, x1, z1) || 1;
   const s = glowSprite(0xff8a3c, .7); s.add(glowSprite(0xffe0a0, .3));
   s.position.set(x0, y0, z0);
   addFx(s, .12, t => { const k = 1 - t; s.position.set(x0 + (x1 - x0) * k, y0 + (1.1 - y0) * k, z0 + (z1 - z0) * k); });
-  hit(tg, K.mult, 'fire', { gem: 'totem', kx: (x1 - x0) / d, kz: (z1 - z0) / d });
+  hit(tg, mult, 'fire', { gem: 'totem', kx: (x1 - x0) / d, kz: (z1 - z0) / d });
   for (let i = 0; i < 4; i++) emit(sparks, x1, 1, z1, rand(-3, 3), rand(1, 4), rand(-3, 3), .3, pick([0xff8a3c, 0xffd060]), 6, 2);
 }
 
@@ -65,9 +65,11 @@ function tick(dt) {
   if (Math.random() < dt * 14) emit(glows, t.x + rand(-.15, .15), 2.2, t.z + rand(-.15, .15), 0, rand(.8, 2), 0, rand(.3, .6), 0xff5a10);
   if (t.life <= 0) { flashFx(t.x, 1.2, t.z, 0xff7a2a, 3, .25); remove(); return; }
   if (t.shotT > 0) return;
-  let best = null, bd = 1e9;
-  near(t.x, t.z, K.range, e => { const d = dist(e.x, e.z, t.x, t.z); if (d < bd && los(t.x, t.z, e.x, e.z)) { bd = d; best = e; } });
-  if (best) { t.shotT = K.interval; shoot(best, t); } else t.shotT = .1;
+  // The nearest monster in sight; with the Volley support, the nearest few, each bolt weaker.
+  const V = K.sup.volley, n = S.sk.totem.volley ? V.n : 1, tg = [];
+  near(t.x, t.z, K.range, e => { if (los(t.x, t.z, e.x, e.z)) tg.push([dist(e.x, e.z, t.x, t.z), e]); });
+  tg.sort((a, b) => a[0] - b[0]);
+  if (tg.length) { t.shotT = K.interval; for (const [, e] of tg.slice(0, n)) shoot(e, t, K.mult * (n > 1 ? V.mult : 1)); } else t.shotT = .1;
 }
 
 export default { cast, tick, clear: remove };

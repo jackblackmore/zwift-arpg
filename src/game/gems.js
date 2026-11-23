@@ -2,7 +2,7 @@
 // Data in data/gems.js. Design: "Gem model in detail" in docs/design-notes.md.
 import * as T from 'three';
 import { G, P, S } from '../core/state.js';
-import { GEMS, SLOT_DEFS, BAR, SHRINES, START_GUARD, GEM } from '../data/gems.js';
+import { GEMS, SUPPORTS, SLOT_DEFS, BAR, SHRINES, START_GUARD, GEM, supFits, gemDef } from '../data/gems.js';
 import { SK } from '../data/skills.js';
 import { ctl } from '../input/input.js';
 import { dist } from '../core/util.js';
@@ -11,18 +11,50 @@ import { glowSprite, decal } from '../render/assets.js';
 import { toast, banner } from '../render/fx.js';
 import { SFX } from '../core/audio.js';
 import { blocked } from '../world/map.js';
-import { xpNeedFor } from './formulas.js';
+import { xpNeedFor, gemTotalXp, feedShare } from './formulas.js';
 import { recalc } from './stats.js';
 import { CAST } from './casts.js';
 
 export const gemById = id => P.gems.find(g => g.id === id) || null;
 export const unlocked = slot => P.lvl >= SLOT_DEFS[slot].unlock;
 export const barGem = slot => (unlocked(slot) && gemById(P.bar[slot])) || null;
-export const fits = (gem, slot) => SLOT_DEFS[slot].kinds.includes(GEMS[gem].kind);
+export const isSupport = g => !!g && !!SUPPORTS[g.gem];
+export const fits = (gem, slot) => !!GEMS[gem] && SLOT_DEFS[slot].kinds.includes(GEMS[gem].kind);
 export const slotOf = g => BAR.find(s => P.bar[s] === g.id) || null;
 export const ownsGem = gem => P.gems.some(g => g.gem === gem);
 // { gemId: level } for the gems on unlocked slots: what computeStats needs.
 export function barLevels() { const o = {}; for (const s of BAR) { const g = barGem(s); if (g) o[g.gem] = Math.max(o[g.gem] || 0, g.lvl); } return o; }
+
+// ---- support sockets: they live on the skill bar slot (P.sock[slot] = [gem id or null, ...]), not on the gem ----
+// Sockets a slot has at the character's level (data/gems.js SLOT_DEFS sock); 0 while the slot is locked.
+export function sockCount(slot, lvl = P.lvl) { if (lvl < SLOT_DEFS[slot].unlock) return 0; let n = 0; for (const [l, c] of SLOT_DEFS[slot].sock) if (lvl >= l) n = c; return n; }
+// The next socket a slot gains, as [level, count], or null.
+export const nextSock = slot => SLOT_DEFS[slot].sock.find(([l]) => l > P.lvl) || null;
+const sockArr = slot => P.sock[slot] || (P.sock[slot] = []);
+// Support gems in a slot's open sockets (gem objects; null for an empty socket).
+export const socketed = slot => Array.from({ length: sockCount(slot) }, (_, i) => gemById(sockArr(slot)[i]));
+export const sockOf = g => { for (const s of BAR) { const i = (P.sock[s] || []).indexOf(g.id); if (i >= 0 && i < sockCount(s)) return [s, i]; } return null; };
+// Is this support doing something: socketed in an unlocked slot whose gem it fits?
+export function supActive(g) { const at = sockOf(g), sg = at && barGem(at[0]); return !!sg && supFits(g.gem, sg.gem); }
+// { gemId: [supportId, ...] } for the bar: what computeStats needs (it ignores supports that don't fit).
+export function sockMap() {
+  const o = {};
+  for (const s of BAR) { const g = barGem(s); if (!g) continue; for (const x of socketed(s)) if (x) (o[g.gem] || (o[g.gem] = [])).push(x.gem); }
+  return o;
+}
+// Put support gem `id` into socket `i` of `slot` (default: the first empty one, else the last). It leaves any other socket.
+// Refused if it isn't a support, the slot has no such socket, it doesn't fit the slot's gem, or that slot already has the same support.
+export function socketGem(id, slot, i = null) {
+  const g = gemById(id), n = sockCount(slot), sg = barGem(slot); if (!isSupport(g) || !n || !sg || !supFits(g.gem, sg.gem)) return false;
+  const arr = sockArr(slot), cur = socketed(slot);
+  if (i === null) { i = cur.findIndex(x => !x); if (i < 0) i = n - 1; }
+  if (i < 0 || i >= n || cur.some((x, k) => x && k !== i && x.gem === g.gem && x.id !== id)) return false;
+  const from = sockOf(g); if (from) P.sock[from[0]][from[1]] = null;
+  arr[i] = id; recalc(); return true;
+}
+export function unsocket(slot, i) { const arr = sockArr(slot); if (arr[i] == null) return false; arr[i] = null; recalc(); return true; }
+// Where a gem is: on the bar, in a socket, or in the bag.
+export const inBag = g => !(slotOf(g) && unlocked(slotOf(g))) && !sockOf(g);
 
 export function addGem(gem, lvl = 1) {
   const g = { id: P.gems.reduce((m, x) => Math.max(m, x.id), 0) + 1, gem, lvl, xp: 0 };
@@ -31,14 +63,14 @@ export function addGem(gem, lvl = 1) {
 
 // A brand-new character (or an old save from before gems): Magic Shield in Guard, everything else from shrines.
 export function freshGems() {
-  P.gems = []; P.bar = {}; P.cd = {}; P.shrined = {};
+  P.gems = []; P.bar = {}; P.sock = {}; P.cd = {}; P.shrined = {};
   P.bar.guard = addGem(START_GUARD).id;
   recalc(); readySlots();
 }
 
 const slotState = slot => P.cd[slot] || (P.cd[slot] = { cd: 0, ch: 0, t: 0 });
-// Charge gems (SK[...].charges, e.g. Flame Dash): how many charges the slot's gem holds. Flame Dash's milestone and gear add S.dashMax − 1.
-export function chargeMax(slot) { const g = barGem(slot), K = g && SK[GEMS[g.gem].sk]; return K && K.charges ? K.charges + (g.gem === 'dash' ? S.dashMax - 1 : 0) : 0; }
+// Charge gems (SK[...].charges, e.g. Flame Dash): how many charges the slot's gem holds; milestones, supports and gear add S.sk[gem].ch.
+export function chargeMax(slot) { const g = barGem(slot), K = g && SK[GEMS[g.gem].sk]; return K && K.charges ? K.charges + ((S.sk && S.sk[g.gem] && S.sk[g.gem].ch) || 0) : 0; }
 function readySlot(slot) { const st = slotState(slot); st.cd = 0; st.t = 0; st.ch = chargeMax(slot); }
 export function readySlots() { for (const s of BAR) readySlot(s); }
 
@@ -81,22 +113,46 @@ export function updSlots(dt, fx) {
   }
 }
 
-// ---- gem XP: bar gems earn what the character earns, gems in the bag a share ----
+// ---- gem XP: bar gems and active supports earn what the character earns, gems in the bag a share ----
+// Level a gem up from its XP. on: it's in use (a banner for a milestone). Returns true if it levelled.
+function levelUp(g, on) {
+  let up = false;
+  while (g.lvl < GEM.cap && g.xp >= xpNeedFor(g.lvl)) {
+    g.xp -= xpNeedFor(g.lvl); g.lvl++; up = true;
+    const D = gemDef(g.gem), ms = D.ms[g.lvl];
+    toast(`<span style="color:${D.col}">${D.icon} ${D.n}</span> reached gem level ${g.lvl}${ms ? ` · <b style="color:#ffd23f">${ms}</b>` : ''}`);
+    if (ms && on) { banner(D.n.toUpperCase() + ' ' + g.lvl, D.col, ms); SFX.lvl(); }
+  }
+  if (g.lvl >= GEM.cap) g.xp = 0;
+  return up;
+}
 export function gemXp(n) {
   let changed = false;
   for (const g of P.gems) {
     if (g.lvl >= GEM.cap) { g.xp = 0; continue; }
-    const on = !!slotOf(g) && unlocked(slotOf(g));
+    const on = isSupport(g) ? !!sockOf(g) && !!barGem(sockOf(g)[0]) : !!slotOf(g) && unlocked(slotOf(g));
     g.xp += n * (on ? 1 : GEM.offBar);
-    while (g.lvl < GEM.cap && g.xp >= xpNeedFor(g.lvl)) {
-      g.xp -= xpNeedFor(g.lvl); g.lvl++; changed = changed || on;
-      const D = GEMS[g.gem], ms = D.ms[g.lvl];
-      toast(`<span style="color:${D.col}">${D.icon} ${D.n}</span> reached gem level ${g.lvl}${ms ? ` · <b style="color:#ffd23f">${ms}</b>` : ''}`);
-      if (ms && on) { banner(D.n.toUpperCase() + ' ' + g.lvl, D.col, ms); SFX.lvl(); }
-    }
-    if (g.lvl >= GEM.cap) g.xp = 0;
+    if (levelUp(g, on) && on) changed = true;
   }
   if (changed) recalc();
+}
+
+// ---- feeding: a spare gem's XP goes into another gem (data/gems.js FEED). You never lose a skill: feeding your
+// last copy of a gem leaves a level 1 copy in the bag. Only gems in the bag can be fed; the target can be anywhere. ----
+export function feedPreview(foodId, intoId) {
+  const food = gemById(foodId), into = gemById(intoId);
+  if (!food || !into || food === into || !inBag(food) || into.lvl >= GEM.cap) return null;
+  const last = !P.gems.some(g => g !== food && g.gem === food.gem), ap = gemTotalXp(food);
+  if (!ap) return null; // nothing to give (a fresh level 1 gem)
+  const share = feedShare(food, into), gain = ap * share, t = { lvl: into.lvl, xp: into.xp + gain };
+  while (t.lvl < GEM.cap && t.xp >= xpNeedFor(t.lvl)) { t.xp -= xpNeedFor(t.lvl); t.lvl++; }
+  return { food, into, ap, share, gain, last, lvl: t.lvl, waste: t.lvl >= GEM.cap ? t.xp : 0 };
+}
+export function feedGem(foodId, intoId) {
+  const f = feedPreview(foodId, intoId); if (!f) return null;
+  if (f.last) { f.food.lvl = 1; f.food.xp = 0; } else P.gems = P.gems.filter(g => g !== f.food);
+  f.into.xp += f.gain; const on = !inBag(f.into); levelUp(f.into, on);
+  recalc(); SFX.lvl(); return f;
 }
 
 // ---- shrines: one per slot unlock (data/gems.js SHRINES) ----

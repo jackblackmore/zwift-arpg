@@ -19,7 +19,7 @@ export default {
   cast() {
     const W = SK.ward; if (!pay(W.cost)) return false;
     radius = W.radius * S.aoe * (S.mile.ward ? 1.25 : 1);
-    P.wardT = W.dur; tickT = 0; P.castAnim = .2; P.castSeq++; P.lastCast = 'ward';
+    P.wardT = W.dur * S.sk.ward.dur; tickT = 0; P.castAnim = .2; P.castSeq++; P.lastCast = 'ward';
     drop(); ring = new T.Group(); ring.add(decal(0x7fd8ff, radius * 2.2)); scene.add(ring);
     ringFx(P.x, P.z, radius, 0x9fe8ff, .45, .1); flashFx(P.x, .8, P.z, 0x7fd8ff, radius * 1.6, .3);
     for (let i = 0; i < 24; i++) { const a = rand(0, 6.28); emit(glows, P.x + Math.cos(a) * radius * .8, rand(.2, 1.2), P.z + Math.sin(a) * radius * .8, 0, rand(.3, 1), 0, rand(.3, .6), 0xbff0ff); }

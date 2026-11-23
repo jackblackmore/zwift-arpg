@@ -8,9 +8,10 @@ import { SFX } from '../core/audio.js';
 import { computeStats, recalc, estimate } from '../game/stats.js';
 import { modText } from '../game/items.js';
 import { save } from '../game/save.js';
-import { GEMS, SLOT_DEFS, BAR, GEM } from '../data/gems.js';
+import { GEMS, SUPPORTS, SLOT_DEFS, BAR, GEM, supFits, gemDef } from '../data/gems.js';
 import { SK } from '../data/skills.js';
-import { gemById, barGem, unlocked, fits, slotOf, ownsGem, placeGem, clearSlot, shrineOffer, takeShrine, shrineDue } from '../game/gems.js';
+import { gemById, barGem, unlocked, fits, slotOf, ownsGem, placeGem, clearSlot, shrineOffer, takeShrine, shrineDue, isSupport, socketed, sockOf, nextSock, supActive, socketGem, unsocket, inBag, feedGem, feedPreview } from '../game/gems.js';
+import { toast } from '../render/fx.js';
 import { xpNeedFor } from '../game/formulas.js';
 
 const isOpen = id => $(id).classList.contains('show');
@@ -65,7 +66,7 @@ export const toggleInv = () => openInv(!isOpen('mInv'));
 
 // ================= PASSIVES =================
 function genOffer() {
-  const pool = Object.keys(PASS).filter(k => (P.passives[k] || 0) < PASS[k].max && (!PASS[k].gem || ownsGem(PASS[k].gem))), out = [];
+  const pool = Object.keys(PASS).filter(k => (P.passives[k] || 0) < PASS[k].max), out = [];
   while (out.length < 3 && pool.length) {
     const w = pool.map(k => PASS[k].note === 2 ? .25 : PASS[k].note ? .5 : 1), tot = w.reduce((a, b) => a + b, 0);
     let r = Math.random() * tot, i = 0; while (r > w[i]) { r -= w[i]; i++; }
@@ -105,26 +106,59 @@ export function openShrine(slot) {
 }
 export function closeShrine() { $('mShrine').classList.remove('show'); syncPause(); }
 
-// ================= SKILL GEMS (bag + bar, tap a gem then a slot) =================
-const gui = { sel: null };
+// ================= SKILL GEMS (bar + sockets + bag; tap a gem, then a slot or socket; feed spare gems) =================
+// gui.sel: the selected gem id. gui.feed: the gem being fed (waiting for a target), gui.into: the chosen target (waiting to confirm).
+const gui = { sel: null, feed: null, into: null };
+const supFor = sup => SUPPORTS[sup].for.map(x => (GEMS[x] && GEMS[x].n) || x + ' gems').join(', ');
 function gemCell(g, s) {
-  const D = g && GEMS[g.gem];
-  return `<div class="cell gcell ${g && gui.sel === g.id ? 'sel' : ''}" ${s ? `data-s="${s}"` : `data-id="${g.id}"`} style="${D ? 'color:' + D.col : ''}">${D ? D.icon : ''}${D ? `<b>L${g.lvl}</b>` : ''}${s ? `<small>${SLOT_DEFS[s].n}</small>` : ''}</div>`;
+  const D = g && gemDef(g.gem), sup = isSupport(g);
+  return `<div class="cell gcell ${g && gui.sel === g.id ? 'sel' : ''} ${sup ? 'sup' : ''}" ${s ? `data-s="${s}"` : `data-id="${g.id}"`} style="${D ? 'color:' + D.col : ''}">${D ? D.icon : ''}${D ? `<b>L${g.lvl}</b>` : ''}${s ? `<small>${SLOT_DEFS[s].n}</small>` : sup ? '<small>support</small>' : ''}</div>`;
+}
+function sockCells(s) {
+  const sg = barGem(s), nx = nextSock(s);
+  let h = socketed(s).map((g, i) => {
+    const D = g && gemDef(g.gem), off = g && (!sg || !supFits(g.gem, sg.gem));
+    return `<div class="cell scell ${g && gui.sel === g.id ? 'sel' : ''} ${off ? 'off' : ''}" data-s="${s}" data-i="${i}" title="${D ? D.n + (off ? ' (does nothing here)' : '') : 'Empty socket: tap a support gem, then this'}" style="${D ? 'color:' + D.col : ''}">${D ? D.icon : '◇'}</div>`;
+  }).join('');
+  if (nx) h += `<div class="cell scell locked" title="Another socket at level ${nx[0]}">L${nx[0]}</div>`;
+  return `<div class="socks">${h}</div>`;
+}
+function feedHTML() {
+  const food = gemById(gui.feed); if (!food) return '';
+  const D = gemDef(food.gem);
+  if (!gui.into) return `<div class="nm" style="color:${D.col}">Feed ${D.icon} ${D.n} L${food.lvl}</div><div>Tap the gem to feed it into (on the bar, in a socket or in the bag). Same gem: 100% of its XP; same kind: 50%; anything else: 25%.</div><div class="row" style="margin-top:8px"><button id="gFeedX">CANCEL</button></div>`;
+  const f = feedPreview(gui.feed, gui.into); if (!f) return '<div style="color:#ff6a5a">That gem can\'t take it.</div><div class="row" style="margin-top:8px"><button id="gFeedX">CANCEL</button></div>';
+  const T = gemDef(f.into.gem);
+  return `<div class="nm" style="color:${T.col}">Feed into ${T.icon} ${T.n}</div>`
+    + `<div>${D.n} L${food.lvl} gives <b>${Math.round(f.gain)} XP</b> (${Math.round(f.share * 100)}% of ${Math.round(f.ap)}). ${T.n} goes from level ${f.into.lvl} to <b class="up">level ${f.lvl}</b>.</div>`
+    + `<div style="color:var(--dim)">${f.last ? `It's your only ${D.n}: a level 1 copy stays in your bag, so you never lose the skill.` : `You have another ${D.n}; this copy is used up.`}${f.waste ? ` ${Math.round(f.waste)} XP is lost over the level cap.` : ''}</div>`
+    + `<div class="row" style="margin-top:8px"><button class="pri" id="gFeedGo">FEED</button><button id="gFeedX">CANCEL</button></div>`;
 }
 export function renderGems() {
-  $('gemBar').innerHTML = BAR.map(s => unlocked(s) ? gemCell(barGem(s), s) : `<div class="cell gcell locked"><span>🔒</span><small>${SLOT_DEFS[s].n} · Lv ${SLOT_DEFS[s].unlock}</small></div>`).join('');
-  const bag = P.gems.filter(g => !slotOf(g) || !unlocked(slotOf(g)));
-  $('gemBag').innerHTML = bag.length ? bag.map(g => gemCell(g)).join('') : '<span style="color:var(--dim);font-size:11px">No spare gems. Shrines and (later) guardians give more.</span>';
-  const g = gemById(gui.sel), tip = $('gemTip');
-  if (!g) { tip.innerHTML = '<span style="color:var(--dim)">Tap a gem, then tap a slot to put it there. Gems on the bar earn full XP; spare gems earn 10%.</span>'; return; }
-  const D = GEMS[g.gem], s = slotOf(g), need = xpNeedFor(g.lvl);
-  const slots = BAR.filter(x => fits(g.gem, x)).map(x => SLOT_DEFS[x].n).join(' or ');
-  tip.innerHTML = `<div class="nm" style="color:${D.col}">${D.icon} ${D.n}</div><div class="base">${D.kind} gem · level ${g.lvl}/${GEM.cap}${g.lvl < GEM.cap ? ` · ${Math.floor(g.xp)}/${need} XP` : ' · maxed'} · goes in ${slots}</div><div>${D.d}.</div>`
-    + Object.entries(D.ms).map(([l, t]) => `<div class="${g.lvl >= l ? 'up' : ''}" style="${g.lvl >= l ? '' : 'color:var(--dim)'}">Level ${l}: ${t}${g.lvl >= l ? ' ✓' : ''}</div>`).join('')
-    + (s && unlocked(s) ? `<div class="row" style="margin-top:8px"><button id="gRem">TAKE OFF THE BAR</button></div>` : '');
+  $('gemBar').innerHTML = BAR.map(s => `<div class="gcol">${unlocked(s) ? gemCell(barGem(s), s) + sockCells(s) : `<div class="cell gcell locked"><span>🔒</span><small>${SLOT_DEFS[s].n} · Lv ${SLOT_DEFS[s].unlock}</small></div>`}</div>`).join('');
+  const bag = P.gems.filter(inBag).sort((a, b) => isSupport(a) - isSupport(b) || a.gem.localeCompare(b.gem) || b.lvl - a.lvl);
+  $('gemBag').innerHTML = bag.length ? bag.map(g => gemCell(g)).join('') : '<span style="color:var(--dim);font-size:11px">No spare gems. Guardians always drop one, rares sometimes.</span>';
+  const tip = $('gemTip');
+  if (gui.feed) { tip.innerHTML = feedHTML(); if ($('gFeedGo')) $('gFeedGo').onclick = () => { const f = feedGem(gui.feed, gui.into); if (f) toast(`<span style="color:${gemDef(f.into.gem).col}">${gemDef(f.into.gem).n}</span> +${Math.round(f.gain)} XP`); gui.feed = gui.into = null; gui.sel = f ? f.into.id : null; renderGems(); save(); }; $('gFeedX').onclick = () => { gui.feed = gui.into = null; renderGems(); }; return; }
+  const g = gemById(gui.sel);
+  if (!g) { tip.innerHTML = '<span style="color:var(--dim)">Tap a gem, then a slot to put it there. Support gems go in the small sockets under a slot and change only that skill. Gems in use earn full XP; spare gems earn 10%. Spare gems can be fed into others.</span>'; return; }
+  const D = gemDef(g.gem), s = slotOf(g), at = sockOf(g), need = xpNeedFor(g.lvl), sup = isSupport(g);
+  const where = sup ? `works with ${supFor(g.gem)}` : 'goes in ' + BAR.filter(x => fits(g.gem, x)).map(x => SLOT_DEFS[x].n).join(' or ');
+  let h = `<div class="nm" style="color:${D.col}">${D.icon} ${D.n}</div><div class="base">${sup ? 'support' : D.kind} gem · level ${g.lvl}/${GEM.cap}${g.lvl < GEM.cap ? ` · ${Math.floor(g.xp)}/${need} XP` : ' · maxed'} · ${where}</div><div>${D.d}.</div>`;
+  h += Object.entries(D.ms).map(([l, t]) => `<div class="${g.lvl >= l ? 'up' : ''}" style="${g.lvl >= l ? '' : 'color:var(--dim)'}">Level ${l}: ${t}${g.lvl >= l ? ' ✓' : ''}</div>`).join('');
+  if (sup && at) h += supActive(g) ? `<div class="up">Socketed in ${SLOT_DEFS[at[0]].n} with ${GEMS[barGem(at[0]).gem].n}</div>` : `<div style="color:#ff6a5a">In ${SLOT_DEFS[at[0]].n}, but it does nothing for the gem there</div>`;
+  const btn = [];
+  if (s && unlocked(s)) btn.push('<button id="gRem">TAKE OFF THE BAR</button>');
+  if (at) btn.push('<button id="gUns">TAKE OUT OF THE SOCKET</button>');
+  if (inBag(g)) btn.push('<button id="gFeed">FEED INTO…</button>');
+  tip.innerHTML = h + (btn.length ? `<div class="row" style="margin-top:8px">${btn.join('')}</div>` : '');
   if ($('gRem')) $('gRem').onclick = () => { clearSlot(s); renderGems(); save(); };
+  if ($('gUns')) $('gUns').onclick = () => { unsocket(at[0], at[1]); renderGems(); save(); };
+  if ($('gFeed')) $('gFeed').onclick = () => { gui.feed = g.id; gui.into = null; renderGems(); };
 }
-export function openGems(v) { $('mGems').classList.toggle('show', v); if (v) { gui.sel = null; renderGems(); $('mInv').classList.remove('show'); $('mPass').classList.remove('show'); } syncPause(); }
+// A tap on a gem while feeding picks the target; otherwise it selects.
+function gemTap(id) { if (gui.feed) { if (id !== gui.feed) gui.into = id; } else gui.sel = gui.sel === id ? null : id; renderGems(); }
+export function openGems(v) { $('mGems').classList.toggle('show', v); if (v) { gui.sel = gui.feed = gui.into = null; P.newGems = 0; renderGems(); $('mInv').classList.remove('show'); $('mPass').classList.remove('show'); } syncPause(); }
 export const toggleGems = () => openGems(!isOpen('mGems'));
 
 export function initPanels() {
@@ -146,10 +180,20 @@ export function initPanels() {
   $('bGems').onclick = toggleGems; $('gemClose').onclick = () => openGems(false);
   $('gemBar').addEventListener('click', e => {
     const c = e.target.closest('.cell'); if (!c || !c.dataset.s) return;
-    const s = c.dataset.s, cur = barGem(s);
-    if (gui.sel && gui.sel !== (cur && cur.id)) { if (placeGem(gui.sel, s)) { gui.sel = null; save(); } }
+    const s = c.dataset.s, sel = gemById(gui.sel);
+    if (c.dataset.i !== undefined) { // a socket
+      const i = +c.dataset.i, cur = socketed(s)[i];
+      if (gui.feed) { if (cur) gemTap(cur.id); return; }
+      if (isSupport(sel) && sel !== cur) { if (socketGem(sel.id, s, i)) { gui.sel = null; save(); } else toast(barGem(s) ? `${gemDef(sel.gem).n} doesn't work with ${GEMS[barGem(s).gem].n}` : 'Put a skill gem in that slot first'); }
+      else gui.sel = cur && gui.sel !== cur.id ? cur.id : null;
+      return renderGems();
+    }
+    const cur = barGem(s);
+    if (gui.feed) { if (cur) gemTap(cur.id); return; }
+    if (isSupport(sel)) { if (socketGem(sel.id, s)) { gui.sel = null; save(); } else toast(cur ? `${gemDef(sel.gem).n} doesn't work with ${GEMS[cur.gem].n}` : 'Put a skill gem in that slot first'); }
+    else if (sel && sel !== cur) { if (placeGem(sel.id, s)) { gui.sel = null; save(); } }
     else gui.sel = cur && gui.sel !== cur.id ? cur.id : null;
     renderGems();
   });
-  $('gemBag').addEventListener('click', e => { const c = e.target.closest('.cell'); if (!c || !c.dataset.id) return; const id = +c.dataset.id; gui.sel = gui.sel === id ? null : id; renderGems(); });
+  $('gemBag').addEventListener('click', e => { const c = e.target.closest('.cell'); if (!c || !c.dataset.id) return; gemTap(+c.dataset.id); });
 }

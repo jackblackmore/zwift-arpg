@@ -9,7 +9,7 @@ import { scene, flashLight } from '../render/scene.js';
 import { decal } from '../render/assets.js';
 import { sparks, glows, emit, burst, ringFx, flashFx, floatT, banner } from '../render/fx.js';
 import { near, wake, spawnEnemy } from './enemies.js';
-import { dropItem } from './items.js';
+import { dropItem, dropGem } from './items.js';
 import { gainXp, xpNeed } from './stats.js';
 import { makePortal } from './maps.js';
 import { castArc } from './skills.js';
@@ -19,15 +19,16 @@ import { tierHp, hitBase } from './formulas.js';
 
 const ECOL = { fire: '#ffb070', cold: '#bff0ff', light: '#e0c8ff' };
 
-// Hit an enemy with `mult` × (gem base + flat spell) of an element. src.gem = the skill gem it came from (sets the base),
+// Hit an enemy with `mult` × (gem base + flat spell) of an element. src.gem = the skill gem it came from (sets the base and the skill's `more` from supports),
 // src.kx/kz = knockback direction, src.dot = no number/sound.
 export function hit(e, mult, elem, src = {}) {
   if (e.deathT) return 0;
   wake(e);
-  let d = hitBase(S, src.gem || 'fireball') * mult * (S.dmg + (S[elem] || 0)) * rand(.88, 1.12);
+  const gem = src.gem || 'fireball', K = S.sk[gem];
+  let d = hitBase(S, gem) * mult * (S.dmg + (S[elem] || 0)) * ((K && K.more) || 1) * rand(.88, 1.12);
   const crit = Math.random() < S.crit; if (crit) d *= HERO.critMult;
-  if (e.shock > 0) d *= S.conduit ? 1.35 : 1.2;
-  e.hp -= d; e.flash = .07; e.lastElem = elem; e.lastHit = Math.max(e.lastHit || 0, d);
+  if (e.shock > 0) d *= e.conduit ? 1.35 : 1.2; // Conduit (Arc's support) marks the shocks it makes
+  e.hp -= d; e.flash = .07; e.lastElem = elem; e.lastGem = gem; e.lastHit = Math.max(e.lastHit || 0, d);
   if (!src.dot) {
     floatT(e.x, e.h + .3, e.z, Math.round(d), crit ? '#ffe060' : ECOL[elem] || '#fff', crit ? 17 : 12);
     if (src.kx !== undefined && e.type !== 'boss') { const k = (crit ? 5 : 3) / (e.rar === 2 ? 3 : 1); e.vx += src.kx * k; e.vz += src.kz * k; }
@@ -47,15 +48,16 @@ export function kill(e) {
   gainXp(e.xp * (e.rar === 2 ? 8 : e.rar === 1 ? 2 : 1) * (1 + TIER.xp * (G.tier - 1)));
   P.life = Math.min(S.maxLife, P.life + S.lok); P.mana = Math.min(S.maxMana, P.mana + S.mok);
   P.flask = Math.min(SK.flask.max, P.flask + (e.rar === 2 ? SK.flask.perRare : SK.flask.perKill));
-  if (e.rar === 2) { dropItem(e.x, e.z, .15); if (Math.random() < .5) dropItem(e.x, e.z, .1); stop(.06); shake(.3); }
+  if (e.rar === 2) { dropItem(e.x, e.z, .15); if (Math.random() < .5) dropItem(e.x, e.z, .1); if (Math.random() < DROP.gem) dropGem(e.x, e.z); stop(.06); shake(.3); }
   else if (e.type !== 'boss' && Math.random() < (e.rar === 1 ? DROP.magic : DROP.normal)) dropItem(e.x, e.z, 0);
-  if (S.shatter && e.freeze > 0) G.queue.push({ k: 'shatter', x: e.x, z: e.z, hp: e.maxHp });
-  if (S.chainboom && e.lastElem === 'fire' && Math.random() < .3) G.queue.push({ k: 'boom', x: e.x, z: e.z });
+  if (e.shatter && e.freeze > 0) G.queue.push({ k: 'shatter', x: e.x, z: e.z, hp: e.maxHp }); // frozen by a Frost Nova with Shatter
+  if (S.sk.fireball.chainboom && e.lastGem === 'fireball' && Math.random() < .3) G.queue.push({ k: 'boom', x: e.x, z: e.z });
   if (e.type === 'bloater' || e.aff.includes('volatile')) G.queue.push({ k: 'bloat', x: e.x, z: e.z, t: e.type === 'bloater' ? .15 : .9, dmg: e.dmg * (e.type === 'bloater' ? .7 : 1.2), small: e.type !== 'bloater' });
   if (e.aff.includes('splitting')) for (let i = 0; i < 3; i++) { const r = spawnEnemy('runner', e.x + rand(-1, 1), e.z + rand(-1, 1), null, 1); r.awake = true; G.mapTotal++; }
   if (e.type === 'boss') {
     banner('THE WARDEN FALLS', '#ff4fd8', 'A portal opens · step through for a harder map'); shake(1); stop(.3); $('bossbar').style.display = 'none';
     for (let i = 0; i < 5; i++) setTimeout(() => dropItem(e.x, e.z, i === 0 ? .6 : .25), i * 120);
+    dropGem(e.x, e.z); // guardians always drop a gem
     makePortal(e.x - 2, e.z + 2);
   }
 }
@@ -83,13 +85,13 @@ export function explode(x, z, mult = 1, storm = false, small = false) {
   near(x, z, r, e => {
     const dd = dist(e.x, e.z, x, z) || 1;
     const d = hit(e, mult, 'fire', { gem: 'fireball', kx: (e.x - x) / dd, kz: (e.z - z) / dd });
-    if (S.ignite && !e.deathT) { e.burnT = 3; e.burnDps = Math.max(e.burnDps, d * .2); }
+    if (S.sk.fireball.ignite && !e.deathT) { e.burnT = 3; e.burnDps = Math.max(e.burnDps, d * .2); }
   });
   flashFx(x, 1, z, 0xff7a2a, r * 2.4, .28); flashFx(x, 1, z, 0xffe0a0, r * 1.1, .15); ringFx(x, z, r, 0xff8a3c, .3, .4);
   for (let i = 0; i < 22; i++) { const a = rand(0, 6.28), s = rand(2, 7); emit(sparks, x, 1, z, Math.cos(a) * s, rand(1, 5), Math.sin(a) * s, rand(.3, .7), pick([0xff8a3c, 0xffd060, 0xff4a10]), 8, 2); }
   for (let i = 0; i < 5; i++) emit(glows, x + rand(-.5, .5), .8, z + rand(-.5, .5), rand(-1, 1), rand(1, 3), rand(-1, 1), rand(.3, .6), 0xff5a10, 0, 2);
   flashLight(x, z, 0xff7a2a, 3.5, .25); SFX.boom(); shake(.05);
-  if (S.burnGround) addPatch(x, z, r * .8, 2.5, 'fireball');
+  if (S.sk.fireball.burnGround) addPatch(x, z, r * .8, 2.5, 'fireball');
   if (storm) castArc(x, z, true);
 }
 
@@ -111,7 +113,7 @@ export function processQueue(dt) {
     q.done = true;
     if (q.k === 'shatter') {
       const r = 2.4 * S.aoe;
-      near(q.x, q.z, r, e => { e.hp -= q.hp * .3; floatT(e.x, e.h, e.z, Math.round(q.hp * .3), '#bff0ff', 12); if (e.type !== 'boss') e.freeze = Math.max(e.freeze, .9); if (e.hp <= 0) kill(e); });
+      near(q.x, q.z, r, e => { e.hp -= q.hp * .3; floatT(e.x, e.h, e.z, Math.round(q.hp * .3), '#bff0ff', 12); if (e.type !== 'boss') { e.freeze = Math.max(e.freeze, .9); e.shatter = true; } if (e.hp <= 0) kill(e); });
       ringFx(q.x, q.z, r, 0xbff0ff, .3, .3); burst(q.x, .8, q.z, 0xbff0ff, 24, 6);
     }
     if (q.k === 'boom') explode(q.x, q.z, .6, false, true);
