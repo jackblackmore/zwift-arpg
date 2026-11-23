@@ -10,6 +10,7 @@ Two ideas sit underneath everything:
 
 ## Character
 
+- **Decided (Nov 2026): the hero is a melee fighter** (build order step 3¾). Ranged play's skill is positioning, which the autopilot does for you on the bike; melee's skill is timing (Guard, Evade, Flex skills, Surge), which a rider can do with button presses. Fireball, Frost Lance and Raise Skeletons are being retired as Main gems; the Guard, Evade and Flex spells stay. Sections below that assume a caster are updated as part of that step.
 - **Leaning:** one main character, with room to add more later. If we add classes, do it the Path of Exile way: a different starting point on the same passive tree, with a different KayKit model.
 - **Leaning:** three growth systems, each with its own job and no overlap:
 
