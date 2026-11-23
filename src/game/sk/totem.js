@@ -11,7 +11,7 @@ import { glowSprite } from '../../render/assets.js';
 import { emit, sparks, glows, ringFx, flashFx, addFx } from '../../render/fx.js';
 import { blocked, los } from '../../world/map.js';
 import { near } from '../enemies.js';
-import { hit, pay } from '../combat.js';
+import { hit } from '../combat.js';
 import { aim } from '../skills.js';
 
 let totem = null;
@@ -39,7 +39,7 @@ function spot() {
 }
 
 function cast() {
-  const K = SK.totem; if (!pay(K.cost)) return false;
+  const K = SK.totem;
   const [x, z] = spot();
   remove();
   totem = build(x, z); totem.life = K.dur * (S.mile.totem ? GEMS.totem.mile.dur : 1);

@@ -19,7 +19,7 @@ SCREENSHOT=/tmp/shot.png npm test   # also saves an ARPG mid-fight screenshot
 ## Controls
 
 - **Desktop:** WASD to move, mouse to aim. LMB is Fireball, RMB is Arc, Q is Frost Nova, Space is Magic Shield and F drinks a flask. I opens the bag, P the passives, Esc closes panels.
-- **RIDE mode** (MODE button): plays with only what a Zwift Ride and KICKR give you. You pedal to move: set power with the slider or <kbd>W</kbd>/<kbd>S</kbd>, and cadence with <kbd>A</kbd>/<kbd>D</kbd>; below 30% FTP you stand still. The D-pad steers (arrows). A is Fireball (<kbd>K</kbd>, hold), B is Arc (<kbd>L</kbd>, hold), Z is Frost Nova (<kbd>J</kbd>), and Y toggles autopilot (<kbd>I</kbd>), which walks you to the next fight, loot or pack and kites at casting range. The right shifter is Magic Shield (<kbd>E</kbd>) and the left shifter drinks a flask (<kbd>Q</kbd>). Pedalling harder refills mana faster, and cadence above 80 rpm casts faster (up to +15%). The on-screen pad works on touch too.
+- **RIDE mode** (MODE button): plays with only what a Zwift Ride and KICKR give you. You pedal to move: set power with the slider or <kbd>W</kbd>/<kbd>S</kbd>, and cadence with <kbd>A</kbd>/<kbd>D</kbd>; below 30% FTP you stand still. The D-pad steers (arrows). A is Fireball (<kbd>K</kbd>, hold), B is Arc (<kbd>L</kbd>, hold), Z is Frost Nova (<kbd>J</kbd>), and Y toggles autopilot (<kbd>I</kbd>), which walks you to the next fight, loot or pack and kites at casting range. The right shifter is Magic Shield (<kbd>E</kbd>) and the left shifter drinks a flask (<kbd>Q</kbd>). There is no mana: riding above endurance pace (~80% FTP) surges (faster casts and cooldowns while the Surge gauge drains), easing off refills it, below ~65% FTP casts slow down, and cadence above 80 rpm casts faster (up to +15%). The on-screen pad works on touch too.
 - **Touch:** drag the left side to move. The skill buttons on the right auto-aim at the nearest enemy. Walk over loot to pick it up.
 
 ## The ARPG
@@ -30,7 +30,7 @@ SCREENSHOT=/tmp/shot.png npm test   # also saves an ARPG mid-fight screenshot
 - **Monsters:** zombies, runners, archers and bloaters that explode. They come in packs of 6–14. Magic packs are blue. Rare leaders have yellow names and affixes: Hasted, Fortified, Burning, Splitting, Volatile or Frenzied.
 - **Boss:** The Pale Warden uses telegraphed slams, a bolt nova and summons, and enrages at 50%. Killing it opens a portal to the next map tier, where monsters have +45% HP per tier.
 - **Loot:** six gear slots in magic, rare and unique rarities. Each item has an implicit and 1–5 affixes. Drops show loot beams and labels. The bag compares an item against your current gear (Fireball DPS, life, move speed) and outlines upgrades in green. Uniques change how skills work: Wattbringer, Heart of the Storm, Emberstride, The Glass Crown, Frostbound Loop and Aegis of the Long Ride.
-- **Passives:** each level, pick 1 of 3. Notables include Twin Flame, Searing Lance, Forked Sky, Ignite, Shatter, Conduit and Chain Reaction. The keystone is Blood Magic.
+- **Passives:** each level, pick 1 of 3. Notables include Twin Flame, Searing Lance, Forked Sky, Ignite, Shatter, Conduit and Chain Reaction. Second Wind adds Surge capacity.
 - **Save:** the character saves to localStorage on this device.
 
 ## Layout
@@ -69,5 +69,5 @@ Every push to `main` builds, runs the playtest and deploys to GitHub Pages (Sett
 
 1. Make the ARPG fun: more skills, with skill gems and supports to swap; more monster types and biomes; a town, stash and crafting currency.
 2. More art: build the dungeon from KayKit Dungeon Remastered (walls, doors, props), give bloaters and the boss their own models (Quaternius), and add sprite-sheet spell effects.
-3. Tune RIDE mode on a real bike: the movement and mana curves are in `src/data/ride.js`, and the button map is in `RIDE_BUTTONS`.
+3. Tune RIDE mode on a real bike: the movement, power and Surge curves are in `src/data/ride.js`, and the button map is in `RIDE_BUTTONS`.
 4. Last: Bluetooth. The KICKR via FTMS (Web Bluetooth) feeds `ride.pw`/`ride.cad`, and the Zwift Ride buttons call the same `press()` as the on-screen pad (`src/input/ridesim.js`).

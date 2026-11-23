@@ -1,5 +1,5 @@
 // Player skills, one cast function per skill gem (game/gems.js casts them from the skill bar), plus the life flask.
-// Cast functions pay the cost and do the effect; cooldowns and charges belong to the bar slot (game/gems.js).
+// Cast functions do the effect (skills cost nothing: held skills are limited by cast time, press skills by their slot); cooldowns and charges belong to the bar slot (game/gems.js).
 import * as T from 'three';
 import { G, P, S, shake } from '../core/state.js';
 import { SK } from '../data/skills.js';
@@ -13,7 +13,7 @@ import { glowSprite } from '../render/assets.js';
 import { sparks, glows, emit, ringFx, flashFx, boltFx } from '../render/fx.js';
 import { blocked } from '../world/map.js';
 import { near } from './enemies.js';
-import { hit, pay, addPatch } from './combat.js';
+import { hit, addPatch } from './combat.js';
 
 // Where the player is aiming: the device's aim point, else the nearest awake enemy, else straight ahead.
 export function aim() {
@@ -25,7 +25,7 @@ export function aim() {
 }
 
 export function castFireball() {
-  const F = SK.fireball; if (!pay(F.cost)) return false;
+  const F = SK.fireball;
   const [ax, az] = aim(), base = Math.atan2(ax - P.x, az - P.z), k = S.sk.fireball, n = k.proj;
   P.face = base; P.castAnim = .22; P.castSeq++; P.lastCast = 'shoot';
   for (let i = 0; i < n; i++) {
@@ -37,9 +37,9 @@ export function castFireball() {
   SFX.fire(); return true;
 }
 
-// Arc: instant chain lightning. free = cast by an effect (no cost, starts from fx/fz).
+// Arc: instant chain lightning. free = cast by an effect (no cast animation, starts from fx/fz).
 export function castArc(fx = P.x, fz = P.z, free = false) {
-  const A = SK.arc; if (!free && !pay(A.cost)) return false;
+  const A = SK.arc;
   let tx, tz;
   if (free) { tx = fx; tz = fz; } else { [tx, tz] = aim(); P.face = Math.atan2(tx - P.x, tz - P.z); P.castAnim = .25; P.castSeq++; P.lastCast = 'arc'; }
   let first = null, bd = 1e9;
@@ -64,7 +64,7 @@ export function castArc(fx = P.x, fz = P.z, free = false) {
 
 export function castNova(free = false) {
   const N = SK.nova;
-  if (!free) { if (!pay(N.cost)) return false; P.castAnim = .25; P.castSeq++; P.lastCast = 'nova'; }
+  if (!free) { P.castAnim = .25; P.castSeq++; P.lastCast = 'nova'; }
   const K = S.sk.nova, r = N.radius * S.aoe * K.novaR;
   near(P.x, P.z, r, e => {
     const d = dist(e.x, e.z, P.x, P.z) || 1; hit(e, N.mult, 'cold', { gem: 'nova', kx: (e.x - P.x) / d, kz: (e.z - P.z) / d });
@@ -76,7 +76,7 @@ export function castNova(free = false) {
 }
 
 export function castShield() {
-  const H = SK.shield; if (!pay(H.cost)) return false;
+  const H = SK.shield;
   P.shield = S.maxLife * H.absorb * S.sk.shield.shieldMul; P.shieldT = H.dur;
   P.castAnim = .2; P.castSeq++; P.lastCast = 'shield';
   ringFx(P.x, P.z, 1.3, 0x7fb8ff, .35, .1); flashFx(P.x, 1, P.z, 0x7fb8ff, 3, .3);
@@ -85,7 +85,7 @@ export function castShield() {
 }
 
 export function castDash() {
-  const D = SK.dash; if (!pay(D.cost)) return false;
+  const D = SK.dash;
   // Toward the aim point if the device gives one, else the way the player is moving, else facing.
   let a, L = D.range;
   if (ctl.aim) { a = Math.atan2(ctl.aim[0] - P.x, ctl.aim[1] - P.z); L = Math.min(D.range, dist(ctl.aim[0], ctl.aim[1], P.x, P.z) || D.range); }

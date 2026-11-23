@@ -96,9 +96,9 @@ function tryPress(slot, g) {
 // Called every tick from updPlayer. fx: effort modifiers (cast speed).
 export function updSlots(dt, fx) {
   for (const slot of BAR) {
-    const st = slotState(slot), max = chargeMax(slot); st.cd -= dt; if (!max) continue;
+    const st = slotState(slot), max = chargeMax(slot), rec = dt * (fx.cd || 1); st.cd -= rec; if (!max) continue; // surging recovers faster
     const g = barGem(slot), K = SK[GEMS[g.gem].sk];
-    if (st.ch < max) { st.t += dt; if (st.t >= K.recharge) { st.t = 0; st.ch++; } } else { st.t = 0; st.ch = max; }
+    if (st.ch < max) { st.t += rec; if (st.t >= K.recharge) { st.t = 0; st.ch++; } } else { st.t = 0; st.ch = max; }
   }
   // Held gems share one cast timer; the first held button in bar order wins.
   if (P.castT <= 0) for (const slot of BAR) {

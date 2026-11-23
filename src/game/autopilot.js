@@ -5,7 +5,7 @@ import { G, P } from '../core/state.js';
 import { RIDE } from '../data/ride.js';
 import { dist } from '../core/util.js';
 import { steer } from './enemies.js';
-import { los } from '../world/map.js';
+import { los, clearShot } from '../world/map.js';
 
 // Stuck detection: if we've been trying to move but haven't, sidestep for a moment.
 const ST = { x: 0, z: 0, t: 0, side: 0, sideT: 0 };
@@ -27,7 +27,7 @@ function pick() {
   let best = null, bd = A.engage;
   for (const e of G.enemies) { if (e.deathT) continue; const d = dist(e.x, e.z, P.x, P.z); if (d < bd && (e.awake || los(P.x, P.z, e.x, e.z))) { bd = d; best = e; } } // not sleepers behind walls
   if (best) {
-    if (bd > A.keep || !los(P.x, P.z, best.x, best.z)) return toward(best.x, best.z); // close in, or get round the rock
+    if (bd > A.keep || !clearShot(P.x, P.z, best.x, best.z)) return toward(best.x, best.z); // close in, or move until shots won't clip a rock or wall
     if (bd < A.kite) return away(best.x, best.z);
     return [0, 0];
   }

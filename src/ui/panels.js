@@ -90,7 +90,7 @@ export const togglePass = () => isOpen('mPass') ? closePass() : openPass();
 export function closeAll() { $('mInv').classList.remove('show'); $('mGems').classList.remove('show'); closeShrine(); closePass(); }
 
 // ================= SHRINE (pick 1 of 3 skill gems for a newly unlocked slot) =================
-const gemCard = (id, extra = '') => { const D = GEMS[id], K = SK[D.sk]; return `<div class="pc gemc" data-k="${id}"><b style="color:${D.col}">${D.icon} ${D.n}</b><span>${D.d}.</span><span class="gm">${D.held ? 'Hold to cast' : 'Press to cast'} · ${K.cost} mana${K.cd ? ` · ${K.cd}s cooldown` : ''}${K.recharge ? ` · charge every ${K.recharge}s` : ''}</span><em>LEVEL 5: ${D.ms[5].toUpperCase()}${extra}</em></div>`; };
+const gemCard = (id, extra = '') => { const D = GEMS[id], K = SK[D.sk]; return `<div class="pc gemc" data-k="${id}"><b style="color:${D.col}">${D.icon} ${D.n}</b><span>${D.d}.</span><span class="gm">${D.held ? `Hold to cast · ${K.cast}s per cast` : 'Press to cast'}${K.cd ? ` · ${K.cd}s cooldown` : ''}${K.recharge ? ` · charge every ${K.recharge}s` : ''}</span><em>LEVEL 5: ${D.ms[5].toUpperCase()}${extra}</em></div>`; };
 let shrineSlot = null;
 export function openShrine(slot) {
   if (!shrineDue().includes(slot)) return;

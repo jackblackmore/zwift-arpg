@@ -7,7 +7,9 @@ export const BASES = {
   ring: ['Iron Ring', 'Coral Ring', 'Gold Ring'], amulet: ['Jade Amulet', 'Amber Amulet', 'Onyx Amulet'],
 };
 // Implicit mod every base of that slot carries.
-export const IMPL = { weapon: ['spell', 5], helm: ['lifeF', 14], chest: ['lifeF', 28], boots: ['ms', .06], ring: ['manaF', 14], amulet: ['dmg', .08] };
+// Stats that went with mana (removed Nov 2026); old saves drop them (main.js).
+export const OLD_MANA = ['manaF', 'mregen', 'mok'];
+export const IMPL = { weapon: ['spell', 5], helm: ['lifeF', 14], chest: ['lifeF', 28], boots: ['ms', .06], ring: ['lifeF', 10], amulet: ['dmg', .08] };
 // t: text (# = value), pct: shown as %, dec: 1 decimal, int: whole number, slots: allowed slots, rare: rolls less often, mp: magic item prefix.
 export const AFF = [
   { st: 'spell', t: 'Adds # spell damage', a: 2, b: 4, slots: ['weapon', 'ring', 'amulet'], mp: 'Sorcerous' },
@@ -17,14 +19,11 @@ export const AFF = [
   { st: 'light', slots: ['weapon', 'ring', 'amulet'], t: '#% increased lightning damage', pct: 1, a: .1, b: .25, mp: 'Static' },
   { st: 'cast', t: '#% increased cast speed', pct: 1, a: .05, b: .12, slots: ['weapon', 'ring', 'amulet', 'helm'], mp: 'Nimble' },
   { st: 'lifeF', t: '+# to maximum life', a: 10, b: 28, mp: 'Hale' },
-  { st: 'manaF', t: '+# to maximum mana', a: 8, b: 22, mp: 'Mystic' },
   { st: 'lregen', t: 'Regenerate # life per second', dec: 1, a: .8, b: 2.5, mp: 'Mending' },
-  { st: 'mregen', t: 'Regenerate # mana per second', dec: 1, a: .8, b: 2.4, mp: 'Flowing' },
   { st: 'ms', t: '#% increased movement speed', pct: 1, a: .05, b: .12, slots: ['boots'], mp: 'Runner\'s' },
   { st: 'crit', t: '+#% critical strike chance', pct: 1, a: .02, b: .05, mp: 'Keen' },
   { st: 'aoe', t: '#% increased area of effect', pct: 1, a: .06, b: .15, slots: ['helm', 'amulet', 'weapon'], mp: 'Vast' },
   { st: 'lok', t: 'Gain # life per kill', a: 1, b: 4, int: 1, mp: 'Hungering' },
-  { st: 'mok', t: 'Gain # mana per kill', a: 1, b: 3, int: 1, mp: 'Thirsting' },
   { st: 'proj', t: 'Fireball fires +# projectile', a: 1, b: 1, int: 1, slots: ['weapon'], rare: 1, mp: 'Splitting' },
   { st: 'chains', t: 'Arc chains +# times', a: 1, b: 2, int: 1, slots: ['weapon', 'amulet', 'helm'], rare: 1, mp: 'Forking' },
   { st: 'pierce', t: 'Fireball pierces # enemy', a: 1, b: 1, int: 1, slots: ['weapon', 'ring'], rare: 1, mp: 'Piercing' },

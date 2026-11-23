@@ -1,4 +1,4 @@
-// Life/mana orbs, skill bar, XP, map info, boss bar, minimap, vignette, banner timer.
+// Life and Surge orbs, skill bar, XP, map info, boss bar, minimap, vignette, banner timer.
 import { G, P, S } from '../core/state.js';
 import { SK } from '../data/skills.js';
 import { RCSS } from '../data/items.js';
@@ -19,11 +19,12 @@ export function hud(dt) {
   $('vign').style.opacity = G.vign + (P.life < S.maxLife * .3 && P.dead <= 0 ? .25 + Math.sin(G.gt * 6) * .1 : 0);
   T.hud -= dt; if (T.hud > 0) return; T.hud = .07;
   $('lifeF').style.height = (P.life / S.maxLife * 100) + '%'; $('lifeT').textContent = `${Math.ceil(P.life)}/${S.maxLife}` + (P.shield > 0 ? ` +${Math.ceil(P.shield)}` : ''); $('orbL').classList.toggle('shielded', P.shield > 0);
-  $('manaF').style.height = S.blood ? '0%' : (P.mana / S.maxMana * 100) + '%'; $('manaT').textContent = S.blood ? 'BLOOD' : `${Math.floor(P.mana)}/${S.maxMana}`;
+  $('surgeF').style.height = (P.surge / S.surgeMax * 100) + '%'; $('surgeT').textContent = P.spent ? 'SPENT' : `⚡ ${Math.ceil(P.surge)}s`;
+  $('orbR').classList.toggle('surging', P.surgeK > 0); $('orbR').classList.toggle('spent', P.spent);
+  { const el = $('sSu'); el.classList.toggle('on', P.surgeK > 0); el.querySelector('.n').textContent = P.spent ? '…' : Math.ceil(P.surge); el.querySelector('.cd').style.height = (100 - P.surge / S.surgeMax * 100) + '%'; }
   $('xpF').style.width = (P.xp / xpNeed(P.lvl) * 100) + '%';
   $('iMap').textContent = 'MAP ' + G.tier; $('iLvl').textContent = 'Level ' + P.lvl; $('iKill').textContent = `${G.mapKills}/${G.mapTotal} slain`;
-  const res = S.blood ? P.life : P.mana;
-  for (const s of BAR) skillSlot(s, res);
+  for (const s of BAR) skillSlot(s);
   $('sFl').querySelector('.n').textContent = Math.floor(P.flask); $('sFl').querySelector('.cd').style.height = P.flask < SK.flask.max ? (100 - (P.flask % 1) * 100) + '%' : '0%';
   const ib = $('invBadge'); ib.style.display = P.newItems ? 'block' : 'none'; ib.textContent = P.newItems;
   $('bGems').classList.toggle('glow', P.newGems > 0 || (BAR.some(s => unlocked(s) && !barGem(s)) && P.gems.some(g => !BAR.some(s => P.bar[s] === g.id))));
@@ -34,9 +35,9 @@ export function hud(dt) {
   minimap();
 }
 
-// One skill bar button: the gem's icon, cost, cooldown (or charges) and gem level; a padlock until the slot unlocks.
+// One skill bar button: the gem's icon, cooldown (or charges) and gem level; a padlock until the slot unlocks.
 const slotLook = s => { const g = barGem(s); return g ? GEMS[g.gem] : null; };
-function skillSlot(s, res) {
+function skillSlot(s) {
   const el = $('sk-' + s), g = barGem(s), D = g && GEMS[g.gem], K = D && SK[D.sk], st = P.cd[s] || {};
   const lock = !unlocked(s), key = lock ? 'lock' : D ? g.gem + g.lvl : 'empty';
   if (el.dataset.key !== key) {
@@ -46,9 +47,9 @@ function skillSlot(s, res) {
     el.querySelector('.lv').textContent = lock ? 'Lv ' + SLOT_DEFS[s].unlock : D ? 'L' + g.lvl : '';
     el.title = lock ? `${SLOT_DEFS[s].n}: unlocks at level ${SLOT_DEFS[s].unlock}` : D ? `${D.n} · gem level ${g.lvl}` : `${SLOT_DEFS[s].n}: empty · press G for gems`;
   }
-  if (!D) { el.querySelector('.n').textContent = ''; el.querySelector('.cd').style.height = '0%'; el.classList.remove('nomana', 'act'); return; }
-  el.classList.toggle('nomana', res < K.cost); el.classList.toggle('act', !!ctl[s]);
-  el.querySelector('.n').textContent = K.charges ? `${st.ch || 0}×` : K.cost;
+  if (!D) { el.querySelector('.n').textContent = ''; el.querySelector('.cd').style.height = '0%'; el.classList.remove('act'); return; }
+  el.classList.toggle('act', !!ctl[s]);
+  el.querySelector('.n').textContent = K.charges ? `${st.ch || 0}×` : K.cd && st.cd > 0 ? Math.ceil(st.cd) : '';
   const cd = K.charges ? (st.ch >= 1 ? 0 : 1 - (st.t || 0) / K.recharge) : K.cd ? Math.max(0, st.cd || 0) / K.cd : 0;
   el.querySelector('.cd').style.height = (cd * 100) + '%';
 }

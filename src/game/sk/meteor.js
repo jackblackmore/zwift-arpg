@@ -10,14 +10,14 @@ import { scene, flashLight } from '../../render/scene.js';
 import { glowSprite } from '../../render/assets.js';
 import { emit, sparks, glows, ringFx, flashFx, telegraph } from '../../render/fx.js';
 import { near } from '../enemies.js';
-import { hit, pay, addPatch } from '../combat.js';
+import { hit, addPatch } from '../combat.js';
 import { aim } from '../skills.js';
 
 let falling = []; // { x, z, r, t, g }
 const rockGeo = new T.DodecahedronGeometry(.6, 0), rockMat = new T.MeshLambertMaterial({ color: 0x3a2a22, emissive: 0xff4a10 });
 
 function cast() {
-  const K = SK.meteor; if (!pay(K.cost)) return false;
+  const K = SK.meteor;
   let [x, z] = aim(); const d = dist(x, z, P.x, P.z) || 1;
   if (d > K.range) { x = P.x + (x - P.x) / d * K.range; z = P.z + (z - P.z) / d * K.range; }
   const r = K.radius * S.aoe * (S.mile.meteor ? GEMS.meteor.mile.radius : 1);

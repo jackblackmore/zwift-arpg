@@ -15,7 +15,7 @@ import { buildModel } from '../../render/models.js';
 import { burst, ringFx, floatT } from '../../render/fx.js';
 import { pushOut, los } from '../../world/map.js';
 import { near, steer, animE } from '../enemies.js';
-import { hit, pay } from '../combat.js';
+import { hit } from '../combat.js';
 import { barLevels } from '../gems.js';
 import { aim } from '../skills.js';
 
@@ -43,10 +43,9 @@ function glow(m, f) { for (const mt of m.model.mats) if (mt.emissive) mt.emissiv
 
 export function cast() {
   const alive = living(), full = alive.length >= cap();
-  // At the cap a recast replaces the most hurt skeleton, if one is below `replace` of its life; else nothing happens (and it's free).
+  // At the cap a recast replaces the most hurt skeleton, if one is below `replace` of its life; else nothing happens.
   const worst = full && alive.sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0];
   if (full && worst.hp > worst.maxHp * K.replace) return false;
-  if (!pay(K.cost)) return false;
   if (worst) die(worst, true);
   // Rise between you and what you're aiming at, a little to the side so a pile-up spreads out.
   const [ax, az] = aim(), a = Math.atan2(ax - P.x, az - P.z) + rand(-.7, .7), r = Math.min(K.raiseAt, dist(ax, az, P.x, P.z)) * rand(.7, 1);

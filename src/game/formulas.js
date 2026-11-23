@@ -5,6 +5,7 @@ import { HERO, RARITY, START_WEAPON, GEAR_PROFILES, AFFIX_PRIORITY, XP_CURVE, IT
 import { MT, TIER, PACK } from '../data/monsters.js';
 import { SLOTS, BASES, IMPL, AFF } from '../data/items.js';
 import { GEMS, GEM, SUPPORTS, supFits, FEED } from '../data/gems.js';
+import { SURGE } from '../data/skills.js';
 
 // Item level scaling of rolled values (flat and percent affixes).
 export const flatScale = il => 1 + ITEM_SCALE.flat * (il - 1), pctScale = il => 1 + ITEM_SCALE.pct * (il - 1);
@@ -21,7 +22,7 @@ const MILE_LVL = 5;
 // st.sk[gemId] holds each skill's own behaviour stats (projectiles, chains, pierce, flags from supports, `more` damage):
 // gear and passives feed every skill, a milestone or support only its own gem. Every skill gem has an entry.
 export function computeStats(gear, passives = {}, lvl = 1, gems = {}, socks = {}) {
-  const s = { lifeF: 0, lifePct: 0, manaF: 0, lregen: 0, mregen: 0, dmg: 0, fire: 0, cold: 0, light: 0, cast: 0, ms: 0, crit: 0, aoe: 0, proj: 0, chains: 0, lok: 0, mok: 0, spell: 0, pierce: 0, dashCh: 0, shieldPct: 0, freeze: 0, dr: 0, novaR: 0,
+  const s = { lifeF: 0, lifePct: 0, lregen: 0, surge: 0, surgeRe: 0, dmg: 0, fire: 0, cold: 0, light: 0, cast: 0, ms: 0, crit: 0, aoe: 0, proj: 0, chains: 0, lok: 0, spell: 0, pierce: 0, dashCh: 0, shieldPct: 0, freeze: 0, dr: 0, novaR: 0,
     ch: 0, army: 0, dur: 0, more: 1 };
   for (const k in gear) { const it = gear[k]; if (it) for (const [st, v] of it.mods) s[st] = (s[st] || 0) + v; }
   for (const id in passives) if (PASS[id]) PASS[id].fn(s, passives[id]);
@@ -37,10 +38,10 @@ export function computeStats(gear, passives = {}, lvl = 1, gems = {}, socks = {}
     };
   }
   return {
-    maxLife: Math.max(20, Math.round((H.life + H.lifePer * l + s.lifeF) * (1 + s.lifePct))), maxMana: Math.round(H.mana + H.manaPer * l + s.manaF),
-    lregen: H.lregen + s.lregen, mregen: H.mregen + s.mregen, spell: H.spell + H.spellPer * l + s.spell, gems: Object.fromEntries(Object.entries(gems).map(([id, g]) => [id, gemBase(g)])), mile: Object.fromEntries(Object.entries(gems).filter(([, g]) => g >= MILE_LVL).map(([id]) => [id, true])), dmg: 1 + s.dmg, fire: s.fire, cold: s.cold, light: s.light,
-    cast: 1 + s.cast, ms: H.ms * (1 + s.ms), crit: H.crit + s.crit, aoe: 1 + s.aoe, lok: s.lok, mok: s.mok, sk,
-    freeze: 1 + s.freeze, dr: Math.min(.6, s.dr), blood: !!s.blood, storm: !!s.storm, autoNova: !!s.autoNova,
+    maxLife: Math.max(20, Math.round((H.life + H.lifePer * l + s.lifeF) * (1 + s.lifePct))), surgeMax: SURGE.max * (1 + s.surge), surgeRe: SURGE.refill * (1 + s.surgeRe),
+    lregen: H.lregen + s.lregen, spell: H.spell + H.spellPer * l + s.spell, gems: Object.fromEntries(Object.entries(gems).map(([id, g]) => [id, gemBase(g)])), mile: Object.fromEntries(Object.entries(gems).filter(([, g]) => g >= MILE_LVL).map(([id]) => [id, true])), dmg: 1 + s.dmg, fire: s.fire, cold: s.cold, light: s.light,
+    cast: 1 + s.cast, ms: H.ms * (1 + s.ms), crit: H.crit + s.crit, aoe: 1 + s.aoe, lok: s.lok, sk,
+    freeze: 1 + s.freeze, dr: Math.min(.6, s.dr), storm: !!s.storm, autoNova: !!s.autoNova,
   };
 }
 

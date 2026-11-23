@@ -13,8 +13,7 @@ import { SFX } from '../core/audio.js';
 export const computeStats = (gear, passives = P.passives, lvl = P.lvl) => calcStats(gear, passives, lvl, barLevels(), sockMap());
 export function recalc() {
   Object.assign(S, computeStats(P.gear));
-  P.life = Math.min(P.life, S.maxLife); P.mana = Math.min(P.mana, S.maxMana);
-  $('orbL').classList.toggle('blood', S.blood);
+  P.life = Math.min(P.life, S.maxLife); P.surge = Math.min(P.surge, S.surgeMax);
 }
 // Rough DPS of the Main gem (Fireball if the slot is empty; Raise Skeletons: a base-cap army swinging), used by the bag to compare items.
 export function estimate(st) {
@@ -27,7 +26,7 @@ export const xpNeed = xpNeedFor;
 export function gainXp(n) {
   P.xp += n; gemXp(n);
   while (P.xp >= xpNeed(P.lvl)) {
-    P.xp -= xpNeed(P.lvl); P.lvl++; P.pts++; recalc(); P.life = S.maxLife; P.mana = S.maxMana;
+    P.xp -= xpNeed(P.lvl); P.lvl++; P.pts++; recalc(); P.life = S.maxLife; P.surge = S.surgeMax; P.spent = false;
     banner('LEVEL ' + P.lvl, '#ffd23f', 'Passive point gained · press P'); SFX.lvl();
     onLevelUp(P.lvl - 1);
     for (let i = 0; i < 40; i++) emit(glows, P.x + rand(-.5, .5), rand(0, .5), P.z + rand(-.5, .5), 0, rand(3, 6), 0, rand(.6, 1.1), 0xffd23f);

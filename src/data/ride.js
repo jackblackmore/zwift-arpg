@@ -4,8 +4,10 @@ export const RIDE = {
   ftp: 250, startPower: 175, startCad: 88,
   // Movement speed multiplier from %FTP: below `stop` the hero stands still, `full` is normal speed, capped at `max`.
   move: { stop: .3, full: .75, max: 1.25 },
-  // Mana regeneration multiplier: base + perFtp × %FTP, capped. Pedalling harder refills mana faster.
-  mana: { base: .4, perFtp: .9, max: 1.7 },
+  // Cast speed from power: at `endurance` %FTP and above casts run at 100%; below it they slow, down to `slowest` at `low` %FTP or less.
+  power: { endurance: .65, low: .4, slowest: .5 },
+  // Surge (data/skills.js SURGE): riding above `from` %FTP surges, partly at first and fully from `full`. Easing off lets the gauge refill.
+  surge: { from: .8, full: 1.05 },
   // Cast speed bonus per rpm above `from`, capped.
   cadence: { from: 80, per: .004, max: .15 },
   // Autopilot (Y): walk toward the nearest fight / loot / pack; hold at `keep`, back off inside `kite`.

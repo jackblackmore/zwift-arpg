@@ -22,6 +22,8 @@ import { recalc } from './game/stats.js';
 import { newMap } from './game/maps.js';
 import { save, load } from './game/save.js';
 import { PASS } from './data/passives.js';
+import { SK } from './data/skills.js';
+import { IMPL, OLD_MANA } from './data/items.js';
 import { START_WEAPON, parLevel, parBar, PAR_GEAR } from './data/balance.js';
 import { arena } from './game/arena.js';
 import { kill, hurtP } from './game/combat.js';
@@ -45,6 +47,12 @@ function begin(fresh) {
   } else {
     Object.assign(P, { lvl: sv.lvl, xp: sv.xp, gear: sv.gear || {}, inv: sv.inv || [], passives: Object.fromEntries(Object.entries(sv.passives || {}).filter(([k]) => PASS[k])), pts: sv.pts || 0, offer: null, newGems: 0 });
     G.itemId = sv.itemId || 100;
+    // Saves from before mana was removed: mana affixes go (a ring's mana implicit becomes its life implicit), and points in
+    // passives that no longer exist (Blood Magic) come back to spend again.
+    for (const it of [...Object.values(P.gear), ...P.inv]) if (it && it.mods) {
+      it.mods = it.mods.map(([st, v], i) => i === 0 && it.slot === 'ring' && st === 'manaF' ? [IMPL.ring[0], IMPL.ring[1]] : [st, v]).filter(([st]) => !OLD_MANA.includes(st));
+    }
+    for (const [k, n] of Object.entries(sv.passives || {})) if (!PASS[k] && !OLD_NOTABLES[k]) P.pts += n;
     // Saves from before gems have none: treat them as a fresh character for gems (the Main shrine is offered now).
     if (Array.isArray(sv.gems) && sv.gems.length) {
       Object.assign(P, { gems: sv.gems.filter(g => GEMS[g.gem] || SUPPORTS[g.gem]), bar: {}, cd: {}, shrined: sv.shrined || {} });
@@ -122,7 +130,7 @@ requestAnimationFrame(frame);
   $('build').textContent = `v${B.version}${B.commit ? ' · ' + B.commit : ''} · built ${d.toLocaleString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`; }
 
 window.__dbg = {
-  G, P, S, ctl, Q, chars, ride, setRide, scene,
+  G, P, S, SK, ctl, Q, chars, ride, setRide, scene,
   ready: () => (chars.ready || chars.failed) && G.loaded, cycleQuality, cycleStyle,
   start: fresh => begin(fresh !== false),
   sim: n => { for (let i = 0; i < n; i++) { update(.033); updFx(.033); } },

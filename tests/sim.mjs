@@ -214,7 +214,7 @@ try {
         pack: D.arena({ tier: 1, fight: [['zombie', 3], ['archer', 1]] }),
         boss: D.arena({ tier: 1, guardian: true, maxT: 240 }),
         under: D.arena({ tier: 2, gear: 'start', guardian: true, maxT: 120 }),
-        shield: (() => { D.P.mana = 100; D.castShield(); const a = D.P.shield / D.S.maxLife; const l = D.P.life; return { result: a > .3 ? 'ok' : 'none', t: Math.round(a * 100) / 100, lowest: l }; })(),
+        shield: (() => { D.castShield(); const a = D.P.shield / D.S.maxLife; const l = D.P.life; return { result: a > .3 ? 'ok' : 'none', t: Math.round(a * 100) / 100, lowest: l }; })(),
       };
     });
     console.log('  balance:', JSON.stringify(Object.fromEntries(Object.entries(r).map(([k, v]) => [k, `${v.result} ${v.t}s lowest ${v.lowest}`]))));
@@ -294,7 +294,7 @@ try {
       const fk = D.addGem('forked'); out.forkedOnFb = D.socketGem(fk.id, 'main'); out.forkedOnArc = D.socketGem(fk.id, 'flexA');
       out.afterForked = { proj: S.sk.fireball.proj - base.proj, chains: S.sk.arc.chains - base.chains, pierce: S.sk.fireball.pierce - base.pierce };
       // The real cast: two fireballs leave the staff.
-      G.proj.length = 0; P.mana = S.maxMana; D.castFireball(); out.shots = G.proj.length;
+      G.proj.length = 0; D.castFireball(); out.shots = G.proj.length;
       // Socketed supports earn full XP, like the gem they support.
       const x0 = { fb: fb.xp, tw: tw.xp };
       D.kill({ deathT: 0, x: P.x, z: P.z, xp: 30, rar: 0, type: 'zombie', aff: [], freeze: 0, h: 1, model: { g: {} } });
@@ -331,7 +331,7 @@ try {
         const g = D.addGem(gem, 3), sg = D.addGem(sup); D.placeGem(g.id, slot);
         if (!D.socketGem(sg.id, slot) || !D.S.sk[gem].sup.includes(sup)) { bad.push(sup + ':socket'); continue; }
         const k = S.sk[gem]; if ({ split: !k.split, volley: !k.volley, twinmeteor: !k.twin, lingering: k.dur !== 1.5, quickstep: k.ch !== 1, army: k.army !== 1 }[sup]) bad.push(sup + ':stats');
-        P.mana = S.maxMana; P.life = S.maxLife; D.spawnEnemy('zombie', P.x + 3, P.z, null, 0).awake = true; D.ctl.aim = [P.x + 3, P.z];
+        P.life = S.maxLife; D.spawnEnemy('zombie', P.x + 3, P.z, null, 0).awake = true; D.ctl.aim = [P.x + 3, P.z];
         try { D.cast(gem); D.sim(20); } catch (e) { bad.push(sup + ':' + e.message); }
       }
       out.allSupports = bad.join(',') || 'ok';
@@ -373,7 +373,7 @@ try {
       P.lvl = 8; D.recalc(); D.openShrine('evade'); out.evadeOffer = [...document.querySelectorAll('#shrineCards .pc')].map(c => c.dataset.k).join(',');
       document.getElementById('mShrine').classList.remove('show');
       D.takeShrine('evade', 'blink'); document.getElementById('mShrine').classList.remove('show');
-      const clear = () => { G.enemies.forEach(e => { e.deathT = 1; e.gone = true; }); G.eproj = []; P.mana = S.maxMana; P.invuln = 0; P.life = S.maxLife; };
+      const clear = () => { G.enemies.forEach(e => { e.deathT = 1; e.gone = true; }); G.eproj = []; P.invuln = 0; P.life = S.maxLife; };
       const walls = D.blocked;
       // Blink: a monster 2 units to the east, in the open: we end up farther west, and never in a wall.
       clear(); const r0 = G.layout ? G.layout.rooms[0] : null; // start room
@@ -393,7 +393,7 @@ try {
       }
       out.wallBad = bad; out.wallMoved = moved;
       // Frost Ward: chills and damages a monster inside, not one far away, and cuts damage taken.
-      clear(); P.x = G.start.x; P.z = G.start.z; P.mana = S.maxMana;
+      clear(); P.x = G.start.x; P.z = G.start.z;
       const a = D.spawnEnemy('zombie', P.x + 2, P.z, null, 0), b = D.spawnEnemy('zombie', P.x + 9, P.z, null, 0); a.awake = b.awake = true; a.hp = a.maxHp = b.hp = b.maxHp = 1e6; a.spd = b.spd = 0; // held in place, so only the radius decides
       const life0 = P.life; D.CAST.ward(); D.sim(30);
       out.wardChill = a.chill > 0 && !(b.chill > 0); out.chills = [a.chill, b.chill].map(c => Math.round((c || 0) * 100) / 100); out.wardDmg = a.hp < 1e6 && b.hp === 1e6;
@@ -420,8 +420,8 @@ try {
       P.lvl = 8; D.recalc(); D.newMap(1); const pk = G.packs[0]; P.x = pk.x - 7; P.z = pk.z; D.sim(3);
       // A tough stand-in monster five units away, kept in place so the skills have something to hit.
       const dummy = () => { const e = G.enemies.find(x => !x.deathT); e.x = P.x + 5; e.z = P.z; e.vx = e.vz = 0; e.hp = e.maxHp = 1e6; e.awake = true; ctl.aim = [e.x, e.z]; return e; };
-      const run = (e, n) => { for (let i = 0; i < n; i++) { e.x = P.x + 5; e.z = P.z; e.vx = e.vz = 0; P.mana = S.maxMana; P.life = S.maxLife; D.sim(1); } };
-      const useSlot = (gem, lvl) => { const g = D.addGem(gem, lvl); D.placeGem(g.id, 'flexA'); P.mana = S.maxMana; return g; };
+      const run = (e, n) => { for (let i = 0; i < n; i++) { e.x = P.x + 5; e.z = P.z; e.vx = e.vz = 0; P.life = S.maxLife; D.sim(1); } };
+      const useSlot = (gem, lvl) => { const g = D.addGem(gem, lvl); D.placeGem(g.id, 'flexA'); return g; };
       const count = () => D.scene.children.length;
       // Flame Totem
       const g = useSlot('totem', 4); out.slotOk = P.bar.flexA === g.id;
@@ -459,14 +459,14 @@ try {
       // Find a direction with 14 clear units in front of the hero, line monsters up along it.
       let dir = [0, 1]; for (const d of [[0, 1], [1, 0], [0, -1], [-1, 0], [.7, .7], [-.7, .7], [.7, -.7], [-.7, -.7]]) { let ok = true; for (let t = 1; t < 15; t += .5) if (D.blocked(P.x + d[0] * t, P.z + d[1] * t, .5)) ok = false; if (ok) { dir = d; break; } }
       const line = () => { G.enemies.length = 0; const es = []; for (let i = 0; i < 7; i++) { const e = D.spawnEnemy('zombie', P.x + dir[0] * (4 + i * 1.2), P.z + dir[1] * (4 + i * 1.2), null, 0); e.hp = e.maxHp = 1e6; es.push(e); } D.ctl.aim = [P.x + dir[0] * 10, P.z + dir[1] * 10]; D.sim(1); return es; };
-      const fire = () => { P.mana = S.maxMana; const m = P.mana; const ok = D.cast('frostlance'); out.paid = out.paid || (ok && P.mana < m); D.sim(30); };
+      const fire = () => { const ok = D.cast('frostlance'); out.cast = out.cast || ok; D.sim(30); };
       let es = line(); fire();
       out.hit = es.filter(e => e.hp < e.maxHp).length; out.chilled = es.filter(e => e.chill > 0 || e.hp < e.maxHp).length;
       gem.lvl = 5; D.recalc(); es = line(); fire(); out.hit5 = es.filter(e => e.hp < e.maxHp).length;
       D.ctl.aim = null; return out;
     });
     console.log('  frostlance:', JSON.stringify(r));
-    check(r.onBar === 'frostlance' && r.paid, 'frostlance: goes on the Main slot and casting pays mana');
+    check(r.onBar === 'frostlance' && r.cast, 'frostlance: goes on the Main slot and casts');
     check(r.hit >= 3 && r.hit <= 5, `frostlance: pierces a line of monsters but not all of them (${r.hit} of 7 hit)`);
     check(r.hit5 === r.hit + 2, `frostlance: level 5 pierces 2 more (${r.hit5})`);
     check(errors.length === 0, `frostlance: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
@@ -481,9 +481,9 @@ try {
       D.arena({ tier: 1, fight: [], maxT: .1, main: 'skeletons' }); // an open floor with no monsters
       const sk = () => D.minions().filter(m => !m.deathT).length;
       out.cap = D.skel.cap();
-      for (let i = 0; i < 8; i++) { P.mana = 100; D.ctl.tap.main = true; D.sim(12); }
+      for (let i = 0; i < 8; i++) { D.ctl.tap.main = true; D.sim(12); }
       out.raised = sk(); out.capped = out.raised === out.cap;
-      P.mana = 30; D.ctl.tap.main = true; D.sim(1); out.manaKept = P.mana >= 30 && sk() === out.cap; // at the cap with a healthy army a recast is free
+      { const before = D.minions().filter(m => !m.deathT); D.ctl.tap.main = true; D.sim(1); const after = D.minions().filter(m => !m.deathT); out.kept = after.length === out.cap && before.every(m => after.includes(m)); } // at the cap with a healthy army a recast does nothing
       // A zombie walks in: the skeletons kill it, and the kill counts for the player.
       const k0 = P.kills, z = D.spawnEnemy('zombie', P.x + 5, P.z, null, 0); z.awake = true;
       let t = 0; while (!z.deathT && t < 900) { D.sim(10); t += 10; }
@@ -495,12 +495,57 @@ try {
     });
     console.log('  skeletons:', JSON.stringify(r));
     check(r.cap === 3 && r.capped, `skeletons: raising respects the cap (${r.raised} of ${r.cap})`);
-    check(r.manaKept, 'skeletons: recasting with a full, healthy army costs nothing');
+    check(r.kept, 'skeletons: recasting with a full, healthy army replaces nobody');
     check(r.killed && r.kills === 1, `skeletons: minions kill a monster on their own and the kill counts (${r.killT}s)`);
     check(r.hurtOne, 'skeletons: monsters in reach attack the minions');
     check(r.rigged, 'skeletons: minions use the rigged skeleton when characters loaded');
     check(r.cleared, 'skeletons: minions are cleared with the map');
     check(errors.length === 0, `skeletons: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
+  }
+
+  // ---------- No mana; the Surge gauge (data/skills.js SURGE, game/update.js updSurge) ----------
+  {
+    const { page, errors } = await open('/');
+    const r = await page.evaluate(() => {
+      const D = window.__dbg, P = D.P, S = D.S, G = D.G, ctl = D.ctl, out = {};
+      D.start(true); D.takeShrine('main', 'fireball'); document.getElementById('mShrine').classList.remove('show');
+      out.noMana = P.mana === undefined && S.maxMana === undefined && !D.SK.fireball.cost && !document.getElementById('manaF');
+      D.arena({ tier: 1, fight: [], maxT: .1 }); // an open floor with no monsters
+      const z = D.spawnEnemy('zombie', P.x + 6, P.z, null, 0); z.hp = z.maxHp = 1e9; z.spd = 0; ctl.aim = [z.x, z.z];
+      // Fireballs held for 6 s, without and with Surge: no mana means the plain rate never stops, Surge is faster.
+      const casts = surge => { P.surge = S.surgeMax; P.spent = false; P.surgeWait = 0; ctl.surge = surge; const c = P.castSeq; ctl.main = true; D.sim(180); ctl.main = false; ctl.surge = false; return P.castSeq - c; };
+      out.plain = casts(false); out.surged = casts(true);
+      out.drained = Math.round((S.surgeMax - P.surge) * 10) / 10; // about 6 s used
+      // Run it dry: spent until it refills to SURGE.restart, and refilling waits SURGE.delay after you stop.
+      P.surge = .2; ctl.surge = true; D.sim(15); out.spent = P.spent && P.surge === 0; out.offWhenSpent = P.surgeK === 0;
+      ctl.surge = false; D.sim(30); out.waits = P.surge === 0; D.sim(120); out.refills = P.surge > 0;
+      while (P.spent && G.gt < 1e4) D.sim(30); out.restartAt = Math.round(P.surge / S.surgeMax * 100) / 100;
+      // RIDE: hard riding surges, endurance pace doesn't, easy riding casts slower.
+      D.setRide(true); P.surge = S.surgeMax; P.spent = false;
+      const pedal = rel => { ctl.effort = { pw: D.ride.ftp * rel, rel, cad: 80 }; D.sim(5); }; // what pollRide writes each frame
+      pedal(1.1); out.rideHard = P.surgeK;
+      pedal(.7); out.rideEnd = P.surgeK; out.castEnd = P.eff.cast;
+      pedal(.3); out.castEasy = P.eff.cast;
+      D.setRide(false);
+      // An old save: mana affixes go (a ring's mana implicit becomes life), Blood Magic's point comes back.
+      localStorage.setItem('wd-arpg-1', JSON.stringify({ lvl: 3, xp: 0, pts: 0, tier: 1, inv: [], passives: { blood: 1, pyre: 1 },
+        gear: { ring: { slot: 'ring', rar: 1, base: 'Iron Ring', name: 'Old Ring', il: 1, mods: [['manaF', 14], ['mregen', 2], ['crit', .03]] } } }));
+      D.start(false); document.getElementById('mShrine').classList.remove('show');
+      out.oldRing = JSON.stringify(P.gear.ring.mods); out.oldPts = P.pts; out.oldPass = Object.keys(P.passives).join();
+      return out;
+    });
+    console.log('  surge:', JSON.stringify(r));
+    check(r.oldRing === '[["lifeF",10],["crit",0.03]]' && r.oldPts === 1 && r.oldPass === 'pyre', `surge: old saves lose mana affixes and get Blood Magic's point back (${r.oldRing}, ${r.oldPts} pt)`);
+    check(r.noMana, 'surge: there is no mana (no pool, no costs, no orb)');
+    check(r.plain >= 7, `surge: held Fireball never runs dry (${r.plain} casts in 6 s)`);
+    check(r.surged >= r.plain * 1.25, `surge: surging casts faster (${r.surged} vs ${r.plain})`);
+    check(r.drained > 5 && r.drained < 7, `surge: the gauge drains about 1 s per second (${r.drained})`);
+    check(r.spent && r.offWhenSpent, 'surge: an empty gauge stops the bonus (spent)');
+    check(r.waits && r.refills, 'surge: the gauge refills after a short wait');
+    check(r.restartAt >= .29 && r.restartAt < .4, `surge: spent until it refills to about 30% (${r.restartAt})`);
+    check(r.rideHard === 1 && r.rideEnd === 0, 'surge: RIDE surges above endurance pace only');
+    check(r.castEnd === 1 && r.castEasy < 1, `surge: RIDE casts slower when riding easy (${r.castEasy})`);
+    check(errors.length === 0, `surge: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   }
 
   // ---------- ARPG in RIDE mode (simulated Zwift Ride + KICKR) ----------
