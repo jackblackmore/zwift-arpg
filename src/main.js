@@ -27,6 +27,7 @@ import { arena } from './game/arena.js';
 import { kill, hurtP } from './game/combat.js';
 import { castFireball, castArc, castNova, castDash, castShield } from './game/skills.js';
 import { dropItem } from './game/items.js';
+import * as skel from './game/sk/skeletons.js';
 import { hud } from './ui/hud.js';
 import { initPanels, syncPause, openInv, openPass, toggleInv, togglePass, toggleGems, openGems, openShrine, closeAll, equip } from './ui/panels.js';
 import { CAST } from './game/casts.js';
@@ -121,4 +122,5 @@ window.__dbg = {
   enemies: () => G.enemies, packs: () => G.packs, items: () => G.ground,
   arena, parLevel, parBar, parGear: PAR_GEAR, newMap, kill, dropItem, castFireball, castArc, castNova, castDash, castShield, openInv, openPass, openGems, openShrine, equip,
   takeShrine, shrineDue, placeGem, addGem, recalc, save, load, begin, CAST, blocked, spawnEnemy, hurtP, cast: id => CAST[id](),
+  skel, minions: () => G.minions, // Raise Skeletons: skel.cast(), skel.cap(), skel.living()
 };

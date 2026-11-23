@@ -3,6 +3,7 @@
 // default export is { cast, tick?, clear? }: cast() pays the cost and returns true if it went off; tick(dt) runs every
 // game tick (minions, totems, delayed impacts); clear() removes its scene objects when the map is cleared.
 // To add a skill: write the module, then add one import and one entry to MODS below.
+import skeletons from './sk/skeletons.js';
 import { castFireball, castArc, castNova, castShield, castDash } from './skills.js';
 import frostlance from './sk/frostlance.js';
 
@@ -12,7 +13,7 @@ import totem from './sk/totem.js';
 import meteor from './sk/meteor.js';
 
 const MODS = {
-  blink, ward, totem, meteor, frostlance,
+  blink, ward, totem, meteor, frostlance, skeletons,
 };
 
 export const CAST = { fireball: castFireball, arc: () => castArc(), nova: () => castNova(), shield: castShield, dash: castDash };

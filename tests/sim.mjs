@@ -214,7 +214,7 @@ try {
       D.start(true); P.shrined.guard = 1; // the Frost Ward shrine has its own check below
       out.freshBar = filled(); // only Guard until the Main shrine is taken
       out.guardGem = P.gems.find(g => g.id === P.bar.guard).gem;
-      D.takeShrine('main', 'arc'); document.getElementById('mShrine').classList.remove('show');
+      D.takeShrine('main', 'fireball'); document.getElementById('mShrine').classList.remove('show');
       out.afterMain = filled();
       out.lockedFlex = D.placeGem(P.bar.main, 'flexA') === false; // level 1: Flex A is locked
       // Reach level 5: the Flex A shrine waits at the next map entrance; walking into it opens the choice.
@@ -223,17 +223,17 @@ try {
       P.x = G.shrine.x; P.z = G.shrine.z; D.sim(2);
       out.ask = G.shrineAsk; G.shrineAsk = null;
       D.openShrine('flexA'); out.flexOffer = [...document.querySelectorAll('#shrineCards .pc')].map(c => c.dataset.k).join(',');
-      document.querySelector('#shrineCards .pc[data-k="totem"]').click();
+      out.flexPick = document.querySelector('#shrineCards .pc').dataset.k; document.querySelector('#shrineCards .pc').click();
       out.afterFlex = filled(); out.shrineGone = !G.shrine;
       out.flexGem = P.gems.find(g => g.id === P.bar.flexA).gem;
       // Gem XP: kills give bar gems full XP and bag gems 10%.
-      const spare = D.addGem('fireball'), arc = P.gems.find(g => g.id === P.bar.main);
+      const spare = D.addGem('arc'), arc = P.gems.find(g => g.id === P.bar.main);
       // grant XP the way a kill does (a stand-in monster)
       const before = { arc: arc.xp + arc.lvl * 1e4, spare: spare.xp };
       window.__dbg.kill({ deathT: 0, x: P.x, z: P.z, xp: 30, rar: 0, type: 'zombie', aff: [], freeze: 0, h: 1, model: { g: {} } });
       out.barXp = arc.xp + arc.lvl * 1e4 - before.arc; out.bagXp = spare.xp - before.spare;
-      // Level 5 milestone: Arc +2 chains.
-      const c0 = S.chains; arc.lvl = 5; D.recalc(); out.chainsGain = S.chains - c0;
+      // Level 5 milestone: Fireball pierces 1 more.
+      const c0 = S.pierce; arc.lvl = 5; D.recalc(); out.pierceGain = S.pierce - c0;
       // Save round-trip.
       D.save(); const sv = D.load();
       out.saved = sv.bar && sv.bar.main === P.bar.main && sv.gems.length === P.gems.length && sv.shrined.flexA === 1;
@@ -248,9 +248,9 @@ try {
     check(r.freshBar === 'guard' && r.guardGem === 'shield' && r.afterMain === 'guard,main', `gems: a fresh character has exactly Main and Guard (Magic Shield) filled (${r.afterMain})`);
     check(r.lockedFlex, 'gems: Flex A is locked below level 5');
     check(r.shrineSlot === 'flexA' && r.ask === 'flexA', `gems: at level 5 a Flex A shrine appears and opens when walked into (${r.shrineSlot}, ${r.ask})`);
-    check(r.flexOffer === 'totem,meteor,fireball' && r.afterFlex === 'flexA,guard,main' && r.flexGem === 'totem' && r.shrineGone, `gems: picking a shrine gem fills the slot (offered ${r.flexOffer})`);
+    check(r.flexOffer.split(',').length === 3 && !r.flexOffer.split(',').includes('fireball') && r.afterFlex === 'flexA,guard,main' && r.flexGem === r.flexPick && r.shrineGone, `gems: the Flex shrine offers 3 gems you don't own and picking one fills the slot (offered ${r.flexOffer})`);
     check(r.barXp > 0 && r.bagXp > 0 && Math.abs(r.bagXp - r.barXp * .1) < 1, `gems: kills give bar gems XP and bag gems 10% (${r.barXp} / ${r.bagXp})`);
-    check(r.chainsGain === 2, `gems: Arc's level 5 milestone adds 2 chains (+${r.chainsGain})`);
+    check(r.pierceGain === 1, `gems: Fireball's level 5 milestone pierces 1 more enemy (+${r.pierceGain})`);
     check(r.saved && r.loaded, 'gems: saves round-trip the skill bar and the gem bag');
     check(r.oldSave, 'gems: an old save without gems gets Magic Shield and the Main shrine');
     check(errors.length === 0, `gems: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
@@ -369,6 +369,37 @@ try {
     check(r.hit >= 3 && r.hit <= 5, `frostlance: pierces a line of monsters but not all of them (${r.hit} of 7 hit)`);
     check(r.hit5 === r.hit + 2, `frostlance: level 5 pierces 2 more (${r.hit5})`);
     check(errors.length === 0, `frostlance: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
+  }
+
+  // ---------- Raise Skeletons: the minion Main gem (src/game/sk/skeletons.js) ----------
+  {
+    const { page, errors } = await open('/');
+    const r = await page.evaluate(() => {
+      const D = window.__dbg, P = D.P, G = D.G, out = {};
+      D.start(true); D.takeShrine('main', 'skeletons'); document.getElementById('mShrine').classList.remove('show');
+      D.arena({ tier: 1, fight: [], maxT: .1, main: 'skeletons' }); // an open floor with no monsters
+      const sk = () => D.minions().filter(m => !m.deathT).length;
+      out.cap = D.skel.cap();
+      for (let i = 0; i < 8; i++) { P.mana = 100; D.ctl.tap.main = true; D.sim(12); }
+      out.raised = sk(); out.capped = out.raised === out.cap;
+      P.mana = 30; D.ctl.tap.main = true; D.sim(1); out.manaKept = P.mana >= 30 && sk() === out.cap; // at the cap with a healthy army a recast is free
+      // A zombie walks in: the skeletons kill it, and the kill counts for the player.
+      const k0 = P.kills, z = D.spawnEnemy('zombie', P.x + 5, P.z, null, 0); z.awake = true;
+      let t = 0; while (!z.deathT && t < 900) { D.sim(10); t += 10; }
+      out.killed = !!z.deathT; out.killT = Math.round(t * .033 * 10) / 10; out.kills = P.kills - k0;
+      out.hurtOne = D.minions().some(m => m.hp < m.maxHp); // it swung at a skeleton before dying
+      out.rigged = D.minions().every(m => m.model.rigged === D.chars.ready);
+      D.newMap(1); out.cleared = D.minions().length === 0;
+      return out;
+    });
+    console.log('  skeletons:', JSON.stringify(r));
+    check(r.cap === 3 && r.capped, `skeletons: raising respects the cap (${r.raised} of ${r.cap})`);
+    check(r.manaKept, 'skeletons: recasting with a full, healthy army costs nothing');
+    check(r.killed && r.kills === 1, `skeletons: minions kill a monster on their own and the kill counts (${r.killT}s)`);
+    check(r.hurtOne, 'skeletons: monsters in reach attack the minions');
+    check(r.rigged, 'skeletons: minions use the rigged skeleton when characters loaded');
+    check(r.cleared, 'skeletons: minions are cleared with the map');
+    check(errors.length === 0, `skeletons: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   }
 
   // ---------- ARPG in RIDE mode (simulated Zwift Ride + KICKR) ----------
