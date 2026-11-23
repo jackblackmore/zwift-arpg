@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#050405">
+<title>Watt Dungeon Maps</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+<div id="top">
+  <a href="../" class="back">◂ GAME</a>
+  <button class="chip" id="prev">◀</button>
+  <input id="seed" inputmode="numeric" aria-label="Seed">
+  <button class="chip" id="next">▶</button>
+  <button class="chip" id="rnd">🎲</button>
+  <button class="chip" id="mode">GRID</button>
+</div>
+<canvas id="view"></canvas>
+<div id="panel"></div>
+<script type="module" src="/src/maps/main.js"></script>
+</body>
+</html>

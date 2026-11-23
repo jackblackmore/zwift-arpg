@@ -23,7 +23,7 @@ export function hud(dt) {
   $('orbR').classList.toggle('surging', P.surgeK > 0); $('orbR').classList.toggle('spent', P.spent);
   { const el = $('sSu'); el.classList.toggle('on', P.surgeK > 0); el.querySelector('.n').textContent = P.spent ? '…' : Math.ceil(P.surge); el.querySelector('.cd').style.height = (100 - P.surge / S.surgeMax * 100) + '%'; }
   $('xpF').style.width = (P.xp / xpNeed(P.lvl) * 100) + '%';
-  $('iMap').textContent = 'MAP ' + G.tier; $('iLvl').textContent = 'Level ' + P.lvl; $('iKill').textContent = `${G.mapKills}/${G.mapTotal} slain`;
+  $('iMap').textContent = 'MAP ' + G.tier + (G.devSeed ? ' · seed ' + (G.devSeed + G.tier - 1) : ''); $('iLvl').textContent = 'Level ' + P.lvl; $('iKill').textContent = `${G.mapKills}/${G.mapTotal} slain`;
   for (const s of BAR) skillSlot(s);
   $('sFl').querySelector('.n').textContent = Math.floor(P.flask); $('sFl').querySelector('.cd').style.height = P.flask < SK.flask.max ? (100 - (P.flask % 1) * 100) + '%' : '0%';
   const ib = $('invBadge'); ib.style.display = P.newItems ? 'block' : 'none'; ib.textContent = P.newItems;

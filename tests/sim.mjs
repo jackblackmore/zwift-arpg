@@ -34,7 +34,7 @@ async function open(path) {
   page.on('console', m => { if (m.type() === 'error' && !m.text().startsWith('Failed to load resource')) errors.push(m.text()); });
   await page.setViewport({ width: 1100, height: 700 });
   await page.goto(`http://localhost:${PORT}${path}`, { waitUntil: 'load' });
-  await page.waitForFunction(() => window.__gal || (window.__dbg && (!window.__dbg.ready || window.__dbg.ready())), { timeout: 20000 });
+  await page.waitForFunction(() => window.__gal || window.__maps || (window.__dbg && (!window.__dbg.ready || window.__dbg.ready())), { timeout: 20000 });
   return { page, errors };
 }
 
@@ -246,6 +246,30 @@ try {
     check(r.quick, 'route: a tap while waiting picks straight away');
     check(r.noStop, 'route: with only one way on, the autopilot doesn\'t stop');
     check(errors.length === 0, `route: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
+  }
+
+  // ---------- Map viewer (/maps/): layouts by seed ----------
+  {
+    const { page, errors } = await open('/maps/?seed=7');
+    const r = await page.evaluate(() => {
+      const M = window.__maps, out = {};
+      const a = M.level(7), b = M.level(7), c = M.level(8);
+      out.same = JSON.stringify(a.rooms) === JSON.stringify(b.rooms) && JSON.stringify(a.rooms) !== JSON.stringify(c.rooms);
+      out.panel = document.getElementById('panel').textContent.includes('SEED 7') && !!document.querySelector('#panel a.play[href="../?seed=7"]');
+      document.getElementById('next').click(); out.next = M.st.seed === 8;
+      document.getElementById('mode').click(); out.grid = M.st.grid && M.st.cells.length >= 4;
+      out.layout7 = { rooms: a.rooms.length, start: [Math.round(a.start.x), Math.round(a.start.z)] };
+      return out;
+    });
+    console.log('  maps:', JSON.stringify(r));
+    check(r.same && r.panel && r.next && r.grid, 'maps: the viewer draws the same layout for the same seed, pages through seeds, shows a grid and links to the game');
+    check(errors.length === 0, `maps: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
+    // ?seed= in the game plays the viewer's layout.
+    const g = await open('/?seed=7');
+    const q = await g.page.evaluate(() => { const D = window.__dbg; D.start(true); const L = D.G.layout; return { seed: D.G.devSeed, rooms: L.rooms.length, start: [Math.round(L.start.x), Math.round(L.start.z)] }; });
+    console.log('  seed:', JSON.stringify(q));
+    check(q.seed === 7 && q.rooms === r.layout7.rooms && q.start.join() === r.layout7.start.join(), 'seed: ?seed=7 plays the same layout the map viewer shows for seed 7');
+    check(g.errors.length === 0, `seed: no page errors${g.errors.length ? ': ' + g.errors.slice(0, 3).join(' | ') : ''}`);
   }
 
   // ---------- Balance guard rails (arena: real fights, scripted player; full table via `npm run arena`) ----------

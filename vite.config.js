@@ -9,13 +9,13 @@ const [major, minor] = JSON.parse(readFileSync(resolve(__dirname, 'package.json'
 const BUILD = { version: `${major}.${minor}.${git('rev-list --count HEAD') || 0}`, commit: git('rev-parse --short HEAD'), date: new Date().toISOString() };
 
 // Relative base so the build works on GitHub Pages under /zwift-arpg/ and anywhere else.
-// Three pages: the ARPG at the root, the original pedal-driven demo at /pedal/, the asset gallery at /gallery/.
+// Four pages: the ARPG at the root, the original pedal-driven demo at /pedal/, the asset gallery at /gallery/, the map viewer at /maps/.
 export default defineConfig({
   base: './',
   define: { __BUILD__: JSON.stringify(BUILD) },
   server: { host: true },
   build: {
     chunkSizeWarningLimit: 800,
-    rollupOptions: { input: { main: resolve(__dirname, 'index.html'), pedal: resolve(__dirname, 'pedal/index.html'), gallery: resolve(__dirname, 'gallery/index.html') } },
+    rollupOptions: { input: { main: resolve(__dirname, 'index.html'), pedal: resolve(__dirname, 'pedal/index.html'), gallery: resolve(__dirname, 'gallery/index.html'), maps: resolve(__dirname, 'maps/index.html') } },
   },
 });

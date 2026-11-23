@@ -19,6 +19,8 @@ import { update } from './game/update.js';
 import { recalc } from './game/stats.js';
 import { newMap } from './game/maps.js';
 import { save, load } from './game/save.js';
+// Dev: ?seed=N plays the level layouts the map viewer (/maps/) shows for that seed.
+try { G.devSeed = parseInt(new URLSearchParams(location.search).get('seed'), 10) || 0; } catch (e) {}
 import { PASS } from './data/passives.js';
 import { SK } from './data/skills.js';
 import { START_WEAPON, parLevel, parBar, PAR_GEAR } from './data/balance.js';
