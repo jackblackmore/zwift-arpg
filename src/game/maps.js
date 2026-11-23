@@ -1,4 +1,5 @@
 // Map lifecycle: new map per tier, the boss portal, clearing and respawning.
+import { resetRoute } from './route.js';
 import * as T from 'three';
 import { G, P, S } from '../core/state.js';
 import { COMBAT } from '../data/balance.js';
@@ -48,7 +49,7 @@ function placePacks(n) {
 }
 
 export function newMap(t) {
-  G.tier = t; clearMap(); buildMap(); G.mapKills = 0; G.mapTotal = 0; G.packs = [];
+  G.tier = t; clearMap(); buildMap(); G.mapKills = 0; G.mapTotal = 0; G.packs = []; resetRoute();
   placePacks(packCount(t));
   G.bossSpec = { spawned: false }; G.mapTotal++;
   P.x = G.start.x; P.z = G.start.z; P.dead = 0; P.life = S.maxLife; P.surge = S.surgeMax; P.spent = false; P.flask = SK.flask.max; readySlots();

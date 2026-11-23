@@ -25,6 +25,8 @@ Status: ✅ done · ▶ next · ☐ later
 | 11 | Crypt Trial boss (workout fight, RIDE mode) | ☐ |
 | 12 | Bluetooth (Zwift Ride, KICKR) | ☐ |
 
+**Built since (Nov 2026):** the harder start (design notes, Balance: "Harder start") and route choice at junctions (design notes, "Route choice").
+
 **Next up (Nov 2026):**
 1. **The owner plays the harder start** (design notes, Balance: "Harder start") and reports back: does the first map feel a little underpowered, is 5 swings per zombie good or slow, does loot feel earned, is the first guardian hard but fair, how does the parry window feel?
 2. **Step 3⅞ part 2** (brief below): tune from that, make stagger pay off, then guardian channels, shield arts, elites' heavy swings.

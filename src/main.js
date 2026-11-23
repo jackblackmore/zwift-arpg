@@ -32,6 +32,7 @@ import { hud } from './ui/hud.js';
 import { initPanels, syncPause, openInv, openPass, toggleInv, togglePass, toggleGems, openGems, openShrine, closeAll, equip } from './ui/panels.js';
 import { CAST } from './game/casts.js';
 import { xpNeedFor } from './game/formulas.js';
+import { routeTarget, resetRoute } from './game/route.js';
 import { freshGems, readySlots, takeShrine, shrineDue, refreshShrine, placeGem, addGem, socketGem, unsocket, feedGem, feedPreview, sockCount, autoTarget, meleeReach } from './game/gems.js';
 import { GEMS, SUPPORTS } from './data/gems.js';
 import { setAutoAtk } from './input/devices.js';
@@ -106,6 +107,6 @@ window.__dbg = {
   sim: n => { for (let i = 0; i < n; i++) { update(.033); updFx(.033); } },
   enemies: () => G.enemies, packs: () => G.packs, items: () => G.ground,
   arena, parLevel, parBar, parGear: PAR_GEAR, newMap, kill, dropItem, strike, targets, aim, autoTarget, meleeReach, setAutoAtk, castArc, castNova, castDash, castShield, openInv, openPass, openGems, openShrine, equip,
-  xpNeedFor, takeShrine, shrineDue, placeGem, addGem, socketGem, unsocket, feedGem, feedPreview, sockCount, dropGem, pickUp, PASS, GEMS, SUPPORTS, recalc, save, load, begin, CAST, blocked, spawnEnemy, hurtP, cast: id => CAST[id](),
+  xpNeedFor, routeTarget, resetRoute, takeShrine, shrineDue, placeGem, addGem, socketGem, unsocket, feedGem, feedPreview, sockCount, dropGem, pickUp, PASS, GEMS, SUPPORTS, recalc, save, load, begin, CAST, blocked, spawnEnemy, hurtP, cast: id => CAST[id](),
   skel, minions: () => G.minions, // Raise Skeletons support: skel.raise(x, z, gem), skel.cap(), skel.living()
 };

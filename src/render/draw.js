@@ -101,6 +101,25 @@ export function draw(dt) {
     ctx.fillStyle = '#000000d0'; ctx.fillRect(x, y, tw, 16); ctx.strokeStyle = d.it.col || RCSS[d.it.rar]; ctx.lineWidth = d.it.rar >= 2 ? 1.5 : 1; ctx.strokeRect(x + .5, y + .5, tw - 1, 15);
     ctx.fillStyle = d.it.col || RCSS[d.it.rar]; ctx.fillText(d.it.name, x + tw / 2, y + 8.5);
   }
+  // Route choice (game/route.js): a sign at each exit, the chosen one in gold, and a countdown while the autopilot waits.
+  if (G.jn && P.dead <= 0) {
+    const J = G.jn;
+    const h = toScreen(P.x, 1, P.z);
+    J.opts.forEach((o, i) => {
+      if (!h) return;
+      // Like Zwift's junction arrows: signs around the hero, each pointing the way its exit lies on screen.
+      const dx = o.door.x - P.x, dz = o.door.z - P.z, l = Math.hypot(dx, dz) || 1, f = toScreen(P.x + dx / l * 3, 1, P.z + dz / l * 3); if (!f) return;
+      let vx = f[0] - h[0], vy = f[1] - h[1]; const vl = Math.hypot(vx, vy) || 1; vx /= vl; vy /= vl;
+      const arrow = Math.abs(vx) > Math.abs(vy) ? (vx > 0 ? '▶' : '◀') : (vy < 0 ? '▲' : '▼');
+      const on = i === J.sel, txt = `${arrow} ${o.label}`; ctx.font = `800 ${on ? 15 : 13}px Cinzel, serif`;
+      const w = ctx.measureText(txt).width + 18, cx = h[0] + vx * 120, cy = h[1] + vy * 110;
+      const x = Math.max(4, Math.min(W - w - 4, cx - w / 2)), y = Math.max(200, Math.min(H - 150, cy - 13));
+      ctx.fillStyle = on ? '#2a1f08ee' : '#000000b0'; ctx.fillRect(x, y, w, 26); ctx.strokeStyle = on ? '#ffd23f' : '#6a5a40'; ctx.lineWidth = on ? 2 : 1; ctx.strokeRect(x + .5, y + .5, w - 1, 25);
+      ctx.fillStyle = on ? '#ffd23f' : '#c8b890'; ctx.fillText(txt, x + w / 2, y + 13.5);
+    });
+    const msg = J.mode === 'wait' ? `CHOOSE YOUR WAY · tap the D-pad · ${Math.ceil(J.t)}` : `${J.opts[J.sel].label.toUpperCase()}${J.picked ? '' : ' (default)'} · tap the D-pad to change`;
+    ctx.font = '800 15px Cinzel, serif'; ctx.lineWidth = 4; ctx.strokeStyle = '#000'; ctx.strokeText(msg, W / 2, 125); ctx.fillStyle = '#ffd23f'; ctx.fillText(msg, W / 2, 125);
+  }
   for (const f of G.floats) {
     const s = toScreen(f.x, f.y, f.z); if (!s) continue;
     ctx.globalAlpha = Math.min(1, f.life / f.max * 2.2); ctx.font = `800 ${f.size}px Cinzel, serif`; ctx.lineWidth = 3; ctx.strokeStyle = '#000';

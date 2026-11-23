@@ -14,6 +14,7 @@ const DIR = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 function press(b, down) {
   if (down && G.paused) return;
   ride.held[b.id] = down;
+  if (down && DIR[b.id]) ctl.tapDir = DIR[b.id]; // a tap picks a way at a junction; holding still steers
   if (!b.act) return;
   if (b.slot) { slotInput(b.act, down); return; }
   if (b.hold) { ctl[b.act] = down; return; }

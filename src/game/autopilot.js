@@ -1,5 +1,6 @@
-// Autopilot for RIDE mode: steer toward the nearest fight, then loot, then the next pack along the route (room to room, side rooms
-// as detours; `steer` finds the way round walls), then the boss / portal.
+// Autopilot for RIDE mode: steer toward the nearest fight, then loot, then the next room. At a room with more than one way on, it
+// stops and lets you pick with the D-pad (game/route.js); otherwise it clears everything along the route (`steer` finds the way
+// round walls), then the boss / portal.
 // A melee hero: it walks into the fight and stays in swing reach (the Main gem auto-attacks), so the rider pedals and times the
 // Guard, Evade, Flex and Surge buttons. No kiting.
 import { G, P } from '../core/state.js';
@@ -9,6 +10,7 @@ import { steer } from './enemies.js';
 import { los } from '../world/map.js';
 import { barGem, meleeReach } from './gems.js';
 import { GEMS } from '../data/gems.js';
+import { routeTarget } from './route.js';
 
 // Stuck detection: if we've been trying to move but haven't, sidestep for a moment.
 const ST = { x: 0, z: 0, t: 0, side: 0, sideT: 0 };
@@ -17,7 +19,7 @@ const toward = (x, z) => steer(P, x, z);
 
 export function autopilot(dt = .033) {
   if (P.apPause > 0) return [0, 0]; // just evaded: don't walk straight back into it
-  const d = pick();
+  const d = pick(dt);
   if (Math.hypot(d[0], d[1]) < .01) { ST.t = 0; return d; }
   if (ST.sideT > 0) { ST.sideT -= dt; return [d[0] * .3 - d[1] * ST.side, d[1] * .3 + d[0] * ST.side]; }
   if (dist(P.x, P.z, ST.x, ST.z) < .05) { ST.t += dt; if (ST.t > .8) { ST.t = 0; ST.sideT = .9; ST.side = Math.random() < .5 ? 1 : -1; } } else ST.t = 0;
@@ -25,7 +27,7 @@ export function autopilot(dt = .033) {
   return d;
 }
 
-function pick() {
+function pick(dt) {
   const A = RIDE.autopilot;
   let best = null, bd = A.engage;
   for (const e of G.enemies) { if (e.deathT) continue; const d = dist(e.x, e.z, P.x, P.z); if (d < bd && (e.awake || los(P.x, P.z, e.x, e.z))) { bd = d; best = e; } } // not sleepers behind walls
@@ -40,6 +42,8 @@ function pick() {
   for (const d of G.ground) { if (!d.landed || d.gone) continue; const dd = dist(d.x, d.z, P.x, P.z); if (dd < ld) { ld = dd; loot = d; } }
   if (loot) return toward(loot.x, loot.z);
   if (G.portal) return toward(G.portal.x, G.portal.z);
+  // Room levels: the route choice at junctions (game/route.js) decides where next.
+  const r = routeTarget(dt); if (r === 'wait') return [0, 0]; if (r) return toward(r.x, r.z);
   let pack = null, pr = 1e9, pd = 1e9;
   for (const p of G.packs) { if (p.spawned && !p.list.some(e => !e.deathT)) continue; const d = dist(p.x, p.z, P.x, P.z), r = p.rank || 0; if (r < pr || (r === pr && d < pd)) { pr = r; pd = d; pack = p; } }
   if (pack) return toward(pack.x, pack.z);
