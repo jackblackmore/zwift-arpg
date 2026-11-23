@@ -13,7 +13,7 @@ const TV = new T.Vector3();
 function toScreen(x, y, z) { TV.set(x, y, z).project(cam); return TV.z > 1 ? null : [(TV.x + 1) / 2 * V.W, (1 - TV.y) / 2 * V.H]; }
 
 // Hero clips: a cast plays once (fast) and hands back to run/idle; death holds until respawn.
-const HERO = { shoot: ['Ranged_Magic_Shoot', 2], arc: ['Ranged_Magic_Spellcasting', 1.6], nova: ['Ranged_Magic_Raise', 3.2], dash: ['Dodge_Forward', 1.4], shield: ['Ranged_Magic_Raise', 3.2] };
+const HERO = { shoot: ['Ranged_Magic_Shoot', 2], arc: ['Ranged_Magic_Spellcasting', 1.6], nova: ['Ranged_Magic_Raise', 3.2], dash: ['Dodge_Forward', 1.4], shield: ['Ranged_Magic_Raise', 3.2], blink: ['Dodge_Forward', 2.2], ward: ['Ranged_Magic_Summon', 1.8], totem: ['Ranged_Magic_Summon', 1.8], meteor: ['Spellcast_Long', 1.8], lance: ['Ranged_Magic_Summon', 1.8], skeletons: ['Ranged_Magic_Summon', 2.4] };
 function animHero(M, dt) {
   M.lock = (M.lock || 0) - dt;
   if (P.dead > 0) { if (M.cur !== 'Death_A') M.play('Death_A', { once: true, fade: .1 }); }
@@ -64,6 +64,11 @@ export function draw(dt) {
       ctx.font = '800 13px Cinzel, serif'; ctx.fillStyle = '#ffd23f'; ctx.fillText(e.name, s[0], s[1] - 18);
       ctx.font = '400 10px JetBrains Mono, monospace'; ctx.fillStyle = '#c8b070'; ctx.fillText(e.aff.map(a => RAREAFF[a]).join(' · '), s[0], s[1] - 7);
     }
+  }
+  for (const m of G.minions) { // minion life bars (green), only once hurt
+    if (m.deathT || m.hp >= m.maxHp) continue;
+    const s = toScreen(m.x, m.h + .2, m.z); if (!s) continue;
+    ctx.fillStyle = '#000c'; ctx.fillRect(s[0] - 13, s[1] - 1, 26, 5); ctx.fillStyle = '#5ad890'; ctx.fillRect(s[0] - 12, s[1], 24 * Math.max(0, m.hp / m.maxHp), 3);
   }
   // loot labels, stacked so they don't overlap; their rects are clickable (input/devices.js)
   G.labelRects = []; ctx.font = '700 11px JetBrains Mono, monospace';

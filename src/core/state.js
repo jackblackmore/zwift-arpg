@@ -3,6 +3,7 @@
 // G: the world and everything in it.
 export const G = {
   tier: 1, mapKills: 0, mapTotal: 0, gt: 0, paused: true, started: false,
+  minions: [], // allies: Raise Skeletons (game/sk/skeletons.js)
   enemies: [], proj: [], eproj: [], patches: [], ground: [], floats: [], queue: [], effects: [],
   packs: [], obst: [], torches: [], portal: null, bossSpec: null, shrine: null, shrineAsk: null, layout: null, // layout: the level grid (world/gen.js); null = open floor (arena)
   start: { x: 0, z: 0 }, bossSpot: { x: 0, z: 0 },
@@ -13,7 +14,7 @@ export const G = {
 // P: the player character (position, resources, progression, gear).
 export const P = {
   x: 0, z: 0, r: .4, face: 0, life: 100, mana: 60, lvl: 1, xp: 0, kills: 0,
-  castT: 0, castAnim: 0, shield: 0, shieldT: 0, flask: 3, flaskT: 0, flaskRate: 0,
+  castT: 0, castAnim: 0, shield: 0, shieldT: 0, wardT: 0, flask: 3, flaskT: 0, flaskRate: 0,
   inv: [], gear: {}, passives: {}, pts: 0, offer: null, newItems: 0,
   // Skill gems (game/gems.js): gems = the gem bag, every gem owned ({ id, gem, lvl, xp }); bar = slot → gem id or null;
   // cd = per-slot cooldown / charges ({ cd, ch, t }); shrined = slots whose shrine has been used.

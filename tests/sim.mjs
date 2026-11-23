@@ -211,10 +211,10 @@ try {
     const r = await page.evaluate(() => {
       const D = window.__dbg, P = D.P, S = D.S, G = D.G, out = {};
       const filled = () => Object.keys(P.bar).filter(s => P.bar[s]).sort().join(',');
-      D.start(true);
+      D.start(true); P.shrined.guard = 1; // the Frost Ward shrine has its own check below
       out.freshBar = filled(); // only Guard until the Main shrine is taken
       out.guardGem = P.gems.find(g => g.id === P.bar.guard).gem;
-      D.takeShrine('main', 'arc'); document.getElementById('mShrine').classList.remove('show');
+      D.takeShrine('main', 'fireball'); document.getElementById('mShrine').classList.remove('show');
       out.afterMain = filled();
       out.lockedFlex = D.placeGem(P.bar.main, 'flexA') === false; // level 1: Flex A is locked
       // Reach level 5: the Flex A shrine waits at the next map entrance; walking into it opens the choice.
@@ -223,17 +223,17 @@ try {
       P.x = G.shrine.x; P.z = G.shrine.z; D.sim(2);
       out.ask = G.shrineAsk; G.shrineAsk = null;
       D.openShrine('flexA'); out.flexOffer = [...document.querySelectorAll('#shrineCards .pc')].map(c => c.dataset.k).join(',');
-      document.querySelector('#shrineCards .pc[data-k="nova"]').click();
+      out.flexPick = document.querySelector('#shrineCards .pc').dataset.k; document.querySelector('#shrineCards .pc').click();
       out.afterFlex = filled(); out.shrineGone = !G.shrine;
       out.flexGem = P.gems.find(g => g.id === P.bar.flexA).gem;
       // Gem XP: kills give bar gems full XP and bag gems 10%.
-      const spare = D.addGem('fireball'), arc = P.gems.find(g => g.id === P.bar.main);
+      const spare = D.addGem('arc'), arc = P.gems.find(g => g.id === P.bar.main);
       // grant XP the way a kill does (a stand-in monster)
       const before = { arc: arc.xp + arc.lvl * 1e4, spare: spare.xp };
       window.__dbg.kill({ deathT: 0, x: P.x, z: P.z, xp: 30, rar: 0, type: 'zombie', aff: [], freeze: 0, h: 1, model: { g: {} } });
       out.barXp = arc.xp + arc.lvl * 1e4 - before.arc; out.bagXp = spare.xp - before.spare;
-      // Level 5 milestone: Arc +2 chains.
-      const c0 = S.chains; arc.lvl = 5; D.recalc(); out.chainsGain = S.chains - c0;
+      // Level 5 milestone: Fireball pierces 1 more.
+      const c0 = S.pierce; arc.lvl = 5; D.recalc(); out.pierceGain = S.pierce - c0;
       // Save round-trip.
       D.save(); const sv = D.load();
       out.saved = sv.bar && sv.bar.main === P.bar.main && sv.gems.length === P.gems.length && sv.shrined.flexA === 1;
@@ -248,12 +248,158 @@ try {
     check(r.freshBar === 'guard' && r.guardGem === 'shield' && r.afterMain === 'guard,main', `gems: a fresh character has exactly Main and Guard (Magic Shield) filled (${r.afterMain})`);
     check(r.lockedFlex, 'gems: Flex A is locked below level 5');
     check(r.shrineSlot === 'flexA' && r.ask === 'flexA', `gems: at level 5 a Flex A shrine appears and opens when walked into (${r.shrineSlot}, ${r.ask})`);
-    check(r.flexOffer === 'fireball,nova' && r.afterFlex === 'flexA,guard,main' && r.flexGem === 'nova' && r.shrineGone, `gems: picking a shrine gem fills the slot (offered ${r.flexOffer})`);
+    check(r.flexOffer.split(',').length === 3 && !r.flexOffer.split(',').includes('fireball') && r.afterFlex === 'flexA,guard,main' && r.flexGem === r.flexPick && r.shrineGone, `gems: the Flex shrine offers 3 gems you don't own and picking one fills the slot (offered ${r.flexOffer})`);
     check(r.barXp > 0 && r.bagXp > 0 && Math.abs(r.bagXp - r.barXp * .1) < 1, `gems: kills give bar gems XP and bag gems 10% (${r.barXp} / ${r.bagXp})`);
-    check(r.chainsGain === 2, `gems: Arc's level 5 milestone adds 2 chains (+${r.chainsGain})`);
+    check(r.pierceGain === 1, `gems: Fireball's level 5 milestone pierces 1 more enemy (+${r.pierceGain})`);
     check(r.saved && r.loaded, 'gems: saves round-trip the skill bar and the gem bag');
     check(r.oldSave, 'gems: an old save without gems gets Magic Shield and the Main shrine');
     check(errors.length === 0, `gems: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
+  }
+
+  // ---------- Skill gems: Blink (Evade) and Frost Ward (Guard) ----------
+  {
+    const { page, errors } = await open('/');
+    const r = await page.evaluate(() => {
+      const D = window.__dbg, P = D.P, S = D.S, G = D.G, out = {};
+      D.start(true); D.takeShrine('main', 'fireball'); document.getElementById('mShrine').classList.remove('show');
+      // Frost Ward shrine: appears at level 3, takes Ward into the bag, Magic Shield stays in Guard.
+      out.noShrineEarly = !D.shrineDue().includes('guard');
+      P.lvl = 3; D.recalc(); out.due = D.shrineDue().includes('guard');
+      const w = D.takeShrine('guard', 'ward');
+      out.wardInBag = !!w && P.gems.find(g => g.id === P.bar.guard).gem === 'shield' && !D.shrineDue().includes('guard');
+      D.placeGem(w.id, 'guard'); out.wardSlotted = P.gems.find(g => g.id === P.bar.guard).gem === 'ward';
+      // Evade slot (level 8): offered Flame Dash and Blink.
+      P.lvl = 8; D.recalc(); D.openShrine('evade'); out.evadeOffer = [...document.querySelectorAll('#shrineCards .pc')].map(c => c.dataset.k).join(',');
+      document.getElementById('mShrine').classList.remove('show');
+      D.takeShrine('evade', 'blink'); document.getElementById('mShrine').classList.remove('show');
+      const clear = () => { G.enemies.forEach(e => { e.deathT = 1; e.gone = true; }); G.eproj = []; P.mana = S.maxMana; P.invuln = 0; P.life = S.maxLife; };
+      const walls = D.blocked;
+      // Blink: a monster 2 units to the east, in the open: we end up farther west, and never in a wall.
+      clear(); const r0 = G.layout ? G.layout.rooms[0] : null; // start room
+      P.x = G.start.x; P.z = G.start.z; D.ctl.mx = D.ctl.mz = 0; D.ctl.aim = null;
+      const m = D.spawnEnemy('zombie', P.x + 2, P.z, null, 0); m.awake = true; D.sim(1);
+      const d0 = Math.hypot(m.x - P.x, m.z - P.z), x0 = P.x, z0 = P.z;
+      out.blinked = D.CAST.blink(); const d1 = Math.hypot(m.x - P.x, m.z - P.z);
+      out.blinkAway = d1 > d0 + 2 && Math.hypot(P.x - x0, P.z - z0) <= 6.6 && P.invuln > .3;
+      out.blinkClear = !walls(P.x, P.z, P.r);
+      // Blink into a wall: from every spot of the start room, with the threat on each side, never end up in a wall.
+      let bad = 0, moved = 0;
+      for (let k = 0; k < 40; k++) {
+        clear(); const a = k * .157; P.x = G.start.x + Math.cos(a) * 1.5; P.z = G.start.z + Math.sin(a) * 1.5;
+        if (walls(P.x, P.z, P.r)) continue;
+        const t = D.spawnEnemy('zombie', P.x + Math.cos(k) * 1.5, P.z + Math.sin(k) * 1.5, null, 0); t.awake = true;
+        const px = P.x, pz = P.z; if (D.CAST.blink()) moved++; if (walls(P.x, P.z, P.r)) bad++;
+      }
+      out.wallBad = bad; out.wallMoved = moved;
+      // Frost Ward: chills and damages a monster inside, not one far away, and cuts damage taken.
+      clear(); P.x = G.start.x; P.z = G.start.z; P.mana = S.maxMana;
+      const a = D.spawnEnemy('zombie', P.x + 2, P.z, null, 0), b = D.spawnEnemy('zombie', P.x + 9, P.z, null, 0); a.awake = b.awake = true; a.hp = a.maxHp = b.hp = b.maxHp = 1e6; a.spd = b.spd = 0; // held in place, so only the radius decides
+      const life0 = P.life; D.CAST.ward(); D.sim(30);
+      out.wardChill = a.chill > 0 && !(b.chill > 0); out.chills = [a.chill, b.chill].map(c => Math.round((c || 0) * 100) / 100); out.wardDmg = a.hp < 1e6 && b.hp === 1e6;
+      P.invuln = 0; const h0 = P.life; D.hurtP(100); out.wardDr = Math.abs((h0 - P.life) - 100 * (1 - S.dr) * .7) < .5;
+      D.sim(200); out.wardEnds = !(P.wardT > 0);
+      clear();
+      return out;
+    });
+    console.log('  skills D:', JSON.stringify(r));
+    check(r.noShrineEarly && r.due && r.wardInBag && r.wardSlotted, `skills D: Frost Ward shrine at level 3 gives Ward to the bag, swappable into Guard`);
+    check(r.evadeOffer.split(',').sort().join() === 'blink,dash', `skills D: the Evade shrine offers Flame Dash and Blink (${r.evadeOffer})`);
+    check(r.blinked && r.blinkAway && r.blinkClear, `skills D: Blink moves the player away from a nearby monster, with invulnerability`);
+    check(r.wallBad === 0 && r.wallMoved > 5, `skills D: Blink never lands in a wall (${r.wallBad} bad of ${r.wallMoved})`);
+    check(r.wardChill && r.wardDmg && r.wardDr && r.wardEnds, `skills D: Frost Ward chills and damages monsters inside only, cuts damage taken, and ends (${JSON.stringify(r)})`);
+    check(errors.length === 0, `skills D: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
+  }
+
+  // ---------- Flame Totem and Meteor (Flex gems): damage, milestone, cleanup on map clear ----------
+  {
+    const { page, errors } = await open('/');
+    const r = await page.evaluate(() => {
+      const D = window.__dbg, P = D.P, S = D.S, G = D.G, ctl = D.ctl, out = {};
+      D.start(true); D.takeShrine('main', 'fireball'); document.getElementById('mShrine').classList.remove('show');
+      P.lvl = 8; D.recalc(); D.newMap(1); const pk = G.packs[0]; P.x = pk.x - 7; P.z = pk.z; D.sim(3);
+      // A tough stand-in monster five units away, kept in place so the skills have something to hit.
+      const dummy = () => { const e = G.enemies.find(x => !x.deathT); e.x = P.x + 5; e.z = P.z; e.vx = e.vz = 0; e.hp = e.maxHp = 1e6; e.awake = true; ctl.aim = [e.x, e.z]; return e; };
+      const run = (e, n) => { for (let i = 0; i < n; i++) { e.x = P.x + 5; e.z = P.z; e.vx = e.vz = 0; P.mana = S.maxMana; P.life = S.maxLife; D.sim(1); } };
+      const useSlot = (gem, lvl) => { const g = D.addGem(gem, lvl); D.placeGem(g.id, 'flexA'); P.mana = S.maxMana; return g; };
+      const count = () => D.scene.children.length;
+      // Flame Totem
+      const g = useSlot('totem', 4); out.slotOk = P.bar.flexA === g.id;
+      let e = dummy(), hp0 = e.hp; const c0 = count();
+      ctl.tap.flexA = true; D.sim(1); out.placed = count() > c0;
+      run(e, 60); out.totemDmg = hp0 - e.hp; out.noMile = !S.mile.totem;
+      run(e, 250); out.expired = count() <= c0 + 1; // gone after its duration (a stray fx mesh at most)
+      g.lvl = 5; D.recalc(); out.mile = !!S.mile.totem;
+      P.cd.flexA.cd = 0; ctl.tap.flexA = true; D.sim(1); const c1 = count();
+      D.newMap(1); out.clearedTotem = count() < c1;
+      // Meteor
+      const m = useSlot('meteor', 4); const pk2 = G.packs[0]; P.x = pk2.x - 7; P.z = pk2.z; D.sim(3); e = dummy(); hp0 = e.hp; const nP = G.patches.length;
+      ctl.tap.flexA = true; D.sim(1); run(e, 5); out.early = hp0 - e.hp; // the 0.8 s delay: nothing yet
+      run(e, 25); out.meteorDmg = hp0 - e.hp; out.patch = G.patches.length > nP;
+      m.lvl = 5; D.recalc(); out.mileM = !!S.mile.meteor;
+      return out;
+    });
+    console.log('  totem/meteor:', JSON.stringify(r));
+    check(r.slotOk && r.placed, 'totem: casting plants a totem');
+    check(r.totemDmg > 0 && r.noMile, `totem: it shoots the nearest monster (${Math.round(r.totemDmg)} damage)`);
+    check(r.expired && r.mile, 'totem: it expires, and the level 5 milestone is read');
+    check(r.clearedTotem, 'totem: clearing the map removes it');
+    check(r.early === 0 && r.meteorDmg > 0 && r.patch && r.mileM, `meteor: lands after the delay (${Math.round(r.early)} early, ${Math.round(r.meteorDmg)} after), leaves burning ground`);
+    check(errors.length === 0, `totem/meteor: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
+  }
+
+  // ---------- Skill gems: Frost Lance (package A) ----------
+  {
+    const { page, errors } = await open('/');
+    const r = await page.evaluate(() => {
+      const D = window.__dbg, P = D.P, S = D.S, G = D.G, out = {};
+      D.start(true); D.takeShrine('main', 'fireball'); document.getElementById('mShrine').classList.remove('show');
+      const gem = D.addGem('frostlance'); D.placeGem(gem.id, 'main');
+      out.onBar = P.gems.find(g => g.id === P.bar.main).gem;
+      // Find a direction with 14 clear units in front of the hero, line monsters up along it.
+      let dir = [0, 1]; for (const d of [[0, 1], [1, 0], [0, -1], [-1, 0], [.7, .7], [-.7, .7], [.7, -.7], [-.7, -.7]]) { let ok = true; for (let t = 1; t < 15; t += .5) if (D.blocked(P.x + d[0] * t, P.z + d[1] * t, .5)) ok = false; if (ok) { dir = d; break; } }
+      const line = () => { G.enemies.length = 0; const es = []; for (let i = 0; i < 7; i++) { const e = D.spawnEnemy('zombie', P.x + dir[0] * (4 + i * 1.2), P.z + dir[1] * (4 + i * 1.2), null, 0); e.hp = e.maxHp = 1e6; es.push(e); } D.ctl.aim = [P.x + dir[0] * 10, P.z + dir[1] * 10]; D.sim(1); return es; };
+      const fire = () => { P.mana = S.maxMana; const m = P.mana; const ok = D.cast('frostlance'); out.paid = out.paid || (ok && P.mana < m); D.sim(30); };
+      let es = line(); fire();
+      out.hit = es.filter(e => e.hp < e.maxHp).length; out.chilled = es.filter(e => e.chill > 0 || e.hp < e.maxHp).length;
+      gem.lvl = 5; D.recalc(); es = line(); fire(); out.hit5 = es.filter(e => e.hp < e.maxHp).length;
+      D.ctl.aim = null; return out;
+    });
+    console.log('  frostlance:', JSON.stringify(r));
+    check(r.onBar === 'frostlance' && r.paid, 'frostlance: goes on the Main slot and casting pays mana');
+    check(r.hit >= 3 && r.hit <= 5, `frostlance: pierces a line of monsters but not all of them (${r.hit} of 7 hit)`);
+    check(r.hit5 === r.hit + 2, `frostlance: level 5 pierces 2 more (${r.hit5})`);
+    check(errors.length === 0, `frostlance: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
+  }
+
+  // ---------- Raise Skeletons: the minion Main gem (src/game/sk/skeletons.js) ----------
+  {
+    const { page, errors } = await open('/');
+    const r = await page.evaluate(() => {
+      const D = window.__dbg, P = D.P, G = D.G, out = {};
+      D.start(true); D.takeShrine('main', 'skeletons'); document.getElementById('mShrine').classList.remove('show');
+      D.arena({ tier: 1, fight: [], maxT: .1, main: 'skeletons' }); // an open floor with no monsters
+      const sk = () => D.minions().filter(m => !m.deathT).length;
+      out.cap = D.skel.cap();
+      for (let i = 0; i < 8; i++) { P.mana = 100; D.ctl.tap.main = true; D.sim(12); }
+      out.raised = sk(); out.capped = out.raised === out.cap;
+      P.mana = 30; D.ctl.tap.main = true; D.sim(1); out.manaKept = P.mana >= 30 && sk() === out.cap; // at the cap with a healthy army a recast is free
+      // A zombie walks in: the skeletons kill it, and the kill counts for the player.
+      const k0 = P.kills, z = D.spawnEnemy('zombie', P.x + 5, P.z, null, 0); z.awake = true;
+      let t = 0; while (!z.deathT && t < 900) { D.sim(10); t += 10; }
+      out.killed = !!z.deathT; out.killT = Math.round(t * .033 * 10) / 10; out.kills = P.kills - k0;
+      out.hurtOne = D.minions().some(m => m.hp < m.maxHp); // it swung at a skeleton before dying
+      out.rigged = D.minions().every(m => m.model.rigged === D.chars.ready);
+      D.newMap(1); out.cleared = D.minions().length === 0;
+      return out;
+    });
+    console.log('  skeletons:', JSON.stringify(r));
+    check(r.cap === 3 && r.capped, `skeletons: raising respects the cap (${r.raised} of ${r.cap})`);
+    check(r.manaKept, 'skeletons: recasting with a full, healthy army costs nothing');
+    check(r.killed && r.kills === 1, `skeletons: minions kill a monster on their own and the kill counts (${r.killT}s)`);
+    check(r.hurtOne, 'skeletons: monsters in reach attack the minions');
+    check(r.rigged, 'skeletons: minions use the rigged skeleton when characters loaded');
+    check(r.cleared, 'skeletons: minions are cleared with the map');
+    check(errors.length === 0, `skeletons: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   }
 
   // ---------- ARPG in RIDE mode (simulated Zwift Ride + KICKR) ----------

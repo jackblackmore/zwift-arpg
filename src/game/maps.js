@@ -11,6 +11,7 @@ import { PACK_SPACING } from '../data/dungeon.js';
 import { makePack } from './enemies.js';
 import { packCount, tierHp } from './formulas.js';
 import { refreshShrine, readySlots } from './gems.js';
+import { CLEAR } from './casts.js';
 
 export function makePortal(x, z) {
   const g = new T.Group();
@@ -24,6 +25,7 @@ export function clearMap() {
   G.enemies = [];
   [...G.proj, ...G.eproj, ...G.patches, ...G.ground].forEach(o => scene.remove(o.g));
   G.proj = []; G.eproj = []; G.patches = []; G.ground = [];
+  for (const f of CLEAR) f();
   G.effects.forEach(f => scene.remove(f.mesh)); G.effects = []; G.queue = []; G.floats = [];
   if (G.portal) { scene.remove(G.portal.g); G.portal = null; }
   if (G.shrine) { scene.remove(G.shrine.g); G.shrine = null; }

@@ -96,6 +96,7 @@ export function openShrine(slot) {
   shrineSlot = slot; const S = SLOT_DEFS[slot], offer = shrineOffer(slot);
   $('shrineT').textContent = `SHRINE · ${S.n.toUpperCase()} SLOT`;
   $('shrineSub').textContent = slot === 'main' ? 'Choose your first skill. You start with this and Magic Shield; more slots open at levels 5, 8 and 12.'
+    : slot === 'guard' ? 'A shrine of frost. Take Frost Ward into your bag, then swap it with Magic Shield in the gem panel (G) if you like.'
     : `${S.n} unlocked at level ${S.unlock}. ${offer.length > 1 ? 'Choose one' : 'Take it'}; the others may drop later.`;
   $('shrineCards').innerHTML = offer.map(id => gemCard(id)).join('');
   $('shrineClose').style.display = slot === 'main' ? 'none' : '';

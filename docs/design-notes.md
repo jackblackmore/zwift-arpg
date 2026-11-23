@@ -119,6 +119,22 @@ Example: Pyromancer through the Crypt (illustrative numbers):
 - Old saves have no gems: they're treated as fresh for gems (Magic Shield, then the Main shrine on load; shrines for any other unlocked slots wait at the map entrance).
 - Gem panel (G or the GEMS button): tap a gem, then a slot. Moving a gem between slots swaps the two if each fits the other's slot.
 
+**Built: more skills, step 2 (Nov 2026).** Each newer skill is its own module in `src/game/sk/`, registered in `src/game/casts.js`; tuning in `SK` (`src/data/skills.js`).
+
+| Gem | Slot | What it does | Level 5 milestone |
+|---|---|---|---|
+| Frost Lance | Main, held | Slow, fast-flying cold lance; pierces 3 and chills everything it hits | Pierces 2 more |
+| Raise Skeletons | Main, press | Raises one skeleton per cast (cap 3, 5 at gem level 8). They follow, fight awake monsters within 10 of you, and die; melee monsters and the guardian hit them. Physical damage (only generic % damage applies). Re-raised on each map | +1 skeleton |
+| Flame Totem | Flex, press | Totem at the aim point shoots the nearest monster for 6s; one at a time | Lasts 50% longer |
+| Meteor | Flex, press | Telegraphed circle, lands after 0.8s for a big fire hit, leaves burning ground | +30% radius |
+| Blink | Evade, press | 2 charges. Jumps away from the nearest threat (no aiming), never into a wall | Frost burst where you stood |
+| Frost Ward | Guard, press | 5s ring: chills monsters inside, light cold damage, you take 30% less | +25% radius |
+
+- **Shrines:** Main offers Fireball, Frost Lance or Raise Skeletons. Flex shrines offer 3 gems you don't own from Arc, Frost Nova, Flame Totem, Meteor, Fireball and Frost Lance (the list rotates with your gem count, so different shrines show different options). Evade: Flame Dash or Blink. **Frost Ward has its own shrine at level 3** (`shrineLvl` in `SLOT_DEFS.guard`): it goes to the gem bag and you swap it into Guard yourself; old saves get it too.
+- Arc and Frost Nova are Flex-only now (still usable in Main from the gem panel).
+- Charges are generic (`charges` + `recharge` in `SK`); newer gems read their milestone from `S.mile[gem]`.
+- **Balance (arena at par, seed 1234):** every Main gem clears every pack and guardian on tiers 1–5. Pack clears: Fireball 2–11s, Frost Lance 3–10s, Skeletons 4–13s (slowest on runner swarms and bloaters, safest on rares). Guardian: Fireball 63–92s, Frost Lance 58–91s, Skeletons 44–109s. **Open:** Skeletons kill tier 4–5 guardians in about 41–56s, at the low edge of the 45–100s target, because minions cost no mana on long fights; raising `BOSS.vsMinion` barely helps and slows tier 1 too much. Revisit in step 7 (balance pass 2).
+
 ### Evade gems
 
 | Evade | Effect | Suits |

@@ -6,6 +6,7 @@ import { pushOut } from '../world/map.js';
 import { materialize, buildHash, updEnemy, separate, updEnemyProjectiles } from './enemies.js';
 import { castNova, useFlask, updProjectiles } from './skills.js';
 import { updSlots, updShrine } from './gems.js';
+import { TICK } from './casts.js';
 import { explode, updPatches, processQueue } from './combat.js';
 import { pickUp, updItems } from './items.js';
 import { newMap, respawn } from './maps.js';
@@ -56,6 +57,7 @@ export function update(dt) {
   updProjectiles(dt, explode);
   updEnemyProjectiles(dt);
   updPatches(dt);
+  for (const f of TICK) f(dt);
   updItems(dt);
   processQueue(dt);
   G.enemies = G.enemies.filter(e => !e.gone);

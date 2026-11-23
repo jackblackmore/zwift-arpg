@@ -162,10 +162,11 @@ export function updEnemy(e, dt) {
   if (e.fireAura && d < 2.75) { e.auraT = (e.auraT || 0) - dt; if (e.auraT <= 0) { e.auraT = .5; hurtP(3 * (1 + TIER.dmg * (G.tier - 1))); } }
   if (e.ai === 'boss' && bossAI(e, dt)) { pushOut(e); return animE(e, dt); }
   if (e.ai === 'melee' || e.ai === 'boss') {
+    const tg = meleeTarget(e, d), td = tg === P ? d : dist(e.x, e.z, tg.x, tg.z);
     if (e.windup > 0) {
-      e.windup -= dt; e.face = Math.atan2(P.x - e.x, P.z - e.z);
-      if (e.windup <= 0) { e.swing = 1; if (d < e.range + e.r + P.r + .45) { hurtP(e.dmg); if (e.type === 'boss') { shake(.3); SFX.slam(); } } e.atkT = e.cd * cdm; }
-    } else if (d < e.range + e.r + P.r) { e.face = Math.atan2(P.x - e.x, P.z - e.z); e.atkT -= dt; if (e.atkT <= 0) { e.windup = e.type === 'boss' ? .55 : .32; e.atkSeq = (e.atkSeq || 0) + 1; } }
+      e.windup -= dt; e.face = Math.atan2(tg.x - e.x, tg.z - e.z);
+      if (e.windup <= 0) { e.swing = 1; if (td < e.range + e.r + tg.r + .45) { if (tg === P) hurtP(e.dmg); else tg.hurt(e.dmg * (e.type === 'boss' ? BOSS.vsMinion : 1)); if (e.type === 'boss') { shake(.3); SFX.slam(); hurtMinions(e.x, e.z, e.range + e.r + .45, e.dmg * BOSS.vsMinion, tg); } } e.atkT = e.cd * cdm; }
+    } else if (td < e.range + e.r + tg.r) { e.face = Math.atan2(tg.x - e.x, tg.z - e.z); e.atkT -= dt; if (e.atkT <= 0) { e.windup = e.type === 'boss' ? .55 : .32; e.atkSeq = (e.atkSeq || 0) + 1; } }
     else moveE(e, P.x, P.z, spd, dt);
   } else if (e.ai === 'ranged') {
     if (e.windup > 0) { e.windup -= dt; e.face = Math.atan2(P.x - e.x, P.z - e.z); if (e.windup <= 0) { e.swing = 1; eShoot(e, e.face + rand(-.05, .05), 11, e.dmg, 'arrow'); e.shootT = e.cd * cdm * rand(.85, 1.2); } }
@@ -180,6 +181,17 @@ export function updEnemy(e, dt) {
   pushOut(e); animE(e, dt);
 }
 
+// Minions (G.minions, e.g. Raise Skeletons) draw melee aggro: a monster swings at one that's in its reach and closer than
+// the player (it keeps its windup's target). Minions carry hurt(damage). Otherwise the target is the player.
+function meleeTarget(e, d) {
+  if (e.windup > 0 && e.tgt) return e.tgt;
+  let best = P, bd = Math.min(d - .5, e.range + e.r);
+  for (const m of G.minions) { if (m.deathT) continue; const md = dist(e.x, e.z, m.x, m.z) - m.r; if (md < bd) { bd = md; best = m; } }
+  return e.tgt = best;
+}
+// The guardian's swings cleave and its slams crush minions too (skip: already hit).
+function hurtMinions(x, z, r, d, skip) { for (const m of G.minions) if (m !== skip && !m.deathT && dist(m.x, m.z, x, z) < r + m.r) m.hurt(d); }
+
 // Returns true while the boss is busy with an ability (so it doesn't also walk or swing).
 function bossAI(e, dt) {
   if (!e.phase2 && e.hp < e.maxHp * .5) { e.phase2 = true; e.spd *= 1.3; banner('THE WARDEN IS ENRAGED', '#ff4fd8', 'Faster slams · double nova'); SFX.roar(); }
@@ -190,6 +202,7 @@ function bossAI(e, dt) {
     if (c.kind === 'slam') {
       ringFx(c.x, c.z, c.r, 0xff3030, .4, .5); burst(c.x, .4, c.z, 0xff4fd8, 50, 7); flashFx(c.x, .5, c.z, 0xff2bd6, c.r * 2.4, .3); SFX.slam(); shake(.7); stop(.08);
       if (dist(P.x, P.z, c.x, c.z) < c.r + P.r) hurtP(e.dmg * 2);
+      hurtMinions(c.x, c.z, c.r, e.dmg * 2 * BOSS.vsMinion);
     }
     if (c.kind === 'nova') for (let k = 0; k < (e.phase2 ? 2 : 1); k++) setTimeout(() => { if (e.deathT || e.gone) return; for (let i = 0; i < BOSS.novaBolts; i++) eShoot(e, i / BOSS.novaBolts * 6.283 + k * .22, 6.5, e.dmg * .7, 0xff2bd6, 1.1); SFX.arc(); }, k * 380);
     if (c.kind === 'summon') for (let i = 0; i < (e.phase2 ? BOSS.summon2 : BOSS.summon); i++) {
@@ -209,7 +222,7 @@ function bossAI(e, dt) {
   return false;
 }
 
-function animE(e, dt) {
+export function animE(e, dt) { // (also animates minions, game/sk/skeletons.js)
   const M = e.model; M.g.position.set(e.x, 0, e.z);
   const dr = ((e.face - M.g.rotation.y + Math.PI * 3) % (Math.PI * 2)) - Math.PI; M.g.rotation.y += dr * Math.min(1, dt * 10);
   if (e.freeze > 0) return;

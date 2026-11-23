@@ -10,8 +10,8 @@ Status: ✅ done · ▶ next · ☐ later
 |---|---|---|
 | 0 | First balance pass and balance tools (`npm run balance`, `npm run arena`) | ✅ |
 | 1 | Gems v1: skill bar, gem-only skills, shrines, gem levels | ✅ |
-| 2 | More skills: Frost Lance, Raise Skeletons, Blink, Flex and Guard options | ▶ |
-| 3 | Gems v2: support gems, sockets, guardian gem drops, feeding | ☐ |
+| 2 | More skills: Frost Lance, Raise Skeletons, Blink, Flex and Guard options | ✅ |
+| 3 | Gems v2: support gems, sockets, guardian gem drops, feeding | ▶ |
 | 4 | Passive tree (replaces the level-up card draft) | ☐ |
 | 5 | Defence: armour, resistances, typed monster damage | ☐ |
 | 6 | Gear rework: affixes and uniques for the new stat sheet | ☐ |
@@ -117,7 +117,9 @@ Status: ✅ done · ▶ next · ☐ later
 
 ---
 
-## Step 2: More skills ▶
+## Step 2: More skills ✅
+
+**Done (Nov 2026).** What was built and the balance results are under "Built: more skills, step 2" in the design notes. The brief below is kept for reference.
 
 **Goal:** enough gems that every shrine is a real 1-of-3 choice, and the design's three starting builds exist. Design: "Skill variety" in the design notes.
 
@@ -134,12 +136,44 @@ Status: ✅ done · ▶ next · ☐ later
   - a cast animation from the gallery
 - **Balance:** each Main gem should clear a par pack in about the same time (`npm run arena` with each on the bar).
 
-## Step 3: Gems v2 ☐
+**How it's being built (Nov 2026).** A shared foundation first, then the gems in parallel, one branch each, merged and balanced together.
+- **Foundation:**
+  - `src/game/casts.js` maps gem id → cast function. Each new skill is its own module `src/game/sk/<gem>.js` exporting `{ cast, tick?, clear? }` and registered with one line in `MODS`; `tick(dt)` runs every game tick, `clear()` on map clear.
+  - Charges are generic: any `SK` entry with `charges` and `recharge` (Flame Dash's milestone and gear still add to its own).
+  - Milestones: newer gems read `S.mile[gemId]` (true at gem level 5 on the bar) instead of adding to the `MILESTONES` table.
+  - Arena bot is generic: press gems fire when enough monsters are in reach (`SK[...].bot = { range, crowd }`), Guard when monsters close in, Evade when one is on top of it at low life. `MAIN=<gem> npm run arena` swaps the Main gem.
+- **Parallel work packages:**
+
+  | Package | Gems | Slot | Notes |
+  |---|---|---|---|
+  | A | Frost Lance | Main | Held. Slow, piercing cold lance, big single hits |
+  | B | Raise Skeletons | Main | Press. Minions that follow and fight; monster AI pointed at monsters |
+  | C | Flame Totem, Meteor | Flex | Press. Totem casts at nearby monsters; Meteor is a delayed big area hit |
+  | D | Blink, Frost Ward | Evade, Guard | Blink teleports away from the nearest threat; Ward slows monsters near you |
+
+- **Then:** merge, fill the shrine lists (Main: Fireball, Frost Lance, Raise Skeletons; Flex: Arc, Frost Nova, Flame Totem, Meteor and any unused Main gem; Evade: Flame Dash, Blink; Guard: Magic Shield, Frost Ward), and balance with `MAIN=<gem> npm run arena` until every Main gem clears a par pack in about the same time.
+
+## Step 3: Gems v2 ▶
+
+**Goal:** support gems change how a skill works, gems drop as loot, and spare gems can be fed into the ones you use. Design: "Gem model in detail" in the design notes.
 
 - **Support gems and sockets on the skill bar** (design notes: "Gem model in detail", skill bar table). The current passive notables become supports: Twin Flame, Searing Lance, Forked Sky, Shatter, Conduit, Ignite, Chain Reaction, Warding.
 - **Gem sources:** guardians always drop a gem (skill or support) from the region pool; rares sometimes.
 - **AP and feeding:** move AP between gems, with the "never lose a skill" rule.
 - **Gem tiers and fusing:** can wait until the Forest.
+
+**Build steps** (same pattern as step 2: a small foundation, then parallel packages):
+1. **Foundation (one branch, first):**
+   - Data: `SUPPORTS` in `src/data/gems.js`: `{ n, icon, col, d, for: [gem ids or kinds], fn(s) }`. `fn` adds to the raw stat sums like a passive's, but only for the skill it is socketed with.
+   - State: `P.sock` (slot → array of support gem ids), saved in `src/game/save.js`. Socket counts per slot from the skill bar table: Main 1 at level 1, Flex 1 each. Later counts (L15+) are data only for now.
+   - Stats: `computeStats` takes the sockets too, and the per-skill stats it returns (`pierce`, `proj`, `chains`, `novaR`, `shieldMul`...) come from that skill's own supports, not a global pool. Keep `formulas.js` pure.
+   - Gem panel: sockets under each slot, tap a support to socket it. Supports live in the same gem bag.
+2. **Parallel packages, after the foundation:**
+   - **Supports:** move the eight notables out of `src/data/passives.js` into `SUPPORTS`, one each, plus one support for each step 2 gem (e.g. Frost Lance: Split; Skeletons: Bigger Army; Meteor: Twin Meteor). Remove them from the level-up cards.
+   - **Gem drops:** guardians drop one gem from the region pool (`GEM_POOL` in `src/data/gems.js`); rares sometimes (`DROP.gem` in `src/data/items.js`). A gem on the ground looks different from items; picking it up goes to the gem bag with a toast.
+   - **Feeding:** in the gem panel, feed a gem into another (table in the design notes: same gem 100%, same type 50%, different 25%). Never lose a skill: feeding your last copy leaves a level 1 copy behind.
+3. **Balance:** the tools' par bar gains par supports (`parBar` in `src/data/balance.js`). Losing the notable passives makes level-up cards weaker; that's fine until the tree (step 4) replaces them.
+4. **Tests:** socketing a support changes only its own skill; supports round-trip through saves; a guardian drops a gem; feeding moves XP and never deletes your last copy.
 
 ## Step 4: Passive tree ☐
 

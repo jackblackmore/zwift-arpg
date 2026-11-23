@@ -15,10 +15,10 @@ export function recalc() {
   P.life = Math.min(P.life, S.maxLife); P.mana = Math.min(P.mana, S.maxMana);
   $('orbL').classList.toggle('blood', S.blood);
 }
-// Rough DPS of the Main gem (Fireball if the slot is empty), used by the bag to compare items.
+// Rough DPS of the Main gem (Fireball if the slot is empty; Raise Skeletons: a base-cap army swinging), used by the bag to compare items.
 export function estimate(st) {
   const g = barGem('main'), id = g ? g.gem : 'fireball', D = GEMS[id], K = SK[D.sk];
-  const rate = D.held ? st.cast / K.cast : 1 / K.cd, extra = id === 'fireball' ? 1 + (st.proj - 1) * .55 : id === 'arc' ? 1 + st.chains * .3 : 1;
+  const rate = id === 'skeletons' ? st.cast / K.atk * K.cap : D.held ? st.cast / K.cast : 1 / K.cd, extra = id === 'fireball' ? 1 + (st.proj - 1) * .55 : id === 'arc' ? 1 + st.chains * .3 : id === 'frostlance' ? 1.6 : 1;
   return { dps: avgHit(st, K.mult || 1, D.elem, id) * rate * extra, life: st.maxLife, ms: st.ms, gem: D.n };
 }
 
