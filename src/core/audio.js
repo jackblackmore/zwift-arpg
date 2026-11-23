@@ -25,6 +25,8 @@ const lim = (k, gap) => { const AC = A.ctx; if (!AC) return false; if (AC.curren
 
 export const SFX = {
   fire: () => { if (lim('fire', .05)) { noise(.18, .07, 900, .7); tone(180, .15, 'sawtooth', .02, 2); } },
+  swing: () => { if (lim('swing', .08)) noise(.14, .06, 2400, .9, 0, 'highpass'); },
+  thud: () => { if (lim('thud', .05)) { noise(.12, .14, 380, .9, 0, 'lowpass'); tone(110, .1, 'triangle', .07, .5); } },
   boom: () => { if (lim('boom', .06)) { noise(.35, .16, 300, .6, 0, 'lowpass'); tone(90, .25, 'sine', .12, .4); } },
   arc: () => { if (lim('arc', .05)) { noise(.16, .09, 4200, 2); tone(1200, .12, 'sawtooth', .025, .3); } },
   nova: () => { noise(.5, .12, 6000, .5); [1568, 2093, 2637].forEach((f, i) => tone(f, .35, 'sine', .03, .7, i * .03)); },

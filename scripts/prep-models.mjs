@@ -10,7 +10,7 @@ import { NodeIO } from '@gltf-transform/core';
 import { prune, dedup } from '@gltf-transform/functions';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { walk, label, mergeModels, animLib } from './gltf-lib.mjs';
+import { walk, label, mergeModels, animLib, HERO_HIDE } from './gltf-lib.mjs';
 
 const SRC = process.env.KAYKIT || '/tmp';
 const SK = join(SRC, 'KayKit-Character-Pack-Skeletons-1.0/addons/kaykit_character_pack_skeletons');
@@ -43,8 +43,8 @@ async function build(src, out, { keep = [], hide = [] } = {}) {
 await build(join(SK, 'Characters/gltf/Skeleton_Minion.glb'), 'skel_minion.glb', { keep: ENEMY_CLIPS });
 for (const n of ['Warrior', 'Rogue', 'Mage']) await build(join(SK, `Characters/gltf/Skeleton_${n}.glb`), `skel_${n.toLowerCase()}.glb`);
 for (const w of ['Blade', 'Axe', 'Crossbow', 'Shield_Large_A', 'Staff']) await build(join(SK, `Assets/gltf/Skeleton_${w}.gltf`), `w_${w.toLowerCase()}.glb`);
-// Hero: the Adventurers mage, keeping the staff and hat, dropping the spellbooks and wand.
-await build(join(AD, 'Characters/gltf/Mage.glb'), 'hero_mage.glb', { keep: HERO_CLIPS, hide: ['Spellbook', 'Spellbook_open', '1H_Wand'] });
+// Hero: the Adventurers knight with a sword and round shield. (scripts/prep-hero.mjs rebuilds it from the gallery copy without the packs.)
+await build(join(AD, 'Characters/gltf/Knight.glb'), 'hero_knight.glb', { keep: HERO_CLIPS, hide: HERO_HIDE });
 
 // Newer clips from Character Animations 1.1 (same rig). They add to, and where names match replace, the clips above.
 // Played by src/game/enemies.js and src/render/draw.js.

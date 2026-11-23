@@ -23,6 +23,8 @@ export function buildModel(o, extra = {}) {
       const s = part(GCY, eyeMat(0x5a3a22), .035, 1.5, .035, 0, -.5, .15, R.armR); s.rotation.x = Math.PI / 2 - .2;
       const orb = glowSprite(0x7fd8ff, .55); orb.position.set(0, -.62, .85); R.armR.add(orb); R.orb = orb;
     }
+    if (extra.sword) { const b = part(GB, eyeMat(0xc8ccd4), .05, .9, .03, 0, -.75, .1, R.armR); b.rotation.x = .25; }
+    if (extra.shield) { const sh = part(GCY, eyeMat(0x7a5a2a), .3, .05, .3, -.08, -.4, .05, R.armL); sh.rotation.z = Math.PI / 2; }
     if (extra.hood) {
       part(GC, bm, .21, .32, .21, 0, 1.68, -.02);
       const c = new T.Mesh(GPLANE, new T.MeshLambertMaterial({ color: 0x7a1a20, side: T.DoubleSide })); c.scale.set(.5, .85, 1); c.position.set(0, .82, -.18); c.rotation.x = .12; g.add(c);

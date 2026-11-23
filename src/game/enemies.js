@@ -105,13 +105,13 @@ function eShoot(e, ang, spd, dmg, col, size) {
   if (col === 'arrow') { const m = new T.Mesh(GB, eyeMat(0xd8c890)); m.scale.set(.05, .05, .55); g.add(m); g.rotation.y = ang; }
   else g.add(glowSprite(col, size));
   g.position.set(e.x, 1.2, e.z); scene.add(g);
-  G.eproj.push({ x: e.x, z: e.z, vx: Math.sin(ang) * spd, vz: Math.cos(ang) * spd, dmg, life: FIGHT.projLife, g, r: col === 'arrow' ? .3 : .45 });
+  G.eproj.push({ x: e.x, z: e.z, vx: Math.sin(ang) * spd, vz: Math.cos(ang) * spd, dmg, life: FIGHT.projLife, g, r: col === 'arrow' ? .3 : .45, src: col === 'arrow' ? 'arrow' : 'nova' });
 }
 export function updEnemyProjectiles(dt) {
   for (const p of G.eproj) {
     p.x += p.vx * dt; p.z += p.vz * dt; p.life -= dt; p.g.position.set(p.x, 1.2, p.z);
     if (p.life <= 0 || blocked(p.x, p.z, .05)) p.dead = true;
-    else if (P.dead <= 0 && dist(p.x, p.z, P.x, P.z) < p.r + P.r) { p.dead = true; hurtP(p.dmg); burst(p.x, 1.2, p.z, 0xff6060, 6, 3); }
+    else if (P.dead <= 0 && dist(p.x, p.z, P.x, P.z) < p.r + P.r) { p.dead = true; hurtP(p.dmg, p.src || 'shot'); burst(p.x, 1.2, p.z, 0xff6060, 6, 3); }
     if (p.dead) scene.remove(p.g);
   }
   G.eproj = G.eproj.filter(p => !p.dead);
@@ -159,13 +159,13 @@ export function updEnemy(e, dt) {
   if (!e.awake || frozen || P.dead > 0) { pushOut(e); return animE(e, dt); }
   if (e.rise > 0) { e.rise -= dt; e.face = Math.atan2(P.x - e.x, P.z - e.z); pushOut(e); return animE(e, dt); }
   const spd = e.spd * (e.chill > 0 ? STATUS.chillSpd : 1), cdm = e.chill > 0 ? STATUS.chillCd : 1, BU = RARE.burning;
-  if (e.fireAura && d < BU.r) { e.auraT = (e.auraT || 0) - dt; if (e.auraT <= 0) { e.auraT = BU.tick; hurtP(BU.dps * BU.tick * (1 + TIER.dmg * (G.tier - 1))); } }
+  if (e.fireAura && d < BU.r) { e.auraT = (e.auraT || 0) - dt; if (e.auraT <= 0) { e.auraT = BU.tick; hurtP(BU.dps * BU.tick * (1 + TIER.dmg * (G.tier - 1)), 'aura'); } }
   if (e.ai === 'boss' && bossAI(e, dt)) { pushOut(e); return animE(e, dt); }
   if (e.ai === 'melee' || e.ai === 'boss') {
     const tg = meleeTarget(e, d), td = tg === P ? d : dist(e.x, e.z, tg.x, tg.z);
     if (e.windup > 0) {
       e.windup -= dt; e.face = Math.atan2(tg.x - e.x, tg.z - e.z);
-      if (e.windup <= 0) { e.swing = 1; if (td < e.range + e.r + tg.r + FIGHT.reach) { if (tg === P) hurtP(e.dmg); else tg.hurt(e.dmg * (e.type === 'boss' ? BOSS.vsMinion : 1)); if (e.type === 'boss') { shake(.3); SFX.slam(); hurtMinions(e.x, e.z, e.range + e.r + FIGHT.reach, e.dmg * BOSS.vsMinion, tg); } } e.atkT = e.cd * cdm; }
+      if (e.windup <= 0) { e.swing = 1; if (td < e.range + e.r + tg.r + FIGHT.reach) { if (tg === P) hurtP(e.dmg, e.type); else tg.hurt(e.dmg * (e.type === 'boss' ? BOSS.vsMinion : 1)); if (e.type === 'boss') { shake(.3); SFX.slam(); hurtMinions(e.x, e.z, e.range + e.r + FIGHT.reach, e.dmg * BOSS.vsMinion, tg); } } e.atkT = e.cd * cdm; }
     } else if (td < e.range + e.r + tg.r) { e.face = Math.atan2(tg.x - e.x, tg.z - e.z); e.atkT -= dt; if (e.atkT <= 0) { e.windup = e.type === 'boss' ? FIGHT.windup.boss : FIGHT.windup.melee; e.atkSeq = (e.atkSeq || 0) + 1; } }
     else moveE(e, P.x, P.z, spd, dt);
   } else if (e.ai === 'ranged') {
@@ -201,7 +201,7 @@ function bossAI(e, dt) {
     e.cast = null; e.swing = 1;
     if (c.kind === 'slam') {
       ringFx(c.x, c.z, c.r, 0xff3030, .4, .5); burst(c.x, .4, c.z, 0xff4fd8, 50, 7); flashFx(c.x, .5, c.z, 0xff2bd6, c.r * 2.4, .3); SFX.slam(); shake(.7); stop(.08);
-      if (dist(P.x, P.z, c.x, c.z) < c.r + P.r) hurtP(e.dmg * BOSS.slamDmg);
+      if (dist(P.x, P.z, c.x, c.z) < c.r + P.r) hurtP(e.dmg * BOSS.slamDmg, 'slam');
       hurtMinions(c.x, c.z, c.r, e.dmg * BOSS.slamDmg * BOSS.vsMinion);
     }
     if (c.kind === 'nova') for (let k = 0; k < (e.phase2 ? 2 : 1); k++) G.queue.push({ k: 'later', t: k * BOSS.novaGap, fn: () => { if (e.deathT || e.gone) return; for (let i = 0; i < BOSS.novaBolts; i++) eShoot(e, i / BOSS.novaBolts * 6.283 + k * .22, BOSS.novaSpeed, e.dmg * BOSS.novaDmg, 0xff2bd6, 1.1); SFX.arc(); } }); // game time, so it pauses and replays the same

@@ -13,8 +13,8 @@ Status: ✅ done · ▶ next · ☐ later
 | 2 | More skills: Frost Lance, Raise Skeletons, Blink, Flex and Guard options | ✅ |
 | 3 | Gems v2: support gems, sockets, guardian gem drops, feeding | ✅ |
 | 3½ | No mana: held skills limited by cast time, the Surge gauge as the only resource | ✅ |
-| 3¾ | Go melee: retire the mage Main gems, melee Main gems, Raise Skeletons as a support, melee hero and autopilot | ▶ |
-| 4 | Passive tree (replaces the level-up card draft) | ☐ |
+| 3¾ | Go melee: retire the mage Main gems, melee Main gems, Raise Skeletons as a support, melee hero and autopilot | ✅ |
+| 4 | Passive tree (replaces the level-up card draft) | ▶ |
 | 5 | Defence: armour, resistances, typed monster damage | ☐ |
 | 6 | Gear rework: affixes and uniques for the new stat sheet | ☐ |
 | 7 | Balance pass 2: the whole character, every Crypt tier | ☐ |
@@ -184,7 +184,9 @@ Status: ✅ done · ▶ next · ☐ later
 
 **Done (Nov 2026).** Mana is gone; held skills are limited by cast time, press skills by cooldowns, and the Surge gauge is the only resource. Details and balance results: "Built: no mana, Surge gauge" in the design notes.
 
-## Step 3¾: Go melee ▶
+## Step 3¾: Go melee ✅
+
+**Done (Nov 2026).** What was built, the decisions made and the balance results are under "Built: go melee" and "Balance" in the design notes. Old saves weren't migrated (the owner's call: nothing is released, so the save key moved and old saves are ignored). The brief below is kept for reference.
 
 **Decision (Nov 2026):** the hero becomes a melee fighter. Why: ranged ARPG skill is positioning (kiting, slowing, keeping range), and on the bike the autopilot does all of it, so a ranged hero on autopilot plays itself. Melee moves the skill to timing (Guard before the hit, Frost Nova when surrounded, Evade out of a bad spot, Surge when it counts), which a rider can do with button presses. The autopilot only has to walk in, which also ends it backing into corners while kiting. **Surge stays exactly as built** (faster attacks, cooldowns and charges); don't add new Surge effects in this step.
 
@@ -227,7 +229,7 @@ Status: ✅ done · ▶ next · ☐ later
 
 **Done when:** a new character can only pick melee Main gems, auto-attacks in melee, the autopilot fights up close, old saves load without losing progress, every arena fight clears, the no-Guard row does visibly worse, and `npm run build && npm test` pass.
 
-## Step 4: Passive tree ☐
+## Step 4: Passive tree ▶
 
 - **The tree:**
   - small (60–80 nodes) and readable on a phone; replaces the pick-1-of-3 level-up cards

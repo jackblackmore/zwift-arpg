@@ -1,11 +1,11 @@
 // Pure balance maths: hero stats, item roll scaling, monster scaling, expected damage.
 // Imports only data, so the game, `npm run balance` (Node) and the arena all share one set of formulas.
 import { PASS } from '../data/passives.js';
-import { HERO, RARITY, START_WEAPON, GEAR_PROFILES, AFFIX_PRIORITY, XP_CURVE, ITEM_SCALE } from '../data/balance.js';
+import { HERO, RARITY, START_WEAPON, GEAR_PROFILES, AFFIX_PRIORITY, XP_CURVE, ITEM_SCALE, ESTIMATE } from '../data/balance.js';
 import { MT, TIER, PACK } from '../data/monsters.js';
 import { SLOTS, BASES, IMPL, AFF } from '../data/items.js';
 import { GEMS, GEM, SUPPORTS, supFits, FEED } from '../data/gems.js';
-import { SURGE } from '../data/skills.js';
+import { SURGE, SK } from '../data/skills.js';
 
 // Item level scaling of rolled values (flat and percent affixes).
 export const flatScale = il => 1 + ITEM_SCALE.flat * (il - 1), pctScale = il => 1 + ITEM_SCALE.pct * (il - 1);
@@ -19,11 +19,11 @@ const MILE_LVL = 5;
 // Derived stats from gear, passives, character level, the gems on the skill bar ({ gemId: level }) and their supports
 // ({ gemId: [supportId, ...] }, only supports that fit). st.gems[id] is each bar gem's base damage; skills not on the bar
 // (free casts from uniques) use level 1.
-// st.sk[gemId] holds each skill's own behaviour stats (projectiles, chains, pierce, flags from supports, `more` damage):
+// st.sk[gemId] holds each skill's own behaviour stats (chains, flags from supports, `more` damage):
 // gear and passives feed every skill, a milestone or support only its own gem. Every skill gem has an entry.
 export function computeStats(gear, passives = {}, lvl = 1, gems = {}, socks = {}) {
-  const s = { lifeF: 0, lifePct: 0, lregen: 0, surge: 0, surgeRe: 0, dmg: 0, fire: 0, cold: 0, light: 0, cast: 0, ms: 0, crit: 0, aoe: 0, proj: 0, chains: 0, lok: 0, spell: 0, pierce: 0, dashCh: 0, shieldPct: 0, freeze: 0, dr: 0, novaR: 0,
-    ch: 0, army: 0, dur: 0, more: 1 };
+  const s = { lifeF: 0, lifePct: 0, lregen: 0, surge: 0, surgeRe: 0, dmg: 0, fire: 0, cold: 0, light: 0, cast: 0, ms: 0, crit: 0, aoe: 0, chains: 0, lok: 0, spell: 0, dashCh: 0, shieldPct: 0, freeze: 0, dr: 0, novaR: 0,
+    ch: 0, dur: 0, more: 1 };
   for (const k in gear) { const it = gear[k]; if (it) for (const [st, v] of it.mods) s[st] = (s[st] || 0) + v; }
   for (const id in passives) if (PASS[id]) PASS[id].fn(s, passives[id]);
   const H = HERO, l = lvl - 1, sk = {};
@@ -32,15 +32,16 @@ export function computeStats(gear, passives = {}, lvl = 1, gems = {}, socks = {}
     const M = GEMS[id].mile; if (gems[id] >= MILE_LVL && M && M.add) for (const k in M.add) t[k] += M.add[k];
     for (const sup of socks[id] || []) if (supFits(sup, id)) SUPPORTS[sup].fn(t, SUPPORTS[sup]);
     sk[id] = {
-      proj: 1 + t.proj, pierce: t.pierce, chains: H.chains + t.chains, novaR: 1 + t.novaR, shieldMul: 1 + t.shieldPct, ch: t.ch + (id === 'dash' ? t.dashCh : 0),
-      army: t.army, dur: 1 + t.dur, more: t.more, ignite: !!t.ignite, shatter: !!t.shatter, conduit: !!t.conduit, chainboom: !!t.chainboom, split: !!t.split, volley: !!t.volley, twin: !!t.twin,
-      burnGround: id === 'fireball' && !!t.burnGround, sup: (socks[id] || []).filter(x => supFits(x, id)),
+      chains: H.chains + t.chains, novaR: 1 + t.novaR, shieldMul: 1 + t.shieldPct, ch: t.ch + (id === 'dash' ? t.dashCh : 0),
+      dur: 1 + t.dur, more: t.more, ignite: !!t.ignite, shatter: !!t.shatter, conduit: !!t.conduit, volley: !!t.volley, twin: !!t.twin,
+      sweep: !!t.sweep, brittle: !!t.brittle, aftershock: !!t.aftershock, raise: !!t.raise,
+      burnGround: !!GEMS[id].melee && !!t.burnGround, sup: (socks[id] || []).filter(x => supFits(x, id)),
     };
   }
   return {
     maxLife: Math.max(20, Math.round((H.life + H.lifePer * l + s.lifeF) * (1 + s.lifePct))), surgeMax: SURGE.max * (1 + s.surge), surgeRe: SURGE.refill * (1 + s.surgeRe),
     lregen: H.lregen + s.lregen, spell: H.spell + H.spellPer * l + s.spell, gems: Object.fromEntries(Object.entries(gems).map(([id, g]) => [id, gemBase(g)])), mile: Object.fromEntries(Object.entries(gems).filter(([, g]) => g >= MILE_LVL).map(([id]) => [id, true])), dmg: 1 + s.dmg, fire: s.fire, cold: s.cold, light: s.light,
-    cast: 1 + s.cast, ms: H.ms * (1 + s.ms), crit: H.crit + s.crit, aoe: 1 + s.aoe, lok: s.lok, sk,
+    cast: 1 + s.cast, ms: H.ms * (1 + s.ms), crit: H.crit + s.crit, aoe: 1 + s.aoe, lok: s.lok, loh: H.lifeOnHit + (s.loh || 0), sk,
     freeze: 1 + s.freeze, dr: Math.min(.6, s.dr), storm: !!s.storm, autoNova: !!s.autoNova,
   };
 }
@@ -49,7 +50,22 @@ export function computeStats(gear, passives = {}, lvl = 1, gems = {}, socks = {}
 export const hitBase = (st, gem) => (st.gems[gem] ?? gemBase(1)) + st.spell;
 // Average hit of a skill (mult × base of an element), crits included.
 // `more` from the skill's supports multiplies it.
-export const avgHit = (st, mult, elem, gem = 'fireball') => hitBase(st, gem) * mult * (st.dmg + (st[elem] || 0)) * (1 + st.crit * (HERO.critMult - 1)) * ((st.sk && st.sk[gem] && st.sk[gem].more) || 1);
+export const avgHit = (st, mult, elem, gem = 'cleave') => hitBase(st, gem) * mult * (st.dmg + (st[elem] || 0)) * (1 + st.crit * (HERO.critMult - 1)) * ((st.sk && st.sk[gem] && st.sk[gem].more) || 1);
+
+// A gem's hits per second (cast speed only; effort and Surge on top) and damage per swing on one target and on a clumped pack.
+// Melee: ESTIMATE.targets monsters per swing (Sweep hits more); Aftershock adds its echo; Ignite adds its burn. Used by the bag
+// estimate (game/stats.js) and the maths report (scripts/balance.mjs).
+export function gemDps(st, id) {
+  const D = GEMS[id], K = SK[D.sk], k = st.sk[id], rate = D.held ? st.cast / K.cast : 1 / K.cd;
+  let one = avgHit(st, K.mult || 1, D.elem, id), n = 1;
+  if (D.melee) {
+    n = ESTIMATE.targets[id] * (k.sweep ? ESTIMATE.sweep : 1);
+    if (k.aftershock) one *= 1 + SUPPORTS.aftershock.mult;
+    if (k.brittle) one *= 1 + SUPPORTS.brittle.taken * .5; // about half its hits land on an already-brittle target
+  } else if (id === 'arc') n = 1 + k.chains * ESTIMATE.perChain;
+  if (k.ignite) one *= 1 + SUPPORTS.ignite.share;
+  return { rate, one, pack: one * n, dps: one * rate, packDps: one * n * rate };
+}
 
 // Monster life multiplier at a map tier.
 export const tierHp = t => t <= TIER.hp.length ? TIER.hp[t - 1] : TIER.hp[TIER.hp.length - 1] + TIER.hpAfter * (t - TIER.hp.length);

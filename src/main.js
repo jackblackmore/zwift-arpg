@@ -3,10 +3,8 @@ import { G, P, S } from './core/state.js';
 import { $ } from './core/util.js';
 import { audio, toggleMute } from './core/audio.js';
 import { scene, cam, CAM, resize } from './render/scene.js';
-import * as T from 'three';
 import { buildModel } from './render/models.js';
 import { chars, loadCharacters, makeChar } from './render/characters.js';
-import { glowSprite } from './render/assets.js';
 import { Q, applyQuality, cycleQuality, cycleStyle } from './render/post.js';
 import { STYLES } from './data/graphics.js';
 import { updFx } from './render/fx.js';
@@ -23,19 +21,19 @@ import { newMap } from './game/maps.js';
 import { save, load } from './game/save.js';
 import { PASS } from './data/passives.js';
 import { SK } from './data/skills.js';
-import { IMPL, OLD_MANA } from './data/items.js';
 import { START_WEAPON, parLevel, parBar, PAR_GEAR } from './data/balance.js';
 import { arena } from './game/arena.js';
 import { kill, hurtP } from './game/combat.js';
-import { castFireball, castArc, castNova, castDash, castShield } from './game/skills.js';
+import { castArc, castNova, castDash, castShield, aim } from './game/skills.js';
+import { strike, targets } from './game/sk/strike.js';
 import { dropItem, dropGem, pickUp, rollItem } from './game/items.js';
 import * as skel from './game/sk/skeletons.js';
 import { hud } from './ui/hud.js';
 import { initPanels, syncPause, openInv, openPass, toggleInv, togglePass, toggleGems, openGems, openShrine, closeAll, equip } from './ui/panels.js';
 import { CAST } from './game/casts.js';
-import { freshGems, readySlots, takeShrine, shrineDue, refreshShrine, placeGem, addGem, socketGem, unsocket, feedGem, feedPreview, sockCount } from './game/gems.js';
-import { GEMS, SUPPORTS, SLOT_DEFS, OLD_NOTABLES } from './data/gems.js';
-import { toast } from './render/fx.js';
+import { freshGems, readySlots, takeShrine, shrineDue, refreshShrine, placeGem, addGem, socketGem, unsocket, feedGem, feedPreview, sockCount, autoTarget, meleeReach } from './game/gems.js';
+import { GEMS, SUPPORTS } from './data/gems.js';
+import { setAutoAtk } from './input/devices.js';
 
 function begin(fresh) {
   audio();
@@ -45,27 +43,10 @@ function begin(fresh) {
     P.gear.weapon = { ...START_WEAPON, id: G.itemId++, mods: START_WEAPON.mods.map(m => [...m]) };
     freshGems(); newMap(1); save();
   } else {
-    Object.assign(P, { lvl: sv.lvl, xp: sv.xp, gear: sv.gear || {}, inv: sv.inv || [], passives: Object.fromEntries(Object.entries(sv.passives || {}).filter(([k]) => PASS[k])), pts: sv.pts || 0, offer: null, newGems: 0 });
+    Object.assign(P, { lvl: sv.lvl, xp: sv.xp, gear: sv.gear || {}, inv: sv.inv || [], passives: sv.passives || {}, pts: sv.pts || 0, offer: null, newGems: 0 });
     G.itemId = sv.itemId || 100;
-    // Saves from before mana was removed: mana affixes go (a ring's mana implicit becomes its life implicit), and points in
-    // passives that no longer exist (Blood Magic) come back to spend again.
-    for (const it of [...Object.values(P.gear), ...P.inv]) if (it && it.mods) {
-      it.mods = it.mods.map(([st, v], i) => i === 0 && it.slot === 'ring' && st === 'manaF' ? [IMPL.ring[0], IMPL.ring[1]] : [st, v]).filter(([st]) => !OLD_MANA.includes(st));
-    }
-    for (const [k, n] of Object.entries(sv.passives || {})) if (!PASS[k] && !OLD_NOTABLES[k]) P.pts += n;
-    // Saves from before gems have none: treat them as a fresh character for gems (the Main shrine is offered now).
-    if (Array.isArray(sv.gems) && sv.gems.length) {
-      Object.assign(P, { gems: sv.gems.filter(g => GEMS[g.gem] || SUPPORTS[g.gem]), bar: {}, cd: {}, shrined: sv.shrined || {} });
-      if (!P.gems.some(g => g.gem === 'ward')) delete P.shrined.guard; // saves from before the Frost Ward shrine
-      for (const s in sv.bar || {}) if (SLOT_DEFS[s] && P.gems.some(g => g.id === sv.bar[s] && GEMS[g.gem])) P.bar[s] = sv.bar[s];
-      P.sock = {};
-      for (const s in sv.sock || {}) if (SLOT_DEFS[s]) P.sock[s] = (sv.sock[s] || []).map(id => P.gems.some(g => g.id === id && SUPPORTS[g.gem]) ? id : null);
-      recalc(); readySlots();
-    } else freshGems();
-    // Saves from before support gems: the notable passives that became supports give their points back, and the gem.
-    const moved = Object.entries(sv.passives || {}).filter(([k]) => OLD_NOTABLES[k] && !PASS[k]);
-    for (const [k, n] of moved) { P.pts += n; if (!P.gems.some(g => g.gem === OLD_NOTABLES[k])) addGem(OLD_NOTABLES[k]); }
-    if (moved.length) { P.newGems = moved.length; toast(`<b style="color:#ffd23f">Notable passives are support gems now</b> · ${moved.length} point${moved.length > 1 ? 's' : ''} back (P) and the gems are in your bag (G)`); }
+    Object.assign(P, { gems: sv.gems || [], bar: sv.bar || {}, sock: sv.sock || {}, cd: {}, shrined: sv.shrined || {} });
+    recalc(); readySlots();
     newMap(sv.tier || 1);
   }
   G.started = true; $('mMenu').classList.remove('show'); syncPause();
@@ -74,20 +55,9 @@ function begin(fresh) {
 
 // ---- boot ----
 // Primitive hero until the KayKit models arrive (or if they fail to load).
-G.heroM = buildModel({ col: 0x2a3a6a, head: 0xd9b08c, eye: 0x1a1a1a, h: 1.8 }, { staff: 1, hood: 1 }); scene.add(G.heroM.g);
-function rigHero() {
-  const M = makeChar('hero', 1.95);
-  // A glowing orb on the staff tip (blooms nicely). The staff ships inside the mage model.
-  M.g.traverse(o => {
-    if (o.name !== '2H_Staff' || !o.isMesh || M.orb) return;
-    o.geometry.computeBoundingBox(); const b = o.geometry.boundingBox, sz = new T.Vector3(); b.getSize(sz);
-    const tip = new T.Vector3((b.min.x + b.max.x) / 2, (b.min.y + b.max.y) / 2, (b.min.z + b.max.z) / 2);
-    const ax = sz.x > sz.y && sz.x > sz.z ? 'x' : sz.y > sz.z ? 'y' : 'z'; tip[ax] = b.max[ax];
-    M.orb = glowSprite(0x7fd8ff, .55); M.orb.position.copy(tip); M.orb.scale.setScalar(.55); o.add(M.orb);
-    M.orb.scale.divideScalar(o.getWorldScale(new T.Vector3()).x || 1);
-  });
-  scene.remove(G.heroM.g); G.heroM = M; scene.add(M.g);
-}
+G.heroM = buildModel({ col: 0x6a7a8a, head: 0xd9b08c, eye: 0x1a1a1a, h: 1.8 }, { sword: 1, shield: 1 }); scene.add(G.heroM.g);
+// The knight (sword and round shield ship inside the model, see scripts/prep-models.mjs).
+function rigHero() { const M = makeChar('hero', 1.95); scene.remove(G.heroM.g); G.heroM = M; scene.add(M.g); }
 const menuBtns = ['goNew', 'goCont'].map($);
 menuBtns.forEach(b => { b.disabled = true; b.dataset.label = b.textContent; b.textContent = 'LOADING…'; });
 Promise.all([loadCharacters(), loadDungeon()]).then(([ok]) => {
@@ -135,7 +105,7 @@ window.__dbg = {
   start: fresh => begin(fresh !== false),
   sim: n => { for (let i = 0; i < n; i++) { update(.033); updFx(.033); } },
   enemies: () => G.enemies, packs: () => G.packs, items: () => G.ground,
-  arena, parLevel, parBar, parGear: PAR_GEAR, newMap, kill, dropItem, castFireball, castArc, castNova, castDash, castShield, openInv, openPass, openGems, openShrine, equip,
+  arena, parLevel, parBar, parGear: PAR_GEAR, newMap, kill, dropItem, strike, targets, aim, autoTarget, meleeReach, setAutoAtk, castArc, castNova, castDash, castShield, openInv, openPass, openGems, openShrine, equip,
   takeShrine, shrineDue, placeGem, addGem, socketGem, unsocket, feedGem, feedPreview, sockCount, dropGem, pickUp, PASS, GEMS, SUPPORTS, recalc, save, load, begin, CAST, blocked, spawnEnemy, hurtP, cast: id => CAST[id](),
-  skel, minions: () => G.minions, // Raise Skeletons: skel.cast(), skel.cap(), skel.living()
+  skel, minions: () => G.minions, // Raise Skeletons support: skel.raise(x, z, gem), skel.cap(), skel.living()
 };

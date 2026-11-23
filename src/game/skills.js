@@ -1,40 +1,26 @@
 // Player skills, one cast function per skill gem (game/gems.js casts them from the skill bar), plus the life flask.
 // Cast functions do the effect (skills cost nothing: held skills are limited by cast time, press skills by their slot); cooldowns and charges belong to the bar slot (game/gems.js).
-import * as T from 'three';
 import { G, P, S, shake } from '../core/state.js';
 import { SK } from '../data/skills.js';
 import { SUPPORTS } from '../data/gems.js';
-import { EXTRA } from '../data/items.js';
 import { ctl } from '../input/input.js';
 import { rand, pick, dist } from '../core/util.js';
 import { SFX } from '../core/audio.js';
 import { scene, flashLight } from '../render/scene.js';
-import { glowSprite } from '../render/assets.js';
 import { sparks, glows, emit, ringFx, flashFx, boltFx } from '../render/fx.js';
 import { blocked } from '../world/map.js';
 import { near } from './enemies.js';
 import { hit, addPatch } from './combat.js';
 
-// Where the player is aiming: the device's aim point, else the nearest awake enemy, else straight ahead.
+// Where the player is aiming: the auto-attack's target (game/gems.js, for one swing), the device's aim point, else the nearest
+// awake enemy, else straight ahead.
 export function aim() {
+  if (P.aimAt) return P.aimAt;
   if (ctl.aim) return ctl.aim;
   let best = null, bd = 13 * 13;
   for (const e of G.enemies) { if (e.deathT || !e.awake) continue; const d = (e.x - P.x) ** 2 + (e.z - P.z) ** 2; if (d < bd) { bd = d; best = e; } }
   if (best) return [best.x, best.z];
   return [P.x + P.moveX * 6, P.z + P.moveZ * 6];
-}
-
-export function castFireball() {
-  const F = SK.fireball;
-  const [ax, az] = aim(), base = Math.atan2(ax - P.x, az - P.z), k = S.sk.fireball, n = k.proj;
-  P.face = base; P.castAnim = .22; P.castSeq++; P.lastCast = 'shoot';
-  for (let i = 0; i < n; i++) {
-    const a = base + (i % 2 ? 1 : -1) * Math.ceil(i / 2) * F.spread, g = new T.Group(); // the first flies at the aim point, extras fan out either side g.add(glowSprite(0xff6a1a, 1.4), glowSprite(0xffe0a0, .55));
-    g.position.set(P.x + Math.sin(a) * .7, 1.2, P.z + Math.cos(a) * .7); scene.add(g);
-    G.proj.push({ x: g.position.x, z: g.position.z, dx: Math.sin(a), dz: Math.cos(a), sp: F.speed, life: F.life, pierce: k.pierce, hitS: new Set(), g, storm: false });
-  }
-  P.fbN++; if (S.storm && P.fbN % EXTRA.storm.every === 0) G.proj[G.proj.length - 1].storm = true;
-  SFX.fire(); return true;
 }
 
 // Arc: instant chain lightning. free = cast by an effect (no cast animation, starts from fx/fz).
@@ -106,20 +92,4 @@ export function useFlask() {
   const F = SK.flask; if (P.flask < 1 || P.life >= S.maxLife) return;
   P.flask--; P.flaskT = F.dur; P.flaskRate = S.maxLife * F.heal / F.dur; SFX.flask();
   for (let i = 0; i < 20; i++) emit(glows, P.x + rand(-.4, .4), rand(.2, 1.5), P.z + rand(-.4, .4), 0, rand(1, 3), 0, rand(.4, .8), 0xff3a5a);
-}
-
-// Move Fireballs; explode on contact, walls or end of range.
-export function updProjectiles(dt, explode) {
-  for (const p of G.proj) {
-    p.x += p.dx * p.sp * dt; p.z += p.dz * p.sp * dt; p.life -= dt; p.g.position.set(p.x, 1.2, p.z);
-    emit(sparks, p.x, 1.2, p.z, rand(-.6, .6), rand(0, 1), rand(-.6, .6), .3, pick([0xff8a3c, 0xffc060]), 0, 2);
-    if (Math.random() < .5) emit(glows, p.x, 1.2, p.z, 0, .3, 0, .22, 0xff4a10);
-    let boom = p.life <= 0 || blocked(p.x, p.z, .15);
-    if (!boom) {
-      let tgt = null; near(p.x, p.z, .45, e => { if (!tgt && !p.hitS.has(e)) tgt = e; });
-      if (tgt) { if (p.pierce > 0) { p.pierce--; p.hitS.add(tgt); hit(tgt, SK.fireball.pierceMult, 'fire', { gem: 'fireball', kx: p.dx, kz: p.dz }); } else boom = true; }
-    }
-    if (boom) { p.dead = true; scene.remove(p.g); explode(p.x, p.z, 1, p.storm); }
-  }
-  G.proj = G.proj.filter(p => !p.dead);
 }

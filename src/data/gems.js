@@ -6,13 +6,14 @@
 //   fields are read by the skill's own code (src/game/sk/). Keep the `ms` text in step with them.
 
 export const GEMS = {
-  fireball: { n: 'Fireball', kind: 'attack', held: 1, sk: 'fireball', elem: 'fire', icon: '✹', col: '#ff8a3c', d: 'Hurls a fireball that explodes on impact', ms: { 5: 'Pierces 1 enemy' }, mile: { add: { pierce: 1 } } },
-  frostlance: { n: 'Frost Lance', kind: 'attack', held: 1, sk: 'frostlance', elem: 'cold', icon: '↟', col: '#9fe8ff', d: 'Hurls a fast lance of ice that pierces enemies and chills them', ms: { 5: 'Pierces 2 more enemies' }, mile: { pierce: 2 } },
+  // Melee attacks (src/game/sk/strike.js): `melee` marks them. The Main gem auto-attacks what's in reach (game/gems.js).
+  cleave: { n: 'Ember Cleave', kind: 'attack', held: 1, melee: 1, sk: 'cleave', elem: 'fire', icon: '⚔', col: '#ff8a3c', d: 'A wide burning swing that hits everything in front of you', ms: { 5: 'Swings 25% wider and reaches 15% further' }, mile: { arc: 1.25, reach: 1.15 } },
+  fstrike: { n: 'Frost Strike', kind: 'attack', held: 1, melee: 1, sk: 'fstrike', elem: 'cold', icon: '✦', col: '#9fe8ff', d: 'A quick, narrow, hard-hitting strike that chills', ms: { 5: 'Every 3rd strike freezes what it hits for 0.8s' }, mile: { every: 3, freeze: .8 } },
+  slam: { n: 'Thunder Slam', kind: 'attack', held: 1, melee: 1, sk: 'slam', elem: 'light', icon: '⚒', col: '#c98bff', d: 'A slow overhead slam: a big hit in a circle in front of you that knocks back and can shock', ms: { 5: '+25% radius' }, mile: { radius: 1.25 } },
   arc: { n: 'Arc', kind: 'attack', held: 1, sk: 'arc', elem: 'light', icon: 'ϟ', col: '#c98bff', d: 'Lightning that chains between enemies', ms: { 5: '+2 chains' }, mile: { add: { chains: 2 } } },
   nova: { n: 'Frost Nova', kind: 'attack', held: 0, sk: 'nova', elem: 'cold', icon: '❄', col: '#7fd8ff', d: 'A ring of frost that damages and freezes everything around you', ms: { 5: '+25% radius' }, mile: { add: { novaR: .25 } } },
   totem: { n: 'Flame Totem', kind: 'attack', held: 0, sk: 'totem', elem: 'fire', icon: '♨', col: '#ff7a2a', d: 'Plants a totem that shoots fire bolts at the nearest monster for a few seconds', ms: { 5: 'Lasts 50% longer' }, mile: { dur: 1.5 } },
   meteor: { n: 'Meteor', kind: 'attack', held: 0, sk: 'meteor', elem: 'fire', icon: '☄', col: '#ff5a1a', d: 'Calls a meteor down on the aimed spot: a big fire hit and burning ground', ms: { 5: '+30% radius' }, mile: { radius: 1.3 } },
-  skeletons: { n: 'Raise Skeletons', kind: 'attack', held: 0, sk: 'skeletons', elem: 'phys', icon: '☠', col: '#9be8c0', d: 'Raises a skeleton that follows you and fights nearby monsters', ms: { 5: '+1 skeleton' }, mile: { cap: 1 } },
   shield: { n: 'Magic Shield', kind: 'guard', held: 0, sk: 'shield', icon: '◎', col: '#7fb8ff', d: 'A barrier that absorbs damage for a few seconds', ms: { 5: 'Absorbs 25% more' }, mile: { add: { shieldPct: .25 } } },
   blink: { n: 'Blink', kind: 'evade', held: 0, sk: 'blink', elem: 'cold', icon: '⇝', col: '#9fe8ff', d: 'Teleport away from the nearest threat, untouchable for a moment', ms: { 5: 'Leaves a frost burst behind that chills' }, mile: { burstR: 3, burstMult: .9, burstChill: 3 } },
   ward: { n: 'Frost Ward', kind: 'guard', held: 0, sk: 'ward', elem: 'cold', icon: '❅', col: '#8fe0ff', d: 'A ring of frost around you: monsters inside are slowed and chilled, and you take less damage', ms: { 5: '+25% radius' }, mile: { radius: 1.25 } },
@@ -31,8 +32,8 @@ export const SLOT_DEFS = {
 export const BAR = Object.keys(SLOT_DEFS);
 
 // Shrines: one per slot unlock, pick 1 of the offered gems. Guard is filled with Magic Shield automatically.
-// Flex shrines skip attack gems you already own while there are others to offer (Frost Lance and friends arrive in step 2).
-export const SHRINES = { main: ['fireball', 'frostlance', 'skeletons'], flexA: ['arc', 'nova', 'totem', 'meteor', 'fireball', 'frostlance'], flexB: ['arc', 'nova', 'totem', 'meteor', 'fireball', 'frostlance'], evade: ['dash', 'blink'], guard: ['ward'] };
+// Flex shrines skip attack gems you already own while there are others to offer (so the melee gems you didn't pick come last).
+export const SHRINES = { main: ['cleave', 'fstrike', 'slam'], flexA: ['nova', 'arc', 'meteor', 'totem', 'cleave', 'fstrike', 'slam'], flexB: ['nova', 'arc', 'meteor', 'totem', 'cleave', 'fstrike', 'slam'], evade: ['dash', 'blink'], guard: ['ward'] };
 export const START_GUARD = 'shield';
 
 // Gem levels. Base damage = base × grow^(level − 1), for every gem (skill `mult` in data/skills.js scales it per skill).
@@ -45,23 +46,24 @@ export const GEM = { cap: 10, base: 4, grow: 1.1, offBar: .1, flexStart: 2 };
 //   fn(s, v) adds to the raw stat sums like a passive does (game/formulas.js computeStats), on that skill's own copy of the
 //   sums, so it never touches another skill; v is the entry itself. Fields fn doesn't use are read by the skill's own code.
 //   more: a damage multiplier for that skill. Supports level like skill gems (feeding fuel, fusing later); their effect doesn't grow with level yet.
-// The first eight were level-up notables before step 3 (OLD_NOTABLES maps them, for old saves).
 export const SUPPORTS = {
-  twin: { n: 'Twin Flame', for: ['fireball'], icon: '⁑', col: '#ff8a3c', d: 'Fireball fires +1 projectile, but deals 40% less damage', proj: 1, more: .6, fn: (s, v) => { s.proj += v.proj; s.more *= v.more; } },
-  searing: { n: 'Searing Lance', for: ['fireball'], icon: '➹', col: '#ffb070', d: 'Fireball pierces +1 enemy before exploding', pierce: 1, fn: (s, v) => s.pierce += v.pierce },
+  // Sweep: Ember Cleave hits all the way round you, each hit `more` × the damage.
+  sweep: { n: 'Sweep', for: ['cleave'], icon: '◌', col: '#ff8a3c', d: 'Ember Cleave hits all the way round you, but deals 25% less damage', more: .75, fn: (s, v) => { s.sweep = 1; s.more *= v.more; } },
+  // Brittle: enemies hit take `taken` more damage from everything for `dur` s (the shock status).
+  brittle: { n: 'Brittle', for: ['fstrike'], icon: '❖', col: '#9fe8ff', d: 'Enemies hit by Frost Strike take 20% more damage from everything for 3s', taken: .2, dur: 3, fn: s => s.brittle = 1 },
+  // Aftershock: a second slam on the same spot `delay` s later, `mult` × the damage.
+  aftershock: { n: 'Aftershock', for: ['slam'], icon: '≋', col: '#c98bff', d: 'Thunder Slam hits the same spot again 0.4s later for 35% of the damage', delay: .4, mult: .35, fn: s => s.aftershock = 1 },
+  // Raise Skeletons: a kill by the socketed skill has `chance` to rise as a skeleton that fights for you, up to `cap` at once.
+  // The skeleton's own numbers (life, hits, speed) are SK.skeletons in data/skills.js; it scales with the socketed gem's level.
+  raise: { n: 'Raise Skeletons', for: ['attack'], icon: '☠', col: '#9be8c0', d: 'Enemies killed by this skill have a 25% chance to rise as a skeleton that fights for you (up to 3)', chance: .25, cap: 3, fn: s => s.raise = 1 },
   // Ignite: a burn of `share` × the hit, spread over `dur` seconds.
-  ignite: { n: 'Ignite', for: ['fireball', 'meteor'], icon: '♆', col: '#ff5a2a', d: 'Its hits burn enemies for 60% of the hit over 3s', share: .6, dur: 3, fn: s => s.ignite = 1 },
-  // Chain Reaction: `chance` that a Fireball kill explodes for `mult` × a Fireball explosion, in `radius`.
-  chainboom: { n: 'Chain Reaction', for: ['fireball'], icon: '✺', col: '#ff5a2a', d: 'Enemies killed by Fireball have a 30% chance to explode', chance: .3, mult: .6, radius: 1.4, fn: s => s.chainboom = 1 },
+  ignite: { n: 'Ignite', for: ['cleave', 'meteor'], icon: '♆', col: '#ff5a2a', d: 'Its hits burn enemies for 20% of the hit over 3s', share: .2, dur: 3, fn: s => s.ignite = 1 },
   forked: { n: 'Forked Sky', for: ['arc'], icon: 'ψ', col: '#c98bff', d: 'Arc chains +2 more times', chains: 2, fn: (s, v) => s.chains += v.chains },
   // Conduit: Arc always shocks, and its shocks add `shockMore` damage taken (a normal shock adds SK.arc.shockMore).
   conduit: { n: 'Conduit', for: ['arc'], icon: '⌁', col: '#c98bff', d: 'Arc always shocks, and its shocked enemies take 35% more damage instead of 20%', shockMore: .35, fn: s => s.conduit = 1 },
   // Shatter: a frozen enemy's death deals `pct` of its max life to enemies within `radius`, and freezes them for `freeze` s.
   shatter: { n: 'Shatter', for: ['nova'], icon: '✳', col: '#7fd8ff', d: 'Enemies frozen by Frost Nova explode on death, dealing 30% of their life to foes nearby and freezing them', pct: .3, radius: 2.4, freeze: .9, fn: s => s.shatter = 1 },
   warding: { n: 'Warding', for: ['shield'], icon: '⊚', col: '#7fb8ff', d: 'Magic Shield absorbs 30% more', shieldPct: .3, fn: (s, v) => s.shieldPct += v.shieldPct },
-  // Split: `n` lances `spread` radians apart, each `mult` × the damage.
-  split: { n: 'Split', for: ['frostlance'], icon: '⋔', col: '#9fe8ff', d: 'Frost Lance fires 3 lances in a fan, each dealing 60% less damage', lances: 3, spread: .2, mult: .4, fn: s => s.split = 1 },
-  army: { n: 'Bigger Army', for: ['skeletons'], icon: '☗', col: '#9be8c0', d: '+1 skeleton, but skeletons deal 20% less damage', cap: 1, more: .8, fn: (s, v) => { s.army += v.cap; s.more *= v.more; } },
   // Volley: the totem shoots the `targets` nearest monsters at once, each bolt `mult` × the damage.
   volley: { n: 'Volley', for: ['totem'], icon: '⋰', col: '#ff7a2a', d: 'Flame Totem shoots the two nearest monsters at once, each bolt dealing 20% less damage', targets: 2, mult: .8, fn: s => s.volley = 1 },
   // Twin Meteor: a second meteor `delay` s later, `off` radii away, `mult` × the damage.
@@ -74,14 +76,12 @@ for (const k in SUPPORTS) Object.assign(SUPPORTS[k], { kind: 'support', ms: {} }
 export const supFits = (sup, gem) => !!SUPPORTS[sup] && !!GEMS[gem] && (SUPPORTS[sup].for.includes(gem) || SUPPORTS[sup].for.includes(GEMS[gem].kind));
 // Any gem's definition, skill or support.
 export const gemDef = id => GEMS[id] || SUPPORTS[id];
-// Passive notables that became support gems: old saves get the point back and the gem in the bag.
-export const OLD_NOTABLES = { multi: 'twin', pierce: 'searing', chain: 'forked', ward: 'warding', ignite: 'ignite', shatter: 'shatter', conduit: 'conduit', inferno: 'chainboom' };
 
 // Gem drops: guardians always drop one, rares sometimes (DROP.gem in data/items.js). One pool per region.
 //   supportBias: weight of a support that fits a skill gem you own (everything else weighs 1), so drops are usually usable.
 //   lvlUnder: a dropped gem's level is the tier's par Main gem level (PAR_GEM) minus this, at least 1.
 export const GEM_POOL = {
-  crypt: ['fireball', 'frostlance', 'arc', 'nova', 'totem', 'meteor', 'skeletons', 'blink', 'ward', 'dash', ...Object.keys(SUPPORTS)],
+  crypt: ['cleave', 'fstrike', 'slam', 'arc', 'nova', 'totem', 'meteor', 'blink', 'ward', 'dash', ...Object.keys(SUPPORTS)],
 };
 export const GEM_DROP = { supportBias: 3, lvlUnder: 3 };
 // Feeding a spare gem into another (design notes, feeding table): share of the fed gem's XP that moves.

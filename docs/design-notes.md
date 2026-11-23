@@ -10,13 +10,13 @@ Two ideas sit underneath everything:
 
 ## Character
 
-- **Decided (Nov 2026): the hero is a melee fighter** (build order step 3¾). Ranged play's skill is positioning, which the autopilot does for you on the bike; melee's skill is timing (Guard, Evade, Flex skills, Surge), which a rider can do with button presses. Fireball and Frost Lance are being retired; Raise Skeletons becomes a support (kills by the socketed skill rise as skeletons that fight for you, up to a cap), so a horde build is still possible; the Guard, Evade and Flex spells stay. Sections below that assume a caster are updated as part of that step.
+- **Decided and built (Nov 2026): the hero is a melee knight** (build order step 3¾, see "Built: go melee" below). Ranged play's skill is positioning, which the autopilot does for you on the bike; melee's skill is timing (Guard, Evade, Flex skills, Surge), which a rider can do with button presses. Fireball and Frost Lance are gone; Raise Skeletons is a support (kills by the socketed skill rise as skeletons that fight for you, up to a cap), so a horde build is still possible; the Guard, Evade and Flex spells stay.
 - **Leaning:** one main character, with room to add more later. If we add classes, do it the Path of Exile way: a different starting point on the same passive tree, with a different KayKit model.
 - **Leaning:** three growth systems, each with its own job and no overlap:
 
 | System | Fed by | Answers | Owns |
 |---|---|---|---|
-| Passive tree | XP (a point per level) | "What kind of hero am I?" | Broad stats (fire damage, life, cast speed) and rule-changing keystones. Never changes a specific skill |
+| Passive tree | XP (a point per level) | "What kind of hero am I?" | Broad stats (fire damage, life, attack and cast speed) and rule-changing keystones. Never changes a specific skill |
 | Gems (Materia-style) | AP from riding | "How do my buttons play?" | Behaviour of their own skill only. Never general stats |
 | Gear | Drops, crafting, boss uniques | "How strong am I, and what rules do I break?" | Stat affixes; uniques that bend rules |
 
@@ -25,11 +25,11 @@ Two ideas sit underneath everything:
 - **Leaning: soft level cap.** Past a point, levels get slower rather than stopping.
 - **Leaning: gems.** 4 skill slots plus dash. Each slot starts with 1 support socket and unlocks up to 3 with level. Sockets live on the **skill bar**, not gear (a rare gear affix could add "+1 support socket").
   - Equipped gems earn full AP; **unequipped gems earn a small trickle**.
-  - Gems level into new behaviour, not just numbers (Fireball lv5 splits, lv10 leaves burning ground; Freeze support at max adds Shatter).
+  - Gems level into new behaviour, not just numbers (Ember Cleave lv5 swings wider, lv10 leaves burning ground; Freeze support at max adds Shatter).
   - The current pick-1-of-3 level-up draft is retired; its notables become support gems (Twin Flame, Shatter, Conduit).
-- **Leaning: gem tiers.** The same gem comes in better tiers (Fireball I, II, III), each with higher base power, a higher level cap and a new top milestone. Behaviour carries forward, so a build keeps working.
+- **Leaning: gem tiers.** The same gem comes in better tiers (Ember Cleave I, II, III), each with higher base power, a higher level cap and a new top milestone. Behaviour carries forward, so a build keeps working.
   - **Tiers come mostly from regions** (Tier II from the Forest onward), with **rare jackpot drops** of a higher tier anywhere. Heat could raise those odds.
-- **Leaning: fusing.** Fuse a gem into a better tier of the same gem for a head start (e.g. mastered Fireball I makes Fireball II start at level 6 of 20). Never a full transfer, so there's always room to grow.
+- **Leaning: fusing.** Fuse a gem into a better tier of the same gem for a head start (e.g. mastered Ember Cleave I makes Ember Cleave II start at level 6 of 20). Never a full transfer, so there's always room to grow.
   - **Rule: an upgrade never feels like a downgrade.** A fused gem is always at least as strong as the gem put in.
   - Any gem can be fused for some AP; mastered gems give a bonus. Duplicate drops become fuel. Support gems work the same way.
 - **Open:** whether fusion replaces the FF7 "mastered gem spawns a copy" idea (leaning yes, to keep one clear ending for a mastered gem).
@@ -40,7 +40,7 @@ Terms:
 
 | Term | Meaning |
 |---|---|
-| Skill | An action on a button (Fireball, Raise Skeletons, Blink) |
+| Skill | An action on a button (Ember Cleave, Frost Nova, Blink) |
 | Skill gem | An item that gives a skill. **The only way to get a skill.** Has a tier, level and AP |
 | Support gem | Modifies the skill it is socketed with (Split: fires three) |
 | Skill bar | 5 slots: Main, Flex A, Flex B, Guard, Evade |
@@ -67,7 +67,7 @@ Skill bar:
 - Gems can be moved between any slots that accept them at any time outside a Trial.
 
 Where skill gems come from (they drop as loot):
-- **Shrines: four, once per character, only in the first world (Crypt).** Ride 1: choose 1 of 3 Main gems (Fireball, Frost Lance, Raise Skeletons) plus Magic Shield. Level 5: Flex A. Level 8: Evade. Level 12: Flex B. Each is 1 of 3 options for that slot and appears at the entrance of the next level so it can't be missed.
+- **Shrines: four, once per character, only in the first world (Crypt).** Ride 1: choose 1 of 3 Main gems (Ember Cleave, Frost Strike, Thunder Slam) plus Magic Shield. Level 5: Flex A. Level 8: Evade. Level 12: Flex B. Each is 1 of 3 options for that slot and appears at the entrance of the next level so it can't be missed.
 - **Shrine gems for Flex slots start at Main gem level − 2** (only shrine gems).
 - Guardians: 1 guaranteed gem (skill or support) from the region pool.
 - Trial bosses: their own signature gems.
@@ -75,7 +75,7 @@ Where skill gems come from (they drop as loot):
 
 Levelling:
 - Equipped gems earn full AP (kills and time riding); unequipped gems earn 10%.
-- Tier caps: I = 10, II = 20, III = 30. Example milestones: Fireball I lv5 pierces, lv10 leaves burning ground; Fireball II lv15 explodes twice, lv20 explosions split.
+- Tier caps: I = 10, II = 20, III = 30. Example milestones: Ember Cleave I lv5 swings wider, lv10 leaves burning ground; Ember Cleave II lv15 swings twice, lv20 throws a fire wave.
 - **Feeding:** any gem can be consumed to give its AP to another gem:
 
 | Fed into | AP transferred |
@@ -93,21 +93,21 @@ Who does what (damage = (gem base + flat from gear) × (1 + increased) × each m
 
 | | Main job | Growth through one region (illustrative) |
 |---|---|---|
-| Gems | Base damage and skill behaviour (kill speed) | Base ×3 (Fireball I: 10 at lv1, 30 at lv10) |
+| Gems | Base damage and skill behaviour (kill speed) | Base ×3 (Ember Cleave I: 10 at lv1, 30 at lv10) |
 | Tree | Multipliers, survival, identity | ~13 points: ~+60% to your element, plus life |
 | Gear | Flat and % damage; all defence | ~×1.5 damage, plus armour and resistances |
 
-Example: Pyromancer through the Crypt (illustrative numbers):
+Example: a fire knight through the Crypt (illustrative numbers):
 
 | Ride | Level | Char lvl | Unlocks | Skill bar | Notes |
 |---|---|---|---|---|---|
-| 1 | Crypt 1 | 1→4 | Main, Guard | Fireball I lv1→3, Magic Shield I | Choose Fireball. Guardian drops Split |
-| 2 | Crypt 2 | 4→7 | Flex A | Fireball lv5 (pierces), Flame Totem I | Shrine: Totem over Frost Nova/Arc |
-| 3 | Crypt 3 | 7→10 | Evade | Fireball lv7, Totem, Shield, Blink I | First armour boots |
-| 4 | Crypt 4 | 10→12 | Flex B | Fireball lv9, Totem, Ward, Meteor I | First rare wand; Frost Lance I to the gem bag |
-| 5 | Crypt 5 | 12→14 | n/a | Fireball lv10 (mastered: burning ground) | Fire resistance chest |
+| 1 | Crypt 1 | 1→4 | Main, Guard | Ember Cleave I lv1→3, Magic Shield I | Choose Ember Cleave. Guardian drops Ignite |
+| 2 | Crypt 2 | 4→7 | Flex A | Ember Cleave lv5 (wider), Frost Nova I | Shrine: Nova over Meteor/Arc |
+| 3 | Crypt 3 | 7→10 | Evade | Ember Cleave lv7, Nova, Shield, Flame Dash I | First armour boots |
+| 4 | Crypt 4 | 10→12 | Flex B | Ember Cleave lv9, Nova, Ward, Meteor I | First rare sword; Raise Skeletons to the gem bag |
+| 5 | Crypt 5 | 12→14 | n/a | Ember Cleave lv10 (mastered: burning ground) | Fire resistance chest |
 | 6 | Ashen King | 14 | n/a | Same | Win: Forest, Wattbringer, modifier hand unlocks |
-| 7+ | Forest 1 | 14→17 | Main socket 2 | Fireball II (fused, starts lv6) | Crafting unlocks |
+| 7+ | Forest 1 | 14→17 | Main socket 2 | Ember Cleave II (fused, starts lv6) | Crafting unlocks |
 
 - **Open:** whether random gem drops still feel exciting enough; the numbers above are untuned and the proportions are what matter.
 
@@ -151,6 +151,21 @@ Example: Pyromancer through the Crypt (illustrative numbers):
 - Fixed on the way: a crowd of monsters could shove the hero into a wall (`separate` in `src/game/enemies.js` now pushes the hero back out).
 - **All gameplay numbers moved to `src/data/`** (after step 3): support and milestone numbers sit with their text in `gems.js`; status effects, monster fighting, rare affixes, death blasts and the guardian in `monsters.js`; unique effects, item rolls and loot counts in `items.js`; hit spread, the XP curve, item scaling and the bag estimate in `balance.js`. CLAUDE.md lists where each kind of number goes. `npm test` checks that support and milestone text matches the numbers.
 - **The arena is now repeatable.** The guardian's second nova wave and its loot used real-time timers, so they fired at random moments between arena fights (and never inside one), and the same code gave different numbers run to run. They run on game time now (`G.queue`, `k: 'later'`), which also means they pause with the game. The phase 2 double nova now really happens in arena guardian fights, so guardians deal more damage there than in earlier tables.
+
+**Built: go melee, step 3¾ (Nov 2026).** The hero is a knight (`public/models/hero_knight.glb`: sword and round shield). Data in `src/data/gems.js` and `src/data/skills.js`, the attacks in `src/game/sk/strike.js`, the auto-attack in `src/game/gems.js`.
+
+| Gem | Element | Shape | Feel | Level 5 | Support |
+|---|---|---|---|---|---|
+| Ember Cleave | fire | 150° cone, reach 2.4, 0.8 s swing | the all-rounder, hits the front of a pack | 25% wider, 15% further | Sweep: all the way round, 25% less damage |
+| Frost Strike | cold | 90° cone, reach 2.1, 0.62 s | single target and rares; chills | every 3rd strike freezes (0.8 s) | Brittle: hit enemies take 20% more damage for 3 s (the shock status) |
+| Thunder Slam | lightning | circle of 1.9 centred 1.5 ahead, 1.3 s | big hits, knockback, 35% shock | +25% radius | Aftershock: hits the same spot 0.4 s later for 35% |
+
+- **A swing lands `windup` s after it starts,** from where you stand then, with a small knockback (Slam's is bigger) and a few frames of hit-stop. Each swing that connects gives `HERO.lifeOnHit` (1) life per monster hit, up to 3.
+- **Auto-attack** (`autoTarget`): the melee Main gem swings at an awake monster in reach, the guardian and rares first, then the nearest. Sleeping monsters are left alone so you don't pull rooms. Steering away from the target by hand pauses it (walking toward it doesn't; autopilot steering never does). Holding LMB swings at the cursor as before. The **ATTACK: AUTO / HOLD** button (or T) turns it off; it's stored per device (`localStorage`) and written into `ctl.autoAtk` by the devices.
+- **Autopilot** closes to 75% of the swing's reach and stands there, guardian or rare first; no kiting. `clearShot` is gone (nothing ranged needs it).
+- **Raise Skeletons is a support** (`for: ['attack']`, so it fits any attack gem): a kill by the socketed skill has a 25% chance to rise as a skeleton where it fell, up to 3. Skeletons hit with, and scale with, the gem that raised them; their own kills count for you but not as the skill's, so they don't raise more. They crumble when no bar skill has the support. The old Bigger Army is gone; more chance or a bigger cap is for the tree and uniques later.
+- **Retired:** Fireball, Frost Lance, their supports (Twin Flame, Searing Lance, Chain Reaction, Split, Bigger Army), the Fireball-only affixes (projectiles, pierce) and `G.proj`. Ignite moved to Ember Cleave (and Meteor), at 20% of the hit over 3 s (was 60%; on a melee gem that hits several monsters every swing, 60% was a 1.6× damage support). **Wattbringer**'s burning ground and **Heart of the Storm**'s Arc now work off melee swings (every 4th). Weapon bases are swords, axes and maces; "spell damage" reads "damage to skills" and cast speed reads "attack and cast speed" (the gear rework in step 6 renames them properly).
+- **No save migration** (the game isn't released): the save key moved to `wd-arpg-2`, so old saves are ignored, and all the migration code (mana affixes, old notables, saves without gems) is gone.
 
 ### Evade gems
 
@@ -197,17 +212,17 @@ Example: Pyromancer through the Crypt (illustrative numbers):
 |---|---|---|
 | Legion | A flexible slot becomes a second support slot; minions stronger | Less personal damage |
 | Glass Cannon | The defensive slot becomes an attack slot; big damage bonus | Much less life, no guard skill |
-| Summoner's Pact | The main slot can hold a minion skill | You barely attack yourself |
+| Summoner's Pact | Raise Skeletons fits every slot and raises more | You barely attack yourself |
 | Fortress | A flexible slot becomes a second defensive slot | Slower kills |
 
-- **Leaning: variety comes from mechanics, not element or shape.** Pull, traps, marks, corpses, turrets, clones, charge-ups. Each named skill has its own element (Fireball is fire) and the element adds flavour (burn, freeze, shock). Element conversion is a rare jackpot (uniques or rare supports), not a setup step.
+- **Leaning: variety comes from mechanics, not element or shape.** Pull, traps, marks, corpses, turrets, clones, charge-ups. Each named skill has its own element (Ember Cleave is fire) and the element adds flavour (burn, freeze, shock). Element conversion is a rare jackpot (uniques or rare supports), not a setup step.
 - **Test for any new skill or keystone:** does a build using it play differently? Example builds that pass:
 
 | Build | Main | Flexible | Defence | Keystone | Feels like |
 |---|---|---|---|---|---|
-| Pyromancer | Fireball (pierce, burning ground) | Meteor, Flame Totem | Fire ward | n/a | Aim and fire, things burn |
-| Necromancer | Raise Skeletons | Corpse Explosion, Bone Armour | Decoy | Summoner's Pact | Army fights, blow up the bodies |
-| Frost Sniper | Frost Lance (huge single hits) | Mark Target, Ice Trap | n/a | Glass Cannon | Pick targets, one-shot, fragile |
+| Flamebearer | Ember Cleave (Ignite, burning ground) | Meteor, Flame Totem | Fire ward | n/a | Wade in, everything around you burns |
+| Death Knight | Frost Strike + Raise Skeletons | Corpse Explosion, Bone Armour | Decoy | Summoner's Pact | Every kill joins your army, blow up the bodies |
+| Stormbreaker | Thunder Slam (Aftershock) | Frost Nova, Arc | Magic Shield | Glass Cannon | Time one huge slam, fragile |
 | Engineer | Lightning Turret | Second turret, Pull | Shield | Legion | Set up, pull enemies into the kill zone |
 
 - **Bike angle:** minion, totem and aura builds are nearly hands-free (easy rides, tired days); hold-to-channel skills fit the Ride's hold buttons. Free gem swaps let you change style per ride.
@@ -247,29 +262,29 @@ Region themes and boss pairings are **open**; the shape (6 × 5 + Trial) is lean
 
 ## Balance
 
-- **Leaning: underpowered early, loot makes the difference.** Character level adds a little damage and mostly life; gear adds most damage. A new hero has a plain starter staff and needs 4–5 Fireballs per skeleton. A full kit of magic gear roughly doubles to triples damage.
-- **Leaning: sawtooth power curve.** Inside a level you outgrow the monsters as drops come in; the next level steps monster life up again. The biggest step is Crypt 1 → 2, because that's when the starter staff is expected to be gone.
+- **Leaning: underpowered early, loot makes the difference.** Character level adds a little damage and mostly life; gear adds most damage. A new hero has a plain starter sword and needs 4–5 swings per skeleton. A full kit of magic gear roughly doubles to triples damage.
+- **Leaning: sawtooth power curve.** Inside a level you outgrow the monsters as drops come in; the next level steps monster life up again. The biggest step is Crypt 1 → 2, because that's when the starter sword is expected to be gone.
 - **No mana (Nov 2026).** Running out of mana only meant walking around doing nothing, so it's gone. Held skills are limited by their cast time, press skills by cooldowns and charges, and the **Surge gauge** is the only resource (see "Built: no mana, Surge gauge" below). Frost Nova has a 6 s cooldown.
 - **Leaning: you start with a generic Magic Shield, not a movement skill.** It absorbs 35% of max life for 5 s on a 10 s cooldown, and fits every build (Flame Dash leaned too far toward a fire build). Movement skills come later through the Evade slot (level 8 shrine). It's the starting Guard gem (gems v1).
 - **Targets** (at par level with par gear; exact numbers in `src/data/balance.js`):
 
 | Thing | Target |
 |---|---|
-| Normal skeleton | 3–5 Fireball hits |
+| Normal skeleton | 3–5 hits of the par Main gem (Ember Cleave); Thunder Slam takes fewer by design |
 | Normal pack | 4–15 s to clear |
-| Rare | 8–25 s of single-target fire |
+| Rare | 8–25 s of single-target hits |
 | Guardian | 45–100 s; an under-geared hero can't burn it down |
-| Danger | A pack in melee kills you in 4–14 s if you stand still |
+| Danger | A pack in melee kills you in 4–14 s if you stand in it and never Guard |
 | Surge | Spending a full gauge on a guardian cuts it to 35–85 s (`guardianSurge`) |
-| Loot | A full magic kit is ×1.3–3 the starter staff's damage |
+| Loot | A full magic kit is ×1.3–3 the starter sword's damage |
 
 ### Testing balance without playing a level
 
 Three layers, fastest first. Levels are the final polish pass, not the only check.
 
-1. **`npm run balance`** (instant, no browser): maths from the game's own data and formulas (`src/game/formulas.js`). For each tier at par level and with each gear profile (starter staff, average magic kit, average rare kit) it prints hits to kill, pack clear time, rare and guardian kill time (without and with a full Surge gauge), how long you survive standing in a pack, XP per map and the gain from loot. Anything outside the targets is flagged. Fireball only, so it's a floor on real kill speed.
-2. **`npm run arena`** (about 30 s, needs `npm run build`): real game code fights one encounter at a time (packs, magic, rare, guardian, under-geared, under-levelled) with a scripted player. A kiting bot plays well; "standing still" rows play carelessly; real play sits between them. Shows clear time, damage taken, lowest life, flasks used and time spent surging (the bot surges on rares, guardians and crowds of four; a "never surging" guardian row shows what the gauge is worth). In the browser: `__dbg.arena({ tier: 2, fight: [['zombie', 4]], gear: 'magic' })`.
-3. **`npm test`** includes balance guard rails: a tier 1 pack isn't one-shot, the tier 1 guardian can't be burned down, and the starter staff can't beat the tier 2 guardian. These catch regressions on every push.
+1. **`npm run balance`** (instant, no browser): maths from the game's own data and formulas (`src/game/formulas.js`). For each tier at par level and with each gear profile (starter sword, average magic kit, average rare kit) it prints hits to kill, pack clear time, rare and guardian kill time (without and with a full Surge gauge), how long you survive standing in a pack, XP per map and the gain from loot. Anything outside the targets is flagged. The Main gem only (`MAIN=<gem>`, default Ember Cleave), hitting `ESTIMATE.targets` monsters per swing in a pack, so it's a floor on real kill speed.
+2. **`npm run arena`** (about 30 s, needs `npm run build`): real game code fights one encounter at a time (packs, magic, rare, guardian, under-geared, under-levelled) with a scripted player. The bot walks into swing reach and lets the auto-attack work; it plays the timing game well (Guard before hits it can see coming, step out of or Evade the guardian's slam); "careless" rows never Guard, Evade or step out. Real play sits between them. Shows clear time, damage taken, lowest life, flasks, Guard and Evade casts and time spent surging (the bot surges on rares, guardians and crowds of four; a "never surging" guardian row shows what the gauge is worth). In the browser: `__dbg.arena({ tier: 2, fight: [['zombie', 4]], gear: 'magic' })`.
+3. **`npm test`** includes balance guard rails: a tier 1 pack isn't one-shot, the tier 1 guardian can't be burned down, the starter sword can't beat the tier 2 guardian, and the careless bot does clearly worse than the smart one on the tier 2 guardian. These catch regressions on every push.
 
 Loop: change numbers in `src/data/` → `npm run balance` → `npm run arena` → play a level to feel it.
 
@@ -282,6 +297,14 @@ Loop: change numbers in `src/data/` → `npm run balance` → `npm run arena` �
   - **Surge gauge** (`SURGE` in `src/data/skills.js`): 30 s of full surge; while surging, casts are 40% faster and cooldowns and charges recover 40% faster. It drains 1 s per second at full surge. Empty means **spent**: no surging until it refills to 30%. It refills at 0.35 s per second, starting 2 s after you stop, so a full refill takes about 90 s. Keyboard: hold Shift; touch: tap ⚡ on and off (bottom row, next to the flask; it switches itself off when spent, since one thumb can't hold it and a skill); RIDE: ride above 80% FTP (full surge from 105%), and below 65% FTP casts slow down (to half at 40%). The right orb is the gauge.
   - **Results:** `npm run balance`: every par number inside target; par guardians take 72–76 s never surging and 60–64 s with a full gauge. `npm run arena` (seed 1234): guardians take 48–61 s with the surging bot (74 s on tier 1 with the starter staff) and 65–73 s without (102 s on tier 1), so the gauge is worth roughly 15–25%; the starter staff takes 147–211 s on tiers 2–5 (it can't win the tier 2 guardian inside the 2 minute guard rail). Packs clear a little slower than before (5–15 s), because the mana pool no longer gives a free burst at the start of each fight.
   - **Autopilot fix found on the way:** it now waits for a clear shot (`clearShot` in `src/world/map.js`, the projectile's width along the whole line), not just line of sight, so it no longer stands still firing into a rock that clips every Fireball.
+
+- **Go melee (step 3¾, Nov 2026).** Melee stands in the pack, so the danger had to move from chip damage to hits you can react to:
+  - **Hero:** life 90 + 10 per level → 120 + 12 per level, plus 1 life per monster hit (up to 3 per swing).
+  - **Guardian:** swing damage 16 → 12, slam 2× → 2.8× its damage with a slightly longer telegraph (1 s → 1.2 s, 0.75 → 0.9 s enraged), and fewer runners per summon (5 → 3, 7 → 5 enraged). The slam is now the hit that matters: Guard for it, step out or Evade.
+  - **`npm run balance`** (each Main gem with its par support from tier 2): every par number inside target for all three gems. Ember Cleave: guardians 64–67 s never surging, packs 4.5–6.7 s; Frost Strike 53–56 s; Thunder Slam 57–60 s. Face-tank (never Guarding) 5.8–8.8 s on magic gear.
+  - **`npm run arena`** (seed 1234): every par fight clears with all three gems on tiers 1–5. Packs clear in about the same time with each gem (Cleave 2–8 s, Frost Strike 2–13 s, Slam 2–14 s). Guardians with the surging bot: Cleave 49–87 s (87 s is tier 1 with the starter sword), Frost Strike 31–65 s, Slam 31–72 s; never surging, Frost Strike is 42–57 s on tiers 2–5.
+  - **The careless rows (never Guard, Evade or step out) do clearly worse:** on guardians they take 3–6× the damage and use 2–4 flasks where the smart bot uses 0–1, and they die to the tier 1 guardian with every gem and to the tier 2 guardian with Ember Cleave. On rare packs they take 2–6× the damage. So melee buys the timing game we wanted.
+  - **Open (step 7):** with the surging bot the tier 4–5 guardians die in about 30 s with Frost Strike and Thunder Slam (Surge covers most of the fight); normal packs barely hurt the smart bot (it Guards at the first windup), so the danger is mostly rares, bloaters and guardians. The starter sword now beats most tier 3–5 guardians in about 100–175 s (it still can't win tier 2 inside the 2 minute guard rail).
 
 - **Sparse gear, no uniques in the Crypt (Nov 2026).** Drops were about 22 items and 1.6 uniques per tier 1 map (a unique could drop from the second monster). Now (`DROP` in `src/data/items.js`): normal monsters 2.5% (was 7%), magic 8% (was 20%), a rare's second item 25% (was 50%), guardians 3 items (was 5), rare item base 20% (was 25%), and **uniques only from tier 6** (`uniqueFrom`, the region after the Crypt). That's about 13 items per tier 1 map and 20 per tier 5 map, half of them from rares and the guardian; normal packs mostly give XP. **Open:** the balance tools still assume a full magic kit from tier 2 (`PAR_GEAR`), which sparser drops may not give; re-check in the gear rework (step 6) and balance pass 2 (step 7).
 
@@ -398,7 +421,8 @@ Ideas: deeper levels use more intense versions of the template; beats could be w
 ### Layer 1: movement and normal mode (leaning)
 
 - **Movement: the game drives, you decide (Zwift-style).** The autopilot follows the route through the level toward the next beat and the guardian, fights, loots and keeps your build's preferred range (from the main skill: snipers hang back, melee and Phase builds close in). At junctions the D-pad picks a direction; holding it nudges the character manually. On keyboard and touch, manual control is the default and autopilot is optional.
-  - Autopilot needs route awareness (beats, junctions, guardian), not just "nearest thing", and per-build range instead of fixed `keep`/`kite` in `src/data/ride.js`.
+  - Autopilot needs route awareness (beats, junctions, guardian), not just "nearest thing". Built so far: it follows the room route, and with a melee Main gem it closes to the swing's reach and stands there (no kiting).
+  - **Built (step 3¾):** the Main melee gem auto-attacks the guardian or a rare first, else the nearest awake monster in reach, on every device. Steering away by hand pauses it; the ATTACK toggle switches it to hold-to-attack.
 - **Pedalling is a gate for movement, not a speed dial.** Above ~30–40% FTP you move at a fixed speed; below, a slow walk; at 0 W you stop. (Change from today, where speed keeps rising to 125% at 125% FTP.)
 - **The main skill auto-attacks.** It picks the most important nearby target (elites first, then nearest). The same on every device; manual aim could be an option.
 - **Power drives attack speed:** endurance pace (~65–70% FTP) = 100% attack rate; below it slows (e.g. 50% at 40% FTP); above it speeds up, draining the **Surge gauge**.

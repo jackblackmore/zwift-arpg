@@ -14,6 +14,7 @@ import { blocked } from '../world/map.js';
 import { xpNeedFor, gemTotalXp, feedShare } from './formulas.js';
 import { recalc } from './stats.js';
 import { CAST } from './casts.js';
+import { shape } from './sk/strike.js';
 
 export const gemById = id => P.gems.find(g => g.id === id) || null;
 export const unlocked = slot => P.lvl >= SLOT_DEFS[slot].unlock;
@@ -100,17 +101,41 @@ export function updSlots(dt, fx) {
     const g = barGem(slot), K = SK[GEMS[g.gem].sk];
     if (st.ch < max) { st.t += rec; if (st.t >= K.recharge) { st.t = 0; st.ch++; } } else { st.t = 0; st.ch = max; }
   }
-  // Held gems share one cast timer; the first held button in bar order wins.
-  if (P.castT <= 0) for (const slot of BAR) {
-    const g = barGem(slot); if (!g || !GEMS[g.gem].held || !ctl[slot]) continue;
-    if (cast(g.gem)) P.castT = SK[GEMS[g.gem].sk].cast / (S.cast * fx.cast);
-    break;
+  // Held gems share one cast timer; the first held button in bar order wins. With none held, a melee Main gem auto-attacks.
+  if (P.castT <= 0) {
+    let held = false;
+    for (const slot of BAR) {
+      const g = barGem(slot); if (!g || !GEMS[g.gem].held || !ctl[slot]) continue;
+      held = true; if (cast(g.gem)) P.castT = SK[GEMS[g.gem].sk].cast / (S.cast * fx.cast);
+      break;
+    }
+    const g = !held && barGem('main'), tg = g && autoTarget(g.gem);
+    if (tg) { P.aimAt = [tg.x, tg.z]; if (cast(g.gem)) P.castT = SK[GEMS[g.gem].sk].cast / (S.cast * fx.cast); P.aimAt = null; }
   }
   for (const slot of BAR) {
     const want = ctl.tap[slot] || ctl[slot]; ctl.tap[slot] = false;
     const g = barGem(slot); if (!want || !g || GEMS[g.gem].held) continue;
     tryPress(slot, g);
   }
+}
+
+// ---- auto-attack: the melee Main gem swings on its own at an awake monster in reach (ctl.autoAtk, the ATTACK toggle) ----
+// How far a melee gem's swing reaches from you.
+export function meleeReach(gem) { const sh = shape(gem); return sh.cone ? sh.cone[0] : sh.circle[0] + sh.circle[1] * .8; }
+// What to swing at: the guardian and rares first, then the nearest; null if nothing's in reach, auto-attack is off, or you're
+// steering away from it by hand (autopilot steering doesn't count). Sleeping monsters are left alone so you don't pull rooms.
+export function autoTarget(gem) {
+  if (!GEMS[gem] || !GEMS[gem].melee || !ctl.autoAtk || P.dead > 0) return null;
+  const reach = meleeReach(gem), mx = ctl.mx, mz = ctl.mz, steering = Math.hypot(mx, mz) > .08;
+  let best = null, bs = -1e9;
+  for (const e of G.enemies) {
+    if (e.deathT || !e.awake || e.rise > 0) continue;
+    const d = dist(e.x, e.z, P.x, P.z); if (d > reach + e.r) continue;
+    if (steering && (e.x - P.x) * mx + (e.z - P.z) * mz < 0) continue;
+    const sc = (e.type === 'boss' ? 200 : e.rar === 2 ? 100 : 0) - d;
+    if (sc > bs) { bs = sc; best = e; }
+  }
+  return best;
 }
 
 // ---- gem XP: bar gems and active supports earn what the character earns, gems in the bag a share ----

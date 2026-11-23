@@ -11,7 +11,7 @@ import { CHAR_BRIGHTNESS } from '../data/graphics.js';
 export const chars = { ready: false, failed: false, tpl: {}, clips: {}, weapons: {} };
 export const BASE = (import.meta.env.BASE_URL || './') + 'models/';
 
-const FILES = { minion: 'skel_minion.glb', warrior: 'skel_warrior.glb', rogue: 'skel_rogue.glb', mage: 'skel_mage.glb', hero: 'hero_mage.glb' };
+const FILES = { minion: 'skel_minion.glb', warrior: 'skel_warrior.glb', rogue: 'skel_rogue.glb', mage: 'skel_mage.glb', hero: 'hero_knight.glb' };
 const WEAPONS = { blade: 'w_blade.glb', axe: 'w_axe.glb', crossbow: 'w_crossbow.glb', shield: 'w_shield_large_a.glb', staff: 'w_staff.glb' };
 
 // GLTFLoader can hand back interleaved attributes, which r128's merge helper refuses; copy them out flat.

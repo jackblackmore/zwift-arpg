@@ -1,7 +1,9 @@
 // Character save in localStorage (one viewer, one device). Always optional.
+// Not released yet, so there's no save migration: when the save format or content changes, bump the version in KEY and old
+// saves are ignored (the menu offers only NEW).
 import { G, P } from '../core/state.js';
 
-const KEY = 'wd-arpg-1';
+export const KEY = 'wd-arpg-2';
 let store = null; try { store = window.localStorage; store.getItem('x'); } catch (e) { store = null; }
 
 export function save(nextTier) {

@@ -5,13 +5,15 @@ import { readdirSync, statSync } from 'node:fs';
 import { join, basename } from 'node:path';
 
 export const io = new NodeIO();
+// The knight hero (public/models/hero_knight.glb) carries one sword and the round shield; the rest of its kit goes.
+export const HERO_HIDE = ['1H_Sword_Offhand', 'Badge_Shield', 'Rectangle_Shield', 'Spike_Shield', '2H_Sword'];
 export const kb = f => Math.round(statSync(f).size / 1024) + ' KB';
 
 // Clips we drop can leave accessors behind that nothing references; prune() keeps those, so remove them here.
 export const dropLoose = root => { for (const acc of root.listAccessors()) if (acc.listParents().every(p => p === root)) acc.dispose(); };
 
 // Copy the clips of one file into another with the same rig, retargeted to its nodes by name. have: names already present.
-function copyClips(doc, src, have, keep) {
+export function copyClips(doc, src, have, keep) {
   const root = doc.getRoot(), buf = root.listBuffers()[0];
   const nodes = new Map(root.listNodes().map(n => [n.getName(), n]));
   const acc = a => doc.createAccessor().setType(a.getType()).setArray(a.getArray().slice()).setBuffer(buf);
