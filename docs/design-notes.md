@@ -60,14 +60,14 @@ Skill bar:
 | Main | Any attack skill gem | Level 1 | 4 (1 at L1, 2 at L15, 3 at L30, 4 at L45) |
 | Flex A | Any attack or support skill gem | Level 5 | 2 (1 on unlock, 2 at L25) |
 | Flex B | Any attack or support skill gem | Level 12 | 2 (1 on unlock, 2 at L25) |
-| Guard | Guard skill gems (shields, wards, decoys) | Level 1 | 1 |
-| Evade | Evade gems (Blink, Phase, Smoke, Decoy Swap, Flame Dash) | Level 8 | 1 |
+| Guard | Guard skill gems (shields, wards, decoys; shield arts from step 3⅞) | Level 1 | 1 |
+| Evade | Evade gems (Roll, Blink, Phase, Smoke, Decoy Swap, Flame Dash) | Level 8 (level 1 from step 3⅞, with Roll) | 1 |
 
 - Main is "main" because it has the most sockets and is always on the primary button; nothing else.
 - Gems can be moved between any slots that accept them at any time outside a Trial.
 
 Where skill gems come from (they drop as loot):
-- **Shrines: four, once per character, only in the first world (Crypt).** Ride 1: choose 1 of 3 Main gems (Ember Cleave, Frost Strike, Thunder Slam) plus Magic Shield. Level 5: Flex A. Level 8: Evade. Level 12: Flex B. Each is 1 of 3 options for that slot and appears at the entrance of the next level so it can't be missed.
+- **Shrines: four, once per character, only in the first world (Crypt).** Ride 1: choose 1 of 3 Main gems (Ember Cleave, Frost Strike, Thunder Slam) plus Magic Shield. Level 5: Flex A. Level 8: Evade (from step 3⅞: Roll from the start, the level 8 shrine offers Blink or Flame Dash to replace it). Level 12: Flex B. Each is 1 of 3 options for that slot and appears at the entrance of the next level so it can't be missed.
 - **Shrine gems for Flex slots start at Main gem level − 2** (only shrine gems).
 - Guardians: 1 guaranteed gem (skill or support) from the region pool.
 - Trial bosses: their own signature gems.
@@ -167,10 +167,73 @@ Example: a fire knight through the Crypt (illustrative numbers):
 - **Retired:** Fireball, Frost Lance, their supports (Twin Flame, Searing Lance, Chain Reaction, Split, Bigger Army), the Fireball-only affixes (projectiles, pierce) and `G.proj`. Ignite moved to Ember Cleave (and Meteor), at 20% of the hit over 3 s (was 60%; on a melee gem that hits several monsters every swing, 60% was a 1.6× damage support). **Wattbringer**'s burning ground and **Heart of the Storm**'s Arc now work off melee swings (every 4th). Weapon bases are swords, axes and maces; "spell damage" reads "damage to skills" and cast speed reads "attack and cast speed" (the gear rework in step 6 renames them properly).
 - **No save migration** (the game isn't released): the save key moved to `wd-arpg-2`, so old saves are ignored, and all the migration code (mana affixes, old notables, saves without gems) is gone.
 
+### Fight mechanics: shield, roll, stagger (decided Nov 2026, build order step 3⅞)
+
+**Why:** after going melee, the threats built for a kiting caster stopped being fair. The guardian's slam lands on the spot where the autopilot stands, its nova can't be dodged at sword range, and a melee kill puts you inside every death blast and burning aura. On the bike you can't steer, so these threats had no timing answer. The new direction is **Sekiro and Dark Souls**: readable telegraphs, a shield you block and parry with, a roll with invulnerability frames, posture and stagger on both sides, and missed telegraphs that really hurt.
+
+**Core rule: every big threat is beaten by a button press, never by where you stand.** The autopilot decides where you stand and the rider decides when to press. Nothing rewards or punishes standing close or far (owner's call: no point-blank-safe novas, no attacks that are safe inside a ring, and no autopilot step-back after a kill). On keyboard and touch, walking out of a telegraph still works as a bonus, but no fight should need it.
+
+- **Two kinds of incoming damage.**
+  - Chip damage from normal monsters' swings is handled by stats (life, armour, life on hit). It can also be blocked.
+  - Big telegraphed attacks need a button. Never more than one "must react" telegraph at a time.
+- **The telegraph tells you which button answers it.** Each type has its own colour, a distinct sound (riders don't always watch the screen) and a hero-side cue (an exclamation mark over the hero, the shield glinting):
+
+  | Telegraph | Look | Answer |
+  |---|---|---|
+  | Parry | weapon flashes yellow just before the hit | Guard just before it lands: parry, the attacker staggers |
+  | Heavy | red ground or wind-up glow | Block with Guard for reduced damage (big posture cost), or roll through it for none |
+  | Unblockable | purple glow (charges, grabs, some blasts) | Evade only. Blocking it breaks your guard |
+  | Channel | blue charge-up bar on the monster | Fill its stagger to interrupt (heavy hits, parries, Surge) |
+
+- **Missed telegraphs are punishing (owner's call).** At par, a missed guardian heavy takes about 35–50% of your life, so two or three misses kill you, and flasks don't cover sloppy play. Normal packs stay forgiving; rares and guardians are where the punishment lives. Windows start generous for Bluetooth lag (parry about 0.35 s in the Crypt) and tighten in deeper regions and with heat.
+
+**Guard: the knight's shield** (the knight model already carries one; the KayKit packs have `Melee_Block`, `Melee_Blocking`, `Melee_Block_Hit`, `Melee_Block_Attack`).
+- **Hold Guard to block.** Hits from the front are reduced (most physical damage, less elemental) and you move slower. Blocking costs posture (below). The shield also blocks projectiles from the front, so the guardian's nova is answered by blocking or rolling, not by standing in a gap.
+- **A press just before a hit is a parry.** You take no damage and almost no posture, the attacker takes a big stagger hit, and your next swing is a riposte (`Melee_Block_Attack`, bonus damage).
+- **Guard and Evade cancel your own swing's windup.** The Main gem auto-attacks, so the player didn't choose to commit to that swing and shouldn't be locked out of a parry by it.
+- **Player posture instead of stamina** (so the "no mana, Surge is the only resource" rule holds). Blocking fills your posture bar, heavies fill it a lot, and parries barely fill it. It drains when you aren't blocking. If it fills up, your guard breaks: you're stunned for about 1.5 s (`Lie_Down`/`Lie_StandUp` after a big hit) and the next hit is a crit. Holding block forever isn't a strategy; parrying is.
+- **Guard gems become shield arts** (leaning): the shield block and parry are built into the Guard button, and the Guard slot's gem changes what they do instead of being a separate timed buff.
+  - Magic Shield: a perfect parry grants a barrier (and blocking absorbs a little more).
+  - Frost Ward: parries chill the attacker and leave a short frost ring.
+  - Later options include Thorns (blocking reflects damage) and Bulwark (blocking doesn't slow you).
+  - **Open:** whether a press-to-cast Guard gem (the old Magic Shield) still has a place, maybe as a Flex gem.
+
+**Evade from level 1** (owner's call). Every character starts with **Roll**, a starting Evade gem like Magic Shield is for Guard:
+- a short roll (`Dodge_Forward`/`Backward`/`Left`/`Right`) with invulnerability frames for about 0.3–0.4 s and 2 charges
+- with no direction held, it rolls away from the nearest threat like Blink, so it works without aiming on every device
+- the autopilot waits about 0.8 s after an Evade before walking back in, so a roll out of a slam isn't undone by walking straight back into it
+- the level 8 Evade shrine becomes a choice of Blink or Flame Dash to replace Roll
+- every Evade gem gets invulnerability frames, and Flame Dash passes *through* the target instead of stopping in front of it
+- the Evade slot now unlocks at level 1 (was 8)
+
+**Stagger (enemy posture), on guardians and rares.** Each has a stagger bar. Parries fill it the most, then heavy hits (Thunder Slam, ripostes), and Surge makes your hits fill it faster. When it's full, the monster is stunned for about 3 s and takes more damage. The bar drains slowly if you stop pressing. The fight then runs in a loop: defend, break it, punish.
+- **Channels are broken by stagger.** When a guardian charges a big spell, filling its bar in time cancels it.
+- **Bike link:** in RIDE mode a short effort spike fills stagger faster during a channel ("break the channel with a short effort"). It stays optional, so recovery rides can still win by parrying.
+- **Trials (later):** workout intervals can become stagger windows (the Juggernaut is staggered during intervals, the Warden's layers are stagger bars). Fits the Trials section without settling it.
+
+**Threats rebuilt to this rule:**
+
+| Threat | Today | Planned |
+|---|---|---|
+| Guardian swing | plain melee hit | 🟡 parryable; parries are the main way to stagger the guardian |
+| Guardian slam | circle on you, 1.2 s | 🔴 heavy: block for reduced damage and a big posture hit, or roll through for none |
+| Guardian nova | 14 bolts, undodgeable up close | Fired at the hero in a fan: block it with the shield or roll through. Phase 2 adds a second wave |
+| Guardian summon | runners | Unchanged (Cleave clears them; skeletons rise from them) |
+| Guardian enrage | faster, double nova | Adds a 🟣 unblockable charge (Evade only) and a 🔵 channel to break with stagger |
+| Bloater | proximity fuse, then a blast you stand in | 🔴 heavy blast: block it or roll; killing it before the fuse ends defuses it |
+| Volatile rare | death blast after 0.9 s | 🟣 unblockable blast: roll |
+| Burning rare | constant aura | Pulses: a short wind-up, then a fire burst every few seconds, which you block or roll |
+| Normal melee | 0.32 s windup chip hits | Blockable; elites' heavier swings are parryable |
+
+**Dark Souls feel, beyond the fight rules** (leanings, not for this step): monsters can block too (the skeleton packs have block clips), heavy monsters have hyper-armour while winding up, and the death penalty could grow into a Souls-style "recover what you dropped" later (parked).
+
+**Balance tools:** the arena bot needs reaction skill as a setting: a perfect bot, a "good rider" bot (for example 70% of parries, 90% of rolls, with a reaction delay) and a no-defence bot. Targets: the good rider beats every guardian at par; the no-defence bot loses guardians and struggles with rares; the perfect bot is clearly faster, because parrying pays.
+
 ### Evade gems
 
 | Evade | Effect | Suits |
 |---|---|---|
+| Roll | Short roll with invulnerability frames; the starting Evade gem (step 3⅞) | Everyone, from level 1 |
 | Blink | Teleport away from the nearest threat | All-rounders |
 | Phase | Briefly intangible; attacks pass through | Melee, close range |
 | Smoke | Invisible; enemies lose track of you | Snipers, Glass Cannon |
@@ -265,7 +328,7 @@ Region themes and boss pairings are **open**; the shape (6 × 5 + Trial) is lean
 - **Leaning: underpowered early, loot makes the difference.** Character level adds a little damage and mostly life; gear adds most damage. A new hero has a plain starter sword and needs 4–5 swings per skeleton. A full kit of magic gear roughly doubles to triples damage.
 - **Leaning: sawtooth power curve.** Inside a level you outgrow the monsters as drops come in; the next level steps monster life up again. The biggest step is Crypt 1 → 2, because that's when the starter sword is expected to be gone.
 - **No mana (Nov 2026).** Running out of mana only meant walking around doing nothing, so it's gone. Held skills are limited by their cast time, press skills by cooldowns and charges, and the **Surge gauge** is the only resource (see "Built: no mana, Surge gauge" below). Frost Nova has a 6 s cooldown.
-- **Leaning: you start with a generic Magic Shield, not a movement skill.** It absorbs 35% of max life for 5 s on a 10 s cooldown, and fits every build (Flame Dash leaned too far toward a fire build). Movement skills come later through the Evade slot (level 8 shrine). It's the starting Guard gem (gems v1).
+- **Leaning: you start with a generic Magic Shield, not a movement skill.** It absorbs 35% of max life for 5 s on a 10 s cooldown, and fits every build (Flame Dash leaned too far toward a fire build). Movement skills come later through the Evade slot (level 8 shrine). It's the starting Guard gem (gems v1). **Changing in step 3⅞:** Guard becomes the knight's shield (block and parry), Magic Shield becomes a shield art, and everyone starts with Roll in Evade (see "Fight mechanics").
 - **Targets** (at par level with par gear; exact numbers in `src/data/balance.js`):
 
 | Thing | Target |
