@@ -153,10 +153,25 @@ Status: ✅ done · ▶ next · ☐ later
 
 ## Step 3: Gems v2 ☐
 
+**Goal:** support gems change how a skill works, gems drop as loot, and spare gems can be fed into the ones you use. Design: "Gem model in detail" in the design notes.
+
 - **Support gems and sockets on the skill bar** (design notes: "Gem model in detail", skill bar table). The current passive notables become supports: Twin Flame, Searing Lance, Forked Sky, Shatter, Conduit, Ignite, Chain Reaction, Warding.
 - **Gem sources:** guardians always drop a gem (skill or support) from the region pool; rares sometimes.
 - **AP and feeding:** move AP between gems, with the "never lose a skill" rule.
 - **Gem tiers and fusing:** can wait until the Forest.
+
+**Build steps** (same pattern as step 2: a small foundation, then parallel packages):
+1. **Foundation (one branch, first):**
+   - Data: `SUPPORTS` in `src/data/gems.js`: `{ n, icon, col, d, for: [gem ids or kinds], fn(s) }`. `fn` adds to the raw stat sums like a passive's, but only for the skill it is socketed with.
+   - State: `P.sock` (slot → array of support gem ids), saved in `src/game/save.js`. Socket counts per slot from the skill bar table: Main 1 at level 1, Flex 1 each. Later counts (L15+) are data only for now.
+   - Stats: `computeStats` takes the sockets too, and the per-skill stats it returns (`pierce`, `proj`, `chains`, `novaR`, `shieldMul`...) come from that skill's own supports, not a global pool. Keep `formulas.js` pure.
+   - Gem panel: sockets under each slot, tap a support to socket it. Supports live in the same gem bag.
+2. **Parallel packages, after the foundation:**
+   - **Supports:** move the eight notables out of `src/data/passives.js` into `SUPPORTS`, one each, plus one support for each step 2 gem (e.g. Frost Lance: Split; Skeletons: Bigger Army; Meteor: Twin Meteor). Remove them from the level-up cards.
+   - **Gem drops:** guardians drop one gem from the region pool (`GEM_POOL` in `src/data/gems.js`); rares sometimes (`DROP.gem` in `src/data/items.js`). A gem on the ground looks different from items; picking it up goes to the gem bag with a toast.
+   - **Feeding:** in the gem panel, feed a gem into another (table in the design notes: same gem 100%, same type 50%, different 25%). Never lose a skill: feeding your last copy leaves a level 1 copy behind.
+3. **Balance:** the tools' par bar gains par supports (`parBar` in `src/data/balance.js`). Losing the notable passives makes level-up cards weaker; that's fine until the tree (step 4) replaces them.
+4. **Tests:** socketing a support changes only its own skill; supports round-trip through saves; a guardian drops a gem; feeding moves XP and never deletes your last copy.
 
 ## Step 4: Passive tree ☐
 
