@@ -7,6 +7,7 @@ import { G } from '../core/state.js';
 import { rand, clamp, dist } from '../core/util.js';
 import { dun, buildDungeon } from './dungeon.js';
 import { GEN, OBSTACLE_DENSITY } from '../data/dungeon.js';
+import { seeded } from '../core/rng.js';
 import { generateLevel, walkField, cellOf, lineDist, solid, wallHit } from './gen.js';
 
 export const HALF = GEN.zones * GEN.zoneCells * GEN.cell / 2; // map spans -HALF..HALF on x and z
@@ -119,7 +120,8 @@ function rock(x, z, r, solid) {
 
 export function buildMap() {
   scene.remove(G.world); G.world = new T.Group(); scene.add(G.world); G.obst = []; G.torches = [];
-  const L = G.layout = generateLevel(); L.seen = new Uint8Array(L.n * L.n);
+  // Dev: with ?seed=N (G.devSeed, set in main.js) map tier t gets layout N + t − 1, the one the map viewer (/maps/) shows.
+  const L = G.layout = generateLevel({}, G.devSeed ? seeded(G.devSeed + G.tier - 1) : Math.random); L.seen = new Uint8Array(L.n * L.n);
   G.start = { x: L.start.x, z: L.start.z }; G.bossSpot = { x: L.boss.x, z: L.boss.z };
   G.dressed = dun.ready; ground.visible = !dun.ready; // the dressed level draws its own floor, only where there is floor
   if (dun.ready) buildDungeon(L); else primitiveMap(L);
