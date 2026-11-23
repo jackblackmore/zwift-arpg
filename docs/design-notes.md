@@ -432,6 +432,31 @@ The owner's call after playing: the autopilot shouldn't decide which way to go o
 - **Only in autopilot (RIDE).** With manual movement you walk where you like.
 - **Later (beats, step 10):** a sign can say what's behind the door (elite, shrine, treasure, breather), so the choice shapes the ride like picking a Zwift route.
 
+### Level generation v2 (decided Nov 2026, build order step 10)
+
+After the route choice went in, the owner's calls: give rooms roles, show what's behind a door, build levels on purpose toward the 30-minute ride, allow forks later but backtracking is fine, mark the choices already made, add hand-made set pieces, and give rooms real doors with fog gates. The room-and-corridor generator (step 8) stays; this puts content and a time budget on top of it.
+
+- **Room roles.** The generator gives every room a role, and the role decides what's in it (the beat types above):
+
+  | Role | What it is | Door sign | Rough time at par |
+  |---|---|---|---|
+  | Combat | normal packs (today's rooms) | ⚔ | 1–2 min |
+  | Elite | a named rare with minions, better loot | ☠ | 2–3 min |
+  | Ambush | the room seals and waves spawn | ⚠ | 2–3 min |
+  | Treasure | a vault or chest, sometimes trapped or guarded | ✦ | about 1 min |
+  | Shrine | a gamble: a buff, or a risk for better loot | ⛬ | under 1 min |
+  | Rest | fountain or campfire: heal, refill flasks, a quiet minute | ☗ | about 1 min |
+  | Guardian | the level's end, behind a fog gate | ♛ | 2–3 min |
+
+  The times are first guesses; measuring them is the first build step.
+- **Signs show the kind, not the exact reward** (Hades-style): the junction signs (Route choice above) carry the role's icon and name, for example "☠ Elite" or "☗ Rest". What exactly drops stays a surprise.
+- **Choices already made are marked.** A sign for a way you've cleared shows greyed with a ✓; a Back sign shows what's still waiting behind you (for example "Back · ✦ Treasure"). Backtracking is fine: you can come back and choose again, and the default (clear everything) still works.
+- **Built to a time budget.** Each role has an estimated time at par (fight time from the balance maths plus walking). The generator lays out a level, adds up the estimate and adjusts (more or fewer rooms, a bigger beat) until it lands near the target: **about 30 minutes for a full clear at par**, with skipping side branches making it shorter. `npm run balance` reports the estimate for a level and a headless run measures a real one, so changes that move levels toward 30 minutes are deliberate, not guessed.
+- **The rhythm along the route:** warm-up combat rooms, then a small beat, a medium beat, a rest, another medium beat, a big beat, a quiet room, the guardian (the template in "Beats"). The main route carries the rhythm; side branches carry optional rewards (treasure, elite, shrine), so choosing a branch is choosing more risk and reward.
+- **Forks later.** For now the level stays a tree (dead-end side rooms, walk back). Later, a few forks that rejoin: two ways to the same room, for example a short dangerous way and a longer safer one.
+- **Hand-made set pieces.** A few authored room templates (guardian arena, vault, shrine room, rest room, ambush hall) the generator places into zones of the right size, for landmarks and so special rooms look special.
+- **Real doors.** The generator records each room's doors (side, exact gap in the wall, the room it leads to) instead of working them out from corridor points. Doorways get a frame (the KayKit arched wall piece). **Fog gates** (Dark Souls) close the guardian's arena and elite rooms: walking through commits you to the fight until it's won (or you die). Signs stand at the real doorways.
+
 ### Beats (pacing inside a level)
 
 A beat is a moment where something changes. Levels follow an interest curve: waves of intensity, with each peak higher than the last, ending on the guardian. Normal packs keep a baseline between beats.

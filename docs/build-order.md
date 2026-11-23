@@ -21,7 +21,7 @@ Status: ✅ done · ▶ next · ☐ later
 | 7 | Balance pass 2: the whole character, every Crypt tier | ☐ |
 | 8 | Room-and-corridor levels (built ahead of steps 2–7; level length still to tune after step 7) | ✅ |
 | 9 | Crypt content: 5 distinct levels, new enemies, guardians | ☐ |
-| 10 | Beats inside a level | ☐ |
+| 10 | Level generation v2: room roles, doors and fog gates, the beat rhythm, a measured 30-minute budget (do before step 9) | ☐ |
 | 11 | Crypt Trial boss (workout fight, RIDE mode) | ☐ |
 | 12 | Bluetooth (Zwift Ride, KICKR) | ☐ |
 
@@ -31,7 +31,7 @@ Status: ✅ done · ▶ next · ☐ later
 1. **The owner plays the harder start** (design notes, Balance: "Harder start") and reports back: does the first map feel a little underpowered, is 5 swings per zombie good or slow, does loot feel earned, is the first guardian hard but fair, how does the parry window feel?
 2. **Step 3⅞ part 2** (brief below): tune from that, make stagger pay off, then guardian channels, shield arts, elites' heavy swings.
 3. **Step 4, the passive tree**, now with block, posture, parry and riposte nodes.
-4. Then steps 5–7 (defence, gear, balance pass 2) to finish the character, and steps 9–11 for the world.
+4. Then steps 5–7 (defence, gear, balance pass 2) to finish the character, then step 10 (level generation v2) before step 9 (Crypt content), then step 11.
 
 ---
 
@@ -374,17 +374,25 @@ The five Crypt levels from the design notes (Crypt Halls, Ossuary, Flooded Tombs
 
 Monster data goes in `src/data/monsters.js`. Add each new enemy and guardian to the arena encounter list.
 
-## Step 10: Beats ☐
+## Step 10: Level generation v2 (room roles, doors, a 30-minute budget) ☐
 
-Beats inside a level follow the 30-minute template in the design notes:
-- elite
-- ambush
-- treasure
-- gamble
-- breather
-- guardian last
+**Do this before step 9:** it gives the Crypt levels a structure to fill. Design: "Level generation v2" and "Beats" in the design notes (the owner's calls are there).
 
-Each beat has a signal, a payoff and a release. Beats are where most of the good loot comes from.
+**Goal:** every room has a role you can see from its door, levels follow the beat rhythm, and a full clear at par takes about 30 minutes, measured, not guessed.
+
+**Build:**
+1. **Measure first.** A headless full-level run (the RIDE autopilot with the arena bot's reaction skill, at par) that reports minutes per level: walking, fighting, waiting at junctions. Add a level-time estimate to `npm run balance`. Record today's number in the design notes before changing anything.
+2. **Doors.** `src/world/gen.js` records `room.doors: [{ side, x, z, to, edge }]` at the real gaps in the walls. `src/game/route.js` uses them for its signs (signs at the doorways). Door frames from the KayKit arched wall piece in `src/world/dungeon.js` (primitive fallback when `dun.ready` is false).
+3. **Room roles.** The generator assigns roles along the route by the rhythm template, and puts optional roles (treasure, elite, shrine) on side branches. Data in `src/data/dungeon.js` (role weights, the template, time estimates per role). Build each role's content: elite (a named rare and minions, more loot), ambush (seal the room, waves), treasure (a chest that drops loot, sometimes guarded), shrine (a choice of buff or risk), rest (heal, refill flasks, no monsters). Loot numbers in `src/data/items.js`.
+4. **Signs show roles and progress.** The junction signs carry the role icon and name; cleared ways show greyed with a ✓; Back shows what's left behind.
+5. **Fog gates** on the guardian arena and elite rooms: you can't leave until the fight ends (or you die). The autopilot treats them as a commitment.
+6. **Time budget.** The generator sums the role estimates and adjusts the level (room count, beat size) to land near 30 minutes at par. Re-measure with step 1's run and tune the estimates until they agree.
+7. **Set pieces.** A few authored room templates (guardian arena, vault, shrine room, rest room, ambush hall).
+8. **Later (not this step):** forks that rejoin, so some choices don't mean walking back.
+
+**Tests:** every room has a role and doors that lead where the layout says; the rhythm holds on 200 seeds; a rest room heals and has no monsters; an ambush seals and opens again; a fog gate holds you in until the guardian dies; the time estimate for a level lands within the target range; signs show roles and ✓ for cleared ways.
+
+**Done when:** a full clear at par measures about 30 minutes (say 25–35), every door shows what kind of room is behind it, and `npm run build && npm test` pass.
 
 ## Step 11: Crypt Trial ☐
 
