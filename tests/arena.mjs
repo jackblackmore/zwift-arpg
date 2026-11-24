@@ -5,7 +5,7 @@
 // guardians and crowds. It never steps out of anything: it parries, blocks and rolls at a reaction skill (src/game/arena.js):
 // default a good rider (parries 70% of swings, rolls 90% of heavies in time), 'perfect' never misses, 'careless' never defends.
 // 'surged' is how long it spent surging (the Surge gauge holds data/skills.js SURGE.max seconds). parry/block/roll/break count
-// parries, blocked hits, rolls and guard breaks. Careless rows should do clearly worse and perfect ones clearly better: the skill is timing.
+// parries, blocked hits, rolls and guard breaks; stag/fin count monsters staggered and finishers landed. Careless rows should do clearly worse and perfect ones clearly better: the skill is timing.
 import { preview } from 'vite';
 import puppeteer from 'puppeteer-core';
 import { existsSync } from 'node:fs';
@@ -48,7 +48,7 @@ try {
   await page.waitForFunction(() => window.__dbg && window.__dbg.ready(), { timeout: 20000 });
   await page.evaluate(() => window.__dbg.start(true));
   console.log(`Watt Dungeon arena · real game code, scripted player · times in game seconds${MAIN ? ' · Main gem: ' + MAIN : ''}\n`);
-  console.log('tier lvl gear   encounter                     result   time   taken  lowest  flasks  parry block roll break  surged');
+  console.log('tier lvl gear   encounter                     result   time   taken  lowest  flasks  parry block roll break stag fin  surged');
   for (let t = 1; t <= maxTier; t++) {
     for (const enc of encounters(t, x => Math.round(x * (1 + .2 * (t - 1))))) {
       const r = await page.evaluate((t, enc, main) => {
@@ -56,7 +56,7 @@ try {
         return { ...D.arena({ ...enc, tier: t, main, lvl: enc.under ? par - enc.under : undefined }), gear: enc.gear || D.parGear(t) };
       }, t, enc, MAIN);
       const bad = r.result !== 'clear' ? '  ✗' : '';
-      console.log(`${String(t).padStart(4)} ${String(r.lvl).padStart(3)} ${r.gear.padEnd(6)} ${enc.name.padEnd(29)} ${r.result.padEnd(7)} ${(r.t + 's').padStart(6)} ${String(r.taken).padStart(6)} ${(Math.round(r.lowest * 100) + '%').padStart(7)} ${String(r.flasks).padStart(7)} ${String(r.parries).padStart(6)} ${String(r.blocks).padStart(5)} ${String(r.rolls).padStart(4)} ${String(r.breaks).padStart(5)} ${(r.surged + 's').padStart(7)}${bad}`);
+      console.log(`${String(t).padStart(4)} ${String(r.lvl).padStart(3)} ${r.gear.padEnd(6)} ${enc.name.padEnd(29)} ${r.result.padEnd(7)} ${(r.t + 's').padStart(6)} ${String(r.taken).padStart(6)} ${(Math.round(r.lowest * 100) + '%').padStart(7)} ${String(r.flasks).padStart(7)} ${String(r.parries).padStart(6)} ${String(r.blocks).padStart(5)} ${String(r.rolls).padStart(4)} ${String(r.breaks).padStart(5)} ${String(r.staggers).padStart(4)} ${String(r.finishers).padStart(3)} ${(r.surged + 's').padStart(7)}${bad}`);
     }
     console.log('');
   }

@@ -525,8 +525,16 @@ try {
       b.cast = { kind: 'slam', t: 5, x: P.x, z: P.z, r: 2 }; const st = [];
       for (let i = 0; i < 6 && !(b.stun > 0); i++) { P.parryCd = 0; ctl.tap.guard = true; D.sim(1); D.hurtP(10, 'boss', { from: b, by: b }); st.push(Math.round(b.stag * 100) / 100); }
       out.stagSteps = st.join(','); out.stunned = b.stun > 0 && !b.cast;
-      ctl.guard = false; D.sim(12); const hb = b.hp; P.aimAt = [b.x, b.z]; D.strike('sword'); P.aimAt = null; D.sim(10); const stunHit = hb - b.hp;
-      b.stun = 0; b.stag = 0; D.sim(1); const hb2 = b.hp; P.aimAt = [b.x, b.z]; D.strike('sword'); P.aimAt = null; D.sim(10); out.stunTaken = stunHit > (hb2 - b.hp) * 1.15;
+      // The first swing on a staggered guardian is a finisher (about STAGGER.finisher × a stunned swing); the rest of the stun
+      // still hits harder than normal. Crits, the hit spread (Math.random pinned) and the parry's riposte are off so the comparison is fair.
+      const crit = S.crit, rnd = Math.random; S.crit = 0; Math.random = () => .5; const bswing = () => { const h = b.hp; P.aimAt = [b.x, b.z]; D.strike('sword'); P.aimAt = null; D.sim(10); return h - b.hp; };
+      ctl.guard = false; D.sim(12); P.riposteT = 0; const f0 = P.finishers, finHit = bswing(); out.finCount = P.finishers - f0; const stunHit = bswing(); out.stillStunned = b.stun > 0;
+      b.stun = 0; b.stag = 0; D.sim(1); const plainHit = bswing(); S.crit = crit; Math.random = rnd;
+      out.finRatio = Math.round(finHit / stunHit * 100) / 100; out.stunTaken = stunHit > plainHit * 1.08;
+      out.finisher = out.finCount === 1 && out.stillStunned && out.finRatio > D.STAGGER.finisher * .7 && P.finishers - f0 === 1;
+      // A hit the guardian lands (not blocked or parried) steadies it: its stagger bar drops.
+      b.stag = .8; P.invuln = 0; P.rollT = 0; ctl.guard = false; P.blocking = false; P.parryT = 0; D.sim(1); D.hurtP(5, 'boss', { from: b, by: b }); out.recover = b.stag < .8 - D.STAGGER.recover * .9;
+      b.stag = 0;
       // Bloaters: killed before the fuse runs out, no blast; a fuse that runs out blows up.
       clear(); const bl = foe('bloater', 0, 4); D.kill(bl); out.defused = !G.queue.some(q => q.k === 'bloat');
       const bl2 = foe('bloater', 0, 1); bl2.spd = 0; D.sim(40); out.fused = bl2.deathT > 0 && bl2.fused;
@@ -544,6 +552,8 @@ try {
     check(r.riposte, 'fight: the first swing after a parry is a riposte that hits harder');
     check(r.rollPause && r.rollMiss && r.rollAway, 'fight: Roll (Evade) moves you away from the threat, untouchable, and the autopilot holds still after it');
     check(r.stunned && r.stunTaken, `fight: parries fill the guardian's stagger bar (${r.stagSteps}); full, it's stunned, its ability cancelled, and takes more damage`);
+    check(r.finisher, `fight: the first hit on a staggered guardian is a finisher (${r.finRatio}× the next stunned hit), once per stagger`);
+    check(r.recover, 'fight: a hit the guardian lands on you (not blocked or parried) knocks its stagger bar back');
     check(r.defused && r.fused, 'fight: a bloater killed before its fuse runs out doesn\'t blow up; one whose fuse runs out does');
     check(errors.length === 0, `fight: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   }
