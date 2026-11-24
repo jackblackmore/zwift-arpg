@@ -26,6 +26,7 @@ import { SK } from './data/skills.js';
 import { STAGGER, BOSS, RARE } from './data/monsters.js';
 import { START_WEAPON, parLevel, parBar, PAR_GEAR } from './data/balance.js';
 import { arena } from './game/arena.js';
+import { levelRun } from './game/levelrun.js';
 import { kill, hurtP } from './game/combat.js';
 import { castArc, castNova, castDash, aim } from './game/skills.js';
 import { frostRings } from './game/sk/arts.js';
@@ -110,7 +111,7 @@ window.__dbg = {
   start: fresh => begin(fresh !== false),
   sim: n => { for (let i = 0; i < n; i++) { update(.033); updFx(.033); } },
   enemies: () => G.enemies, packs: () => G.packs, items: () => G.ground,
-  arena, parLevel, parBar, parGear: PAR_GEAR, newMap, kill, dropItem, strike, targets, aim, autoTarget, meleeReach, setAutoAtk, castArc, castNova, castDash, openInv, openPass, openGems, openShrine, equip,
+  arena, levelRun, parLevel, parBar, parGear: PAR_GEAR, newMap, kill, dropItem, strike, targets, aim, autoTarget, meleeReach, setAutoAtk, castArc, castNova, castDash, openInv, openPass, openGems, openShrine, equip,
   xpNeedFor, routeTarget, resetRoute, takeShrine, shrineDue, placeGem, addGem, socketGem, unsocket, feedGem, feedPreview, sockCount, dropGem, pickUp, PASS, GEMS, SUPPORTS, recalc, save, load, begin, CAST, blocked, spawnEnemy, hurtP, cast: id => CAST[id] ? CAST[id]() : false, frostRings,
   skel, minions: () => G.minions, // Raise Skeletons support: skel.raise(x, z, gem), skel.cap(), skel.living()
 };

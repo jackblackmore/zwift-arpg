@@ -8,7 +8,8 @@
     "preview": "vite preview",
     "test": "node tests/sim.mjs",
     "balance": "node scripts/balance.mjs",
-    "arena": "node tests/arena.mjs"
+    "arena": "node tests/arena.mjs",
+    "level": "node tests/level.mjs"
   },
   "repository": {
     "type": "git",

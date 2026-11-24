@@ -6,6 +6,7 @@ import { MT, TIER, PACK } from '../data/monsters.js';
 import { SLOTS, BASES, IMPL, AFF } from '../data/items.js';
 import { GEMS, GEM, SUPPORTS, supFits, FEED } from '../data/gems.js';
 import { SURGE, SK } from '../data/skills.js';
+import { RIDE } from '../data/ride.js';
 
 // Item level scaling of rolled values (flat and percent affixes).
 export const flatScale = il => 1 + ITEM_SCALE.flat * (il - 1), pctScale = il => 1 + ITEM_SCALE.pct * (il - 1);
@@ -107,3 +108,6 @@ export function feedShare(food, into, cap = GEM.cap) {
   const base = food.gem === into.gem ? FEED.same : a.kind === b.kind ? FEED.kind : FEED.other;
   return base + (food.gem === into.gem && food.lvl >= cap ? FEED.mastery : 0);
 }
+
+// RIDE mode: walking speed multiplier at `rel` of FTP (data/ride.js RIDE.move): nothing below `stop`, full at `full`, capped.
+export const rideMove = rel => { const M = RIDE.move; return rel < M.stop ? 0 : rel < M.full ? (rel - M.stop) / (M.full - M.stop) : Math.min(M.max, 1 + (rel - M.full) * .5); };

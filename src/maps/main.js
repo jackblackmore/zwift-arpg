@@ -2,7 +2,7 @@
 // Dev tool: it uses the game's own generator (src/world/gen.js) with a seeded rng (src/core/rng.js), and "Play this map"
 // opens the game on the same layout with ?seed= (the packs are still placed at random in the game).
 import './maps.css';
-import { generateLevel } from '../world/gen.js';
+import { generateLevel, junctionRooms } from '../world/gen.js';
 import { seeded } from '../core/rng.js';
 import { HERO } from '../data/balance.js';
 
@@ -14,12 +14,7 @@ const st = { seed: 1, grid: false, cells: [] };
 try { const q = new URLSearchParams(location.search).get('seed'); if (q) st.seed = Math.max(1, parseInt(q, 10) || 1); } catch (e) {}
 
 const level = seed => generateLevel({}, seeded(seed));
-// Rooms with more than one way on once you're in them (the autopilot's junctions, game/route.js): a route room with a side room off it.
-function junctions(L) {
-  const deg = new Map(L.rooms.map(r => [r.id, 0]));
-  for (const e of L.edges) { deg.set(e.a, deg.get(e.a) + 1); deg.set(e.b, deg.get(e.b) + 1); }
-  return L.rooms.filter(r => r.kind !== 'side' && r.kind !== 'boss' && deg.get(r.id) >= (r.kind === 'start' ? 2 : 3));
-}
+const junctions = junctionRooms;
 
 // Draws layout L into the box (x, y, s × s). big: labels and the route.
 function drawLevel(L, x, y, s, big) {

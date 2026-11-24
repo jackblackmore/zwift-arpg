@@ -18,14 +18,15 @@ import { RIDE } from '../data/ride.js';
 import { EXTRA } from '../data/items.js';
 import { SURGE, SK } from '../data/skills.js';
 import { clamp } from '../core/util.js';
+import { rideMove } from './formulas.js';
 
 // Effort (RIDE mode): how %FTP and cadence scale movement and casting, and how hard you want to surge (0..1).
 // spike (0..1): how far above a short-effort spike you are (RIDE.spike), which breaks a guardian's channel faster.
 // Not riding: everything 1, surge from the Surge button (ctl.surge) and no spike.
 export function effortMods(E) {
   if (!E) return { move: 1, cast: 1, surge: ctl.surge ? 1 : 0, spike: 0 };
-  const M = RIDE.move, W = RIDE.power, U = RIDE.surge, rel = E.rel;
-  const move = rel < M.stop ? 0 : rel < M.full ? (rel - M.stop) / (M.full - M.stop) : Math.min(M.max, 1 + (rel - M.full) * .5);
+  const W = RIDE.power, U = RIDE.surge, rel = E.rel;
+  const move = rideMove(rel);
   const power = rel >= W.endurance ? 1 : W.slowest + (1 - W.slowest) * clamp((rel - W.low) / (W.endurance - W.low), 0, 1);
   const cast = power * (1 + clamp((E.cad - RIDE.cadence.from) * RIDE.cadence.per, 0, RIDE.cadence.max));
   const K = RIDE.spike;
