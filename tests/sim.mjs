@@ -321,6 +321,58 @@ try {
     check(errors.length === 0, `level: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   }
   {
+    // Set pieces in the live game (world/gen.js setPieces): over several maps every piece is a real collider, the chest stands on
+    // its vault's plinth, the rest flame in its chapel and the elite at the far end of its hall; the monsters of those rooms (the
+    // elite and minions, chest guards, the guardian) never spawn inside a wall or a piece. Then the same without the dungeon models
+    // (the primitive fallback). SCREENSHOT also saves one shot of each set piece.
+    const { page, errors } = await open('/');
+    const r = await page.evaluate(() => {
+      const D = window.__dbg, G = D.G, P = D.P, out = { maps: 0, sets: {}, collMissing: 0, chestOff: 0, flameOff: 0, eliteOff: 0, spawned: 0, inside: 0 };
+      const near = (a, b, d) => Math.hypot(a.x - b.x, a.z - b.z) < d;
+      const look = () => {
+        const L = G.layout; out.maps++;
+        for (const rm of L.rooms) if (rm.set) {
+          out.sets[rm.set.kind] = (out.sets[rm.set.kind] || 0) + 1;
+          for (const p of rm.set.props) for (const [x, z, cr] of p.c) if (!G.obst.some(o => o.x === x && o.z === z && o.r === cr)) out.collMissing++;
+          const sp = rm.set.spot; if (!sp) continue;
+          if (rm.set.kind === 'vault' && !G.chests.some(c => c.room === rm.id && near(c, sp, .01))) out.chestOff++;
+          if (rm.set.kind === 'chapel' && !(G.rest && G.rest.room === rm.id && near(G.rest, sp, .01))) out.flameOff++;
+          if (rm.set.kind === 'hall' && !G.packs.some(p => p.elite && p.room === rm.id && near(p, sp, .01))) out.eliteOff++;
+        }
+        const ids = new Set(L.rooms.filter(rm => rm.set).map(rm => rm.id)), before = new Set(G.enemies);
+        for (const p of [...G.packs.filter(p => ids.has(p.room)), { x: G.bossSpot.x, z: G.bossSpot.z }]) { P.x = p.x + 3; P.z = p.z; P.life = 1e5; D.ctl.mx = D.ctl.mz = 0; D.sim(1); }
+        for (const e of G.enemies) if (!before.has(e)) { out.spawned++; if (D.blocked(e.sx, e.sz, .25)) out.inside++; }
+      };
+      D.start(true); look();
+      for (let m = 0; m < 7; m++) { D.newMap(1); look(); }
+      out.dressed = D.dun.ready; D.dun.ready = false; // the primitive fallback
+      for (let m = 0; m < 4; m++) { D.newMap(1); look(); }
+      out.fallback = !G.dressed; D.dun.ready = out.dressed; D.newMap(1);
+      return out;
+    });
+    if (process.env.SCREENSHOT) { // each set piece, from inside the room looking at its spot
+      for (const kind of ['arena', 'vault', 'chapel', 'hall']) {
+        await page.evaluate(kind => {
+          const D = window.__dbg, G = D.G, P = D.P, want = r => r.set && r.set.kind === kind && r.set.spot && (kind !== 'vault' || r.set.ante);
+          for (let n = 0; n < 40 && !G.layout.rooms.some(want); n++) D.newMap(1);
+          const r = G.layout.rooms.find(want); if (!r) return;
+          // stand on the far side of the room's centre from the spot, toward the camera if we can, so the room fills the shot
+          const sp = r.set.spot; let best = null;
+          for (let a = 0; a < 24; a++) for (const d of kind === 'vault' ? [4.5, 4, 3.5] : [8, 7, 6, 5, 4]) { const x = sp.x + Math.cos(a / 24 * 6.28) * d, z = sp.z + Math.sin(a / 24 * 6.28) * d; if (!D.blocked(x, z, .6) && D.los(x, z, sp.x, sp.z) && (!best || z + d * .5 > best[2])) best = [x, z, z + d * .5]; }
+          if (best) { P.x = best[0]; P.z = best[1]; } P.life = 1e5; G.bannerT = .01; G.packs.forEach(p => { if (p.room === r.id) p.spawned = true; }); // keep the room quiet for the picture
+          D.sim(3); D.snapCam(); document.getElementById('banner').style.opacity = 0;
+        }, kind);
+        await new Promise(r => setTimeout(r, 300)); await page.screenshot({ path: process.env.SCREENSHOT.replace(/\.png$/, `-${kind}.png`) });
+      }
+    }
+    console.log('  set pieces live:', JSON.stringify(r));
+    check(r.sets.arena === r.maps && r.sets.vault > 0 && r.sets.hall > 0 && r.collMissing === 0, `set pieces: built in the live game over ${r.maps} maps (${JSON.stringify(r.sets)}), every piece a collider`);
+    check(r.chestOff === 0 && r.flameOff === 0 && r.eliteOff === 0, `set pieces: the chest on its plinth, the rest flame in its chapel, the elite at the end of its hall (${r.chestOff}, ${r.flameOff}, ${r.eliteOff} elsewhere)`);
+    check(r.spawned > 20 && r.inside === 0, `set pieces: no monster in a set-piece room or the guardian spawns inside a wall or a piece (${r.spawned} spawned, ${r.inside} inside)`);
+    check(r.dressed && r.fallback, 'set pieces: the primitive fallback (no dungeon models) builds them too');
+    check(errors.length === 0, `set pieces: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
+  }
+  {
     // The autopilot with the level cleared walks the route to the guardian: round every corner, no teleporting.
     const { page, errors } = await open('/');
     const r = await page.evaluate(() => {

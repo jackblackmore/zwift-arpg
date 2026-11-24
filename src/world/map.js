@@ -8,7 +8,7 @@ import { rand, clamp, dist } from '../core/util.js';
 import { dun, buildDungeon } from './dungeon.js';
 import { GEN, OBSTACLE_DENSITY, SET } from '../data/dungeon.js';
 import { seeded } from '../core/rng.js';
-import { generateLevel, walkField, cellOf, lineDist, solid, wallHit } from './gen.js';
+import { generateLevel, walkField, cellOf, lineDist, solid, wallHit, roomAt } from './gen.js';
 
 export const HALF = GEN.zones * GEN.zoneCells * GEN.cell / 2; // map spans -HALF..HALF on x and z
 
@@ -184,7 +184,7 @@ function primitiveMap(L) {
     g.position.set(x, 0, z); G.world.add(g);
   }
   for (let k = 0; k < 14; k++) {
-    let x, z, tries = 0; do { x = rand(-HALF + 2, HALF - 2); z = rand(-HALF + 2, HALF - 2); } while ((blocked(x, z, .8) || lineDist(L, x, z) < 1.6) && ++tries < 60);
+    let x, z, tries = 0; do { x = rand(-HALF + 2, HALF - 2); z = rand(-HALF + 2, HALF - 2); } while ((blocked(x, z, .8) || lineDist(L, x, z) < 1.6 || (roomAt(L, x, z) || {}).set) && ++tries < 60); // set pieces have their own
     if (tries >= 60) continue;
     const g = new T.Group(); const p = new T.Mesh(GCY, woodMat); p.scale.set(.12, 1.2, .12); p.position.y = .6; g.add(p);
     const bowl = new T.Mesh(GCY, rockMat); bowl.scale.set(.3, .15, .3); bowl.position.y = 1.25; g.add(bowl);
