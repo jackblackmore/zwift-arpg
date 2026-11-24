@@ -22,7 +22,7 @@ function piece(name, s) {
   const inner = new T.Group(); for (const p of t.parts) { const m = new T.Mesh(p.geo, p.mat); m.applyMatrix4(p.m); m.castShadow = true; m.receiveShadow = true; inner.add(m); }
   inner.scale.setScalar(s); inner.position.y = -t.minY * s; g.add(inner); return g;
 }
-const packLeft = p => p && (!p.spawned || p.list.some(e => !e.deathT));
+const packLeft = p => p && G.packs.includes(p) && (!p.spawned || p.list.some(e => !e.deathT)); // a guard pack that's gone from the map (tests) doesn't count
 
 // A spot in room r: `wall` wants one against a wall (a chest), otherwise in the open; always clear of props and the corridor lines.
 function spotIn(L, r, rad, wall) {
