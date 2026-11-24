@@ -47,7 +47,8 @@ export function initRooms() {
       g.rotation.y = Math.atan2(r.x - x, r.z - z); g.position.set(x, lift, z);
       const glow = glowSprite(0xffd23f, 2.6); glow.material = glow.material.clone(); glow.position.set(x, 1 + lift, z); const dc = decal(0xffc040, 3.2); dc.position.set(x, .05 + lift, z);
       G.world.add(g, glow, dc); G.obst.push({ x, z, r: .7 });
-      G.chests.push({ room: r.id, x, z, g, glow, dc, open: false, guarded: Math.random() < CHEST.guarded, guard: null, t: 0 });
+      const fl = Math.hypot(r.x - x, r.z - z) || 1, front = lift ? 1.7 : 0; // loot flies from in front of a plinth, not out of it
+      G.chests.push({ room: r.id, x, z, dropX: x + (r.x - x) / fl * front, dropZ: z + (r.z - z) / fl * front, g, glow, dc, open: false, guarded: Math.random() < CHEST.guarded, guard: null, t: 0 });
     }
     if (r.role === 'rest' && !G.rest) {
       const sp = r.set && r.set.spot, [x, z] = sp ? [sp.x, sp.z] : spotIn(L, r, 1.6, false) || [r.x + L.cell * .8, r.z + L.cell * .8], s = DUNGEON.scale, g = new T.Group(); // a rest chapel's flame (world/gen.js set pieces)
@@ -65,9 +66,9 @@ export function initRooms() {
 
 function openChest(c) {
   c.open = true; c.t = 0; const D = DROP.chest, n = randi(D.n[0], D.n[1]);
-  for (let i = 0; i < n; i++) G.queue.push({ k: 'later', t: .25 + i * .12, fn: () => dropItem(c.x, c.z, D.boost) });
+  for (let i = 0; i < n; i++) G.queue.push({ k: 'later', t: .25 + i * .12, fn: () => dropItem(c.dropX, c.dropZ, D.boost) });
   burst(c.x, 1, c.z, 0xffd23f, 40, 5); floatT(c.x, 2.4, c.z, 'TREASURE', '#ffd23f', 18, 1.4); SFX.loot(2);
-  if (dun.ready) { const coins = piece('coin_stack_small', DUNGEON.scale * 1.4); coins.position.set(c.x + .9, 0, c.z + .5); G.world.add(coins); }
+  if (dun.ready) { const coins = piece('coin_stack_small', DUNGEON.scale * 1.4); coins.position.set(c.dropX + .9, 0, c.dropZ + .5); G.world.add(coins); }
 }
 
 // Every tick: open chests you reach (once their guards are dead), rest at the flame.

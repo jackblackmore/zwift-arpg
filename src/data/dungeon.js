@@ -104,7 +104,7 @@ export const REST = { calm: 10 };
 //     waiting at the far end (`end` from the far wall) between two braziers, coffins along the walls.
 export const SET = {
   wallGap: .9, lineGap: 1.6,
-  arena: { role: 'guardian', name: 'Guardian arena', pillar: 6.8, corner: 1.5, ring: 9, dais: 3.2, lift: .1 },
+  arena: { role: 'guardian', name: 'Guardian arena', pillar: 9, corner: 1.5, ring: 9, dais: 3.2, lift: .1 },
   vault: { role: 'treasure', name: 'Vault', wall: 1.9, flank: 2.4, depth: 5, cross: 5, plinth: [1.9, .45, 1.5] },
   chapel: { role: 'rest', name: 'Rest chapel', off: 3.2, bench: 2.5, benchLen: 2.2 },
   hall: { role: 'elite', name: 'Elite hall', side: 4.3, step: 4.4, end: 2.6, flank: 2.6 },
