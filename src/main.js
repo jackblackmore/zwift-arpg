@@ -11,7 +11,7 @@ import { updFx } from './render/fx.js';
 import { draw, snapCam } from './render/draw.js';
 import { buildMap, blocked, los } from './world/map.js';
 import { spawnEnemy } from './game/enemies.js';
-import { loadDungeon } from './world/dungeon.js';
+import { loadDungeon, dun } from './world/dungeon.js';
 import { ctl } from './input/input.js';
 import { pollInput, initDevices } from './input/devices.js';
 import { ride, initRide, setRide, storedRide } from './input/ridesim.js';
@@ -109,7 +109,7 @@ requestAnimationFrame(frame);
   $('build').textContent = `v${B.version}${B.commit ? ' · ' + B.commit : ''} · built ${d.toLocaleString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`; }
 
 window.__dbg = {
-  G, P, S, SK, STAGGER, BOSS, RARE, TELL, rollItem, ctl, Q, chars, ride, setRide, scene,
+  G, P, S, SK, STAGGER, BOSS, RARE, TELL, rollItem, ctl, Q, chars, dun, ride, setRide, scene,
   ready: () => (chars.ready || chars.failed) && G.loaded, cycleQuality, cycleStyle,
   start: fresh => begin(fresh !== false),
   sim: n => { for (let i = 0; i < n; i++) { update(.033); updFx(.033); } },

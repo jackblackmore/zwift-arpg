@@ -85,3 +85,27 @@ export const RHYTHM = {
 };
 // Rest rooms (game/rooms.js): the flame heals you once you're in the room with no monster awake within `calm` units.
 export const REST = { calm: 10 };
+
+// ---- Set pieces (world/gen.js setPieces; design notes "Built: set pieces") ----
+// Authored dressing for the special rooms, laid out by the generator (so the map viewer draws it) and built by world/dungeon.js
+// (primitive shapes in world/map.js without the models). Layout and look numbers only; no gameplay numbers. Distances in world
+// units; every piece keeps `wallGap` from walls and `lineGap` (plus its own radius) from the corridor centre lines, so doorways
+// and the walk through a room stay clear, and anything that can't fit is left out.
+//   arena (the guardian's room): a low dais under the guardian (`dais`: half its width, `lift`: its height), four decorated pillars
+//     on the diagonals (`pillar` from the guardian), a brazier in each corner (`corner` in from the walls), the ring of skull posts
+//     and gravestones (`ring`).
+//   vault (treasure): the chest on a plinth (`plinth`: width, height, depth) against the wall facing the way in (`wall` from it),
+//     braziers either side (`flank`), coins.
+//     A room with one doorway and at least `depth` cells deep gets a partition wall across it with a gap on the doorway's line:
+//     an antechamber (where a guard pack waits) and the vault behind.
+//   chapel (rest): the flame in the middle of the room's quietest part (the free side of the corridors, `off` from the room's
+//     centre, which the corridors cross), stone benches round it (`bench` away, `benchLen` long), candles in the corners; nothing else.
+//   hall (elite): a colonnade of pillars both sides of the aisle from the doorway (`side` from its line, `step` apart), the elite
+//     waiting at the far end (`end` from the far wall) between two braziers, coffins along the walls.
+export const SET = {
+  wallGap: .9, lineGap: 1.6,
+  arena: { role: 'guardian', name: 'Guardian arena', pillar: 9, corner: 1.5, ring: 9, dais: 3.2, lift: .1 },
+  vault: { role: 'treasure', name: 'Vault', wall: 1.9, flank: 2.4, depth: 5, cross: 5, plinth: [1.9, .45, 1.5] },
+  chapel: { role: 'rest', name: 'Rest chapel', off: 3.2, bench: 2.5, benchLen: 2.2 },
+  hall: { role: 'elite', name: 'Elite hall', side: 4.3, step: 4.4, end: 2.6, flank: 2.6 },
+};

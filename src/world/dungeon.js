@@ -7,7 +7,7 @@ import { rand, pick, dist } from '../core/util.js';
 import { loadGLB, linearise } from '../render/characters.js';
 import { glowSprite, decal } from '../render/assets.js';
 import { DUNGEON } from '../data/graphics.js';
-import { FLOOR, WALL, BANNERS, OBSTACLES, CLUTTER, OBSTACLE_DENSITY, WALL_TORCH, BRAZIER_MAX } from '../data/dungeon.js';
+import { FLOOR, WALL, BANNERS, OBSTACLES, CLUTTER, OBSTACLE_DENSITY, WALL_TORCH, BRAZIER_MAX, SET } from '../data/dungeon.js';
 import { solid, wallHit, lineDist } from './gen.js';
 
 // Door frame look: jamb pillar scale (× DUNGEON.scale), lintel height, how far it overhangs the gap, depth (× scale), lift above the wall top.
@@ -68,7 +68,7 @@ const turn = (ox, oz, rot, s) => [(ox * Math.cos(rot) + oz * Math.sin(rot)) * s,
 // Builds the dungeon for a layout (world/gen.js) into G.world and fills G.obst / G.torches: floor tiles only where there is
 // floor, walls along every room and corridor edge, props in the rooms (never across a doorway).
 export function buildDungeon(L) {
-  const s = DUNGEON.scale, cell = L.cell, half = L.half, floor = batch(), solidB = batch(), start = L.start, boss = L.boss;
+  const s = DUNGEON.scale, cell = L.cell, half = L.half, floor = batch(), solidB = batch(), start = L.start;
   const cx = i => -half + (i + .5) * cell, edgeX = i => -half + i * cell;
   const isFloor = (i, j) => !solid(L, i, j);
 
@@ -118,11 +118,39 @@ export function buildDungeon(L) {
     solidB.add('pillar', edgeX(i), edgeX(j), 0, s * 1.15);
   }
 
+  // A brazier: candles on a short column, glowing. (Its collider is the caller's: G.obst.)
+  const brazier = (x, z) => {
+    solidB.add('column', x, z, rand(0, 6), s);
+    solidB.add('candle_triple', x, z, rand(0, 6), s * DUNGEON.torch, 1.4 * s);
+    const f = glowSprite(0xff8a30, 1.4); f.position.set(x, 1.4 * s + .95 * s * DUNGEON.torch, z);
+    const d = decal(0xff7020, 4); d.position.set(x, .2, z); G.world.add(f, d); G.torches.push({ f, x, z });
+  };
+  // Set pieces (world/gen.js setPieces, data/dungeon.js SET): the pieces the generator laid out; their colliders are already in
+  // G.obst (world/map.js). Benches and the plinth are plain wall pieces squashed to slabs, like the door lintel.
+  for (const r of L.rooms) if (r.set) for (const p of r.set.props) {
+    const { x, z, rot } = p;
+    if (p.k === 'dais') {
+      for (const [dx, dz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) floor.add('floor_tile_large', x + dx * p.s / 2, z + dz * p.s / 2, 0, [p.s / 4, s, p.s / 4], p.lift);
+      for (const [dx, dz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) solidB.add('candle_triple', x + dx * (p.s - .35), z + dz * (p.s - .35), rand(0, 6), s, p.lift + .05);
+      const d = decal(0x9a3090, p.s * 2.6); d.position.set(x, p.lift + .14, z); G.world.add(d); // a dim sigil (decal materials are shared per colour)
+    }
+    else if (p.k === 'pillarD') solidB.add('pillar_decorated', x, z, rot, s * 1.1);
+    else if (p.k === 'pillar') solidB.add('pillar', x, z, rot, s * 1.1);
+    else if (p.k === 'brazier') brazier(x, z);
+    else if (p.k === 'post') solidB.add('post_skull', x, z, rot, s);
+    else if (p.k === 'grave') solidB.add('gravestone', x, z, rot, s);
+    else if (p.k === 'coffin') solidB.add('coffin', x, z, rot, s);
+    else if (p.k === 'coins') floor.add('coin_stack_small', x, z, rot, s * 1.2);
+    else if (p.k === 'bench') solidB.add('wall', x, z, rot, [SET.chapel.benchLen / 4, .45 / 4, .7], 0);
+    else if (p.k === 'plinth') { const [pw, ph, pd] = SET.vault.plinth; solidB.add('wall', x, z, rot, [pw / 4, ph / 4, pd], 0); const d = decal(0xffc040, 5); d.position.set(x, .06, z); G.world.add(d); }
+    else if (p.k === 'candles') { solidB.add('candle_triple', x, z, rot, s * DUNGEON.torch); const f = glowSprite(0xffa040, 1); f.position.set(x, .95 * s * DUNGEON.torch, z); G.world.add(f); G.torches.push({ f, x, z, s: 1 }); }
+  }
+
   // Props. A spot is free when it clears walls and other props; props also keep clear of the corridor centre lines.
   const feats = [], free = (x, z, r) => !wallHit(L, x, z, r) && !G.obst.some(o => (x - o.x) ** 2 + (z - o.z) ** 2 < (o.r + r) ** 2);
   const total = OBSTACLES.reduce((a, o) => a + o.w, 0);
   for (const room of L.rooms) {
-    if (room.kind === 'boss') continue;
+    if (room.kind === 'boss' || room.set) continue; // set pieces are dressed above
     const want = room.kind === 'start' || room.role === 'rest' ? 1 : Math.round(room.w * room.h * OBSTACLE_DENSITY * (room.kind === 'side' ? 1.3 : 1)); // a rest room stays open and calm
     for (let t = 0, got = 0; t < 70 && got < want; t++) {
       let r = Math.random() * total, ob = OBSTACLES[0];
@@ -138,31 +166,18 @@ export function buildDungeon(L) {
   }
   const spot = r => { for (let t = 0; t < 40; t++) { const [i, j] = cells[Math.random() * cells.length | 0], x = edgeX(i + Math.random()), z = edgeX(j + Math.random()); if (free(x, z, r)) return [x, z]; } return null; };
 
-  // Braziers: candles on a short column, glowing, tucked into room corners.
+  // Braziers tucked into room corners (set pieces have their own).
   let braziers = 0;
   for (const room of [...L.rooms].sort(() => Math.random() - .5)) {
+    if (room.set) continue;
     const corners = [[room.i0, room.j0], [room.i0 + room.w - 1, room.j0], [room.i0, room.j0 + room.h - 1], [room.i0 + room.w - 1, room.j0 + room.h - 1]].sort(() => Math.random() - .5);
     for (const [i, j] of corners) {
       if (braziers >= BRAZIER_MAX) break;
       const x = cx(i) + (i === room.i0 ? -1 : 1) * cell * .2, z = cx(j) + (j === room.j0 ? -1 : 1) * cell * .2;
       if (!isFloor(i, j) || !free(x, z, .8) || lineDist(L, x, z) < 1.8) continue;
-      braziers++;
-      solidB.add('column', x, z, rand(0, 6), s);
-      solidB.add('candle_triple', x, z, rand(0, 6), s * DUNGEON.torch, 1.4 * s);
-      const f = glowSprite(0xff8a30, 1.4); f.position.set(x, 1.4 * s + .95 * s * DUNGEON.torch, z);
-      const d = decal(0xff7020, 4); d.position.set(x, .2, z); G.world.add(f, d);
-      G.torches.push({ f, x, z }); G.obst.push({ x, z, r: .32 });
+      braziers++; brazier(x, z); G.obst.push({ x, z, r: .32 });
       if (room.w * room.h < 36) break; // a second one only in big rooms
     }
-  }
-
-  // The guardian's ring of skull posts and gravestones, inside the arena.
-  const ringR = Math.min(8, L.rooms[L.route[L.route.length - 1]].w * cell / 2 - 1.8);
-  for (let q = 0; q < 10; q++) {
-    const a = q / 10 * Math.PI * 2, x = boss.x + Math.cos(a) * ringR, z = boss.z + Math.sin(a) * ringR;
-    if (wallHit(L, x, z, 1) || !free(x, z, .4)) continue;
-    if (q % 2) { solidB.add('post_skull', x, z, -a + Math.PI / 2, s); G.obst.push({ x, z, r: .3 }); }
-    else solidB.add('gravestone', x, z, -a - Math.PI / 2, s);
   }
 
   // Clutter on the floor. (Chests are only in treasure rooms now, and open: game/rooms.js.)

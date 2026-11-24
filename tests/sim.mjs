@@ -9,8 +9,8 @@
 import { preview } from 'vite';
 import puppeteer from 'puppeteer-core';
 import { existsSync } from 'node:fs';
-import { generateLevel, walkField, cellOf, routePlace } from '../src/world/gen.js';
-import { ROLES, RHYTHM } from '../src/data/dungeon.js'; // pure: layouts are checked here in Node as well as in the game
+import { generateLevel, walkField, cellOf, routePlace, wallHit, lineDist, roomAt } from '../src/world/gen.js';
+import { ROLES, RHYTHM, SET } from '../src/data/dungeon.js'; // pure: layouts are checked here in Node as well as in the game
 import { HERO } from '../src/data/balance.js';
 import { GEMS, SUPPORTS } from '../src/data/gems.js';
 import { SK } from '../src/data/skills.js';
@@ -75,6 +75,23 @@ function doorCheck(L, ds) {
     for (let i = r.i0; i < r.i0 + r.w; i++) for (const j of [r.j0 - 1, r.j0 + r.h]) if (fl(i, j) && !covered.has(j * n + i)) ds.unrecorded++;
     for (let j = r.j0; j < r.j0 + r.h; j++) for (const i of [r.i0 - 1, r.i0 + r.w]) if (fl(i, j) && !covered.has(j * n + i)) ds.unrecorded++;
   }
+}
+
+// Set pieces (world/gen.js setPieces): walk a set-piece room as the hero would, a circle of radius .45 on a fine grid round its walls
+// and its pieces' colliders, from its first doorway. Returns which doorways it reaches and how close it gets to the room's spot.
+function setWalk(L, r) {
+  const res = .35, R = .45, c = r.set.props.flatMap(p => p.c), x0 = -L.half + (r.i0 - 1) * L.cell, z0 = -L.half + (r.j0 - 1) * L.cell;
+  const nx = Math.ceil((r.w + 2) * L.cell / res), nz = Math.ceil((r.h + 2) * L.cell / res), seen = new Uint8Array(nx * nz);
+  const P = (i, j) => [x0 + (i + .5) * res, z0 + (j + .5) * res], ok = (x, z) => !wallHit(L, x, z, R) && !c.some(([cx, cz, cr]) => (x - cx) ** 2 + (z - cz) ** 2 < (cr + R) ** 2);
+  const IN = { n: [0, 1], s: [0, -1], w: [1, 0], e: [-1, 0] }, inner = d => [d.x + IN[d.side][0] * .8, d.z + IN[d.side][1] * .8];
+  const cellAt = (x, z) => [Math.floor((x - x0) / res), Math.floor((z - z0) / res)];
+  const [si, sj] = cellAt(...inner(r.doors[0])), q = [[si, sj]]; if (!ok(...P(si, sj))) return { doors: 0, spot: 1e9 };
+  seen[sj * nx + si] = 1;
+  while (q.length) { const [i, j] = q.pop(); for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { const a = i + di, b = j + dj; if (a < 0 || b < 0 || a >= nx || b >= nz || seen[b * nx + a] || !ok(...P(a, b))) continue; seen[b * nx + a] = 1; q.push([a, b]); } }
+  let spot = 1e9; const sp = r.set.spot;
+  if (sp) for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) if (seen[j * nx + i]) { const [x, z] = P(i, j); spot = Math.min(spot, Math.hypot(x - sp.x, z - sp.z)); }
+  const doors = r.doors.filter(d => { const [i, j] = cellAt(...inner(d)); for (let b = j - 1; b <= j + 1; b++) for (let a = i - 1; a <= i + 1; a++) if (a >= 0 && b >= 0 && a < nx && b < nz && seen[b * nx + a]) return true; return false; }).length;
+  return { doors, spot };
 }
 
 try {
@@ -251,6 +268,43 @@ try {
       check(rs.badRest === 0 && rs.restLevels > N * .3 && rs.restLevels < N * .7, `roles: rest rooms are sparse: at most one a level, on the route, mid-route (${rs.restLevels} of ${N} levels have one, ${rs.badRest} misplaced)`);
       check(rs.eliteSide > rs.elite * .7 && rs.treasureSide > rs.treasure * .4, `roles: optional beats prefer side branches (elites ${rs.eliteSide} of ${rs.elite} on side rooms, treasure ${rs.treasureSide} of ${rs.treasure})`);
     }
+    // Set pieces (world/gen.js setPieces, data/dungeon.js SET) on 200 more layouts: every special room gets its set piece; its
+    // doorways still sit on real gaps and lead where they say; every piece is inside its room, clear of the walls and the corridor
+    // lines; the hero can walk from the first doorway to every other doorway and up to the chest, flame or elite; a vault's
+    // partition leaves the doorway's line open.
+    {
+      const sp = { rooms: 0, missing: 0, arena: 0, vault: 0, ante: 0, chapel: 0, hall: 0, props: 0, inWall: 0, onLine: 0, outside: 0, overlap: 0, noSpot: 0, spotBad: 0, doorsCut: 0, spotFar: 0, wallBad: 0 };
+      const ds2 = { doors: 0, offGap: 0, unrecorded: 0, wrongTo: 0, unpaired: 0 }, reach = { vault: 2.4, chapel: 3, hall: 2.2, arena: 2 };
+      for (let k = 0; k < N; k++) {
+        const L = generateLevel({}, rng);
+        doorCheck(L, ds2);
+        for (const r of L.rooms) {
+          const want = Object.values(SET).some(T => T.role === r.role);
+          if (!want) continue; sp.rooms++; if (!r.set) { sp.missing++; continue; }
+          sp[r.set.kind]++; if (r.set.ante) sp.ante++;
+          const all = r.set.props.flatMap(p => p.c);
+          for (const p of r.set.props) {
+            sp.props++;
+            for (const [x, z, cr] of p.c) {
+              if (wallHit(L, x, z, cr)) sp.inWall++;
+              if (lineDist(L, x, z) < cr + SET.lineGap - 1e-6) sp.onLine++;
+              if (roomAt(L, x, z) !== r) sp.outside++;
+            }
+            if (!p.c.length && roomAt(L, p.x, p.z) !== r) sp.outside++;
+          }
+          for (let a = 0; a < all.length; a++) for (let b = a + 1; b < all.length; b++) { const [x1, z1, r1] = all[a], [x2, z2, r2] = all[b]; if (Math.hypot(x1 - x2, z1 - z2) < r1 + r2 - .4 && !r.set.props.some(p => p.c.includes(all[a]) && p.c.includes(all[b]))) sp.overlap++; }
+          const s0 = r.set.spot; if (!s0) { sp.noSpot++; continue; }
+          if (roomAt(L, s0.x, s0.z) !== r || wallHit(L, s0.x, s0.z, .8) || (r.set.kind !== 'vault' && all.some(([x, z, cr]) => Math.hypot(x - s0.x, z - s0.z) < cr + .8))) sp.spotBad++;
+          const w = setWalk(L, r); if (w.doors !== r.doors.length) sp.doorsCut++; if (w.spot > reach[r.set.kind]) sp.spotFar++;
+          for (const [i, j] of r.set.wall) if (i < r.i0 || j < r.j0 || i >= r.i0 + r.w || j >= r.j0 + r.h || L.grid[j * L.n + i]) sp.wallBad++;
+        }
+      }
+      console.log('  set pieces:', JSON.stringify(sp), 'doors:', JSON.stringify(ds2));
+      check(sp.missing === 0 && sp.arena === N && sp.vault > 0 && sp.ante > 0 && sp.chapel > 0 && sp.hall > 0, `set pieces: every guardian, treasure, rest and elite room gets one (${sp.arena} arenas, ${sp.vault} vaults (${sp.ante} with an antechamber), ${sp.chapel} rest chapels, ${sp.hall} elite halls over ${N} layouts)`);
+      check(ds2.offGap === 0 && ds2.unrecorded === 0 && ds2.wrongTo === 0 && ds2.unpaired === 0 && sp.doorsCut === 0 && sp.wallBad === 0, `set pieces: doorways still sit on real gaps and lead where they say (${ds2.doors} doors), and in every set-piece room the hero can walk from one doorway to every other (${sp.doorsCut} cut off)`);
+      check(sp.props > 0 && sp.inWall === 0 && sp.onLine === 0 && sp.outside === 0 && sp.overlap === 0, `set pieces: none of the ${sp.props} pieces is in a wall, across a corridor's line, outside its room or in another piece (${sp.inWall}, ${sp.onLine}, ${sp.outside}, ${sp.overlap})`);
+      check(sp.spotBad === 0 && sp.spotFar === 0, `set pieces: the chest, flame and elite stand clear in their room, and the hero can walk up to them (${sp.noSpot} rooms without a spot use the old placement, ${sp.spotBad} blocked, ${sp.spotFar} out of reach)`);
+    }
     console.log('  layouts:', JSON.stringify({ ...st, floor: Math.round(st.tiles * 100) + '%' }));
     check(st.apart > 0 && st.minShort >= MIN_SHORTEST, `layout: guardian is a path apart from the start (shortest walk ${st.minShort.toFixed(0)}s at base speed over ${N} layouts, at least ${MIN_SHORTEST}s)`);
     check(st.unreachable === 0 && st.badRoom === 0, `layout: every room and floor cell is reachable from the start (${st.unreachable} unreachable cells, ${st.badRoom} bad rooms)`);
@@ -295,6 +349,58 @@ try {
     check(r.farAwake === 0, `level: nothing wakes from the start room (${r.farAwake} awake)`);
     check(r.insideWalls === 0, `level: the hero can't walk into walls (${r.moves} ticks of charging)`);
     check(errors.length === 0, `level: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
+  }
+  {
+    // Set pieces in the live game (world/gen.js setPieces): over several maps every piece is a real collider, the chest stands on
+    // its vault's plinth, the rest flame in its chapel and the elite at the far end of its hall; the monsters of those rooms (the
+    // elite and minions, chest guards, the guardian) never spawn inside a wall or a piece. Then the same without the dungeon models
+    // (the primitive fallback). SCREENSHOT also saves one shot of each set piece.
+    const { page, errors } = await open('/');
+    const r = await page.evaluate(() => {
+      const D = window.__dbg, G = D.G, P = D.P, out = { maps: 0, sets: {}, collMissing: 0, chestOff: 0, flameOff: 0, eliteOff: 0, spawned: 0, inside: 0 };
+      const near = (a, b, d) => Math.hypot(a.x - b.x, a.z - b.z) < d;
+      const look = () => {
+        const L = G.layout; out.maps++;
+        for (const rm of L.rooms) if (rm.set) {
+          out.sets[rm.set.kind] = (out.sets[rm.set.kind] || 0) + 1;
+          for (const p of rm.set.props) for (const [x, z, cr] of p.c) if (!G.obst.some(o => o.x === x && o.z === z && o.r === cr)) out.collMissing++;
+          const sp = rm.set.spot; if (!sp) continue;
+          if (rm.set.kind === 'vault' && !G.chests.some(c => c.room === rm.id && near(c, sp, .01))) out.chestOff++;
+          if (rm.set.kind === 'chapel' && !(G.rest && G.rest.room === rm.id && near(G.rest, sp, .01))) out.flameOff++;
+          if (rm.set.kind === 'hall' && !G.packs.some(p => p.elite && p.room === rm.id && near(p, sp, .01))) out.eliteOff++;
+        }
+        const ids = new Set(L.rooms.filter(rm => rm.set).map(rm => rm.id)), before = new Set(G.enemies);
+        for (const p of [...G.packs.filter(p => ids.has(p.room)), { x: G.bossSpot.x, z: G.bossSpot.z }]) { P.x = p.x + 3; P.z = p.z; P.life = 1e5; D.ctl.mx = D.ctl.mz = 0; D.sim(1); }
+        for (const e of G.enemies) if (!before.has(e)) { out.spawned++; if (D.blocked(e.sx, e.sz, .25)) out.inside++; }
+      };
+      D.start(true); look();
+      for (let m = 0; m < 7; m++) { D.newMap(1); look(); }
+      out.dressed = D.dun.ready; D.dun.ready = false; // the primitive fallback
+      for (let m = 0; m < 4; m++) { D.newMap(1); look(); }
+      out.fallback = !G.dressed; D.dun.ready = out.dressed; D.newMap(1);
+      return out;
+    });
+    if (process.env.SCREENSHOT) { // each set piece, from inside the room looking at its spot
+      for (const kind of ['arena', 'vault', 'chapel', 'hall']) {
+        await page.evaluate(kind => {
+          const D = window.__dbg, G = D.G, P = D.P, want = r => r.set && r.set.kind === kind && r.set.spot && (kind !== 'vault' || r.set.ante);
+          for (let n = 0; n < 40 && !G.layout.rooms.some(want); n++) D.newMap(1);
+          const r = G.layout.rooms.find(want); if (!r) return;
+          // stand on the far side of the room's centre from the spot, toward the camera if we can, so the room fills the shot
+          const sp = r.set.spot; let best = null;
+          for (let a = 0; a < 24; a++) for (const d of kind === 'vault' ? [4.5, 4, 3.5] : [8, 7, 6, 5, 4]) { const x = sp.x + Math.cos(a / 24 * 6.28) * d, z = sp.z + Math.sin(a / 24 * 6.28) * d; if (!D.blocked(x, z, .6) && D.los(x, z, sp.x, sp.z) && (!best || z + d * .5 > best[2])) best = [x, z, z + d * .5]; }
+          if (best) { P.x = best[0]; P.z = best[1]; } P.life = 1e5; G.bannerT = .01; G.packs.forEach(p => { if (p.room === r.id) p.spawned = true; }); // keep the room quiet for the picture
+          D.sim(3); D.snapCam(); document.getElementById('banner').style.opacity = 0;
+        }, kind);
+        await new Promise(r => setTimeout(r, 300)); await page.screenshot({ path: process.env.SCREENSHOT.replace(/\.png$/, `-${kind}.png`) });
+      }
+    }
+    console.log('  set pieces live:', JSON.stringify(r));
+    check(r.sets.arena === r.maps && r.sets.vault > 0 && r.sets.hall > 0 && r.collMissing === 0, `set pieces: built in the live game over ${r.maps} maps (${JSON.stringify(r.sets)}), every piece a collider`);
+    check(r.chestOff === 0 && r.flameOff === 0 && r.eliteOff === 0, `set pieces: the chest on its plinth, the rest flame in its chapel, the elite at the end of its hall (${r.chestOff}, ${r.flameOff}, ${r.eliteOff} elsewhere)`);
+    check(r.spawned > 20 && r.inside === 0, `set pieces: no monster in a set-piece room or the guardian spawns inside a wall or a piece (${r.spawned} spawned, ${r.inside} inside)`);
+    check(r.dressed && r.fallback, 'set pieces: the primitive fallback (no dungeon models) builds them too');
+    check(errors.length === 0, `set pieces: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   }
   {
     // The autopilot with the level cleared walks the route to the guardian: round every corner, no teleporting.
