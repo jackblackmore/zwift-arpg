@@ -878,6 +878,14 @@ try {
       setTree([]); P.cd.flexA.cd = 0; P.life = S.maxLife; ctl.tap.flexA = true; D.sim(1); const s2 = P.castSeq; ctl.tap.flexA = true; D.sim(15); out.noBloodCd = P.castSeq === s2 && P.life === S.maxLife;
       clear(); return out;
     });
+    if (process.env.SCREENSHOT) { // the passive tree panel: desktop, then a phone held upright (SCREENSHOT-tree.png, -tree-phone.png)
+      const shot = n => process.env.SCREENSHOT.replace(/\.png$/, `-${n}.png`);
+      const setup = () => { const D = window.__dbg, P = D.P; D.start(true); P.lvl = 10; P.tree = []; D.recalc(); for (const id of ['steady', 'keen', 'reflex', 'power', 'trigger', 'hardy']) D.tree.take(id); D.openPass(); document.querySelector('#treeSvg .tn[data-id="iron"]').dispatchEvent(new MouseEvent('click', { bubbles: true })); };
+      await page.evaluate(setup); await new Promise(r => setTimeout(r, 300)); await page.screenshot({ path: shot('tree') });
+      await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true, deviceScaleFactor: 2 }); // (reloads the page)
+      await page.waitForFunction(() => window.__dbg && window.__dbg.ready(), { timeout: 20000 }); await page.evaluate(setup);
+      await new Promise(r => setTimeout(r, 300)); await page.screenshot({ path: shot('tree-phone') });
+    }
     console.log('  tree:', JSON.stringify(r));
     check(r.lvl1 && r.pts5, 'tree: points come from levels (none at level 1, 4 at level 5)');
     check(r.farRefused && r.chain && r.stats, 'tree: a node needs a held neighbour; points run out; recalc applies the nodes');

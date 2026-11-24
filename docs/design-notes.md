@@ -21,12 +21,12 @@ Two ideas sit underneath everything:
 | Gear | Drops, crafting, boss uniques | "How strong am I, and what rules do I break?" | Stat affixes; uniques that bend rules |
 
 - **Why it fits the loop:** character level is the main measure of being ready for deeper levels (par levels); AP means every easy ride grows something even without a drop; gear makes beats and bosses exciting; free gem swaps and cheap respecs give one character PoE-style flexibility; few bike buttons means depth comes from supports, not more skills.
-- **Leaning: passive tree.** Small and readable on a phone (~60–80 nodes): fire, cold and lightning regions around a core of defence and utility, 3–4 keystones (Blood Magic moves here). Cheap respecs.
+- **Built (Nov 2026): passive tree v1.** 64 nodes, readable on a phone: fire, cold and lightning regions below a core of life and Surge, the shield and timing above, 4 keystones (Blood Magic came back as Blood Rite). Free respecs in safe rooms. See "Passive tree" below.
 - **Leaning: soft level cap.** Past a point, levels get slower rather than stopping.
 - **Leaning: gems.** 4 skill slots plus dash. Each slot starts with 1 support socket and unlocks up to 3 with level. Sockets live on the **skill bar**, not gear (a rare gear affix could add "+1 support socket").
   - Equipped gems earn full AP; **unequipped gems earn a small trickle**.
   - Gems level into new behaviour, not just numbers (Ember Cleave lv5 swings wider, lv10 leaves burning ground; Freeze support at max adds Shatter).
-  - The current pick-1-of-3 level-up draft is retired; its notables become support gems (Twin Flame, Shatter, Conduit).
+  - The pick-1-of-3 level-up draft is retired (the passive tree replaced it, Nov 2026); its notables became support gems (Twin Flame, Shatter, Conduit).
 - **Leaning: gem tiers.** The same gem comes in better tiers (Ember Cleave I, II, III), each with higher base power, a higher level cap and a new top milestone. Behaviour carries forward, so a build keeps working.
   - **Tiers come mostly from regions** (Tier II from the Forest onward), with **rare jackpot drops** of a higher tier anywhere. Heat could raise those odds.
 - **Leaning: fusing.** Fuse a gem into a better tier of the same gem for a head start (e.g. mastered Ember Cleave I makes Ember Cleave II start at level 6 of 20). Never a full transfer, so there's always room to grow.
@@ -283,6 +283,39 @@ Example: a fire knight through the Crypt (illustrative numbers):
 | Phase | Briefly intangible; attacks pass through | Melee, close range |
 | Smoke | Invisible; enemies lose track of you | Snipers, Glass Cannon |
 | Decoy Swap | Leave a decoy that draws aggro | Minions, turrets |
+
+### Passive tree (built Nov 2026, build order step 4)
+
+**What it is.** One point per character level after the first (level 10 = 9 points). It replaced the pick-1-of-3 level-up cards. Nodes in `src/data/tree.js` (each node's text next to its numbers; `npm test` checks every number is in the text), the rules in `src/game/tree.js`, the panel in `src/ui/tree.js`, the stats in `computeStats` (`src/game/formulas.js`: `st.fight` for the shield numbers, `st.ks` for keystones). Ownership as in "Stats": the tree gives % increases and survival, never flat damage or skill behaviour.
+
+**Shape: 64 nodes on a 7 × 15 grid** (drawn tall on an upright phone, on its side on a wide screen), the start in the middle with 8 spokes:
+- **Core (middle row):** life on the left (Hardy, Iron Body, Mending, Soul Hunger), Surge on the right (Deep Breath, **Second Wind** (the old card), Recovery, Deep Reserves), Field Medic (flasks heal more), Fleet Foot, and four spokes of plain damage, attack speed and crit.
+- **The shield (top):** three branches. Left, **riposte** (Counterstroke, Vengeance, Punish) to the Riposte keystone; middle, the **parry window** (Quick Reflexes, Hair Trigger, Poise, Swordmaster) to Duelist; right, **block and posture** (Brace, Settle, Shieldwall, Stout, Anchored) to Bulwark. Between them: **roll** (Light Feet: Evade invulnerability; Tumbler: +1 Evade charge) and **stagger and finishers** (Measured, Clean Cut, Headsman, Executioner).
+- **Elements (bottom):** fire on the left, cold in the middle, lightning on the right, from Elemental Focus. They boost Ember Cleave, Frost Strike and Thunder Slam and every Flex skill of that element. Pyromancy, Rime and Voltaics (the old cards) are the first notables; Wildfire, Winter's Heart and Thunderlord end each branch; Steam and Spark link neighbouring elements.
+- **Power per point:** small nodes +6% damage, +10% to one element, +5% life, 10% posture or parry window; notables about twice that.
+
+**Keystones (each at the end of a 6–7 point path; each costs something real):**
+
+| Keystone | Gives | Costs |
+|---|---|---|
+| Riposte | Every parry ripostes at once: you strike the attacker back with your Main attack (the riposte takes the place of your next swing) | Blocked hits fill posture 50% faster |
+| Bulwark | Blocking doesn't slow you; blocked hits fill posture 25% slower; a blocked hit fills the attacker's stagger 35% as much as a parry | No parry: a Guard press only blocks |
+| Duelist | Parry window 60% longer | No block: holding Guard does nothing, heavies must be rolled |
+| Blood Rite | Main and Flex skills ignore cooldowns and charges (at most one cast per 0.5 s) | Every cast costs 5% of max life (never the last of it); Evade keeps its charges |
+
+**Respec (my call: cheap, but not mid-fight).** A full reset is free in the room you enter a map by and in a rest room, while no monster is awake nearby (`RESPEC.calm`). Anywhere, nodes taken since you opened the tree can be given back (a misclick isn't a respec). A node others hang from can't be given back on its own.
+
+**The panel** (P or the TREE button; a red badge and a glow show unspent points; the level-up banner says "A passive tree point · press P"): tap a node to read it, tap a glowing one again (or TAKE) to spend a point. SUGGEST spends free points along the preset for your Main gem; RESET is free in a safe room. Held nodes are filled, takeable ones pulse gold, keystones are diamonds with their names. Upright phones scroll the tree (it opens centred); a phone on its side puts the text beside the tree.
+
+**Balance tools.** `TREE_PRESETS` in `src/data/balance.js` are the orders a sensible player takes nodes in: `shield` for the Sword (posture, damage, parry window, life, then riposte, stagger, finishers), `fire`/`cold`/`light` for the elemental Main gems, and one per keystone. `parTree(level, mainGem)` takes one node per level after the first from the par preset (`PAR_TREE`), so `npm run balance`, `npm run arena` and `npm run level` all give the par hero a tree (`TREE=none` turns it off, `TREE=<preset>` picks another). `npm run balance` prints what the preset adds at each tier. The arena bot's parry odds now grow with the parry window (a good rider misses 30% at the base window, less with a longer one), and under Blood Rite it only casts above 60% life. The arena has rows for each keystone on tiers 4–5.
+
+**Results (Nov 2026).**
+- **Tree vs the card draft at par** (9 points at level 10, par magic gear; the card draft is the mean of 4000 simulated drafts with a sensible pick order): the Sword's `shield` preset gives ×1.14 DPS and +13% life (+52), plus a 30% longer parry window, +15% riposte damage, +10% stagger fill and 10% less posture; the card draft gave ×1.44 DPS and +8% life (+31). The `fire` preset gives Ember Cleave ×1.43 DPS and +13% life; the cards gave ×1.69 and +6%. So the tree is a little less raw power than the cards (by design: modest per point, and deterministic where the cards were luck), with the rest in timing.
+- **`npm run balance`** (the maths never counted the cards): par hits on a zombie at tiers 2–5 go 4.2, 4.2, 4.0, 3.8 → 4.0, 3.8, 3.6, 3.5 (tiers 2–5 now flagged ↓, was tiers 4–5), guardians never surging 63, 63, 61, 58 s → 60, 57, 55, 51 s, packs about 5% faster, face-tank 4.7, 4.1 s → 5.3, 4.6 s on tiers 4–5.
+- **Arena, mean of seeds 1–6, no tree → par tree** (the arena never counted the cards either): good rider guardians 67, 59, 59, 56, 52 s → 67, 57, 54, 50, 40 s, taking 155, 128, 121, 93, 124 → 155, 102, 119, 97, 49; perfect 55, 48, 49, 44, 43 → 55, 44, 46, 42, 37 s, so perfect is 8–23% faster than the good rider (tier 5 is under the 15% target). Rare + pack about the same (16–12 s, 9–22 taken). **Careless:** it still loses tiers 1–2, but now scrapes through tier 3 half the time (5% life left) and tiers 4–5 every time (27–33% left, all 3 flasks); without the tree it won 2 of 30 (tier 5). Tier 1 has no points, so it's unchanged.
+- **Keystones (arena, guardian / rare + pack, means of 6 seeds, tiers 4 and 5; the par preset is 50, 40 s taking 97, 49):** Riposte 41, 37 s taking 92, 84 (quicker, takes a bit more); Duelist 43, 41 s taking 229, 210 (quicker, much riskier: heavies must be rolled); Bulwark 70, 68 s taking 212, 247 (slow and steady: no parries, so few finishers; it suits a rider who can't time parries); Blood Rite 51, 53 s taking 92, 118 (about par with Frost Nova in Flex A; costs life between fights). Rare packs 11–18 s for all.
+- **`npm run level`** (10 seeds): 7.1, 6.6, 6.6, 6.9, 7.2 min (was 7.0, 6.5, 6.8, 7.2, 7.0); 2 deaths in 50 levels.
+- **Open (owner's calls):** (1) careless play now survives tier 4–5 guardians; if that's too kind, lower the life nodes (Hardy, Iron Body) or raise guardian damage. (2) Zombie hits at tiers 2–5 read 3.5–4.0 against the 4–6 target: lower the target to 3.5 (the cards already made real play faster than the report) or raise monster life. (3) Bulwark is the weakest keystone for a good rider; raise its `bash` if it should compete. (4) Respec rule: free in the entrance room and rest rooms; say if it should cost something (gold doesn't exist yet) or be free anywhere out of a fight.
 
 ### Stats
 
