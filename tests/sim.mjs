@@ -33,6 +33,7 @@ async function open(path) {
   await page.evaluateOnNewDocument(seed => {
     let a = seed >>> 0;
     Math.random = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    window.__reseed = () => { a = seed >>> 0; };
   }, SEED);
   page.on('pageerror', e => errors.push(e.message));
   // Ignore network failures (web fonts may be unreachable in CI/sandboxes); catch real script errors.
@@ -40,6 +41,9 @@ async function open(path) {
   await page.setViewport({ width: 1100, height: 700 });
   await page.goto(`http://localhost:${PORT}${path}`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.__gal || window.__maps || (window.__dbg && (!window.__dbg.ready || window.__dbg.ready())), { timeout: 20000 });
+  // Loading uses the random stream a varying number of times (models and the map arrive in whatever order the network gives), so
+  // restart it once the page is ready: every check then sees the same maps, packs and rolls on every run. The idle page draws none.
+  await page.evaluate(() => window.__reseed());
   return { page, errors };
 }
 
@@ -691,7 +695,8 @@ try {
   // ---------- Level time (src/game/levelrun.js: the RIDE autopilot plays a whole level at par; full table via `npm run level`) ----------
   {
     const { page, errors } = await open('/');
-    const r = await page.evaluate(() => { const D = window.__dbg; D.start(true); D.G.paused = true; return D.levelRun({ tier: 1, seed: 7, maxMin: 30 }); });
+    // Layout seed 3: three junctions on the route (seed 7 has one, which the autopilot can pass mid-fight without stopping).
+    const r = await page.evaluate(() => { const D = window.__dbg; D.start(true); D.G.paused = true; return D.levelRun({ tier: 1, seed: 3, maxMin: 30 }); });
     const s = r.split, sum = Object.values(s).reduce((a, v) => a + v, 0);
     console.log('  level time:', JSON.stringify({ result: r.result, min: r.min, split: s, deaths: r.deaths, junctions: r.junctions, packsLeft: r.packsLeft, stuck: r.stuck }));
     check(r.result === 'clear' && r.min > 3 && r.min < 30, `level time: the autopilot clears a whole tier 1 level at par, start to guardian (${r.result}, ${r.min} min)`);

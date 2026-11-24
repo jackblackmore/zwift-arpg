@@ -52,11 +52,13 @@ try {
   await page.evaluateOnNewDocument(seed => {
     let a = seed >>> 0;
     Math.random = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    window.__reseed = () => { a = seed >>> 0; };
   }, SEED);
   await page.setViewport({ width: 800, height: 500 });
   await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.__dbg && window.__dbg.ready(), { timeout: 20000 });
-  await page.evaluate(() => window.__dbg.start(true));
+  // Loading draws on the random stream a varying number of times, so restart it: the same SEED then gives the same table every run.
+  await page.evaluate(() => { window.__reseed(); window.__dbg.start(true); });
   console.log(`Watt Dungeon arena · real game code, scripted player · times in game seconds${MAIN ? ' · Main gem: ' + MAIN : ''} · passive tree: ${TREE === false ? 'none' : TREE || 'par preset'}\n`);
   console.log('tier lvl gear   encounter                     result   time   taken  lowest  flasks  parry block roll break stag fin  chan  surged');
   for (let t = 1; t <= maxTier; t++) {
