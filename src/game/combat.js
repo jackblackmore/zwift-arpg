@@ -15,7 +15,7 @@ import { makePortal } from './maps.js';
 import * as skel from './sk/skeletons.js';
 import { HERO, RARITY, COMBAT } from '../data/balance.js';
 import { DROP } from '../data/items.js';
-import { BLAST, RARE, STAGGER, ANIM, BOSS } from '../data/monsters.js';
+import { BLAST, RARE, STAGGER, ANIM, BOSS, ELITE } from '../data/monsters.js';
 import { TELL } from '../data/graphics.js';
 import { shieldHit } from './sk/guard.js';
 import { SUPPORTS } from '../data/gems.js';
@@ -84,10 +84,13 @@ export function kill(e) {
   const col = e.freeze > 0 ? 0xbff0ff : e.type === 'bloater' ? 0x9ad060 : e.type === 'boss' ? 0xff4fd8 : 0x9a2a1a;
   burst(e.x, 1, e.z, col, e.type === 'boss' ? 120 : e.rar === 2 ? 40 : 12, e.type === 'boss' ? 9 : 4);
   if (e.aura) e.aura.visible = false; if (e.fireAura) e.fireAura.visible = false;
-  gainXp(e.xp * (e.rar === 2 ? RARITY.rare.xp : e.rar === 1 ? RARITY.magic.xp : 1) * (1 + TIER.xp * (G.tier - 1)));
+  gainXp(e.xp * (e.rar === 2 ? RARITY.rare.xp * (e.elite ? ELITE.xp : 1) : e.rar === 1 ? RARITY.magic.xp : 1) * (1 + TIER.xp * (G.tier - 1)));
   P.life = Math.min(S.maxLife, P.life + S.lok);
   P.flask = Math.min(SK.flask.max, P.flask + (e.rar === 2 ? SK.flask.perRare : SK.flask.perKill));
-  if (e.rar === 2) { const D = DROP.rare; dropItem(e.x, e.z, D.boost); if (Math.random() < D.second) dropItem(e.x, e.z, D.boost2); if (Math.random() < DROP.gem) dropGem(e.x, e.z); stop(.06); shake(.3); }
+  if (e.elite) { // an elite room's elite: more and better items than a rare, and no gem (gem drops are the owner's call)
+    const D = DROP.elite; stop(.1); shake(.5); banner(e.name.toUpperCase() + ' FALLS', '#ff7a3a', 'The fog lifts');
+    for (let i = 0; i < D.n; i++) G.queue.push({ k: 'later', t: i * D.gap, fn: () => dropItem(e.x, e.z, i === 0 ? D.first : D.rest) });
+  } else if (e.rar === 2) { const D = DROP.rare; dropItem(e.x, e.z, D.boost); if (Math.random() < D.second) dropItem(e.x, e.z, D.boost2); if (Math.random() < DROP.gem) dropGem(e.x, e.z); stop(.06); shake(.3); }
   else if (e.type !== 'boss' && Math.random() < (e.rar === 1 ? DROP.magic : DROP.normal)) dropItem(e.x, e.z, 0);
   if (e.shatter && e.freeze > 0) G.queue.push({ k: 'shatter', x: e.x, z: e.z, hp: e.maxHp }); // frozen by a Frost Nova with Shatter
   if (S.sk[e.lastGem] && S.sk[e.lastGem].raise) skel.onKill(e); // Raise Skeletons support on the skill that killed it

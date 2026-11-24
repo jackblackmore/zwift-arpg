@@ -5,12 +5,12 @@ import './maps.css';
 import { generateLevel, junctionRooms } from '../world/gen.js';
 import { seeded } from '../core/rng.js';
 import { HERO } from '../data/balance.js';
-import { GATE } from '../data/dungeon.js';
+import { GATE, ROLES } from '../data/dungeon.js';
 
 const $ = id => document.getElementById(id);
 const cv = $('view'), ctx = cv.getContext('2d');
-const COL = { start: '#5fe39a', main: '#a08a62', side: '#6a8aff', boss: '#ff4fd8' };
-const NAME = { start: 'Entrance', main: 'Route room', side: 'Side room', boss: 'Guardian arena' };
+// Rooms are coloured by role (data/dungeon.js ROLES); side rooms are drawn with a blue outline.
+const gated = r => GATE.rooms.includes(r.kind) || GATE.rooms.includes(r.role);
 const st = { seed: 1, grid: false, cells: [] };
 try { const q = new URLSearchParams(location.search).get('seed'); if (q) st.seed = Math.max(1, parseInt(q, 10) || 1); } catch (e) {}
 
@@ -24,34 +24,42 @@ function drawLevel(L, x, y, s, big) {
   ctx.fillStyle = '#0a0706'; ctx.fillRect(x, y, s, s);
   for (let j = 0; j < L.n; j++) for (let i = 0; i < L.n; i++) {
     if (!L.grid[j * L.n + i]) continue;
-    const r = inRoom.get(j * L.n + i); ctx.fillStyle = r ? COL[r.kind] : '#4a3a2a';
+    const r = inRoom.get(j * L.n + i); ctx.fillStyle = r ? ROLES[r.role].col : '#4a3a2a';
     ctx.globalAlpha = r ? .55 : .9; ctx.fillRect(x + i * k, y + j * k, Math.ceil(k), Math.ceil(k));
   }
   ctx.globalAlpha = 1;
+  // side rooms: a blue outline (optional branches)
+  ctx.strokeStyle = '#6a8aff'; ctx.lineWidth = Math.max(1.5, k * .35);
+  for (const r of L.rooms) if (r.kind === 'side') ctx.strokeRect(x + r.i0 * k, y + r.j0 * k, r.w * k, r.h * k);
   const W = (wx, wz) => [x + (wx + L.half) / (L.cell * L.n) * s, y + (wz + L.half) / (L.cell * L.n) * s];
   // Doors (room.doors): a bar across each gap in a room's wall; a fog gate (GATE.rooms, game/gate.js) as a thick misty bar.
   let doors = 0, gates = 0;
   for (const r of L.rooms) for (const d of r.doors) {
     const a = d.side === 'n' || d.side === 's', [x0, z0] = W(d.x - (a ? d.w / 2 : 0), d.z - (a ? 0 : d.w / 2)), [x1, z1] = W(d.x + (a ? d.w / 2 : 0), d.z + (a ? 0 : d.w / 2));
-    const gate = GATE.rooms.includes(r.kind);
+    const gate = gated(r);
     if (gate) { ctx.strokeStyle = '#dfe6ff44'; ctx.lineWidth = Math.max(6, k * 1.4); ctx.beginPath(); ctx.moveTo(x0, z0); ctx.lineTo(x1, z1); ctx.stroke(); gates++; }
     ctx.strokeStyle = gate ? '#eef2ff' : '#e8c878'; ctx.lineWidth = Math.max(gate ? 3 : 1.5, k * (gate ? .55 : .3)); ctx.beginPath(); ctx.moveTo(x0, z0); ctx.lineTo(x1, z1); ctx.stroke(); doors++;
   }
   if (big) { st.doors = doors; st.gates = gates; }
-  if (!big) return;
+  if (!big) { // thumbnails: just the role icons of the beats
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `800 ${Math.max(9, s / 18)}px serif`;
+    for (const r of L.rooms) if (r.role !== 'combat' && r.role !== 'start') { const [px, pz] = W(r.x, r.z); ctx.fillStyle = '#000'; ctx.fillText(ROLES[r.role].icon, px + 1, pz + 1); ctx.fillStyle = '#fff'; ctx.fillText(ROLES[r.role].icon, px, pz); }
+    return;
+  }
   // zone lines
   ctx.strokeStyle = '#ffffff10'; ctx.lineWidth = 1;
   for (let z = 1; z < L.zones; z++) { const p = s * z / L.zones; ctx.beginPath(); ctx.moveTo(x + p, y); ctx.lineTo(x + p, y + s); ctx.moveTo(x, y + p); ctx.lineTo(x + s, y + p); ctx.stroke(); }
   // the main route, entrance to guardian
   ctx.strokeStyle = '#ffd23f'; ctx.lineWidth = Math.max(2, s / 260); ctx.setLineDash([8, 6]); ctx.beginPath();
   L.path.forEach((p, i) => { const [px, pz] = W(p.x, p.z); if (i) ctx.lineTo(px, pz); else ctx.moveTo(px, pz); }); ctx.stroke(); ctx.setLineDash([]);
-  // room labels: route order, S for side rooms, ◆ on junctions
-  const J = new Set(junctions(L).map(r => r.id));
+  // room labels: the role's icon, then route order (S for side rooms) underneath; ◆ on junctions
+  const J = new Set(junctions(L).map(r => r.id)), fs = Math.max(11, s / 40);
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   for (const r of L.rooms) {
-    const [px, pz] = W(r.x, r.z), lab = r.kind === 'start' ? 'IN' : r.kind === 'boss' ? '♛' : r.kind === 'side' ? 'S' : String(r.rank);
-    ctx.font = `800 ${Math.max(11, s / 40)}px Cinzel, serif`; ctx.lineWidth = 3; ctx.strokeStyle = '#000'; ctx.strokeText(lab, px, pz); ctx.fillStyle = '#fff'; ctx.fillText(lab, px, pz);
-    if (J.has(r.id)) { ctx.font = `800 ${Math.max(10, s / 55)}px JetBrains Mono, monospace`; ctx.fillStyle = '#ffd23f'; ctx.fillText('◆', px, pz - Math.max(12, s / 32)); }
+    const [px, pz] = W(r.x, r.z), lab = r.kind === 'start' ? 'IN' : r.kind === 'boss' ? '' : r.kind === 'side' ? 'S' : String(r.rank), R = ROLES[r.role];
+    if (r.role !== 'start') { ctx.font = `800 ${fs * 1.3}px serif`; ctx.lineWidth = 4; ctx.strokeStyle = '#000'; ctx.strokeText(R.icon, px, pz - fs * .35); ctx.fillStyle = r.role === 'combat' ? '#e8dcc0' : R.col; ctx.fillText(R.icon, px, pz - fs * .35); }
+    if (lab) { ctx.font = `800 ${fs * .8}px Cinzel, serif`; ctx.lineWidth = 3; ctx.strokeStyle = '#000'; const ly = r.role === 'start' ? pz : pz + fs * .75; ctx.strokeText(lab, px, ly); ctx.fillStyle = '#fff'; ctx.fillText(lab, px, ly); }
+    if (J.has(r.id)) { ctx.font = `800 ${Math.max(10, s / 55)}px JetBrains Mono, monospace`; ctx.fillStyle = '#ffd23f'; ctx.fillText('◆', px, pz - fs * 1.4); }
   }
 }
 
@@ -80,7 +88,7 @@ function layout() {
   panel(level(st.seed));
 }
 
-const legend = () => `<div class="legend">${Object.entries(NAME).map(([k, n]) => `<span><i style="background:${COL[k]}"></i>${n}</span>`).join('')}<span><i style="background:#4a3a2a"></i>Corridor</span><span><i style="background:#e8c878"></i>Door</span><span><i style="background:#eef2ff"></i>Fog gate</span></div>`;
+const legend = () => `<div class="legend">${Object.values(ROLES).map(R => `<span><i style="background:${R.col}"></i>${R.icon} ${R.name}</span>`).join('')}<span><i style="background:transparent;border:2px solid #6a8aff"></i>Side room</span><span><i style="background:#4a3a2a"></i>Corridor</span><span><i style="background:#e8c878"></i>Door</span><span><i style="background:#eef2ff"></i>Fog gate</span></div>`;
 function panel(L) {
   const side = L.rooms.filter(r => r.kind === 'side').length, route = L.route.length, floor = L.grid.reduce((n, c) => n + c, 0);
   const rows = [
@@ -89,11 +97,12 @@ function panel(L) {
     ['Walk, entrance to guardian', `${Math.round(L.routeLen / HERO.ms)} s at base speed`],
     ['Junctions (◆)', junctions(L).length],
     ['Corridors', L.edges.length],
-    ['Doors', `${L.rooms.reduce((n, r) => n + r.doors.length, 0)} (fog gate on the ${L.rooms.filter(r => GATE.rooms.includes(r.kind)).map(r => NAME[r.kind].toLowerCase()).join(', ')})`],
+    ['Roles', Object.entries(ROLES).filter(([k]) => k !== 'start').map(([k, R]) => [R, L.rooms.filter(r => r.role === k)]).filter(([, a]) => a.length).map(([R, a]) => `${R.icon} ${R.name} ${a.length}${a.some(r => r.kind === 'side') && R !== ROLES.combat ? ` (${a.filter(r => r.kind === 'side').length} side)` : ''}`).join(' · ')],
+    ['Doors', `${L.rooms.reduce((n, r) => n + r.doors.length, 0)} (fog gates on ${L.rooms.filter(gated).map(r => r.kind === 'boss' ? 'the guardian arena' : `the ${ROLES[r.role].name.toLowerCase()} room`).join(', ')})`],
     ['Floor', `${floor} cells (${Math.round(floor * L.cell * L.cell)} units²)`],
   ];
   $('panel').innerHTML = `<h4>SEED ${st.seed}</h4><table>${rows.map(([a, b]) => `<tr><td>${a}</td><td>${b}</td></tr>`).join('')}</table>${legend()}
-    <div class="hint">Numbers are the route order; S = side room; ◆ = the autopilot stops there to let you choose a way. The gold line is the main route. Doors are the short bars across gaps in the walls; the white one is the fog gate, which seals you in with the guardian until it dies.</div>
+    <div class="hint">Rooms are coloured by role, with its icon (the icon its door sign shows); the number under it is the route order, S a side room (blue outline). ◆ = the autopilot stops there to let you choose a way. The gold line is the main route. Doors are the short bars across gaps in the walls; the white ones are fog gates, which seal you in with the guardian or an elite until it dies.</div>
     <a class="play" href="../?seed=${st.seed}">PLAY THIS MAP ▸</a><div class="hint">Opens the game on this layout for map 1 (packs are still placed at random). Without ?seed the game makes a new layout every time.</div>`;
 }
 

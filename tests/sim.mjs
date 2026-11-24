@@ -9,7 +9,8 @@
 import { preview } from 'vite';
 import puppeteer from 'puppeteer-core';
 import { existsSync } from 'node:fs';
-import { generateLevel, walkField, cellOf } from '../src/world/gen.js'; // pure: layouts are checked here in Node as well as in the game
+import { generateLevel, walkField, cellOf, routePlace } from '../src/world/gen.js';
+import { ROLES, RHYTHM } from '../src/data/dungeon.js'; // pure: layouts are checked here in Node as well as in the game
 import { HERO } from '../src/data/balance.js';
 import { GEMS, SUPPORTS } from '../src/data/gems.js';
 import { SK } from '../src/data/skills.js';
@@ -159,7 +160,16 @@ try {
     check(r.boss && r.bossCast, 'arpg: boss spawned and used abilities');
     check(r.portal && r.tier === 2, `arpg: boss kill opens portal to map 2 (tier ${r.tier})`);
     if (process.env.SCREENSHOT) {
-      await page.evaluate(() => { const D = window.__dbg, P = D.P; const pk = D.packs().find(p => !p.spawned); if (pk) { P.x = pk.x - 6; P.z = pk.z + 3; } D.sim(25); D.castNova(); D.strike('cleave'); D.castArc(); D.sim(3); });
+      // Mid-fight: stand on clear floor in sight of a pack that hasn't spawned yet (an offset straight from the pack can land in a
+      // wall now that maps are rooms, which left the camera looking at black rock), walk in until it's awake, then swing.
+      await page.evaluate(() => {
+        const D = window.__dbg, P = D.P, G = D.G; let spot = null;
+        for (const pk of D.packs().filter(p => !p.spawned)) { for (let a = 0; a < 12 && !spot; a++) { const x = pk.x + Math.cos(a * .52) * 6, z = pk.z + Math.sin(a * .52) * 6; if (!D.blocked(x, z, .8) && D.los(x, z, pk.x, pk.z)) spot = [x, z, pk]; } if (spot) break; }
+        if (spot) { P.x = spot[0]; P.z = spot[1]; }
+        P.life = 1e4; G.bannerT = .01; D.sim(10);
+        for (let k = 0; k < 90; k++) { const e = D.enemies().filter(e => !e.deathT).sort((a, b) => Math.hypot(a.x - P.x, a.z - P.z) - Math.hypot(b.x - P.x, b.z - P.z))[0]; if (e) { const dx = e.x - P.x, dz = e.z - P.z, l = Math.hypot(dx, dz) || 1; D.ctl.mx = l > 2 ? dx / l : 0; D.ctl.mz = l > 2 ? dz / l : 0; } P.life = Math.max(P.life, 100); D.sim(1); }
+        D.ctl.mx = D.ctl.mz = 0; D.strike('cleave'); D.sim(4); D.snapCam(); document.getElementById('banner').style.opacity = 0; // the camera eases after the hero at a few frames a second headless: without this it was still looking where the hero had been (the dark shots)
+      });
       await new Promise(r => setTimeout(r, 300)); await page.screenshot({ path: process.env.SCREENSHOT });
     }
     check(errors.length === 0, `arpg: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
@@ -188,6 +198,29 @@ try {
     }
     console.log('  doors:', JSON.stringify(ds));
     check(ds.doors > 0 && ds.offGap === 0 && ds.unrecorded === 0 && ds.wrongTo === 0 && ds.unpaired === 0, `doors: every door (${ds.doors} over ${N} layouts) lies on a gap in its room's wall, exactly as wide, every gap has a door, and each leads to the room its 'to' says (${ds.offGap} off a gap, ${ds.unrecorded} unrecorded gaps, ${ds.wrongTo} lead elsewhere, ${ds.unpaired} without a twin)`);
+    // Room roles (world/gen.js assignRoles, data/dungeon.js RHYTHM) on 200 more layouts: every room has one, the entrance and the
+    // guardian keep theirs, the warm-up stays combat, every level has an elite and a treasure room, rest rooms are mid-route, on
+    // the route, at most one a level, and the optional beats mostly sit on side branches.
+    {
+      const rs = { levels: 0, noRole: 0, badEnds: 0, warmBeat: 0, noElite: 0, noTreasure: 0, rest: 0, restLevels: 0, badRest: 0, elite: 0, eliteSide: 0, treasure: 0, treasureSide: 0, combat: 0, rooms: 0 };
+      const warm = RHYTHM.warm, restB = RHYTHM.beats.find(b => b.role === 'rest');
+      for (let k = 0; k < N; k++) {
+        const L = generateLevel({}, rng), R = L.rooms; rs.levels++; rs.rooms += R.length;
+        for (const r of R) { if (!ROLES[r.role]) rs.noRole++; if (r.role === 'combat') rs.combat++; }
+        if (R[L.route[0]].role !== 'start' || R[L.route[L.route.length - 1]].role !== 'guardian' || R.filter(r => r.role === 'start' || r.role === 'guardian').length !== 2) rs.badEnds++;
+        for (const r of R) if (r.role !== 'combat' && r.role !== 'start' && r.role !== 'guardian' && routePlace(L, r) < warm - 1e-9) rs.warmBeat++;
+        const el = R.filter(r => r.role === 'elite'), tr = R.filter(r => r.role === 'treasure'), re = R.filter(r => r.role === 'rest');
+        if (!el.length) rs.noElite++; if (!tr.length) rs.noTreasure++;
+        rs.elite += el.length; rs.eliteSide += el.filter(r => r.kind === 'side').length; rs.treasure += tr.length; rs.treasureSide += tr.filter(r => r.kind === 'side').length;
+        rs.rest += re.length; if (re.length) rs.restLevels++;
+        if (re.length > 1 || re.some(r => r.kind !== 'main' || routePlace(L, r) < restB.at[0] - 1e-9 || routePlace(L, r) > restB.at[1] + 1e-9)) rs.badRest++;
+      }
+      console.log('  roles:', JSON.stringify(rs), `per level: elite ${(rs.elite / N).toFixed(2)}, treasure ${(rs.treasure / N).toFixed(2)}, rest ${(rs.rest / N).toFixed(2)}`);
+      check(rs.noRole === 0 && rs.badEnds === 0, `roles: every room has a role (${rs.rooms} rooms over ${N} layouts), the entrance first and the guardian last`);
+      check(rs.warmBeat === 0 && rs.noElite === 0 && rs.noTreasure === 0, `roles: the rhythm holds on ${N} layouts: the warm-up is combat only (${rs.warmBeat} beats in it), every level has an elite (${rs.noElite} without) and a treasure room (${rs.noTreasure} without)`);
+      check(rs.badRest === 0 && rs.restLevels > N * .3 && rs.restLevels < N * .7, `roles: rest rooms are sparse: at most one a level, on the route, mid-route (${rs.restLevels} of ${N} levels have one, ${rs.badRest} misplaced)`);
+      check(rs.eliteSide > rs.elite * .7 && rs.treasureSide > rs.treasure * .4, `roles: optional beats prefer side branches (elites ${rs.eliteSide} of ${rs.elite} on side rooms, treasure ${rs.treasureSide} of ${rs.treasure})`);
+    }
     console.log('  layouts:', JSON.stringify({ ...st, floor: Math.round(st.tiles * 100) + '%' }));
     check(st.apart > 0 && st.minShort >= MIN_SHORTEST, `layout: guardian is a path apart from the start (shortest walk ${st.minShort.toFixed(0)}s at base speed over ${N} layouts, at least ${MIN_SHORTEST}s)`);
     check(st.unreachable === 0 && st.badRoom === 0, `layout: every room and floor cell is reachable from the start (${st.unreachable} unreachable cells, ${st.badRoom} bad rooms)`);
@@ -265,7 +298,7 @@ try {
       // Only two packs left on the map: one in the side room, one in the next room (both far enough not to spawn).
       G.enemies.forEach(e => { e.deathT = 1; e.gone = true; });
       const pk = (room) => ({ x: room.x, z: room.z, mem: [], spawned: false, awake: false, list: [], rank: room.rank });
-      const sp = pk(side), np = pk(next); G.packs = [sp, np];
+      const sp = pk(side), np = pk(next); G.packs = [sp, np]; G.chests = []; // (no treasure chests: they count as something to go to)
       D.resetRoute(); P.x = C.x; P.z = C.z; D.ctl.tapDir = null;
       const t0 = D.routeTarget(.1); out.waits = t0 === 'wait' && !!G.jn;
       out.kinds = G.jn ? G.jn.opts.map(o => o.kind).join(',') : '';
@@ -339,13 +372,135 @@ try {
     check(errors.length === 0, `fog gate: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   }
 
+  // ---------- Room roles in play (game/rooms.js, game/gate.js, game/route.js): rest, treasure, elite, signs ----------
+  {
+    const { page, errors } = await open('/');
+    const r = await page.evaluate(() => {
+      const D = window.__dbg, P = D.P, G = D.G, S = D.S, out = {};
+      D.start(true);
+      const inRoom = (L, rm, x, z) => { const i = Math.floor((x + L.half) / L.cell), j = Math.floor((z + L.half) / L.cell); return i >= rm.i0 && i < rm.i0 + rm.w && j >= rm.j0 && j < rm.j0 + rm.h; };
+      const alive = p => !p.spawned || p.list.some(e => !e.deathT);
+      // Rest: no monsters in the room (none placed, none spawned there after waking everything near), and it heals you once.
+      for (let n = 0; n < 20 && !G.rest; n++) D.newMap(1);
+      let L = G.layout; const RR = G.rest && L.rooms[G.rest.room];
+      out.rest = !!RR && RR.role === 'rest';
+      if (RR) {
+        out.restPacks = G.packs.filter(p => inRoom(L, RR, p.x, p.z)).length;
+        P.x = RR.x; P.z = RR.z; P.life = 1e6; D.sim(2); // spawn whatever is near
+        out.restMonsters = G.enemies.filter(e => !e.deathT && inRoom(L, RR, e.x, e.z)).length;
+        G.enemies.forEach(e => { e.deathT = 1; e.gone = true; }); D.recalc();
+        P.life = S.maxLife * .5; D.sim(3); // half life: it rests now
+        out.restHealed = G.rest.used && P.life >= S.maxLife - .5;
+        P.life = S.maxLife * .3; P.flask = 0; P.posture = .6; G.rest.used = false; D.sim(2);
+        out.restRefill = G.rest.used && P.life >= S.maxLife - .5 && P.flask >= D.SK.flask.max && P.posture === 0;
+        P.life = S.maxLife * .3; D.sim(5); out.restOnce = P.life < S.maxLife * .5; // it burns once per map
+        // At full life it waits (stays unused) for when you need it.
+        G.rest.used = false; P.life = S.maxLife; P.flask = D.SK.flask.max; P.posture = 0; D.sim(5); out.restWaits = !G.rest.used;
+      }
+      // Treasure: walking up to the chest (its guards dead) opens it and drops items, and no gem.
+      D.start(true); for (let n = 0; n < 20 && !G.chests.length; n++) D.newMap(1);
+      const c = G.chests[0]; out.chest = !!c;
+      if (c) {
+        out.chestGuardOk = !c.guarded || !!c.guard;
+        P.x = c.x + 6; P.z = c.z; P.life = 1e6; D.sim(2);
+        if (c.guard) { P.x = c.x; P.z = c.z + 1.6; D.sim(2); out.guardHolds = !c.open; c.guard.list.forEach(e => D.kill(e)); c.guard.spawned = true; }
+        else out.guardHolds = true;
+        const before = G.ground.length, gems = G.ground.filter(d => d.gem).length; P.x = c.x; P.z = c.z + 1.6; D.sim(30);
+        out.chestOpen = c.open; out.chestDrops = G.ground.length - before; out.chestGems = G.ground.filter(d => d.gem).length - gems;
+      }
+      // Elite: a named elite with minions; its fog gate seals you in until it dies (or you do), and it drops items but no gem.
+      D.start(true);
+      const eg = () => G.gates.find(g => g.kind === 'elite');
+      for (let n = 0; n < 20 && !eg(); n++) D.newMap(1);
+      L = G.layout; const g = eg(), ER = g && L.rooms[g.room], ep = g && G.packs.find(p => p.elite);
+      out.eliteGate = !!g && ER.role === 'elite' && g.parts.length === ER.doors.length && !!ep && ep.room === ER.id && ep.mem.length >= 3;
+      if (g) {
+        G.packs = G.packs.filter(p => p === ep); G.enemies.forEach(e => { e.deathT = 1; e.gone = true; }); G.chests = [];
+        const d = g.door, n = g.n; P.x = d.x - n[0] * 2.5; P.z = d.z - n[1] * 2.5; P.life = 1e6; D.sim(2);
+        const foe = D.gateFoe(g); out.eliteNamed = !!foe && foe.elite && foe.rar === 2 && /, /.test(foe.name) && ep.list.length >= 4;
+        // walk in toward it until the gate seals
+        for (let k = 0; k < 200 && !g.shut; k++) { P.life = 1e6; const dx = foe.x - P.x, dz = foe.z - P.z, l = Math.hypot(dx, dz) || 1; D.ctl.mx = l > 2 ? dx / l : 0; D.ctl.mz = l > 2 ? dz / l : 0; D.sim(1); }
+        D.ctl.mx = D.ctl.mz = 0;
+        const cellsSolid = () => g.cells.every(([i, j]) => !L.grid[j * L.n + i]);
+        out.eliteSealed = g.shut && foe.awake && cellsSolid();
+        // walk at the first doorway for 5 s: still inside
+        let left = false;
+        for (let k = 0; k < 150; k++) { P.life = 1e6; const dx = d.x + n[0] * 6 - P.x, dz = d.z + n[1] * 6 - P.z, l = Math.hypot(dx, dz) || 1; D.ctl.mx = dx / l; D.ctl.mz = dz / l; D.sim(1); if (!inRoom(L, ER, P.x, P.z)) left = true; }
+        D.ctl.mx = D.ctl.mz = 0; out.eliteHeld = !left && g.shut;
+        // the autopilot stays committed too
+        D.setRide(true); D.ride.pw = 250; D.ctl.auto = true; let apLeft = false;
+        for (let k = 0; k < 90; k++) { P.life = 1e6; D.sim(1); if (!inRoom(L, ER, P.x, P.z)) apLeft = true; }
+        D.ctl.auto = false; D.setRide(false); out.eliteApHeld = !apLeft && g.shut;
+        // you die: it opens, and the elite is back at its spot, healed
+        foe.hp = foe.maxHp * .5; P.invuln = 0; P.blocking = false; P.shield = 0; P.life = 1; D.hurtP(1e9, 'test', { kind: 'unblockable' }); D.sim(1);
+        out.eliteDeathOpens = P.dead > 0 && !g.shut && !cellsSolid();
+        D.sim(100); out.eliteReset = foe.hp === foe.maxHp && !foe.awake && P.dead <= 0;
+        // back in, sealed again, then it dies: open for good, items drop, no gem
+        P.x = d.x - n[0] * 2.5; P.z = d.z - n[1] * 2.5;
+        for (let k = 0; k < 200 && !g.shut; k++) { P.life = 1e6; const dx = foe.x - P.x, dz = foe.z - P.z, l = Math.hypot(dx, dz) || 1; D.ctl.mx = l > 2 ? dx / l : 0; D.ctl.mz = l > 2 ? dz / l : 0; D.sim(1); }
+        D.ctl.mx = D.ctl.mz = 0; out.eliteSealed2 = g.shut;
+        const before = G.ground.length, gems = G.ground.filter(x => x.gem).length; P.life = 1e6; D.kill(foe); D.sim(20);
+        out.eliteOpened = !g.shut && g.done && !cellsSolid(); out.eliteDrops = G.ground.length - before; out.eliteGems = G.ground.filter(x => x.gem).length - gems;
+      }
+      // Signs: each way names the role of the room behind it; a cleared way is greyed with a ✓ and never the default; Back says what's left.
+      D.start(true);
+      const find = L => L.route.findIndex((id, i) => i > 0 && i < L.route.length - 1 && L.edges.some(e => (e.a === id || e.b === id) && L.rooms[e.a === id ? e.b : e.a].kind === 'side'));
+      for (let n = 0; n < 20 && find(G.layout) < 0; n++) D.newMap(1);
+      L = G.layout; const k = find(L), C = L.rooms[L.route[k]], next = L.rooms[L.route[k + 1]];
+      const side = L.rooms[L.edges.map(e => e.a === C.id ? e.b : e.b === C.id ? e.a : -1).find(id => id >= 0 && L.rooms[id].kind === 'side')];
+      const ROLES = { combat: '⚔', elite: '☠', treasure: '✦', rest: '☗', guardian: '♛' };
+      G.enemies.forEach(e => { e.deathT = 1; e.gone = true; }); G.chests = [];
+      const pk = room => ({ x: room.x, z: room.z, mem: [], spawned: false, awake: false, list: [], rank: room.rank, room: room.id });
+      const sp = pk(side), np = pk(next); G.packs = [sp, np];
+      let opts = D.routeOptions(L, C), so = opts.find(o => o.to === side.id), on = opts.find(o => o.kind === 'onward');
+      out.signSide = so.label; out.signOn = on.label;
+      out.signRoles = so.label.includes(ROLES[side.role]) && on.label.includes(L.rooms[next.id].kind === 'boss' ? '♛' : ROLES[next.role]) && !so.done;
+      // clear the side room: its sign greys with a ✓ and the default moves on
+      sp.spawned = true; sp.list = [{ deathT: 1 }];
+      opts = D.routeOptions(L, C); so = opts.find(o => o.to === side.id);
+      out.signDone = so.done && so.label.startsWith('✓');
+      // standing in the next room, Back tells you what's waiting behind you (an unopened chest in the side room)
+      sp.spawned = false; sp.list = []; side.role = 'treasure'; G.chests = [{ room: side.id, x: side.x, z: side.z, open: false }];
+      sp.spawned = true; sp.list = [{ deathT: 1 }];
+      const back = D.routeOptions(L, next).find(o => o.kind === 'back'); out.signBack = back && back.label;
+      out.backLeft = !!back && back.label.startsWith('Back') && back.label.includes('✦') && !back.done;
+      // at the junction itself, the cleared way shows but isn't the default
+      G.chests = []; G.packs = [sp, np, pk(L.rooms[L.route[k - 1]])]; D.resetRoute(); P.x = C.x; P.z = C.z; D.routeTarget(.1);
+      out.junctionDone = !!G.jn && G.jn.opts.some(o => o.done && o.label.startsWith('✓')) && !G.jn.opts[G.jn.sel].done;
+      out.jnLabels = G.jn && G.jn.opts.map(o => o.label);
+      return out;
+    });
+    if (process.env.SCREENSHOT) { // a junction's role signs (left up by the last check), then a rest room and a treasure chest
+      const shot = n => process.env.SCREENSHOT.replace(/\.png$/, `-${n}.png`);
+      await page.evaluate(() => { const D = window.__dbg; D.G.bannerT = .01; D.sim(2); D.snapCam(); document.getElementById('banner').style.opacity = 0; }); await new Promise(r => setTimeout(r, 300)); await page.screenshot({ path: shot('sign') });
+      await page.evaluate(() => { const D = window.__dbg, G = D.G, P = D.P; G.jn = null; for (let n = 0; n < 30 && !(G.rest && G.chests.length); n++) D.newMap(1); const R = G.rest; if (R) { P.x = R.x + 3; P.z = R.z + 3.5; P.life = D.S.maxLife * .4; } G.bannerT = .01; D.sim(12); D.snapCam(); document.getElementById('banner').style.opacity = 0; });
+      await new Promise(r => setTimeout(r, 300)); await page.screenshot({ path: shot('rest') });
+      await page.evaluate(() => { const D = window.__dbg, G = D.G, P = D.P, c = G.chests[0]; if (c) { G.packs = G.packs.filter(p => p !== c.guard); let best = null; for (let a = 0; a < 16; a++) { const x = c.x + Math.cos(a * .4) * 4.5, z = c.z + Math.sin(a * .4) * 4.5; if (!D.blocked(x, z, .6) && (!best || z > best[1])) best = [x, z]; } if (best) { P.x = best[0]; P.z = best[1]; } } G.bannerT = .01; D.sim(8); D.snapCam(); document.getElementById('banner').style.opacity = 0; });
+      await new Promise(r => setTimeout(r, 300)); await page.screenshot({ path: shot('treasure') });
+    }
+    console.log('  roles:', JSON.stringify(r));
+    check(r.rest && r.restPacks === 0 && r.restMonsters === 0, `rest: a rest room has no monsters (${r.restPacks} packs placed, ${r.restMonsters} spawned in it)`);
+    check(r.restHealed && r.restRefill && r.restOnce && r.restWaits, 'rest: stepping into it heals you to full, refills flasks and clears posture, once per map (it waits while you need nothing)');
+    check(r.chest && r.chestGuardOk && r.guardHolds && r.chestOpen && r.chestDrops >= 2 && r.chestGems === 0, `treasure: walking up to the chest (once its guards are dead) opens it and drops items (${r.chestDrops}), no gems`);
+    check(r.eliteGate && r.eliteNamed, 'elite: an elite room has a named elite with minions and a fog gate on every doorway');
+    check(r.eliteSealed && r.eliteHeld && r.eliteApHeld, 'elite: its fog gate seals once you\'re in with it awake, and holds you and the autopilot in');
+    check(r.eliteDeathOpens && r.eliteReset, 'elite: dying opens the gate and the elite goes back to its spot, healed');
+    check(r.eliteSealed2 && r.eliteOpened && r.eliteDrops >= 3 && r.eliteGems === 0, `elite: killing it opens the gate for good and drops items (${r.eliteDrops}), no gem`);
+    check(r.signRoles && r.signDone && r.backLeft && r.junctionDone, `signs: each way shows its room's role (${r.signSide} | ${r.signOn}), a cleared way greys with ✓ and isn't the default, Back says what's left (${r.signBack})`);
+    check(errors.length === 0, `roles: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
+  }
+
   // ---------- Map viewer (/maps/): layouts by seed ----------
   {
     const { page, errors } = await open('/maps/?seed=7');
     const r = await page.evaluate(() => {
       const M = window.__maps, out = {};
       const a = M.level(7), b = M.level(7), c = M.level(8);
-      out.doors = M.st.doors === a.rooms.reduce((n, r) => n + r.doors.length, 0) && M.st.gates === 1 && document.getElementById('panel').textContent.includes('Fog gate');
+      const gated = a.rooms.filter(r => r.kind === 'boss' || r.role === 'elite');
+      out.doors = M.st.doors === a.rooms.reduce((n, r) => n + r.doors.length, 0) && M.st.gates === gated.reduce((n, r) => n + r.doors.length, 0) && gated.length >= 2 && document.getElementById('panel').textContent.includes('Fog gate');
+      // Roles: the legend names every role, the panel counts them.
+      const txt = document.getElementById('panel').textContent;
+      out.roles = ['Combat', 'Elite', 'Treasure', 'Rest', 'Guardian'].every(n => txt.includes(n)) && txt.includes('Roles') && a.rooms.every(r => r.role);
       out.same = JSON.stringify(a.rooms) === JSON.stringify(b.rooms) && JSON.stringify(a.rooms) !== JSON.stringify(c.rooms);
       out.panel = document.getElementById('panel').textContent.includes('SEED 7') && !!document.querySelector('#panel a.play[href="../?seed=7"]');
       document.getElementById('next').click(); out.next = M.st.seed === 8;
@@ -355,7 +510,8 @@ try {
     });
     console.log('  maps:', JSON.stringify(r));
     check(r.same && r.panel && r.next && r.grid, 'maps: the viewer draws the same layout for the same seed, pages through seeds, shows a grid and links to the game');
-    check(r.doors, 'maps: the viewer draws every door and the guardian arena\'s fog gate');
+    check(r.doors, 'maps: the viewer draws every door and the fog gates (guardian arena and elite rooms)');
+    check(r.roles, 'maps: the viewer colours rooms by role, with a legend and a count of each role');
     check(errors.length === 0, `maps: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
     // ?seed= in the game plays the viewer's layout.
     const g = await open('/?seed=7');

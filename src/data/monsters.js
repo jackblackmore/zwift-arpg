@@ -83,3 +83,11 @@ export const BLAST = { bloater: { r: 2.2, dmg: .7, delay: .15, kind: 'heavy' }, 
 //   slam): block it for less (SK.block.heavy) or roll it. Staggering the rare during the wind-up cancels it.
 export const RARE = { size: 1.4, radius: 1.35, affixes: 2, moreFrom: 3, more: 3, heavy: { every: [2, 3], windup: 1, dmg: 3.2 },
   hasted: { spd: 1.5, cd: .7 }, frenzied: { cd: .55, dmg: 1.1 }, fortified: { size: 1.12 }, burning: { r: 2.75, dmg: 16, every: 3.2, windup: .8 }, splitting: { n: 3, type: 'runner' } };
+// Elite rooms (room role 'elite', data/dungeon.js ROLES): one named rare, stronger than a pack's rare, with minions, behind a fog
+// gate. On top of a rare's numbers: hp, dmg, size multipliers, `affixes` more affixes, xp × its rare XP. types: what the elite
+// is (weighted by repeats; melee ones swing heavies). minions: the pack around it ([type, count], grown per tier like any pack),
+// magic: chance the minions are magic. titles: its name is a rare's name plus one of these. Its items: DROP.elite (data/items.js);
+// it drops no gem (gem drops are the owner's call, design notes "Not decided yet").
+export const ELITE = { hp: 1.6, dmg: 1.1, size: 1.12, affixes: 1, xp: 1.5, types: ['zombie', 'zombie', 'zombie', 'archer'],
+  minions: [['zombie', 2], ['runner', 2]], magic: .5,
+  titles: ['the Unburied', 'Crypt Lord', 'the Hollow King', 'Bonewarden', 'the Grave-Sworn', 'the Ashen'] };

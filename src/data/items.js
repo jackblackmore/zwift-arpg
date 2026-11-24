@@ -46,7 +46,7 @@ export const RAREN2 = ['Grasp', 'Song', 'Brand', 'Ward', 'Veil', 'Crown', 'Spire
 export const RCOL = [0xc8c8c8, 0x8888ff, 0xffff77, 0xff9a3c], RCSS = ['#c8c8c8', '#8888ff', '#ffff77', '#ff9a3c'];
 // Drop chances and rarity rolls.
 // normal/magic: chance a monster of that rarity drops an item (rares always drop 1–2, guardians 5).
-// gem: chance a rare also drops a gem (guardians always drop one; pool and level in data/gems.js GEM_POOL, GEM_DROP).
+// gem: chance a rare also drops a gem (not an elite: DROP.elite) (guardians always drop one; pool and level in data/gems.js GEM_POOL, GEM_DROP).
 // rare: a rare's items (the first always, a second at `second` chance) and their rarity boosts. boss: the guardian's items and boosts (first, rest), one every `gap` s.
 // uniqueBase, rareBase, magicBase: chance a drop is unique, rare or magic (the rest are plain items: implicit only); a boost adds to
 // rareBase and magicBase, and uniqueBoost × it to uniqueBase.
@@ -55,4 +55,10 @@ export const RCOL = [0xc8c8c8, 0x8888ff, 0xffff77, 0xff9a3c], RCSS = ['#c8c8c8',
 // affixes: [min, max] rolled per rarity. rareAffixSkip: chance an affix marked `rare` is skipped on a magic and a rare item.
 export const DROP = { normal: .012, magic: .04, uniqueBase: .025, uniqueBoost: .4, uniqueFrom: 6, rareBase: .07, magicBase: .35, bagSize: 30, gem: .25,
   affixes: { magic: [1, 2], rare: [3, 5] }, rareAffixSkip: { magic: .85, rare: .4 },
-  rare: { boost: .1, second: .1, boost2: .05 }, boss: { n: 2, first: .5, rest: .15, gap: .12 } };
+  rare: { boost: .1, second: .1, boost2: .05 }, boss: { n: 2, first: .5, rest: .15, gap: .12 },
+  // Room roles (data/dungeon.js ROLES). elite: the elite's items (n, the first with `first` boost, the rest `rest`, one every
+  // `gap` s), instead of a rare's; no gem. chest: a treasure chest's items when opened (n [min, max], boost), no gem.
+  elite: { n: 3, first: .35, rest: .12, gap: .12 }, chest: { n: [2, 3], boost: .15 } };
+// Treasure chests (game/rooms.js): open when you're within `reach` units (and its guards, if any, are dead). guarded: chance a
+// chest has a pack guarding it (it counts as one of the map's packs).
+export const CHEST = { reach: 2, guarded: .4 };

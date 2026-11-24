@@ -1,7 +1,7 @@
 // Monster packs, spawning, AI (melee, ranged, bomber, boss) and crowd separation.
 import * as T from 'three';
 import { G, P, shake, stop } from '../core/state.js';
-import { MT, TIER, PACKS, PACK, RAREAFF, RN1, RN2, BOSS, RISE, ANIM, STATUS, FIGHT, BLAST, RARE, STAGGER } from '../data/monsters.js';
+import { MT, TIER, PACKS, PACK, RAREAFF, RN1, RN2, BOSS, RISE, ANIM, STATUS, FIGHT, BLAST, RARE, STAGGER, ELITE } from '../data/monsters.js';
 import { TELL } from '../data/graphics.js';
 import { rand, pick, dist, $ } from '../core/util.js';
 import { SFX } from '../core/audio.js';
@@ -16,10 +16,12 @@ import { RIDE } from '../data/ride.js';
 import { RARITY } from '../data/balance.js';
 import { tierHp } from './formulas.js';
 
-export function makePack(x, z) {
+// o.elite: an elite room's pack (data/monsters.js ELITE): its minions and one elite, which spawnEnemy makes stronger.
+export function makePack(x, z, o = {}) {
   const sz = 1 + TIER.packSize * (G.tier - 1), mem = [];
-  for (const [t, n] of pick(PACKS)) for (let i = 0; i < Math.round(n * sz * rand(.85, 1.2)); i++) mem.push(t);
-  const p = { x, z, mem, magic: Math.random() < PACK.magicChance, rare: Math.random() < PACK.rareChance ? pick(PACK.rareTypes) : null, spawned: false, awake: false, list: [] };
+  for (const [t, n] of o.elite ? ELITE.minions : pick(PACKS)) for (let i = 0; i < Math.round(n * sz * rand(.85, 1.2)); i++) mem.push(t);
+  const p = o.elite ? { x, z, mem, magic: Math.random() < ELITE.magic, rare: pick(ELITE.types), elite: true, spawned: false, awake: false, list: [] }
+    : { x, z, mem, magic: Math.random() < PACK.magicChance, rare: Math.random() < PACK.rareChance ? pick(PACK.rareTypes) : null, spawned: false, awake: false, list: [] };
   G.mapTotal += mem.length + (p.rare ? 1 : 0);
   return p;
 }
@@ -32,11 +34,14 @@ export function spawnEnemy(type, x, z, pack, rar = 0) {
   if (rar === 1) { const R = RARITY.magic; hpm *= R.hp; e.dmg *= R.dmg; e.spd *= R.spd; }
   if (rar === 2) {
     hpm *= RARITY.rare.hp; e.dmg *= RARITY.rare.dmg; sc *= RARE.size; e.r *= RARE.radius;
-    e.aff = Object.keys(RAREAFF).sort(() => Math.random() - .5).slice(0, G.tier >= RARE.moreFrom ? RARE.more : RARE.affixes);
+    e.aff = Object.keys(RAREAFF).sort(() => Math.random() - .5).slice(0, (G.tier >= RARE.moreFrom ? RARE.more : RARE.affixes) + (pack && pack.elite ? ELITE.affixes : 0));
     if (e.aff.includes('hasted')) { e.spd *= RARE.hasted.spd; e.cd *= RARE.hasted.cd; }
     if (e.aff.includes('frenzied')) { e.cd *= RARE.frenzied.cd; e.dmg *= RARE.frenzied.dmg; }
     if (e.aff.includes('fortified')) { hpm *= RARITY.rare.fortified; sc *= RARE.fortified.size; }
     e.name = pick(RN1) + pick(RN2);
+    if (pack && pack.elite) { // an elite room's elite (data/monsters.js ELITE)
+      e.elite = true; hpm *= ELITE.hp; e.dmg *= ELITE.dmg; sc *= ELITE.size; e.r *= ELITE.size; e.name += ', ' + pick(ELITE.titles);
+    }
   }
   e.hp = e.maxHp = b.hp * hpm; e.dmg *= md;
   if (type === 'boss' || rar === 2) { e.stagMax = 1; e.stag = 0; } // a stagger bar (data/monsters.js STAGGER)
@@ -74,7 +79,10 @@ function rouse(o) {
 }
 export function wake(e) {
   if (e.awake) return;
-  if (e.pack) { if (!e.pack.awake) { e.pack.awake = true; if (e.pack.rare) SFX.roar(); } e.pack.list.forEach(rouse); }
+  if (e.pack) {
+    if (!e.pack.awake) { e.pack.awake = true; if (e.pack.rare) SFX.roar(); const el = e.pack.elite && e.pack.list.find(m => m.elite); if (el) banner(el.name.toUpperCase(), '#ff7a3a', 'Elite · the doors seal until it falls'); }
+    e.pack.list.forEach(rouse);
+  }
   rouse(e);
   if (e.type === 'boss') { banner('THE PALE WARDEN', '#ff4fd8', 'Parry its swings · block or roll the slams'); SFX.roar(); $('bossbar').style.display = 'block'; }
 }

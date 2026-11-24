@@ -43,7 +43,45 @@ export const WALL_TORCH = { every: 7, max: 34 };
 export const BRAZIER_MAX = 16;
 // Packs: how far apart (units) packs sit, and how far from the entrance.
 export const PACK_SPACING = { room: 7, relaxed: 5, fromStart: 13, fromBoss: 9 };
-// Fog gates (game/gate.js): a misty barrier across a doorway. Once you're `inside` units past it and the fight has started
-// (the guardian is awake), it seals: no way out until the guardian dies (then it opens for good) or you die (then it reopens
-// and the guardian resets). `rooms`: which room kinds get one (elite rooms later, with room roles).
-export const GATE = { rooms: ['boss'], inside: 1.5 };
+// Fog gates (game/gate.js): a misty barrier across a room's doorways. Once you're `inside` units past them and the fight has
+// started (the guardian or the elite is awake), it seals: no way out until it dies (then it opens for good) or you die (then it
+// reopens and the guardian or elite resets). `rooms`: which room kinds (start, main, side, boss) or roles (ROLES) get one.
+export const GATE = { rooms: ['boss', 'elite'], inside: 1.5 };
+
+// ---- Room roles (world/gen.js assignRoles; design notes "Level generation v2" and "Beats") ----
+// Every room gets a role; the role decides what's in it and what its door sign says (game/route.js). Ambush and shrine rooms
+// aren't built yet (not decided). `est`: rough seconds at par for the room's content, beyond walking (the time budget, build
+// order step 10 step 6, will add these up; first guesses until measured). `col`: the map viewer's and minimap's colour.
+//   start: the entrance (no content).        combat: today's packs.
+//   elite: one named strong rare with minions, more and better items, a fog gate (ELITE in data/monsters.js, DROP.elite in data/items.js).
+//   treasure: a chest that drops items when opened, sometimes guarded (CHEST in data/items.js).
+//   rest: heals, refills flasks and clears posture, once per map; no monsters (REST below).   guardian: the level's end.
+export const ROLES = {
+  start: { icon: '⌂', name: 'Entrance', col: '#5fe39a', est: 0 },
+  combat: { icon: '⚔', name: 'Combat', col: '#a08a62', est: 20 }, // about 2 packs of 10 s (packs are shared out over the combat rooms)
+  elite: { icon: '☠', name: 'Elite', col: '#ff7a3a', est: 60 },
+  treasure: { icon: '✦', name: 'Treasure', col: '#ffd23f', est: 20 },
+  rest: { icon: '☗', name: 'Rest', col: '#5ad0c0', est: 15 },
+  guardian: { icon: '♛', name: 'Guardian', col: '#ff4fd8', est: 70 },
+};
+// The rhythm along the route (the "Beats" template, scaled to the route): rooms are combat unless a beat takes them. A room's
+// place on the route is rank / (route rooms − 1), 0 at the entrance and 1 at the guardian; a side room counts its parent's place.
+//   warm: the first part of the route is combat only (warm-up), side rooms off it too.
+//   beats: in order; each takes one combat room whose place is within `at`. side: 1 prefers a side room (an optional reward:
+//   choosing the branch is choosing risk and reward), falling back to a route room; 2 side rooms only (or no beat); 0 route
+//   rooms only. chance: the
+//   beat happens on that share of levels (default every level).
+// Rest rooms: on the route only (you always pass them), mid-route, at most one per level and only on some levels, so the start
+// stays hard (design notes "Harder start").
+export const RHYTHM = {
+  warm: .2,
+  beats: [
+    { role: 'elite', at: [.25, .8], side: 1 }, // medium beat
+    { role: 'treasure', at: [.2, .7], side: 1 }, // small beat
+    { role: 'rest', at: [.45, .7], side: 0, chance: .5 }, // breather
+    { role: 'treasure', at: [.5, 1], side: 2, chance: .5 }, // a late small beat
+    { role: 'elite', at: [.6, 1], side: 2, chance: .35 }, // a late big beat (a second elite)
+  ],
+};
+// Rest rooms (game/rooms.js): the flame heals you once you're in the room with no monster awake within `calm` units.
+export const REST = { calm: 10 };
