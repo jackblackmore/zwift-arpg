@@ -54,7 +54,7 @@ export const RN2 = ['maw', 'tooth', 'spine', 'gnaw', 'husk', 'grip', 'fang', 'sk
 //   effort spike fills it too (data/ride.js RIDE.spike). A channel that completes does the next of `effects` in turn:
 //   burst: after a `t` s purple wind-up, an unblockable blast within `r` for `dmg` × its damage (roll it);
 //   mend: it heals `heal` of its max life and summons `summon` of BOSS.summonType.
-export const BOSS = { vsMinion: 1.4, aggro: 13, rotation: ['slam', 'nova', 'slam', 'summon'], rotation2: ['channel', 'slam', 'charge', 'nova', 'slam', 'channel', 'summon', 'charge'], abilGap: 3.8, abilGap2: 2.6, enrage: .5, enrageSpd: 1.3,
+export const BOSS = { vsMinion: 1.4, aggro: 13, rotation: ['slam', 'nova', 'slam', 'summon'], rotation2: ['channel', 'slam', 'charge', 'nova', 'slam', 'channel', 'summon', 'charge'], abilGap: 3.8, abilGap2: 2.2, enrage: .5, enrageSpd: 1.3,
   slamR: 2.9, slamDmg: 4.5, slamT: 1.2, slamT2: .95, novaBolts: 7, novaSpread: .9, novaDmg: .8, novaSpeed: 7, novaGap: .45, novaT: .7, summon: 3, summon2: 5, summonType: 'runner',
   charge: { t: 1.1, dmg: 4.5, speed: 16, range: 9, hitR: .5 },
   channel: { t: 3, swingCd: .8, firstSwing: .2, parry: 1.25, hits: 4, surge: 6, effects: ['burst', 'mend'], burst: { t: .7, dmg: 5, r: 8 }, mend: { heal: .1, summon: 4 } } };

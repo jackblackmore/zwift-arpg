@@ -284,14 +284,17 @@ try {
         smart: D.arena({ tier: 2, guardian: true, maxT: 240 }),
         under: D.arena({ tier: 2, gear: 'start', guardian: true, maxT: 120 }),
         perfect: D.arena({ tier: 2, guardian: true, maxT: 240, bot: 'perfect' }),
+        // one fight is noisy (a good rider can get lucky): compare damage taken over three more fights each
+        smart3: [0, 1, 2].map(() => D.arena({ tier: 2, guardian: true, maxT: 240 })).reduce((a, x) => a + x.taken, 0),
+        perfect3: [0, 1, 2].map(() => D.arena({ tier: 2, guardian: true, maxT: 240, bot: 'perfect' })).reduce((a, x) => a + x.taken, 0),
       };
     });
-    console.log('  balance:', JSON.stringify(Object.fromEntries(Object.entries(r).map(([k, v]) => [k, `${v.result} ${v.t}s lowest ${v.lowest}`]))));
+    console.log('  balance:', JSON.stringify(Object.fromEntries(Object.entries(r).map(([k, v]) => [k, typeof v === 'number' ? v : `${v.result} ${v.t}s lowest ${v.lowest}`]))));
     check(r.pack.result === 'clear' && r.pack.t > 3 && r.pack.t < 20, `balance: a tier 1 pack takes a few seconds with the starter sword (${r.pack.t}s)`);
     check(r.boss.result === 'clear' && r.boss.t > 45 && r.boss.t < 180, `balance: tier 1 guardian can't be burned down (${r.boss.t}s)`);
     check(r.under.result !== 'clear', `balance: starter sword can't beat the tier 2 guardian in 2 minutes (${r.under.result})`);
     check(r.smart.result === 'clear' && (r.careless.result === 'died' || r.careless.taken > r.smart.taken * 3), `balance: never parrying, blocking or rolling against the tier 2 guardian does far worse (${r.careless.result}, ${r.careless.taken} taken vs ${r.smart.taken})`);
-    check(r.perfect.result === 'clear' && r.perfect.taken < r.smart.taken && r.smart.parries > 5 && r.smart.rolls > 2, `balance: perfect timing takes less than a good rider (${r.perfect.taken} vs ${r.smart.taken}), who parries and rolls (${r.smart.parries} parries, ${r.smart.rolls} rolls)`);
+    check(r.perfect.result === 'clear' && r.perfect3 < r.smart3 && r.smart.parries > 5 && r.smart.rolls > 2, `balance: perfect timing takes less than a good rider over three tier 2 guardian fights (${r.perfect3} vs ${r.smart3}), who parries and rolls (${r.smart.parries} parries, ${r.smart.rolls} rolls)`);
     check(errors.length === 0, `balance: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   }
 
