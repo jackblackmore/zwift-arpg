@@ -9,14 +9,14 @@
 // Flex) when enough monsters are in reach (SK[...].bot), drinks flasks under half life, and surges against rares, guardians and
 // crowds of four or more. It never steps out of anything: like the autopilot, it stands in reach, so defence is all timing
 // (design notes "Fight mechanics"). With the Knight's Shield and Roll it plays the timing game at a reaction skill (SKILL below):
-// it decides once per threat whether it reacts in time. A swing it sees coming: parry (else block, else nothing). A heavy (slam,
+// it decides once per threat whether it reacts in time. Against a guardian it keeps some Surge back and surges through its channels. A swing it sees coming: parry (else block, else nothing). A heavy (slam,
 // bloater, burning pulse): roll just before it lands (else block). An unblockable (charge, volatile blast): roll (else nothing).
 // Bolts and arrows flying at it: block. 'careless' never Guards or Evades. A Guard gem other than the shield (Magic Shield, Frost
 // Ward) is cast when a hit is coming. Obstacles are cleared so fights repeat.
 import { G, P, S } from '../core/state.js';
 import { ctl } from '../input/input.js';
 import { SK } from '../data/skills.js';
-import { FIGHT, BLAST, RARE } from '../data/monsters.js';
+import { FIGHT, BLAST, RARE, BOSS } from '../data/monsters.js';
 import { parLevel, PAR_GEAR, parBar, parSock } from '../data/balance.js';
 import { GEMS, BAR } from '../data/gems.js';
 import { addGem, barGem, readySlots, socketGem, meleeReach } from './gems.js';
@@ -30,12 +30,13 @@ const DT = .033;
 // Reaction skill: the chance it answers each kind of threat in time. smart is a good rider; perfect never misses. brace: a swing
 // it will parry is braced for with a held block until the parry moment (a good rider hedges; a perfect one keeps swinging).
 const SKILL = { smart: { parry: .7, roll: .9, bolt: .85, brace: true }, perfect: { parry: 1, roll: 1, bolt: 1, brace: false } };
+const SAVE = 10; // seconds of Surge it keeps back for a guardian's channels
 
 export function arena(spec) {
   const tier = spec.tier || 1, lvl = spec.lvl || parLevel(tier);
   clearMap(); G.tier = tier; G.packs = []; G.bossSpec = null; G.obst = []; G.layout = null; G.mapKills = 0;
   Object.assign(P, { lvl, passives: {}, gear: gearProfile(spec.gear || PAR_GEAR(tier), tier), dead: 0, invuln: 0, shield: 0, shieldT: 0, castT: 0,
-    blocking: false, parryT: 0, parryCd: 0, posture: 0, broken: 0, riposteT: 0, rollT: 0, apPause: 0, flaskT: 0, kills: 0, staggers: 0, finishers: 0, taken: 0, takenBy: {}, gems: [], bar: {}, sock: {}, cd: {}, shrined: { main: 1, flexA: 1, flexB: 1, guard: 1, evade: 1 } });
+    blocking: false, parryT: 0, parryCd: 0, posture: 0, broken: 0, riposteT: 0, rollT: 0, apPause: 0, flaskT: 0, kills: 0, staggers: 0, finishers: 0, chans: 0, chanBroken: 0, taken: 0, takenBy: {}, gems: [], bar: {}, sock: {}, cd: {}, shrined: { main: 1, flexA: 1, flexB: 1, guard: 1, evade: 1 } });
   const bar = { ...(spec.bar || parBar(tier)) };
   if (spec.main && bar.main) { bar.main = [spec.main, bar.main[1]]; for (const s of BAR) if (s !== 'main' && bar[s] && bar[s][0] === spec.main) delete bar[s]; }
   for (const [slot, [gem, gl]] of Object.entries(bar)) P.bar[slot] = addGem(gem, gl).id;
@@ -78,8 +79,10 @@ export function arena(spec) {
     ctl.autoAtk = true;
     ctl.aim = [focus.x, focus.z];
     if (mainD && mainD.held) ctl.main = !melee && fd < 10;
-    // Surge (unless spec.surge === false) against a rare or guardian, or when four or more monsters are close.
-    ctl.surge = spec.surge !== false && (alive.some(e => e.rar === 2 || e.type === 'boss') || within(9) >= 4);
+    // Surge (unless spec.surge === false) against a rare or guardian, or when four or more monsters are close. Against a guardian it
+    // keeps SAVE s of the gauge for its channels, and surges through every channel to break it (BOSS.channel).
+    const chan = alive.some(e => e.channel), boss0 = alive.some(e => e.type === 'boss');
+    ctl.surge = spec.surge !== false && (chan || ((alive.some(e => e.rar === 2) || boss0 || within(9) >= 4) && !(boss0 && P.surge < SAVE)));
     if (P.surgeK > 0) surged += DT;
     for (const s of attacks) {
       const K = SK[GEMS[barGem(s).gem].sk], need = s === 'main' ? 1 : (K.bot && K.bot.crowd) || 1;
@@ -100,6 +103,7 @@ export function arena(spec) {
         const heavy = (o, key, left) => { const r = react(o, key, skill.roll); if (r === 'ok') { if (left <= rollIn) roll = true; } else if (r === 'block') hold = true; };
         if (inSlam) heavy(bc, 'slam', bc.t);
         if (bc && bc.kind === 'charge') { const r = react(bc, 'charge', skill.roll); if (r === 'ok' && bc.t <= .12) roll = true; }
+        if (bc && bc.kind === 'burst' && Math.hypot(P.x - boss.x, P.z - boss.z) < BOSS.channel.burst.r + P.r && react(bc, 'burst', skill.roll) === 'ok' && bc.t <= rollIn) roll = true;
         for (const e of alive) {
           if (e.fuse > 0 && dd(e) < BLAST.bloater.r + P.r) heavy(e, 'fuse', e.fuse);
           if (e.fireAura && dd(e) < RARE.burning.r + P.r && e.auraT < RARE.burning.windup) heavy(e, 'pulse' + Math.floor(t / RARE.burning.every), e.auraT);
@@ -122,7 +126,7 @@ export function arena(spec) {
   const left = G.enemies.filter(e => !e.deathT && foes.includes(e)).length;
   return {
     result: P.dead > 0 ? 'died' : left ? 'timeout' : 'clear', t: Math.round(t * 10) / 10, kills: P.kills,
-    taken: Math.round(P.taken), takenBy: Object.fromEntries(Object.entries(P.takenBy).map(([k, v]) => [k, Math.round(v)])), lowest: Math.round(lowest * 100) / 100, flasks, shields, evades, parries: n.parry, blocks: n.blockhit, breaks: n.broken, rolls: n.roll, staggers: P.staggers, finishers: P.finishers, surged: Math.round(surged * 10) / 10,
+    taken: Math.round(P.taken), takenBy: Object.fromEntries(Object.entries(P.takenBy).map(([k, v]) => [k, Math.round(v)])), lowest: Math.round(lowest * 100) / 100, flasks, shields, evades, parries: n.parry, blocks: n.blockhit, breaks: n.broken, rolls: n.roll, staggers: P.staggers, finishers: P.finishers, chans: P.chans, chanBroken: P.chanBroken, surged: Math.round(surged * 10) / 10,
     lvl, life: S.maxLife, bar: BAR.filter(s => barGem(s)).map(s => barGem(s).gem + barGem(s).lvl).join(' '), sup: Object.values(S.sk).flatMap(k => k.sup).join(' '),
   };
 }

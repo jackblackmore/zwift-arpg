@@ -43,7 +43,7 @@ export const SFX = {
   lvl: () => [523, 659, 784, 1047, 1318].forEach((f, i) => tone(f, .35, 'sine', .07, 1, i * .09)),
   flask: () => { tone(500, .3, 'sine', .06, 1.8); noise(.2, .04, 2500, 2); },
   // Fight mechanics: a cue per telegraph type (riders don't always watch the screen), then block, parry and guard break.
-  cue: k => { if (!lim('cue' + k, .2)) return; if (k === 'parry') { tone(1320, .12, 'triangle', .06, 1); tone(1760, .1, 'triangle', .04, 1, .06); } else if (k === 'heavy') { tone(110, .35, 'sawtooth', .07, .7); noise(.3, .05, 300, .6, 0, 'lowpass'); } else { tone(233, .45, 'square', .05, .8); tone(247, .45, 'square', .05, .8); } },
+  cue: k => { if (!lim('cue' + k, .2)) return; if (k === 'channel') { tone(392, .9, 'sine', .06, 2); tone(588, .9, 'sine', .04, 2, .05); noise(.8, .03, 1800, 3); } else if (k === 'parry') { tone(1320, .12, 'triangle', .06, 1); tone(1760, .1, 'triangle', .04, 1, .06); } else if (k === 'heavy') { tone(110, .35, 'sawtooth', .07, .7); noise(.3, .05, 300, .6, 0, 'lowpass'); } else { tone(233, .45, 'square', .05, .8); tone(247, .45, 'square', .05, .8); } },
   block: () => { if (lim('block', .06)) { tone(420, .1, 'square', .04, .5); noise(.1, .1, 900, 1.2); } },
   parry: () => { tone(1800, .35, 'triangle', .09, .6); tone(2700, .25, 'sine', .05, .7); noise(.12, .12, 5000, 1.5); },
   finisher: () => { tone(70, .6, 'sine', .25, .35); noise(.45, .25, 220, .7, 0, 'lowpass'); noise(.25, .14, 3200, 1.2, .03); tone(1100, .5, 'triangle', .06, .5, .04); },

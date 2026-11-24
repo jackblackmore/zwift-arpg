@@ -1,6 +1,7 @@
 // Life and Surge orbs, skill bar, XP, map info, boss bar, minimap, vignette, banner timer.
 import { G, P, S } from '../core/state.js';
 import { SK } from '../data/skills.js';
+import { BOSS } from '../data/monsters.js';
 import { RCSS } from '../data/items.js';
 import { ctl } from '../input/input.js';
 import { $ } from '../core/util.js';
@@ -30,7 +31,7 @@ export function hud(dt) {
   $('bGems').classList.toggle('glow', P.newGems > 0 || (BAR.some(s => unlocked(s) && !barGem(s)) && P.gems.some(g => !BAR.some(s => P.bar[s] === g.id))));
   const pb = $('passBadge'); pb.style.display = P.pts ? 'block' : 'none'; pb.textContent = P.pts; $('bPass').classList.toggle('glow', P.pts > 0);
   const boss = G.bossSpec && G.bossSpec.e;
-  if (boss && !boss.deathT) { $('bossHp').style.width = (boss.hp / boss.maxHp * 100) + '%'; $('bossStag').style.width = ((boss.stun > 0 ? 1 : boss.stag || 0) * 100) + '%'; $('bossStag').classList.toggle('stun', boss.stun > 0); }
+  if (boss && !boss.deathT) { $('bossHp').style.width = (boss.hp / boss.maxHp * 100) + '%'; $('bossStag').style.width = ((boss.stun > 0 ? 1 : boss.stag || 0) * 100) + '%'; $('bossStag').classList.toggle('stun', boss.stun > 0); $('bossChan').parentNode.classList.toggle('on', !!boss.channel); $('bossChan').style.width = (boss.channel ? Math.min(1, boss.channel.t / BOSS.channel.t) * 100 : 0) + '%'; }
   rideHud(slotLook);
   T.mm -= .07; if (T.mm > 0 || !G.mmBase) return; T.mm = .2;
   minimap();
