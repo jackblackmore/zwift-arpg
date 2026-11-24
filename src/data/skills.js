@@ -47,8 +47,9 @@ export const SK = {
   shield: { barrier: .12, cap: .3, dur: 5, guard: { block: .82, heavy: .6, riposte: 1.3 } },
   // Flame Dash: the first Evade gem (level 8 shrine). Gems with `charges` hold that many casts, recharging one per `recharge` seconds.
 // Optional `bot: { range, crowd }` tells the arena bot when to use a Flex or Main press gem: an enemy within `range` (default: radius or range, else 9), `crowd` of them (default 1).
-  // Flame Dash leaves a patch of burning ground (radius patchR) every patchEvery units.
-  dash: { charges: 1, range: 7.5, recharge: 4, patchEvery: 1.1, patchR: .95, invuln: .3 },
+  // Flame Dash leaves a patch of burning ground (radius patchR) every patchEvery units. It goes through the monster you aim at,
+  //   ending `past` units beyond its far side (at most `range` in all), and hits each monster it passes once for `mult` × the gem's base.
+  dash: { charges: 1, range: 7.5, recharge: 4, patchEvery: 1.1, patchR: .95, invuln: .3, past: 1.6, mult: 1.2 },
   // Blink: teleports `range` away from the nearest threat (its milestone's frost burst is in data/gems.js).
   blink: { charges: 2, range: 6.5, recharge: 5, invuln: .45 },
   // Frost Ward: a parry chills the attacker for `chill` s and leaves a frost ring of `radius` where you stand for `dur` s (both × the

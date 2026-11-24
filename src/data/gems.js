@@ -7,8 +7,9 @@
 
 export const GEMS = {
   // Melee attacks (src/game/sk/strike.js): `melee` marks them. The Main gem auto-attacks what's in reach (game/gems.js).
-  // Sword: the plain starting attack (physical, no milestone yet) while the fight mechanics are tested (build order step 3⅞).
-  sword: { n: 'Sword', kind: 'attack', held: 1, melee: 1, sk: 'sword', elem: 'phys', icon: '🗡', col: '#d8dce8', d: 'A plain sword swing at whatever is in front of you', ms: {}, mile: {} },
+  // Sword: the plain starting attack (physical). Its milestone: every `every`th swing is a heavy cut, `mult` × the damage and
+  // `stagger` × a normal swing's stagger fill.
+  sword: { n: 'Sword', kind: 'attack', held: 1, melee: 1, sk: 'sword', elem: 'phys', icon: '🗡', col: '#d8dce8', d: 'A plain sword swing at whatever is in front of you', ms: { 5: 'Every 3rd swing is a heavy cut: 50% more damage and twice the stagger' }, mile: { every: 3, mult: 1.5, stagger: 2 } },
   cleave: { n: 'Ember Cleave', kind: 'attack', held: 1, melee: 1, sk: 'cleave', elem: 'fire', icon: '⚔', col: '#ff8a3c', d: 'A wide burning swing that hits everything in front of you', ms: { 5: 'Swings 25% wider and reaches 15% further' }, mile: { arc: 1.25, reach: 1.15 } },
   fstrike: { n: 'Frost Strike', kind: 'attack', held: 1, melee: 1, sk: 'fstrike', elem: 'cold', icon: '✦', col: '#9fe8ff', d: 'A quick, narrow, hard-hitting strike that chills', ms: { 5: 'Every 3rd strike freezes what it hits for 0.8s' }, mile: { every: 3, freeze: .8 } },
   slam: { n: 'Thunder Slam', kind: 'attack', held: 1, melee: 1, sk: 'slam', elem: 'light', icon: '⚒', col: '#c98bff', d: 'A slow overhead slam: a big hit in a circle in front of you that knocks back and can shock', ms: { 5: '+25% radius' }, mile: { radius: 1.25 } },
@@ -25,7 +26,7 @@ export const GEMS = {
   shield: { n: 'Magic Shield', kind: 'guard', held: 0, shield: 1, art: 'shield', sk: 'shield', icon: '◎', col: '#7fb8ff', d: 'A shield art: block and parry as with the Knight\'s Shield. A parry wraps you in a barrier worth 12% of your life (stacking up to 30%, for 5s), and blocks take off a little more, but its riposte is weaker', ms: { 5: 'Its barrier absorbs 25% more' }, mile: { add: { shieldPct: .25 } } },
   blink: { n: 'Blink', kind: 'evade', held: 0, sk: 'blink', elem: 'cold', icon: '⇝', col: '#9fe8ff', d: 'Teleport away from the nearest threat, untouchable for a moment', ms: { 5: 'Leaves a frost burst behind that chills' }, mile: { burstR: 3, burstMult: .9, burstChill: 3 } },
   ward: { n: 'Frost Ward', kind: 'guard', held: 0, shield: 1, art: 'ward', sk: 'ward', elem: 'cold', icon: '❅', col: '#8fe0ff', d: 'A shield art: block and parry as with the Knight\'s Shield. A parry chills the attacker for 2.5s (a guardian more briefly) and leaves a frost ring for 3s that chills and bites monsters inside, but blocks take off less', ms: { 5: 'Frost rings +25% radius' }, mile: { radius: 1.25 } },
-  dash: { n: 'Flame Dash', kind: 'evade', held: 0, sk: 'dash', elem: 'fire', icon: '➶', col: '#ff6a1a', d: 'Dash forward, leaving burning ground', ms: { 5: '+1 charge' }, mile: { add: { dashCh: 1 } } },
+  dash: { n: 'Flame Dash', kind: 'evade', held: 0, sk: 'dash', elem: 'fire', icon: '➶', col: '#ff6a1a', d: 'Dash through the monster you aim at, hitting everything you pass and leaving burning ground', ms: { 5: '+1 charge' }, mile: { add: { dashCh: 1 } } },
 };
 
 // Skill bar, in button order. unlock: character level. kinds: gem kinds the slot takes.

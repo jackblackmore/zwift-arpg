@@ -24,7 +24,7 @@ import { tierHp, hitBase } from './formulas.js';
 const ECOL = { fire: '#ffb070', cold: '#bff0ff', light: '#e0c8ff' };
 
 // Hit an enemy with `mult` × (gem base + flat damage from gear) of an element. src.gem = the skill gem it came from (sets the base and the skill's `more` from supports),
-// src.kx/kz = knockback direction (src.kb scales it), src.dot = no number/sound, src.by = who gets the kill instead of the gem
+// src.kx/kz = knockback direction (src.kb scales it), src.stag = × the stagger it fills (the Sword's heavy cut), src.dot = no number/sound, src.by = who gets the kill instead of the gem
 // ('minion': a skeleton's hit, so it doesn't count as the gem's kill for Raise Skeletons).
 export function hit(e, mult, elem, src = {}) {
   if (e.deathT) return 0;
@@ -37,7 +37,7 @@ export function hit(e, mult, elem, src = {}) {
     d *= 1 + STAGGER.taken;
     if (e.finisher && !src.dot && src.by !== 'minion') { e.finisher = false; d *= STAGGER.finisher; finisherFx(e); }
   }
-  else if (e.stagMax && !src.dot) { const C = e.channel && BOSS.channel; stagger(e, d / e.maxHp * STAGGER.dmg * (C ? C.hits * (1 + C.surge * (P.surgeK || 0)) : 1 + STAGGER.surge * (P.surgeK || 0))); } // a channel is easier to break, more so surging
+  else if (e.stagMax && !src.dot) { const C = e.channel && BOSS.channel; stagger(e, d / e.maxHp * STAGGER.dmg * (src.stag || 1) * (C ? C.hits * (1 + C.surge * (P.surgeK || 0)) : 1 + STAGGER.surge * (P.surgeK || 0))); } // a channel is easier to break, more so surging
   e.hp -= d; e.flash = .07; e.lastElem = elem; e.lastGem = src.by || gem; e.lastHit = Math.max(e.lastHit || 0, d);
   if (!src.dot) {
     floatT(e.x, e.h + .3, e.z, Math.round(d), crit ? '#ffe060' : ECOL[elem] || '#fff', crit ? 17 : 12);
