@@ -10,6 +10,9 @@ import { DUNGEON } from '../data/graphics.js';
 import { FLOOR, WALL, BANNERS, OBSTACLES, CLUTTER, OBSTACLE_DENSITY, WALL_TORCH, BRAZIER_MAX } from '../data/dungeon.js';
 import { solid, wallHit, lineDist } from './gen.js';
 
+// Door frame look: jamb pillar scale (× DUNGEON.scale), lintel height, how far it overhangs the gap, depth (× scale), lift above the wall top.
+const DOOR_FRAME = { jamb: 1.05, lintel: .8, over: .9, depth: 1.25, lift: .15 };
+
 export const dun = { ready: false, tpl: {} };
 
 export async function loadDungeon() {
@@ -37,11 +40,11 @@ const weighted = list => { let r = Math.random() * list.reduce((s, [, w]) => s +
 function batch() {
   const placed = new Map(), M = new T.Matrix4(), Q = new T.Quaternion(), Y = new T.Vector3(0, 1, 0), S = new T.Vector3(), P = new T.Vector3();
   return {
-    // y: height of the model's origin; 'floor' sits its lowest point on the floor.
+    // y: height of the model's origin; 'floor' sits its lowest point on the floor. s: a scale, or [x, y, z] scales.
     add(name, x, z, rot = 0, s = DUNGEON.scale, y = 'floor') {
       const t = dun.tpl[name]; if (!t) return;
-      if (y === 'floor') y = -t.minY * s;
-      Q.setFromAxisAngle(Y, rot); S.setScalar(s); P.set(x, y, z);
+      if (y === 'floor') y = -t.minY * (Array.isArray(s) ? s[1] : s);
+      Q.setFromAxisAngle(Y, rot); if (Array.isArray(s)) S.set(...s); else S.setScalar(s); P.set(x, y, z);
       if (!placed.has(name)) placed.set(name, []);
       placed.get(name).push(new T.Matrix4().compose(P, Q, S));
     },
@@ -95,10 +98,23 @@ export function buildDungeon(L) {
     if (!isFloor(i + 1, j)) wall(e + .5 * s, z, -Math.PI / 2, -1, 0);
     if (!isFloor(i, j + 1)) solidB.add('barrier_column', x, so + .35 * s, Math.PI, s);
   }
-  // Pillars where a wall turns a corner.
+  // Door frames (world/gen.js room.doors): a decorated pillar each side of the gap and, on north walls (the ones the camera sees
+  // face on), a stone lintel across the top. Seen from the camera's height a lintel on a side wall reads as more wall and hides
+  // the doorway, and south walls stay low so they never hide the hero, so those get the pillars only. Dungeon Remastered's own doorway pieces (wall_doorway, wall_open_scaffold)
+  // have one-tile openings, narrower than our two-cell doorways, and its wall_arched is a solid wall with the arch in relief, so
+  // the frame is made of pieces already in dungeon.glb: the lintel is a plain wall piece squashed to a beam.
+  const jambs = new Set();
+  for (const r of L.rooms) for (const d of r.doors) {
+    const along = d.side === 'n' || d.side === 's', line = { e: r.i0 + r.w, w: r.i0, s: r.j0 + r.h, n: r.j0 }[d.side];
+    const a = Math.round(((along ? d.x : d.z) - d.w / 2 + half) / cell), b = a + Math.round(d.w / cell);
+    for (const k of [a, b]) { const [vi, vj] = along ? [k, line] : [line, k]; jambs.add(vj * (L.n + 1) + vi); solidB.add('pillar_decorated', edgeX(vi), edgeX(vj), along ? 0 : Math.PI / 2, s * DOOR_FRAME.jamb); }
+    if (d.side !== 'n') continue;
+    const F = DOOR_FRAME; solidB.add('wall', d.x, d.z - .5 * s, 0, [(d.w + F.over) / 4, F.lintel / 4, s * F.depth], 4 * s - F.lintel + F.lift);
+  }
+  // Pillars where a wall turns a corner (door jambs have their own).
   for (let j = 0; j <= L.n; j++) for (let i = 0; i <= L.n; i++) {
     const a = isFloor(i - 1, j - 1), b = isFloor(i, j - 1), c = isFloor(i - 1, j), d = isFloor(i, j), cnt = a + b + c + d;
-    if (cnt === 0 || cnt === 4 || (cnt === 2 && a === b)) continue; // open floor, solid rock, or a straight wall
+    if (cnt === 0 || cnt === 4 || (cnt === 2 && a === b) || jambs.has(j * (L.n + 1) + i)) continue; // open floor, solid rock, a straight wall or a door jamb
     solidB.add('pillar', edgeX(i), edgeX(j), 0, s * 1.15);
   }
 

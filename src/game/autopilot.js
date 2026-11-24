@@ -50,6 +50,8 @@ function pick(dt) {
   for (const d of G.ground) { if (!d.landed || d.gone) continue; const dd = dist(d.x, d.z, P.x, P.z); if (dd < ld) { ld = dd; loot = d; } }
   if (loot) return toward(loot.x, loot.z);
   if (G.portal) return toward(G.portal.x, G.portal.z);
+  // Behind a sealed fog gate (game/gate.js) the fight is a commitment: back to the guardian, never a way out.
+  if (G.gate && G.gate.shut && G.bossSpec && G.bossSpec.e) return toward(G.bossSpec.e.x, G.bossSpec.e.z);
   // Room levels: the route choice at junctions (game/route.js) decides where next.
   const r = routeTarget(dt); if (r === 'wait') return [0, 0]; if (r) return toward(r.x, r.z);
   let pack = null, pr = 1e9, pd = 1e9;

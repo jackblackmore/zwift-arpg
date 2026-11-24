@@ -43,3 +43,7 @@ export const WALL_TORCH = { every: 7, max: 34 };
 export const BRAZIER_MAX = 16;
 // Packs: how far apart (units) packs sit, and how far from the entrance.
 export const PACK_SPACING = { room: 7, relaxed: 5, fromStart: 13, fromBoss: 9 };
+// Fog gates (game/gate.js): a misty barrier across a doorway. Once you're `inside` units past it and the fight has started
+// (the guardian is awake), it seals: no way out until the guardian dies (then it opens for good) or you die (then it reopens
+// and the guardian resets). `rooms`: which room kinds get one (elite rooms later, with room roles).
+export const GATE = { rooms: ['boss'], inside: 1.5 };

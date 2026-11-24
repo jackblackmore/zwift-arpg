@@ -5,7 +5,10 @@
 // Returns a layout:
 //   n, cell, half   grid is n × n cells, each `cell` units; world x,z = -half + (i|j) * cell
 //   grid            Uint8Array, index j * n + i; 1 = floor, 0 = wall
-//   rooms           [{ id, kind: start|main|side|boss, i0, j0, w, h, x, z (centre), rank }]
+//   rooms           [{ id, kind: start|main|side|boss, i0, j0, w, h, x, z (centre), rank, doors }]
+//   doors           per room: [{ side: n|s|e|w, x, z, w, to, edge }] the real gaps in its walls, one per corridor. x, z is the middle
+//                   of the gap on the room's wall line (n = smaller z, s = larger z, the camera side); w its width in units;
+//                   to the room the corridor leads to; edge the corridor's index in edges
 //   route           room ids from the entrance to the guardian
 //   edges           [{ a, b, pts: [{x, z}], len, rank, mid: {x, z} }] one per corridor (a, b are room ids)
 //   path            the main route as a world polyline, entrance to guardian; routeLen is its length
@@ -47,7 +50,7 @@ export function generateLevel(opts = {}, rng = Math.random) {
   const rooms = [], byZone = new Map();
   const addRoom = (zx, zy, kind, w, h) => {
     const i0 = zx * ZC + ri(2, ZC - w - 2), j0 = zy * ZC + ri(2, ZC - h - 2);
-    const r = { id: rooms.length, kind, zx, zy, i0, j0, w, h, rank: 0 };
+    const r = { id: rooms.length, kind, zx, zy, i0, j0, w, h, rank: 0, doors: [] };
     for (let j = j0; j < j0 + h; j++) for (let i = i0; i < i0 + w; i++) grid[j * n + i] = 1;
     // An L shape: take a block out of one corner (never the middle, where the corridors meet).
     if (w >= 5 && h >= 5 && kind !== 'start' && kind !== 'boss' && rng() < g.notchChance) {
@@ -93,6 +96,14 @@ export function generateLevel(opts = {}, rng = Math.random) {
     // The point halfway along the corridor, for chokepoint packs.
     let len = 0; const L = []; for (let k = 1; k < pts.length; k++) { L.push(Math.hypot(pts[k].x - pts[k - 1].x, pts[k].z - pts[k - 1].z)); len += L[k - 1]; }
     let h = len / 2, mid = pts[0]; for (let k = 0; k < L.length; k++) { if (h <= L[k] || k === L.length - 1) { const t = L[k] ? Math.min(1, h / L[k]) : 0; mid = { x: pts[k].x + (pts[k + 1].x - pts[k].x) * t, z: pts[k].z + (pts[k + 1].z - pts[k].z) * t }; break; } h -= L[k]; }
+    // Doors: where the corridor crosses each room's wall line (it leaves a room along the room's centre row or column).
+    const edge = list.length;
+    for (const [r, o] of [[a, b], [b, a]]) {
+      const side = a.zy === b.zy ? (o.zx > r.zx ? 'e' : 'w') : (o.zy > r.zy ? 's' : 'n');
+      const x = side === 'e' ? -half + (r.i0 + r.w) * cell : side === 'w' ? -half + r.i0 * cell : r.x;
+      const z = side === 's' ? -half + (r.j0 + r.h) * cell : side === 'n' ? -half + r.j0 * cell : r.z;
+      r.doors.push({ side, x, z, w: cw * cell, to: o.id, edge });
+    }
     list.push({ a: a.id, b: b.id, pts, len, mid, rank: Math.min(a.rank, b.rank) + .25 });
   }
   for (let k = 1; k < routeIds.length; k++) link(rooms[routeIds[k - 1]], rooms[routeIds[k]], edges);
@@ -171,4 +182,12 @@ export function tourLen(L) {
   const R = L.rooms, leg = e => { const a = R[e.a], b = R[e.b], p0 = e.pts[0], p1 = e.pts[e.pts.length - 1]; return e.len + Math.min(Math.hypot(a.x - p0.x, a.z - p0.z) + Math.hypot(b.x - p1.x, b.z - p1.z), Math.hypot(a.x - p1.x, a.z - p1.z) + Math.hypot(b.x - p0.x, b.z - p0.z)); };
   const onRoute = new Set(); for (let k = 1; k < L.route.length; k++) onRoute.add(L.route[k - 1] + ',' + L.route[k]);
   return L.edges.reduce((n, e) => n + leg(e) * (onRoute.has(e.a + ',' + e.b) || onRoute.has(e.b + ',' + e.a) ? 1 : 2), 0);
+}
+
+// The cells of a door's gap: the corridor cells just outside room r's wall line (what a fog gate fills, game/gate.js).
+export function doorCells(L, r, d) {
+  const along = d.side === 'n' || d.side === 's', line = d.side === 'e' ? r.i0 + r.w : d.side === 'w' ? r.i0 - 1 : d.side === 's' ? r.j0 + r.h : r.j0 - 1;
+  const a = cellOf(L, (along ? d.x : d.z) - d.w / 2 + .01), b = cellOf(L, (along ? d.x : d.z) + d.w / 2 - .01), out = [];
+  for (let k = a; k <= b; k++) out.push(along ? [k, line] : [line, k]);
+  return out;
 }

@@ -39,6 +39,40 @@ async function open(path) {
   return { page, errors };
 }
 
+// Doors (world/gen.js room.doors): each lies on a real gap in its room's wall (floor on both sides, wall just past each end),
+// every gap in a room's wall has a door, and walking out through it along the corridor reaches exactly the room its `to` says.
+function doorCheck(L, ds) {
+  const n = L.n, fl = (i, j) => i >= 0 && j >= 0 && i < n && j < n && !!L.grid[j * n + i], c = v => Math.floor((v + L.half) / L.cell + 1e-6);
+  const owner = new Int16Array(n * n).fill(-1);
+  for (const r of L.rooms) for (let j = r.j0; j < r.j0 + r.h; j++) for (let i = r.i0; i < r.i0 + r.w; i++) owner[j * n + i] = r.id;
+  const N4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  for (const r of L.rooms) {
+    const covered = new Set();
+    for (const d of r.doors) {
+      ds.doors++;
+      const [nx, nz] = { n: [0, -1], s: [0, 1], w: [-1, 0], e: [1, 0] }[d.side], tx = nz ? 1 : 0, tz = nx ? 1 : 0; // outward normal, along the wall
+      const line = d.side === 'e' ? r.i0 + r.w : d.side === 'w' ? r.i0 - 1 : d.side === 's' ? r.j0 + r.h : r.j0 - 1; // the wall row/column just outside
+      const onLine = Math.abs((nx ? d.x : d.z) - (-L.half + (nx > 0 || nz > 0 ? line : line + 1) * L.cell)) < 1e-6;
+      const a = c((tx ? d.x : d.z) - d.w / 2 + .01), b = c((tx ? d.x : d.z) + d.w / 2 - .01), cell = k => tx ? [k, line] : [line, k];
+      let ok = onLine && b - a + 1 === Math.round(d.w / L.cell);
+      for (let k = a; k <= b; k++) { const [i, j] = cell(k); if (!fl(i, j) || !fl(i - nx, j - nz) || owner[(j - nz) * n + i - nx] !== r.id) ok = false; covered.add(j * n + i); }
+      const [i0, j0] = cell(a - 1), [i1, j1] = cell(b + 1); if (fl(i0, j0) || fl(i1, j1)) ok = false;
+      if (!ok) ds.offGap++;
+      // Out through the gap along corridor cells (floor in no room): which rooms does it touch?
+      const seen = new Set(), q = [];
+      for (let k = a; k <= b; k++) { const [i, j] = cell(k); if (fl(i, j) && owner[j * n + i] < 0) { seen.add(j * n + i); q.push([i, j]); } }
+      const touch = new Set();
+      while (q.length) { const [i, j] = q.pop(); for (const [di, dj] of N4) { const x = i + di, y = j + dj; if (!fl(x, y)) continue; const o = owner[y * n + x]; if (o >= 0) { touch.add(o); continue; } if (!seen.has(y * n + x)) { seen.add(y * n + x); q.push([x, y]); } } }
+      const e = L.edges[d.edge];
+      if (touch.size !== 2 || !touch.has(r.id) || !touch.has(d.to) || !e || !((e.a === r.id && e.b === d.to) || (e.b === r.id && e.a === d.to))) ds.wrongTo++;
+      if (!L.rooms[d.to].doors.some(t => t.to === r.id && t.edge === d.edge)) ds.unpaired++;
+    }
+    // Every floor cell just outside the room's rectangle is in a recorded gap.
+    for (let i = r.i0; i < r.i0 + r.w; i++) for (const j of [r.j0 - 1, r.j0 + r.h]) if (fl(i, j) && !covered.has(j * n + i)) ds.unrecorded++;
+    for (let j = r.j0; j < r.j0 + r.h; j++) for (const i of [r.i0 - 1, r.i0 + r.w]) if (fl(i, j) && !covered.has(j * n + i)) ds.unrecorded++;
+  }
+}
+
 try {
   // ---------- Data: the text players read matches the numbers in src/data (supports and milestones) ----------
   {
@@ -137,6 +171,7 @@ try {
     let s = SEED; const rng = () => { s = (s + 0x6D2B79F5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
     const N = 200, MIN_WALK = 45, MIN_SHORTEST = 35; // seconds at base move speed
     const st = { minWalk: 1e9, maxWalk: 0, minShort: 1e9, unreachable: 0, rooms: 1e9, apart: 1e9, sizes: 1e9, side: 1e9, badRoom: 0, tiles: 0 };
+    const ds = { doors: 0, offGap: 0, unrecorded: 0, wrongTo: 0, unpaired: 0 };
     for (let k = 0; k < N; k++) {
       const L = generateLevel({}, rng), at = (x, z) => cellOf(L, z) * L.n + cellOf(L, x), f = walkField(L, cellOf(L, L.start.x), cellOf(L, L.start.z));
       st.minShort = Math.min(st.minShort, f[at(L.boss.x, L.boss.z)] * L.cell / HERO.ms);
@@ -149,7 +184,10 @@ try {
       st.tiles += L.grid.reduce((a, v) => a + v, 0) / (L.n * L.n) / N;
       // the outer ring of cells is always wall, so nothing can leave the grid
       for (let i = 0; i < L.n; i++) if (L.grid[i] || L.grid[(L.n - 1) * L.n + i] || L.grid[i * L.n] || L.grid[i * L.n + L.n - 1]) st.badRoom++;
+      doorCheck(L, ds);
     }
+    console.log('  doors:', JSON.stringify(ds));
+    check(ds.doors > 0 && ds.offGap === 0 && ds.unrecorded === 0 && ds.wrongTo === 0 && ds.unpaired === 0, `doors: every door (${ds.doors} over ${N} layouts) lies on a gap in its room's wall, exactly as wide, every gap has a door, and each leads to the room its 'to' says (${ds.offGap} off a gap, ${ds.unrecorded} unrecorded gaps, ${ds.wrongTo} lead elsewhere, ${ds.unpaired} without a twin)`);
     console.log('  layouts:', JSON.stringify({ ...st, floor: Math.round(st.tiles * 100) + '%' }));
     check(st.apart > 0 && st.minShort >= MIN_SHORTEST, `layout: guardian is a path apart from the start (shortest walk ${st.minShort.toFixed(0)}s at base speed over ${N} layouts, at least ${MIN_SHORTEST}s)`);
     check(st.unreachable === 0 && st.badRoom === 0, `layout: every room and floor cell is reachable from the start (${st.unreachable} unreachable cells, ${st.badRoom} bad rooms)`);
@@ -232,6 +270,8 @@ try {
       const t0 = D.routeTarget(.1); out.waits = t0 === 'wait' && !!G.jn;
       out.kinds = G.jn ? G.jn.opts.map(o => o.kind).join(',') : '';
       out.defaultSide = G.jn && G.jn.opts[G.jn.sel].kind === 'side';
+      // Each sign stands at a real doorway of this room, the one whose corridor leads to that way's room.
+      out.atDoors = !!G.jn && G.jn.opts.every(o => C.doors.includes(o.door) && o.door.to === o.to);
       let t = .1, res = 'wait'; while (res === 'wait' && t < 10) { res = D.routeTarget(.1); t += .1; }
       out.waitSecs = Math.round(t * 10) / 10; out.toSide = res === sp && G.jn && G.jn.mode === 'go';
       // During the grace period a tap toward the onward exit changes the way, and skips the side room.
@@ -246,11 +286,57 @@ try {
     });
     console.log('  route:', JSON.stringify(r));
     check(r.waits && r.kinds.includes('side') && r.kinds.includes('onward') && r.defaultSide, `route: a cleared room with a side room and a way onward stops and offers both, defaulting to the side room (${r.kinds})`);
+    check(r.atDoors, 'route: each junction sign stands at the real doorway (room.doors) of the way it offers');
     check(r.toSide && r.waitSecs >= 4.9 && r.waitSecs <= 5.2, `route: with no pick it takes the default after about 5 s (${r.waitSecs}s)`);
     check(r.toNext, 'route: a D-pad tap during the grace period switches to Onward and skips the side room');
     check(r.quick, 'route: a tap while waiting picks straight away');
     check(r.noStop, 'route: with only one way on, the autopilot doesn\'t stop');
     check(errors.length === 0, `route: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
+  }
+
+  // ---------- Fog gate (game/gate.js): the guardian arena seals once the fight starts, until the guardian dies or you do ----------
+  {
+    const { page, errors } = await open('/');
+    const r = await page.evaluate(() => {
+      const D = window.__dbg, P = D.P, G = D.G, out = {};
+      const enter = () => {
+        D.start(true); G.packs = []; G.enemies.forEach(e => { e.deathT = 1; e.gone = true; }); D.sim(1);
+        const L = G.layout, B = L.rooms.find(r => r.kind === 'boss'), g = G.gate, d = g.door, n = g.n;
+        // Just inside the doorway, then wait for the guardian to wake (it stands in the middle of the arena).
+        P.x = d.x - n[0] * 3; P.z = d.z - n[1] * 3; P.life = 1e6;
+        for (let k = 0; k < 120 && !g.shut; k++) { P.life = 1e6; D.sim(1); }
+        return { L, B, g, d, n };
+      };
+      const cellsSolid = (L, g) => g.cells.every(([i, j]) => !L.grid[j * L.n + i]);
+      const inArena = (L, B) => { const i = Math.floor((P.x + L.half) / L.cell), j = Math.floor((P.z + L.half) / L.cell); return i >= B.i0 && i < B.i0 + B.w && j >= B.j0 && j < B.j0 + B.h; };
+      const walkOut = (A, ticks) => { const { d, n } = A; let left = false; for (let k = 0; k < ticks; k++) { P.life = 1e6; const dx = d.x + n[0] * 6 - P.x, dz = d.z + n[1] * 6 - P.z, l = Math.hypot(dx, dz) || 1; D.ctl.mx = dx / l; D.ctl.mz = dz / l; D.sim(1); if (!inArena(A.L, A.B)) left = true; } D.ctl.mx = D.ctl.mz = 0; return left; };
+      let A = enter(); const boss = G.bossSpec.e;
+      out.gate = !!A.g && A.g.room === A.B.id && A.B.doors.length === 1;
+      out.sealed = A.g.shut && !!boss && boss.awake && cellsSolid(A.L, A.g);
+      out.held = !walkOut(A, 150); // walking straight at the doorway for 5 s doesn't get you out
+      // The autopilot stays committed: with a pack waiting outside it still doesn't try to leave.
+      G.packs = [{ x: A.d.x + A.n[0] * 8, z: A.d.z + A.n[1] * 8, mem: [], spawned: true, awake: false, list: [{ deathT: 0 }], rank: 0 }];
+      D.setRide(true); D.ride.pw = 250; D.ctl.auto = true; let apLeft = false;
+      for (let k = 0; k < 150; k++) { P.life = 1e6; D.sim(1); if (!inArena(A.L, A.B)) apLeft = true; }
+      D.ctl.auto = false; D.setRide(false); G.packs = [];
+      out.apHeld = !apLeft && A.g.shut;
+      // The guardian dies: the gate opens for good and you can walk out.
+      D.kill(boss); D.sim(2);
+      out.opened = !A.g.shut && A.g.done && !cellsSolid(A.L, A.g);
+      P.x = A.d.x - A.n[0] * 3; P.z = A.d.z - A.n[1] * 3; out.leaves = walkOut(A, 150);
+      // You die: it reopens (and the guardian resets).
+      A = enter(); out.sealed2 = A.g.shut;
+      P.invuln = 0; P.blocking = false; P.shield = 0; D.hurtP(1e9, 'test', { kind: 'unblockable' }); D.sim(1);
+      out.deathOpens = P.dead > 0 && !A.g.shut && !cellsSolid(A.L, A.g);
+      D.sim(100); out.respawned = P.dead <= 0 && !A.g.shut;
+      return out;
+    });
+    console.log('  fog gate:', JSON.stringify(r));
+    check(r.gate && r.sealed, 'fog gate: the guardian arena has one doorway with a fog gate, and it seals once you\'re inside and the guardian wakes');
+    check(r.held && r.apHeld, 'fog gate: while it\'s sealed you can\'t walk out, and the autopilot doesn\'t try to');
+    check(r.opened && r.leaves, 'fog gate: it opens when the guardian dies and you can walk back out');
+    check(r.sealed2 && r.deathOpens && r.respawned, 'fog gate: dying opens it again');
+    check(errors.length === 0, `fog gate: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   }
 
   // ---------- Map viewer (/maps/): layouts by seed ----------
@@ -259,6 +345,7 @@ try {
     const r = await page.evaluate(() => {
       const M = window.__maps, out = {};
       const a = M.level(7), b = M.level(7), c = M.level(8);
+      out.doors = M.st.doors === a.rooms.reduce((n, r) => n + r.doors.length, 0) && M.st.gates === 1 && document.getElementById('panel').textContent.includes('Fog gate');
       out.same = JSON.stringify(a.rooms) === JSON.stringify(b.rooms) && JSON.stringify(a.rooms) !== JSON.stringify(c.rooms);
       out.panel = document.getElementById('panel').textContent.includes('SEED 7') && !!document.querySelector('#panel a.play[href="../?seed=7"]');
       document.getElementById('next').click(); out.next = M.st.seed === 8;
@@ -268,6 +355,7 @@ try {
     });
     console.log('  maps:', JSON.stringify(r));
     check(r.same && r.panel && r.next && r.grid, 'maps: the viewer draws the same layout for the same seed, pages through seeds, shows a grid and links to the game');
+    check(r.doors, 'maps: the viewer draws every door and the guardian arena\'s fog gate');
     check(errors.length === 0, `maps: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
     // ?seed= in the game plays the viewer's layout.
     const g = await open('/?seed=7');

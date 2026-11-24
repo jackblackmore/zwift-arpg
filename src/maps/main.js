@@ -5,6 +5,7 @@ import './maps.css';
 import { generateLevel, junctionRooms } from '../world/gen.js';
 import { seeded } from '../core/rng.js';
 import { HERO } from '../data/balance.js';
+import { GATE } from '../data/dungeon.js';
 
 const $ = id => document.getElementById(id);
 const cv = $('view'), ctx = cv.getContext('2d');
@@ -28,6 +29,15 @@ function drawLevel(L, x, y, s, big) {
   }
   ctx.globalAlpha = 1;
   const W = (wx, wz) => [x + (wx + L.half) / (L.cell * L.n) * s, y + (wz + L.half) / (L.cell * L.n) * s];
+  // Doors (room.doors): a bar across each gap in a room's wall; a fog gate (GATE.rooms, game/gate.js) as a thick misty bar.
+  let doors = 0, gates = 0;
+  for (const r of L.rooms) for (const d of r.doors) {
+    const a = d.side === 'n' || d.side === 's', [x0, z0] = W(d.x - (a ? d.w / 2 : 0), d.z - (a ? 0 : d.w / 2)), [x1, z1] = W(d.x + (a ? d.w / 2 : 0), d.z + (a ? 0 : d.w / 2));
+    const gate = GATE.rooms.includes(r.kind);
+    if (gate) { ctx.strokeStyle = '#dfe6ff44'; ctx.lineWidth = Math.max(6, k * 1.4); ctx.beginPath(); ctx.moveTo(x0, z0); ctx.lineTo(x1, z1); ctx.stroke(); gates++; }
+    ctx.strokeStyle = gate ? '#eef2ff' : '#e8c878'; ctx.lineWidth = Math.max(gate ? 3 : 1.5, k * (gate ? .55 : .3)); ctx.beginPath(); ctx.moveTo(x0, z0); ctx.lineTo(x1, z1); ctx.stroke(); doors++;
+  }
+  if (big) { st.doors = doors; st.gates = gates; }
   if (!big) return;
   // zone lines
   ctx.strokeStyle = '#ffffff10'; ctx.lineWidth = 1;
@@ -70,7 +80,7 @@ function layout() {
   panel(level(st.seed));
 }
 
-const legend = () => `<div class="legend">${Object.entries(NAME).map(([k, n]) => `<span><i style="background:${COL[k]}"></i>${n}</span>`).join('')}<span><i style="background:#4a3a2a"></i>Corridor</span></div>`;
+const legend = () => `<div class="legend">${Object.entries(NAME).map(([k, n]) => `<span><i style="background:${COL[k]}"></i>${n}</span>`).join('')}<span><i style="background:#4a3a2a"></i>Corridor</span><span><i style="background:#e8c878"></i>Door</span><span><i style="background:#eef2ff"></i>Fog gate</span></div>`;
 function panel(L) {
   const side = L.rooms.filter(r => r.kind === 'side').length, route = L.route.length, floor = L.grid.reduce((n, c) => n + c, 0);
   const rows = [
@@ -79,10 +89,11 @@ function panel(L) {
     ['Walk, entrance to guardian', `${Math.round(L.routeLen / HERO.ms)} s at base speed`],
     ['Junctions (◆)', junctions(L).length],
     ['Corridors', L.edges.length],
+    ['Doors', `${L.rooms.reduce((n, r) => n + r.doors.length, 0)} (fog gate on the ${L.rooms.filter(r => GATE.rooms.includes(r.kind)).map(r => NAME[r.kind].toLowerCase()).join(', ')})`],
     ['Floor', `${floor} cells (${Math.round(floor * L.cell * L.cell)} units²)`],
   ];
   $('panel').innerHTML = `<h4>SEED ${st.seed}</h4><table>${rows.map(([a, b]) => `<tr><td>${a}</td><td>${b}</td></tr>`).join('')}</table>${legend()}
-    <div class="hint">Numbers are the route order; S = side room; ◆ = the autopilot stops there to let you choose a way. The gold line is the main route.</div>
+    <div class="hint">Numbers are the route order; S = side room; ◆ = the autopilot stops there to let you choose a way. The gold line is the main route. Doors are the short bars across gaps in the walls; the white one is the fog gate, which seals you in with the guardian until it dies.</div>
     <a class="play" href="../?seed=${st.seed}">PLAY THIS MAP ▸</a><div class="hint">Opens the game on this layout for map 1 (packs are still placed at random). Without ?seed the game makes a new layout every time.</div>`;
 }
 
