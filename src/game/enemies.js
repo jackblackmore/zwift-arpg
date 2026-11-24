@@ -14,7 +14,9 @@ import { pushOut, blocked, los, pathStep } from '../world/map.js';
 import { hurtP, kill, stagger } from './combat.js';
 import { RIDE } from '../data/ride.js';
 import { RARITY } from '../data/balance.js';
-import { tierHp } from './formulas.js';
+import { tierHp, tierDmg, dmgType } from './formulas.js';
+// An attack's damage type on this map: its own (data/monsters.js), or physical with the region's lean (LEAN).
+const dtype = base => dmgType(base, G.tier);
 
 // o.elite: an elite room's pack (data/monsters.js ELITE): its minions and one elite, which spawnEnemy makes stronger.
 export function makePack(x, z, o = {}) {
@@ -28,7 +30,7 @@ export function makePack(x, z, o = {}) {
 
 // rar: 0 normal, 1 magic, 2 rare
 export function spawnEnemy(type, x, z, pack, rar = 0) {
-  const b = MT[type], mt = tierHp(G.tier), md = 1 + TIER.dmg * (G.tier - 1);
+  const b = MT[type], mt = tierHp(G.tier), md = tierDmg(G.tier);
   const e = { type, ...b, x, z, vx: 0, vz: 0, pack, rar, aff: [], hp: 0, atkT: rand(.2, 1.2), windup: 0, awake: false, freeze: 0, chill: 0, shock: 0, burnT: 0, burnDps: 0, burnTick: 0, flash: 0, deathT: 0, walk: rand(0, 6), shootT: rand(.5, 2), face: rand(0, 6), fuse: 0, sx: x, sz: z };
   let hpm = mt, sc = b.scale || 1;
   if (rar === 1) { const R = RARITY.magic; hpm *= R.hp; e.dmg *= R.dmg; e.spd *= R.spd; }
@@ -116,13 +118,13 @@ function eShoot(e, ang, spd, dmg, col, size) {
   if (col === 'arrow') { const m = new T.Mesh(GB, eyeMat(0xd8c890)); m.scale.set(.05, .05, .55); g.add(m); g.rotation.y = ang; }
   else g.add(glowSprite(col, size));
   g.position.set(e.x, 1.2, e.z); scene.add(g);
-  G.eproj.push({ x: e.x, z: e.z, vx: Math.sin(ang) * spd, vz: Math.cos(ang) * spd, dmg, life: FIGHT.projLife, g, r: col === 'arrow' ? .3 : .45, src: col === 'arrow' ? 'arrow' : 'nova', by: e });
+  G.eproj.push({ x: e.x, z: e.z, vx: Math.sin(ang) * spd, vz: Math.cos(ang) * spd, dmg, life: FIGHT.projLife, g, r: col === 'arrow' ? .3 : .45, src: col === 'arrow' ? 'arrow' : 'nova', by: e, type: dtype(col === 'arrow' ? e.dt : BOSS.dt.nova) });
 }
 export function updEnemyProjectiles(dt) {
   for (const p of G.eproj) {
     p.x += p.vx * dt; p.z += p.vz * dt; p.life -= dt; p.g.position.set(p.x, 1.2, p.z);
     if (p.life <= 0 || blocked(p.x, p.z, .05)) p.dead = true;
-    else if (P.dead <= 0 && dist(p.x, p.z, P.x, P.z) < p.r + P.r) { p.dead = true; hurtP(p.dmg, p.src || 'shot', { from: { x: p.x - p.vx, z: p.z - p.vz } }); burst(p.x, 1.2, p.z, 0xff6060, 6, 3); }
+    else if (P.dead <= 0 && dist(p.x, p.z, P.x, P.z) < p.r + P.r) { p.dead = true; hurtP(p.dmg, p.src || 'shot', { from: { x: p.x - p.vx, z: p.z - p.vz }, type: p.type }); burst(p.x, 1.2, p.z, 0xff6060, 6, 3); }
     if (p.dead) scene.remove(p.g);
   }
   G.eproj = G.eproj.filter(p => !p.dead);
@@ -175,7 +177,7 @@ export function updEnemy(e, dt) {
   if (e.fireAura) { // Burning rares pulse fire (heavy): a telegraphed burst every few seconds, blocked or rolled
     const was = e.auraT ?? BU.every; e.auraT = was - dt;
     if (was > BU.windup && e.auraT <= BU.windup) { telegraph(e.x, e.z, BU.r, BU.windup, 0xff6a20); if (d < BU.r + 2) cue('heavy'); }
-    if (e.auraT <= 0) { e.auraT = BU.every; ringFx(e.x, e.z, BU.r, 0xff6a20, .35, .3); burst(e.x, .6, e.z, 0xff6a20, 24, 5); if (d < BU.r + P.r) hurtP(BU.dmg * (1 + TIER.dmg * (G.tier - 1)), 'aura', { from: e, kind: 'heavy', by: e }); }
+    if (e.auraT <= 0) { e.auraT = BU.every; ringFx(e.x, e.z, BU.r, 0xff6a20, .35, .3); burst(e.x, .6, e.z, 0xff6a20, 24, 5); if (d < BU.r + P.r) hurtP(BU.dmg * tierDmg(G.tier), 'aura', { from: e, kind: 'heavy', by: e, type: dtype(BU.dt) }); }
   }
   if (e.ai === 'boss' && bossAI(e, dt)) { pushOut(e); return animE(e, dt); }
   if (e.ai === 'melee' || e.ai === 'boss') {
@@ -184,7 +186,7 @@ export function updEnemy(e, dt) {
       e.windup -= dt; e.face = Math.atan2(tg.x - e.x, tg.z - e.z);
       if (e.windup <= 0) {
         e.swing = 1; const hv = e.heavy, dmg = e.dmg * (hv ? RARE.heavy.dmg : 1); e.heavy = false;
-        if (td < e.range + e.r + tg.r + FIGHT.reach) { if (tg === P) hurtP(dmg, hv ? 'heavy' : e.type, { from: e, by: e, kind: hv ? 'heavy' : 'hit' }); else tg.hurt(dmg * (e.type === 'boss' ? BOSS.vsMinion : 1)); if (e.type === 'boss' || hv) { shake(hv ? .4 : .3); SFX.slam(); hurtMinions(e.x, e.z, e.range + e.r + FIGHT.reach, dmg * BOSS.vsMinion, tg); } }
+        if (td < e.range + e.r + tg.r + FIGHT.reach) { if (tg === P) hurtP(dmg, hv ? 'heavy' : e.type, { from: e, by: e, kind: hv ? 'heavy' : 'hit', type: dtype(e.dt) }); else tg.hurt(dmg * (e.type === 'boss' ? BOSS.vsMinion : 1)); if (e.type === 'boss' || hv) { shake(hv ? .4 : .3); SFX.slam(); hurtMinions(e.x, e.z, e.range + e.r + FIGHT.reach, dmg * BOSS.vsMinion, tg); } }
         if (hv) { ringFx(e.x, e.z, e.range + e.r + FIGHT.reach, TELL.heavy, .3, .3); burst(e.x + Math.sin(e.face) * e.range, .5, e.z + Math.cos(e.face) * e.range, TELL.heavy, 18, 5); }
         e.atkT = (e.channel ? BOSS.channel.swingCd : e.cd) * cdm;
       }
@@ -245,7 +247,7 @@ function bossAI(e, dt) {
     if (!blocked(nx, nz, e.r * .6)) { e.x = nx; e.z = nz; } else c.left = 0;
     e.face = Math.atan2(c.dx, c.dz); e.moving = true; e.walk += dt * 12;
     if (Math.random() < .6) emit(sparks, e.x, .4, e.z, -c.dx * 3, rand(.5, 2), -c.dz * 3, .35, TELL.unblockable, 0, 2);
-    if (!c.hit && dist(e.x, e.z, P.x, P.z) < e.r + P.r + BOSS.charge.hitR) { c.hit = true; const r = hurtP(e.dmg * BOSS.charge.dmg, 'charge', { from: e, kind: 'unblockable', by: e }); if (r !== 'miss') { shake(.5); SFX.slam(); } }
+    if (!c.hit && dist(e.x, e.z, P.x, P.z) < e.r + P.r + BOSS.charge.hitR) { c.hit = true; const r = hurtP(e.dmg * BOSS.charge.dmg, 'charge', { from: e, kind: 'unblockable', by: e, type: dtype(BOSS.dt.charge) }); if (r !== 'miss') { shake(.5); SFX.slam(); } }
     if (c.left <= 0) e.charging = null;
     return true;
   }
@@ -255,7 +257,7 @@ function bossAI(e, dt) {
     e.cast = null; e.swing = 1;
     if (c.kind === 'slam') {
       ringFx(c.x, c.z, c.r, 0xff3030, .4, .5); burst(c.x, .4, c.z, 0xff4fd8, 50, 7); flashFx(c.x, .5, c.z, 0xff2bd6, c.r * 2.4, .3); SFX.slam(); shake(.7); stop(.08);
-      if (dist(P.x, P.z, c.x, c.z) < c.r + P.r) hurtP(e.dmg * BOSS.slamDmg, 'slam', { from: e, kind: 'heavy', by: e });
+      if (dist(P.x, P.z, c.x, c.z) < c.r + P.r) hurtP(e.dmg * BOSS.slamDmg, 'slam', { from: e, kind: 'heavy', by: e, type: dtype(BOSS.dt.slam) });
       hurtMinions(c.x, c.z, c.r, e.dmg * BOSS.slamDmg * BOSS.vsMinion);
     }
     // A fan of bolts aimed at you: block them with the shield or roll through (a second fan in phase 2, re-aimed).
@@ -264,7 +266,7 @@ function bossAI(e, dt) {
     if (c.kind === 'summon') summon(e, e.phase2 ? BOSS.summon2 : BOSS.summon);
     if (c.kind === 'burst') { // a completed channel's burst (unblockable): roll it
       const B = BOSS.channel.burst; ringFx(e.x, e.z, B.r, TELL.unblockable, .5, .2); burst(e.x, 1, e.z, TELL.channel, 70, 9); burst(e.x, 1, e.z, TELL.unblockable, 50, 7); flashFx(e.x, 1, e.z, TELL.channel, B.r * 2, .35); SFX.boom(); SFX.slam(); shake(.8); stop(.1);
-      if (dist(P.x, P.z, e.x, e.z) < B.r + P.r) hurtP(e.dmg * B.dmg, 'burst', { from: e, kind: 'unblockable', by: e });
+      if (dist(P.x, P.z, e.x, e.z) < B.r + P.r) hurtP(e.dmg * B.dmg, 'burst', { from: e, kind: 'unblockable', by: e, type: dtype(BOSS.dt.burst) });
       hurtMinions(e.x, e.z, B.r, e.dmg * B.dmg * BOSS.vsMinion);
     }
     return true;

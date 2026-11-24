@@ -1,11 +1,12 @@
 // Monster types. look: which KayKit character and weapon to use (render/characters.js) and its clips; bloaters stay procedural.
 //   walk/idle: looping clips; attacks: [clip, speed] picked at random per swing; rise: how it wakes (RISE below).
-// Monster types. hp/dmg are tier-1 values; maps scale them per tier (TIER below).
+// Monster types. hp/dmg are tier-1 values; maps scale them per tier (TIER below). dt: the damage type of its attacks (DMG_TYPES;
+//   default phys); attacks with their own type are in BOSS.dt, BLAST and RARE.burning.
 export const MT = {
   zombie: { hp: 48, dmg: 8, spd: 2.5, r: .38, cd: 1.4, range: .75, ai: 'melee', xp: 4, col: 0x5f6f4a, head: 0x8a9a6a, eye: 0xff3020, h: 1.8, look: { kind: 'warrior', weapon: 'blade', walk: 'Skeletons_Walking', idle: 'Skeletons_Idle', rise: 'floor', attacks: [['Melee_1H_Attack_Chop', 1.7], ['Melee_1H_Attack_Slice_Diagonal', 1.6], ['Melee_1H_Attack_Slice_Horizontal', 2.1]] } },
   runner: { hp: 24, dmg: 5.5, spd: 4.0, r: .3, cd: .8, range: .6, ai: 'melee', xp: 3, col: 0x7a2a24, head: 0x9a3a2a, eye: 0xffd000, h: 1.35, scale: .75, look: { kind: 'minion', walk: 'Running_A', idle: 'Skeletons_Idle', rise: 'standing', attacks: [['Melee_Unarmed_Attack_Punch_A', 2.2], ['Melee_Unarmed_Attack_Kick', 1.8]] } },
   archer: { hp: 32, dmg: 10, spd: 2.3, r: .34, cd: 1.8, range: 8, ai: 'ranged', xp: 4, col: 0xb8ae96, head: 0xe6dfcc, eye: 0xff3020, h: 1.8, bow: 1, look: { kind: 'rogue', weapon: 'crossbow', walk: 'Running_A', idle: 'Skeletons_Idle', rise: 'standing', attacks: [['Ranged_2H_Shoot', 1.3]] } },
-  bloater: { hp: 55, dmg: 22, spd: 1.6, r: .6, cd: 0, ai: 'bomb', xp: 5, col: 0x6aa040, head: 0x9ad060, eye: 0xffff60, h: 1.6, blob: 1 },
+  bloater: { hp: 55, dmg: 22, spd: 1.6, r: .6, cd: 0, ai: 'bomb', dt: 'poison', xp: 5, col: 0x6aa040, head: 0x9ad060, eye: 0xffff60, h: 1.6, blob: 1 },
   boss: { hp: 1040, dmg: 10.5, spd: 2.4, r: 1.1, cd: 1.7, range: 1.8, ai: 'boss', xp: 160, col: 0x2a2236, head: 0x5a4a70, eye: 0xff2bd6, h: 5.6, scale: 2.6, horns: 1, look: { kind: 'warrior', weapon: 'axe', offhand: 'shield', walk: 'Walking_A', idle: 'Melee_2H_Idle', rise: 'taunt', tint: 0xb090d0, attacks: [['Melee_2H_Attack_Chop', 1.6], ['Melee_2H_Attack_Slice', 1.1]] } },
 };
 
@@ -25,8 +26,26 @@ export const ANIM = {
 
 // Per-tier scaling. hp: monster life multiplier per map tier (index 0 = tier 1), then +hpAfter per tier.
 // Tier 2 jumps because by then you've swapped the starter sword for magic gear (see `npm run balance`).
-// dmg, xp, packSize: fraction added per tier on top of tier 1.
-export const TIER = { hp: [1, 2.65, 3.2, 3.95, 4.9], hpAfter: .5, dmg: .28, xp: 1, packSize: .2 };
+// dmg: monster damage multiplier per tier (the same way), then +dmgAfter per tier. It steps up at tier 2 for the same reason:
+//   by then your gear has armour and some resistance (step 5, design notes "Defence"), so what reaches your life stays where it was.
+// xp, packSize: fraction added per tier on top of tier 1.
+export const TIER = { hp: [1, 2.65, 3.2, 3.95, 4.9], hpAfter: .5, dmg: [1, 1.56, 1.9, 2.24, 2.58], dmgAfter: .34, xp: 1, packSize: .2 };
+
+// Damage types (design notes "Defence"). Physical is cut by armour, the others by the matching resistance (data/balance.js DEFENCE).
+// Fire, cold and lightning are elemental (a block takes off SK.block.elem of them); poison isn't.
+export const DMG_TYPES = { phys: 'physical', fire: 'fire', cold: 'cold', light: 'lightning', poison: 'poison' };
+// Region leans (design notes "Game outline"): on map tiers `tiers` [first, last], `mix` of every physical attack becomes that type
+// (a hit that's 30% poison is cut 70% by armour and 30% by poison resistance). Attacks with their own type keep it. The Crypt has
+// no lean: its monsters are physical, with poison bloaters, the guardian's poison bolts, fire from burning and volatile rares
+// and the guardian's cold burst. Later regions are first guesses until they're built.
+export const LEAN = [
+  { region: 'Crypt', tiers: [1, 5], mix: {} },
+  { region: 'Forest', tiers: [6, 10], mix: { poison: .3 } },
+  { region: 'Mines', tiers: [11, 15], mix: { fire: .3 } },
+  { region: 'Frozen Keep', tiers: [16, 20], mix: { cold: .3 } },
+  { region: 'Storm Spire', tiers: [21, 25], mix: { light: .3 } },
+  { region: 'Abyss', tiers: [26, 1e9], mix: { fire: .1, cold: .1, light: .1, poison: .1 } },
+];
 
 // Pack templates: [type, count] pairs. Counts scale with tier.
 export const PACKS = [
@@ -47,6 +66,7 @@ export const RN2 = ['maw', 'tooth', 'spine', 'gnaw', 'husk', 'grip', 'fang', 'sk
 //   each (blockable from the front; phase 2: a second fan novaGap s later). Phase 2 uses rotation2, which adds the charge
 //   (unblockable): a `t` s purple wind-up, then it rushes `range` at `speed` through where you stood for `dmg` × its damage.
 //   Phase 2 starts its rotation from the top, so its first ability is the channel.
+// dt: each ability's damage type (its swings are MT.boss.dt): slam and charge physical, the nova's bolts poison, the channel's burst cold.
 // channel (🔵, phase 2): it stands still and a blue bar fills over `t` s. It keeps swinging while it channels (`swingCd` s between
 //   swings instead of its cooldown, the first `firstSwing` s in), so there are parries to make. Breaking its stagger bar before the
 //   bar fills cancels the channel and staggers it (so the finisher applies). While it channels, parries fill × `parry` and hits
@@ -54,7 +74,7 @@ export const RN2 = ['maw', 'tooth', 'spine', 'gnaw', 'husk', 'grip', 'fang', 'sk
 //   effort spike fills it too (data/ride.js RIDE.spike). A channel that completes does the next of `effects` in turn:
 //   burst: after a `t` s purple wind-up, an unblockable blast within `r` for `dmg` × its damage (roll it);
 //   mend: it heals `heal` of its max life and summons `summon` of BOSS.summonType.
-export const BOSS = { vsMinion: 1.4, aggro: 13, rotation: ['slam', 'nova', 'slam', 'summon'], rotation2: ['channel', 'slam', 'charge', 'nova', 'slam', 'channel', 'summon', 'charge'], abilGap: 3.8, abilGap2: 2.2, enrage: .5, enrageSpd: 1.3,
+export const BOSS = { vsMinion: 1.4, aggro: 13, dt: { slam: 'phys', charge: 'phys', nova: 'poison', burst: 'cold' }, rotation: ['slam', 'nova', 'slam', 'summon'], rotation2: ['channel', 'slam', 'charge', 'nova', 'slam', 'channel', 'summon', 'charge'], abilGap: 3.8, abilGap2: 2.2, enrage: .5, enrageSpd: 1.3,
   slamR: 2.9, slamDmg: 4.5, slamT: 1.2, slamT2: .95, novaBolts: 7, novaSpread: .9, novaDmg: .8, novaSpeed: 7, novaGap: .45, novaT: .7, summon: 3, summon2: 5, summonType: 'runner',
   charge: { t: 1.1, dmg: 4.5, speed: 16, range: 9, hitR: .5 },
   channel: { t: 3, swingCd: .8, firstSwing: .2, parry: 1.25, hits: 4, surge: 6, effects: ['burst', 'mend'], burst: { t: .7, dmg: 5, r: 8 }, mend: { heal: .1, summon: 4 } } };
@@ -73,16 +93,16 @@ export const STATUS = { chillSpd: .5, chillCd: 1.6, burnTick: .5 };
 //   chase or without sight, shot cooldown × shotJitter. Enemy projectiles live projLife s. Bloaters: start a `fuse` s fuse within `trigger`.
 export const FIGHT = { windup: { melee: .42, boss: .7, ranged: .45 }, reach: .45, arrowSpeed: 11, arrowJitter: .05, flee: 4.5, chase: 9, shotJitter: [.85, 1.2], projLife: 3, bomb: { trigger: 1.9, fuse: .85 } };
 // Death blasts. bloater: a bloater's own (radius r, `dmg` × its damage, after `delay` s), only when its fuse runs out (kill it first
-// to defuse it); volatile: a rare's affix, on any death. `kind`: how you answer it (heavy: block or roll; unblockable: roll).
+// to defuse it); volatile: a rare's affix, on any death. `kind`: how you answer it (heavy: block or roll; unblockable: roll). dt: its damage type.
 // Both also hurt nearby monsters for `vsMonsters` × the tier's life multiplier.
-export const BLAST = { bloater: { r: 2.2, dmg: .7, delay: .15, kind: 'heavy' }, volatile: { r: 2.6, dmg: 1.2, delay: .9, kind: 'unblockable' }, vsMonsters: 20 };
+export const BLAST = { bloater: { r: 2.2, dmg: .7, delay: .15, kind: 'heavy', dt: 'poison' }, volatile: { r: 2.6, dmg: 1.2, delay: .9, kind: 'unblockable', dt: 'fire' }, vsMonsters: 20 };
 // Rare monsters: size and radius multipliers, affixes rolled (more from tier `moreFrom`), and what each affix does.
-//   fortified's life is in data/balance.js RARITY.rare. burning: a fire pulse (heavy) every `every` s within r for `dmg` (× the tier's damage growth), telegraphed `windup` s.
+//   fortified's life is in data/balance.js RARITY.rare. burning: a pulse (heavy, damage type dt) every `every` s within r for `dmg` (× the tier's damage growth), telegraphed `windup` s.
 //   heavy (🔴, melee rares): after `every` [min, max] of its parryable swings, the next is a heavy swing: a `windup` s red wind-up
 //   (FIGHT.windup.melee for the others), then `dmg` × its damage. It can't be parried (a parry press blocks it, like the guardian's
 //   slam): block it for less (SK.block.heavy) or roll it. Staggering the rare during the wind-up cancels it.
 export const RARE = { size: 1.4, radius: 1.35, affixes: 2, moreFrom: 3, more: 3, heavy: { every: [2, 3], windup: 1, dmg: 3.2 },
-  hasted: { spd: 1.5, cd: .7 }, frenzied: { cd: .55, dmg: 1.1 }, fortified: { size: 1.12 }, burning: { r: 2.75, dmg: 16, every: 3.2, windup: .8 }, splitting: { n: 3, type: 'runner' } };
+  hasted: { spd: 1.5, cd: .7 }, frenzied: { cd: .55, dmg: 1.1 }, fortified: { size: 1.12 }, burning: { r: 2.75, dmg: 16, every: 3.2, windup: .8, dt: 'fire' }, splitting: { n: 3, type: 'runner' } };
 // Elite rooms (room role 'elite', data/dungeon.js ROLES): one named rare, stronger than a pack's rare, with minions, behind a fog
 // gate. On top of a rare's numbers: hp, dmg, size multipliers, `affixes` more affixes, xp × its rare XP. types: what the elite
 // is (weighted by repeats; melee ones swing heavies). minions: the pack around it ([type, count], grown per tier like any pack),

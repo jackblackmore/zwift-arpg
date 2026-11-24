@@ -6,8 +6,11 @@ export const BASES = {
   chest: ['Silk Robe', 'Scale Vest', 'Plate Cuirass', 'Ritual Wrap'], boots: ['Wool Shoes', 'Leather Boots', 'Iron Greaves'],
   ring: ['Iron Ring', 'Coral Ring', 'Gold Ring'], amulet: ['Jade Amulet', 'Amber Amulet', 'Onyx Amulet'],
 };
-// Implicit mod every base of that slot carries.
-export const IMPL = { weapon: ['spell', 5], helm: ['lifeF', 14], chest: ['lifeF', 28], boots: ['ms', .06], ring: ['lifeF', 10], amulet: ['dmg', .08] };
+// Implicit mods every base of that slot carries ([stat, value] pairs; flat values grow with item level, ms and dmg don't).
+// Armour (design notes "Defence") comes only from these for now: helms, body armour and boots. Gear rework (build order step 6)
+// gives each base its own implicits.
+export const IMPL = { weapon: [['spell', 5]], helm: [['lifeF', 14], ['armour', 7]], chest: [['lifeF', 28], ['armour', 14]], boots: [['ms', .06], ['armour', 5]], ring: [['lifeF', 10]], amulet: [['dmg', .08]] };
+export const IMPL_FIXED = ['ms', 'dmg']; // implicit stats that don't grow with item level
 // t: text (# = value), pct: shown as %, dec: 1 decimal, int: whole number, slots: allowed slots, rare: rolls less often, mp: magic item prefix.
 export const AFF = [
   { st: 'spell', t: 'Adds # damage to skills', a: 2, b: 4, slots: ['weapon', 'ring', 'amulet'], mp: 'Brutal' },
@@ -24,10 +27,14 @@ export const AFF = [
   { st: 'lok', t: 'Gain # life per kill', a: 1, b: 4, int: 1, mp: 'Hungering' },
   { st: 'chains', t: 'Arc chains +# times', a: 1, b: 2, int: 1, slots: ['weapon', 'amulet', 'helm'], rare: 1, mp: 'Forking' },
   { st: 'freeze', t: '#% increased freeze duration', pct: 1, a: .15, b: .35, mp: 'Frigid' },
+  // Resistances (design notes "Defence"): each capped at DEFENCE.resCap (data/balance.js). resElem adds to fire, cold and lightning.
+  { st: 'resElem', t: '+#% to fire, cold and lightning resistance', pct: 1, a: .06, b: .12, slots: ['helm', 'chest', 'boots', 'ring', 'amulet'], mp: 'Warded' },
+  { st: 'resPoison', t: '+#% to poison resistance', pct: 1, a: .1, b: .2, slots: ['helm', 'chest', 'boots', 'ring', 'amulet'], mp: 'Purifying' },
 ];
 export const AFFBY = Object.fromEntries(AFF.map(a => [a.st, a]));
 // Mods that only uniques carry.
 export const EXTRA = {
+  armour: { t: '+# armour' }, // implicit only (IMPL) until the gear rework
   lifePct: { t: '#% to maximum life', pct: 1, sign: 1 }, dr: { t: '#% less damage taken', pct: 1 }, dashCh: { t: 'Flame Dash has +# charges', int: 1 }, shieldPct: { t: 'Magic Shield\'s barrier absorbs #% more', pct: 1 },
   // Rule-bending unique mods, with their numbers (keep the text in step). burnGround: a patch of radius r where a melee swing lands, lasting dur s.
   burnGround: { t: 'Your melee hits leave burning ground', flag: 1, r: 1.2, dur: 2.5 }, storm: { t: 'Every 4th melee attack also casts Arc at the target', flag: 1, every: 4 },

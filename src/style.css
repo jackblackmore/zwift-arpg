@@ -87,7 +87,8 @@ button.pri{background:var(--gold);color:#1a1008;border-color:var(--gold)}
 #tip{background:#0a0705;border:1px solid #3a2a1a;border-radius:6px;padding:10px;font-size:12px;line-height:1.5;min-height:120px}
 #tip .nm{font:800 15px Cinzel,serif}
 #tip .base{color:var(--dim);font-size:11px;margin-bottom:5px}
-#tip .impl{color:#bfb39a;border-bottom:1px solid #3a2a1a;padding-bottom:3px;margin-bottom:3px}
+#tip .impl{color:#bfb39a}#tip .impl.last{border-bottom:1px solid #3a2a1a;padding-bottom:3px;margin-bottom:3px}
+#defSheet{font-size:11px;line-height:1.5;margin:4px 0 6px;color:#d8cbb0}
 #tip .mod{color:#9a9aff}#tip .mod.u{color:#ffb070}
 #tip .fl{color:#a0763a;font-style:italic;margin-top:5px}
 #tip .cmp{margin-top:6px;border-top:1px solid #3a2a1a;padding-top:5px;font-size:11px}

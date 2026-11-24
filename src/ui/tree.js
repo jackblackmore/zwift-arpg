@@ -17,6 +17,7 @@ const LOOK = {
   ms: ['#5fe39a', '»'], lifePct: ['#ff5a5a', '♥'], lregen: ['#ff5a5a', '✚'], lok: ['#ff6a8a', '♥'], surge: ['#ffd23f', '⚡'], surgeRe: ['#ffd23f', '⚡'], flask: ['#ff4a5a', '⚗'],
   freeze: ['#7fd8ff', '❄'], block: ['#e8d8a8', '⛨'], heavy: ['#e8d8a8', '⛨'], posture: ['#e8d8a8', '▣'], drain: ['#e8d8a8', '▣'], parry: ['#ffe27a', '✦'], riposte: ['#ffd23f', '⚔'],
   stagger: ['#ffb040', '✸'], finisher: ['#ffffff', '☠'], evadeInv: ['#c8e0ff', '↻'], evadeCh: ['#c8e0ff', '↻'],
+  armourPct: ['#b8c0c8', '⛊'], resAll: ['#c8f0a0', '☣'], resPoison: ['#8ee04a', '☣'],
 };
 const KEYLOOK = { riposte: ['#ffd23f', '⚔'], duelist: ['#ffe27a', '✦'], bulwark: ['#e8d8a8', '⛨'], blood: ['#d02030', '♦'] };
 export const nodeLook = id => { const N = TREE[id]; return N.kind === 'key' ? KEYLOOK[id] || ['#ff5a3c', '◆'] : N.kind === 'start' ? ['#c8a25a', '✠'] : LOOK[Object.keys(N.v)[0]] || ['#e6dcc6', '•']; };
@@ -55,7 +56,7 @@ function summary() {
   if (!P.tree.length) return 'Nothing taken yet. Every level gives a point; start next to the centre.';
   const F = S.fight, out = [], pc = v => Math.round(v * 100) + '%';
   const sum = {}; for (const id of P.tree) for (const k in TREE[id].v) if (TREE[id].kind !== 'key') sum[k] = (sum[k] || 0) + TREE[id].v[k];
-  const name = { dmg: 'damage', fire: 'fire', cold: 'cold', light: 'lightning', cast: 'attack and cast speed', crit: 'crit chance', aoe: 'area', ms: 'move speed', lifePct: 'life', surge: 'Surge capacity', surgeRe: 'Surge refill', flask: 'flask healing', freeze: 'freeze duration', block: 'block', heavy: 'heavy block', parry: 'parry window', riposte: 'riposte damage', stagger: 'stagger fill', finisher: 'finisher damage', evadeInv: 'Evade invulnerability', drain: 'posture drain' };
+  const name = { dmg: 'damage', fire: 'fire', cold: 'cold', light: 'lightning', cast: 'attack and cast speed', crit: 'crit chance', aoe: 'area', ms: 'move speed', lifePct: 'life', surge: 'Surge capacity', surgeRe: 'Surge refill', flask: 'flask healing', freeze: 'freeze duration', block: 'block', heavy: 'heavy block', parry: 'parry window', riposte: 'riposte damage', stagger: 'stagger fill', finisher: 'finisher damage', evadeInv: 'Evade invulnerability', drain: 'posture drain', armourPct: 'armour', resAll: 'all resistances', resPoison: 'poison resistance' };
   for (const k in sum) {
     if (k === 'lregen') out.push(`+${sum[k]} life/s`); else if (k === 'lok') out.push(`+${sum[k]} life per kill`); else if (k === 'evadeCh') out.push(`+${sum[k]} Evade charge`);
     else if (k === 'posture') out.push(`posture fills ${pc(F.posture)} slower`); else if (name[k]) out.push(`+${pc(sum[k])} ${name[k]}`);

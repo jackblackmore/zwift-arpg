@@ -36,7 +36,7 @@ import * as skel from './game/sk/skeletons.js';
 import { hud } from './ui/hud.js';
 import { initPanels, syncPause, openInv, openPass, toggleInv, togglePass, toggleGems, openGems, openShrine, closeAll, equip } from './ui/panels.js';
 import { CAST } from './game/casts.js';
-import { xpNeedFor } from './game/formulas.js';
+import { xpNeedFor, hitTaken } from './game/formulas.js';
 import { routeTarget, resetRoute, options as routeOptions } from './game/route.js';
 import { gateFoe } from './game/gate.js';
 import { freshGems, readySlots, takeShrine, shrineDue, refreshShrine, placeGem, addGem, socketGem, unsocket, feedGem, feedPreview, sockCount, autoTarget, meleeReach } from './game/gems.js';
@@ -115,6 +115,6 @@ window.__dbg = {
   sim: n => { for (let i = 0; i < n; i++) { update(.033); updFx(.033); } },
   enemies: () => G.enemies, packs: () => G.packs, items: () => G.ground,
   arena, levelRun, parLevel, parBar, parGear: PAR_GEAR, newMap, kill, dropItem, strike, targets, aim, autoTarget, meleeReach, setAutoAtk, castArc, castNova, castDash, openInv, openPass, openGems, openShrine, equip,
-  xpNeedFor, routeTarget, resetRoute, routeOptions, gateFoe, takeShrine, shrineDue, placeGem, addGem, socketGem, unsocket, feedGem, feedPreview, sockCount, dropGem, pickUp, TREE, tree: treeApi, blockStats, GEMS, SUPPORTS, recalc, save, load, begin, CAST, blocked, los, snapCam, spawnEnemy, hurtP, cast: id => CAST[id] ? CAST[id]() : false, frostRings,
+  xpNeedFor, routeTarget, resetRoute, routeOptions, gateFoe, takeShrine, shrineDue, placeGem, addGem, socketGem, unsocket, feedGem, feedPreview, sockCount, dropGem, pickUp, TREE, tree: treeApi, blockStats, GEMS, SUPPORTS, recalc, save, load, begin, CAST, blocked, los, snapCam, spawnEnemy, hurtP, hitTaken, cast: id => CAST[id] ? CAST[id]() : false, frostRings,
   skel, minions: () => G.minions, // Raise Skeletons support: skel.raise(x, z, gem), skel.cap(), skel.living()
 };

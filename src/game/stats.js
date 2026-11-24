@@ -17,7 +17,7 @@ export function recalc() {
 // Rough DPS of the Main gem against a pack (Ember Cleave if the slot is empty), used by the bag to compare items.
 export function estimate(st) {
   const g = barGem('main'), id = g ? g.gem : PAR_MAIN;
-  return { dps: gemDps(st, id).packDps, life: st.maxLife, ms: st.ms, gem: GEMS[id].n };
+  return { dps: gemDps(st, id).packDps, life: st.maxLife, ms: st.ms, gem: GEMS[id].n, armour: st.armour, res: st.res };
 }
 
 export const xpNeed = xpNeedFor;

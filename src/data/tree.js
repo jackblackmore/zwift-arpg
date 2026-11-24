@@ -10,7 +10,7 @@
 // Stat sums the nodes add to (all "increased", added together):
 //   dmg (all damage), fire / cold / light, cast (attack and cast speed), crit (chance), aoe (area), ms (movement speed),
 //   lifePct (maximum life), lregen (life per second), lok (life per kill), surge (Surge capacity), surgeRe (Surge refill speed),
-//   flask (flask healing), freeze (freeze duration),
+//   flask (flask healing), freeze (freeze duration), armourPct (armour), resAll (every resistance), resPoison (poison resistance),
 //   fight (game/sk/guard.js, roll.js, combat.js): block (share of a normal hit a block takes off, added), heavy (the same for heavy
 //   and elemental hits), posture (blocked hits fill posture this much slower; at most TREE_CAP.posture), drain (posture drains
 //   faster), parry (parry window longer), riposte (riposte damage), stagger (your hits and parries fill stagger faster), finisher
@@ -26,8 +26,12 @@ export const TREE = {
   hands: { n: 'Quick Hands', at: [4, 6], kind: 'small', links: ['recover', 'brace'], d: '+4% attack and cast speed', v: { cast: .04 } },
   precise: { n: 'Precision', at: [4, 8], kind: 'small', links: ['medic', 'light1'], d: '+2% critical strike chance', v: { crit: .02 } },
   hardy: { n: 'Hardy', at: [2, 7], kind: 'small', links: ['iron'], d: '+5% maximum life', v: { lifePct: .05 } },
-  iron: { n: 'Iron Body', at: [1, 7], kind: 'notable', links: ['mend', 'hunger'], d: '+8% maximum life and +1 life regenerated per second', v: { lifePct: .08, lregen: 1 } },
+  iron: { n: 'Iron Body', at: [1, 7], kind: 'notable', links: ['mend', 'hunger', 'plated'], d: '+8% maximum life and +1 life regenerated per second', v: { lifePct: .08, lregen: 1 } },
   mend: { n: 'Mending', at: [1, 6], kind: 'small', links: [], d: '+1 life regenerated per second', v: { lregen: 1 } },
+  // defence (step 5): armour and resistances, a short dead end past Iron Body. Gear gives most defence; these top it up.
+  plated: { n: 'Plated', at: [0, 7], kind: 'small', links: ['temper'], d: '+15% armour', v: { armourPct: .15 } },
+  temper: { n: 'Tempered', at: [0, 6], kind: 'notable', links: ['purity'], d: '+25% armour and +8% to all resistances', v: { armourPct: .25, resAll: .08 } },
+  purity: { n: 'Purity', at: [0, 5], kind: 'small', links: [], d: '+12% poison resistance', v: { resPoison: .12 } },
   hunger: { n: 'Soul Hunger', at: [1, 8], kind: 'small', links: ['pact'], d: '+3 life per kill', v: { lok: 3 } },
   pact: { n: 'Blood Pact', at: [0, 8], kind: 'small', links: ['blood'], d: '+5% maximum life', v: { lifePct: .05 } },
   blood: { n: 'Blood Rite', at: [0, 9], kind: 'key', links: [], d: 'Your Main and Flex skills have no cooldowns or charges: at most one cast every 0.5s. Every cast costs 5% of your maximum life', v: { gap: .5, cost: .05 } },
