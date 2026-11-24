@@ -39,6 +39,40 @@ async function open(path) {
   return { page, errors };
 }
 
+// Doors (world/gen.js room.doors): each lies on a real gap in its room's wall (floor on both sides, wall just past each end),
+// every gap in a room's wall has a door, and walking out through it along the corridor reaches exactly the room its `to` says.
+function doorCheck(L, ds) {
+  const n = L.n, fl = (i, j) => i >= 0 && j >= 0 && i < n && j < n && !!L.grid[j * n + i], c = v => Math.floor((v + L.half) / L.cell + 1e-6);
+  const owner = new Int16Array(n * n).fill(-1);
+  for (const r of L.rooms) for (let j = r.j0; j < r.j0 + r.h; j++) for (let i = r.i0; i < r.i0 + r.w; i++) owner[j * n + i] = r.id;
+  const N4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  for (const r of L.rooms) {
+    const covered = new Set();
+    for (const d of r.doors) {
+      ds.doors++;
+      const [nx, nz] = { n: [0, -1], s: [0, 1], w: [-1, 0], e: [1, 0] }[d.side], tx = nz ? 1 : 0, tz = nx ? 1 : 0; // outward normal, along the wall
+      const line = d.side === 'e' ? r.i0 + r.w : d.side === 'w' ? r.i0 - 1 : d.side === 's' ? r.j0 + r.h : r.j0 - 1; // the wall row/column just outside
+      const onLine = Math.abs((nx ? d.x : d.z) - (-L.half + (nx > 0 || nz > 0 ? line : line + 1) * L.cell)) < 1e-6;
+      const a = c((tx ? d.x : d.z) - d.w / 2 + .01), b = c((tx ? d.x : d.z) + d.w / 2 - .01), cell = k => tx ? [k, line] : [line, k];
+      let ok = onLine && b - a + 1 === Math.round(d.w / L.cell);
+      for (let k = a; k <= b; k++) { const [i, j] = cell(k); if (!fl(i, j) || !fl(i - nx, j - nz) || owner[(j - nz) * n + i - nx] !== r.id) ok = false; covered.add(j * n + i); }
+      const [i0, j0] = cell(a - 1), [i1, j1] = cell(b + 1); if (fl(i0, j0) || fl(i1, j1)) ok = false;
+      if (!ok) ds.offGap++;
+      // Out through the gap along corridor cells (floor in no room): which rooms does it touch?
+      const seen = new Set(), q = [];
+      for (let k = a; k <= b; k++) { const [i, j] = cell(k); if (fl(i, j) && owner[j * n + i] < 0) { seen.add(j * n + i); q.push([i, j]); } }
+      const touch = new Set();
+      while (q.length) { const [i, j] = q.pop(); for (const [di, dj] of N4) { const x = i + di, y = j + dj; if (!fl(x, y)) continue; const o = owner[y * n + x]; if (o >= 0) { touch.add(o); continue; } if (!seen.has(y * n + x)) { seen.add(y * n + x); q.push([x, y]); } } }
+      const e = L.edges[d.edge];
+      if (touch.size !== 2 || !touch.has(r.id) || !touch.has(d.to) || !e || !((e.a === r.id && e.b === d.to) || (e.b === r.id && e.a === d.to))) ds.wrongTo++;
+      if (!L.rooms[d.to].doors.some(t => t.to === r.id && t.edge === d.edge)) ds.unpaired++;
+    }
+    // Every floor cell just outside the room's rectangle is in a recorded gap.
+    for (let i = r.i0; i < r.i0 + r.w; i++) for (const j of [r.j0 - 1, r.j0 + r.h]) if (fl(i, j) && !covered.has(j * n + i)) ds.unrecorded++;
+    for (let j = r.j0; j < r.j0 + r.h; j++) for (const i of [r.i0 - 1, r.i0 + r.w]) if (fl(i, j) && !covered.has(j * n + i)) ds.unrecorded++;
+  }
+}
+
 try {
   // ---------- Data: the text players read matches the numbers in src/data (supports and milestones) ----------
   {
@@ -137,6 +171,7 @@ try {
     let s = SEED; const rng = () => { s = (s + 0x6D2B79F5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
     const N = 200, MIN_WALK = 45, MIN_SHORTEST = 35; // seconds at base move speed
     const st = { minWalk: 1e9, maxWalk: 0, minShort: 1e9, unreachable: 0, rooms: 1e9, apart: 1e9, sizes: 1e9, side: 1e9, badRoom: 0, tiles: 0 };
+    const ds = { doors: 0, offGap: 0, unrecorded: 0, wrongTo: 0, unpaired: 0 };
     for (let k = 0; k < N; k++) {
       const L = generateLevel({}, rng), at = (x, z) => cellOf(L, z) * L.n + cellOf(L, x), f = walkField(L, cellOf(L, L.start.x), cellOf(L, L.start.z));
       st.minShort = Math.min(st.minShort, f[at(L.boss.x, L.boss.z)] * L.cell / HERO.ms);
@@ -149,7 +184,10 @@ try {
       st.tiles += L.grid.reduce((a, v) => a + v, 0) / (L.n * L.n) / N;
       // the outer ring of cells is always wall, so nothing can leave the grid
       for (let i = 0; i < L.n; i++) if (L.grid[i] || L.grid[(L.n - 1) * L.n + i] || L.grid[i * L.n] || L.grid[i * L.n + L.n - 1]) st.badRoom++;
+      doorCheck(L, ds);
     }
+    console.log('  doors:', JSON.stringify(ds));
+    check(ds.doors > 0 && ds.offGap === 0 && ds.unrecorded === 0 && ds.wrongTo === 0 && ds.unpaired === 0, `doors: every door (${ds.doors} over ${N} layouts) lies on a gap in its room's wall, exactly as wide, every gap has a door, and each leads to the room its 'to' says (${ds.offGap} off a gap, ${ds.unrecorded} unrecorded gaps, ${ds.wrongTo} lead elsewhere, ${ds.unpaired} without a twin)`);
     console.log('  layouts:', JSON.stringify({ ...st, floor: Math.round(st.tiles * 100) + '%' }));
     check(st.apart > 0 && st.minShort >= MIN_SHORTEST, `layout: guardian is a path apart from the start (shortest walk ${st.minShort.toFixed(0)}s at base speed over ${N} layouts, at least ${MIN_SHORTEST}s)`);
     check(st.unreachable === 0 && st.badRoom === 0, `layout: every room and floor cell is reachable from the start (${st.unreachable} unreachable cells, ${st.badRoom} bad rooms)`);
