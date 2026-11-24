@@ -17,7 +17,8 @@ export const G = {
 export const P = {
   x: 0, z: 0, r: .4, face: 0, life: 100, surge: 30, spent: false, surgeK: 0, surgeWait: 0, lvl: 1, xp: 0, kills: 0,
   castT: 0, castAnim: 0, shield: 0, shieldT: 0, barrierFx: 0, flask: 3, flaskT: 0, flaskRate: 0,
-  inv: [], gear: {}, passives: {}, pts: 0, offer: null, newItems: 0,
+  inv: [], gear: {}, newItems: 0,
+  tree: [], treeNew: [], // the passive tree (game/tree.js): nodes held (points come from level), nodes taken since the tree panel opened
   // Skill gems (game/gems.js): gems = the gem bag, every gem owned ({ id, gem, lvl, xp }); bar = slot → gem id or null;
   // cd = per-slot cooldown / charges ({ cd, ch, t }); shrined = slots whose shrine has been used.
   // sock = slot → support gem ids in its sockets; newGems = gems picked up since the gem panel was last opened.
@@ -29,7 +30,7 @@ export const P = {
   dead: 0, walkT: 0, moving: false, invuln: 0, fbN: 0, autoNovaT: 5, moveX: 0, moveZ: 1, castSeq: 0, lastCast: null,
 };
 
-// S: derived stats, recomputed from level, gear and passives by game/stats.js recalc().
+// S: derived stats, recomputed from level, gear, the passive tree and the skill bar by game/stats.js recalc().
 export const S = {};
 
 export const shake = a => { G.shakeA = Math.max(G.shakeA, a); };

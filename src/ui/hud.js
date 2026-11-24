@@ -11,6 +11,7 @@ import { xpNeed } from '../game/stats.js';
 import { rideHud } from '../input/ridesim.js';
 import { GEMS, SLOT_DEFS, BAR } from '../data/gems.js';
 import { barGem, unlocked } from '../game/gems.js';
+import { treeLeft } from '../game/tree.js';
 
 const mmc = $('mm').getContext('2d');
 const T = { hud: 0, mm: 0 };
@@ -30,7 +31,7 @@ export function hud(dt) {
   $('sFl').querySelector('.n').textContent = Math.floor(P.flask); $('sFl').querySelector('.cd').style.height = P.flask < SK.flask.max ? (100 - (P.flask % 1) * 100) + '%' : '0%';
   const ib = $('invBadge'); ib.style.display = P.newItems ? 'block' : 'none'; ib.textContent = P.newItems;
   $('bGems').classList.toggle('glow', P.newGems > 0 || (BAR.some(s => unlocked(s) && !barGem(s)) && P.gems.some(g => !BAR.some(s => P.bar[s] === g.id))));
-  const pb = $('passBadge'); pb.style.display = P.pts ? 'block' : 'none'; pb.textContent = P.pts; $('bPass').classList.toggle('glow', P.pts > 0);
+  const tp = treeLeft(), pb = $('passBadge'); pb.style.display = tp > 0 ? 'block' : 'none'; pb.textContent = tp; $('bPass').classList.toggle('glow', tp > 0); // passive tree points to spend
   const boss = G.bossSpec && G.bossSpec.e;
   if (boss && !boss.deathT) { $('bossHp').style.width = (boss.hp / boss.maxHp * 100) + '%'; $('bossStag').style.width = ((boss.stun > 0 ? 1 : boss.stag || 0) * 100) + '%'; $('bossStag').classList.toggle('stun', boss.stun > 0); $('bossChan').parentNode.classList.toggle('on', !!boss.channel); $('bossChan').style.width = (boss.channel ? Math.min(1, boss.channel.t / BOSS.channel.t) * 100 : 0) + '%'; }
   rideHud(slotLook);

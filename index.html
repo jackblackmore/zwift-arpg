@@ -13,7 +13,7 @@
 <canvas id="o2d"></canvas>
 <div id="vign"></div>
 <div id="info" class="hud"><b id="iMap">MAP 1</b><br><span id="iLvl">Level 1</span> · <span id="iKill">0 slain</span></div>
-<div id="btns" class="hud"><button id="bInv">BAG <kbd>I</kbd><span class="badge" id="invBadge">0</span></button><button id="bGems">GEMS <kbd>G</kbd></button><button id="bPass">PASSIVES <kbd>P</kbd><span class="badge" id="passBadge">0</span></button><button id="bAtk">ATTACK</button><button id="bMode">MODE</button><button id="bLook">LOOK</button><button id="bFx">FX</button><button id="bMute">♪</button><button id="bMenu">☰</button></div>
+<div id="btns" class="hud"><button id="bInv">BAG <kbd>I</kbd><span class="badge" id="invBadge">0</span></button><button id="bGems">GEMS <kbd>G</kbd></button><button id="bPass">TREE <kbd>P</kbd><span class="badge" id="passBadge">0</span></button><button id="bAtk">ATTACK</button><button id="bMode">MODE</button><button id="bLook">LOOK</button><button id="bFx">FX</button><button id="bMute">♪</button><button id="bMenu">☰</button></div>
 <canvas id="mm" class="hud" width="300" height="300"></canvas>
 <div id="bossbar" class="hud"><span>THE PALE WARDEN</span><div><i id="bossHp"></i></div><div class="stag"><i id="bossStag"></i></div><div class="chan"><i id="bossChan"></i></div></div>
 <div id="toasts"></div>
@@ -47,11 +47,13 @@
   </div>
 </div></div>
 
-<div class="modal" id="mPass"><div class="card">
-  <h3>PASSIVE SKILLS <button id="passClose">✕</button></h3>
-  <div class="sub" id="passSub"></div>
-  <div id="passCards"></div>
-  <div id="taken"></div>
+<div class="modal" id="mTree"><div class="card">
+  <h3>PASSIVE TREE <button id="treeClose">✕</button></h3>
+  <div class="sub" id="treeSub"></div>
+  <div id="treeTip"></div>
+  <div id="treeWrap"></div>
+  <div id="treeSum"></div>
+  <div class="row" style="margin-top:8px"><button id="treeSuggest">SUGGEST</button><button id="treeReset">RESET</button></div>
 </div></div>
 
 <div class="modal" id="mShrine"><div class="card">

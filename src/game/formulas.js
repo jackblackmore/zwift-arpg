@@ -1,6 +1,6 @@
 // Pure balance maths: hero stats, item roll scaling, monster scaling, expected damage.
 // Imports only data, so the game, `npm run balance` (Node) and the arena all share one set of formulas.
-import { PASS } from '../data/passives.js';
+import { TREE, TREE_START, TREE_CAP } from '../data/tree.js';
 import { HERO, RARITY, START_WEAPON, GEAR_PROFILES, AFFIX_PRIORITY, XP_CURVE, ITEM_SCALE, ESTIMATE } from '../data/balance.js';
 import { MT, TIER, PACK } from '../data/monsters.js';
 import { SLOTS, BASES, IMPL, AFF } from '../data/items.js';
@@ -17,23 +17,25 @@ export const gemBase = (lvl = 1) => GEM.base * Math.pow(GEM.grow, Math.min(GEM.c
 // code reads the other fields when S.mile[gemId] is true (that gem is on the bar at its milestone level).
 const MILE_LVL = 5;
 
-// Derived stats from gear, passives, character level, the gems on the skill bar ({ gemId: level }) and their supports
-// ({ gemId: [supportId, ...] }, only supports that fit). st.gems[id] is each bar gem's base damage; skills not on the bar
-// (free casts from uniques) use level 1.
+// Derived stats from gear, the passive tree (allocated node ids, data/tree.js), character level, the gems on the skill bar
+// ({ gemId: level }) and their supports ({ gemId: [supportId, ...] }, only supports that fit). st.gems[id] is each bar gem's base
+// damage; skills not on the bar (free casts from uniques) use level 1.
 // st.sk[gemId] holds each skill's own behaviour stats (chains, flags from supports, `more` damage):
-// gear and passives feed every skill, a milestone or support only its own gem. Every skill gem has an entry.
-export function computeStats(gear, passives = {}, lvl = 1, gems = {}, socks = {}) {
+// gear and the tree feed every skill, a milestone or support only its own gem. Every skill gem has an entry.
+// st.fight: the tree's shield and timing numbers (game/sk/guard.js, roll.js, combat.js); st.ks: keystones taken (id → its numbers).
+export function computeStats(gear, tree = [], lvl = 1, gems = {}, socks = {}) {
   const s = { lifeF: 0, lifePct: 0, lregen: 0, surge: 0, surgeRe: 0, dmg: 0, fire: 0, cold: 0, light: 0, cast: 0, ms: 0, crit: 0, aoe: 0, chains: 0, lok: 0, spell: 0, dashCh: 0, shieldPct: 0, freeze: 0, dr: 0, novaR: 0,
-    ch: 0, dur: 0, more: 1 };
+    ch: 0, dur: 0, more: 1, flask: 0, block: 0, heavy: 0, posture: 0, drain: 0, parry: 0, riposte: 0, stagger: 0, finisher: 0, evadeInv: 0, evadeCh: 0 };
   for (const k in gear) { const it = gear[k]; if (it) for (const [st, v] of it.mods) s[st] = (s[st] || 0) + v; }
-  for (const id in passives) if (PASS[id]) PASS[id].fn(s, passives[id]);
+  const ks = {};
+  for (const id of tree) { const N = TREE[id]; if (!N) continue; if (N.kind === 'key') ks[id] = N.v; else N.fn(s, N.v); }
   const H = HERO, l = lvl - 1, sk = {};
   for (const id in GEMS) {
     const t = { ...s };
     const M = GEMS[id].mile; if (gems[id] >= MILE_LVL && M && M.add) for (const k in M.add) t[k] += M.add[k];
     for (const sup of socks[id] || []) if (supFits(sup, id)) SUPPORTS[sup].fn(t, SUPPORTS[sup]);
     sk[id] = {
-      chains: H.chains + t.chains, novaR: 1 + t.novaR, shieldMul: 1 + t.shieldPct, ch: t.ch + (id === 'dash' ? t.dashCh : 0),
+      chains: H.chains + t.chains, novaR: 1 + t.novaR, shieldMul: 1 + t.shieldPct, ch: t.ch + (id === 'dash' ? t.dashCh : 0) + (GEMS[id].kind === 'evade' ? t.evadeCh : 0),
       dur: 1 + t.dur, more: t.more, ignite: !!t.ignite, shatter: !!t.shatter, conduit: !!t.conduit, volley: !!t.volley, twin: !!t.twin,
       sweep: !!t.sweep, brittle: !!t.brittle, aftershock: !!t.aftershock, raise: !!t.raise,
       burnGround: !!GEMS[id].melee && !!t.burnGround, sup: (socks[id] || []).filter(x => supFits(x, id)),
@@ -43,9 +45,25 @@ export function computeStats(gear, passives = {}, lvl = 1, gems = {}, socks = {}
     maxLife: Math.max(20, Math.round((H.life + H.lifePer * l + s.lifeF) * (1 + s.lifePct))), surgeMax: SURGE.max * (1 + s.surge), surgeRe: SURGE.refill * (1 + s.surgeRe),
     lregen: H.lregen + s.lregen, spell: H.spell + H.spellPer * l + s.spell, gems: Object.fromEntries(Object.entries(gems).map(([id, g]) => [id, gemBase(g)])), mile: Object.fromEntries(Object.entries(gems).filter(([, g]) => g >= MILE_LVL).map(([id]) => [id, true])), dmg: 1 + s.dmg, fire: s.fire, cold: s.cold, light: s.light,
     cast: 1 + s.cast, ms: H.ms * (1 + s.ms), crit: H.crit + s.crit, aoe: 1 + s.aoe, lok: s.lok, loh: H.lifeOnHit + (s.loh || 0), sk,
-    freeze: 1 + s.freeze, dr: Math.min(.6, s.dr), storm: !!s.storm, autoNova: !!s.autoNova,
+    freeze: 1 + s.freeze, dr: Math.min(.6, s.dr), storm: !!s.storm, autoNova: !!s.autoNova, flask: 1 + s.flask, ks,
+    fight: { block: s.block, heavy: s.heavy, posture: Math.min(TREE_CAP.posture, s.posture), drain: 1 + s.drain, parry: 1 + s.parry, riposte: 1 + s.riposte,
+      stagger: 1 + s.stagger, finisher: 1 + s.finisher, evadeInv: 1 + s.evadeInv },
   };
 }
+
+// ---- the passive tree's graph (data/tree.js): links go both ways; the start node is always held ----
+export const TREE_ADJ = (() => { const a = {}; for (const id in TREE) a[id] = a[id] || new Set(); for (const id in TREE) for (const l of TREE[id].links) { a[id].add(l); (a[l] = a[l] || new Set()).add(id); } return a; })();
+// Is every node in `list` joined to the start through nodes in the list?
+export function treeConnected(list) {
+  const have = new Set(list), seen = new Set([TREE_START]), q = [TREE_START];
+  while (q.length) for (const n of TREE_ADJ[q.pop()]) if (have.has(n) && !seen.has(n)) { seen.add(n); q.push(n); }
+  return list.every(id => seen.has(id));
+}
+// Can `id` be taken next (a neighbour is held) / given back (the rest stays joined to the start)?
+export const treeCanTake = (list, id) => !!TREE[id] && id !== TREE_START && !list.includes(id) && [...TREE_ADJ[id]].some(n => n === TREE_START || list.includes(n));
+export const treeCanDrop = (list, id) => list.includes(id) && treeConnected(list.filter(x => x !== id));
+// Tree points at a character level: one per level after the first.
+export const treePoints = lvl => Math.max(0, lvl - 1);
 
 // Base of a hit from a gem: the gem's base damage plus flat spell damage from gear.
 export const hitBase = (st, gem) => (st.gems[gem] ?? gemBase(1)) + st.spell;

@@ -43,11 +43,14 @@ export function wantSurge(alive) {
 }
 
 // Press gems in attack slots: tap them when enough monsters are within reach (SK[...].bot); a flask under half life.
+// Under the Blood Rite keystone (casts cost life, no cooldowns) it only casts above `BLOOD_LIFE` of its life, like a careful rider.
+export const BLOOD_LIFE = .6;
 export function botTaps(bot, alive) {
+  const blood = S.ks && S.ks.blood && P.life < S.maxLife * BLOOD_LIFE;
   const reach = K => (K.bot && K.bot.range) || (K.radius ? K.radius * S.aoe * .8 : K.range) || 9;
   for (const s of bot.attacks) {
     const K = SK[GEMS[barGem(s).gem].sk], need = s === 'main' ? 1 : (K.bot && K.bot.crowd) || 1;
-    if (bot.ready(s) && within(alive, reach(K) * (K.radius && barGem(s).gem === 'nova' ? S.sk.nova.novaR : 1)) >= need) ctl.tap[s] = true;
+    if (!blood && bot.ready(s) && within(alive, reach(K) * (K.radius && barGem(s).gem === 'nova' ? S.sk.nova.novaR : 1)) >= need) ctl.tap[s] = true;
   }
   if (P.life < S.maxLife * .5 && P.flask >= 1 && P.flaskT <= 0) ctl.flask = true;
 }

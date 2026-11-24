@@ -35,9 +35,9 @@ export function hit(e, mult, elem, src = {}) {
   if (e.shock > 0) d *= 1 + (e.shockMore || SK.arc.shockMore); // Conduit (Arc's support) marks the shocks it makes
   if (e.stun > 0 && e.stagMax) { // staggered: wide open, and the first hero hit is a finisher
     d *= 1 + STAGGER.taken;
-    if (e.finisher && !src.dot && src.by !== 'minion') { e.finisher = false; d *= STAGGER.finisher; finisherFx(e); }
+    if (e.finisher && !src.dot && src.by !== 'minion') { e.finisher = false; d *= STAGGER.finisher * (S.fight ? S.fight.finisher : 1); finisherFx(e); } // the tree's finisher nodes
   }
-  else if (e.stagMax && !src.dot) { const C = e.channel && BOSS.channel; stagger(e, d / e.maxHp * STAGGER.dmg * (src.stag || 1) * (C ? C.hits * (1 + C.surge * (P.surgeK || 0)) : 1 + STAGGER.surge * (P.surgeK || 0))); } // a channel is easier to break, more so surging
+  else if (e.stagMax && !src.dot) { const C = e.channel && BOSS.channel; stagger(e, d / e.maxHp * STAGGER.dmg * (src.stag || 1) * stagMul() * (C ? C.hits * (1 + C.surge * (P.surgeK || 0)) : 1 + STAGGER.surge * (P.surgeK || 0))); } // a channel is easier to break, more so surging
   e.hp -= d; e.flash = .07; e.lastElem = elem; e.lastGem = src.by || gem; e.lastHit = Math.max(e.lastHit || 0, d);
   if (!src.dot) {
     floatT(e.x, e.h + .3, e.z, Math.round(d), crit ? '#ffe060' : ECOL[elem] || '#fff', crit ? 17 : 12);
@@ -58,6 +58,8 @@ export function stagger(e, amt) {
   floatT(e.x, e.h + .6, e.z, 'STAGGERED', '#ffb040', 18, 1.4); flashFx(e.x, e.h * .6, e.z, TELL.stagger, e.r * 5, .35); burst(e.x, e.h * .7, e.z, TELL.stagger, 30, 5);
   shake(.35); stop(.12); SFX.parry();
 }
+// The passive tree's stagger nodes: your hits and parries fill a bar faster.
+const stagMul = () => S.fight ? S.fight.stagger : 1;
 // A finisher (Sekiro's deathblow) lands: a white flash, a heavy crunch and big text, so it reads as the payoff for breaking it.
 function finisherFx(e) {
   P.finishers++;
@@ -73,7 +75,7 @@ function stun(e, t) {
 // You parried monster e (game/sk/guard.js): stagger a guardian or rare, stun anything else for a moment.
 export function parried(e) {
   if (e.deathT) return;
-  if (e.stagMax) stagger(e, (e.type === 'boss' ? STAGGER.parry : STAGGER.parryRare) * (e.channel ? BOSS.channel.parry : 1));
+  if (e.stagMax) stagger(e, (e.type === 'boss' ? STAGGER.parry : STAGGER.parryRare) * (e.channel ? BOSS.channel.parry : 1) * stagMul());
   else stun(e, STAGGER.minorStun);
 }
 

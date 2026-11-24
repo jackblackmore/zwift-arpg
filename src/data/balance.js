@@ -1,7 +1,7 @@
 // Balance tuning: hero growth, monster rarity, par levels and the targets the balance tools check against.
 // Tools: `npm run balance` (instant maths report) and `npm run arena` (real game code, scripted fights). See docs/design-notes.md.
 
-// Hero stats before gear and passives: value at level 1 plus growth per level.
+// Hero stats before gear and the passive tree: value at level 1 plus growth per level.
 // Base damage comes from skill gems (data/gems.js GEM), not character level, so spell/spellPer stay 0.
 // lifeOnHit: life a melee swing gives back per monster it hits, for up to lifeOnHitMax monsters (melee stands in the pack).
 export const HERO = {
@@ -44,6 +44,24 @@ export const parBar = t => { const l = parLevel(t), g = parGem(t), bar = { main:
 export const PAR_SUPPORT = { cleave: 'ignite', fstrike: 'brittle', slam: 'aftershock', arc: 'forked', nova: 'shatter', totem: 'volley', meteor: 'twinmeteor' };
 export const PAR_SUPPORT_FROM = 2;
 export const parSock = (t, main = PAR_MAIN) => t >= PAR_SUPPORT_FROM && PAR_SUPPORT[main] ? { main: [PAR_SUPPORT[main]] } : {};
+// Passive tree presets (data/tree.js): the order a sensible player takes nodes in, one per level after the first. Each node is next to
+// the start or to one earlier in its list (npm test checks). The tools take the first treePoints(level) nodes of the par preset for
+// the Main gem (PAR_TREE); the keystone presets are for the arena's keystone rows (they reach the keystone at 7 points, level 8).
+//   shield: the Sword knight: posture, parry and some damage first, then life, riposte, stagger and finisher.
+//   fire / cold / light: an elemental Main gem's region first, then life and the shield basics.
+export const TREE_PRESETS = {
+  shield: ['steady', 'keen', 'reflex', 'power', 'trigger', 'hardy', 'iron', 'counter', 'hands', 'measure', 'cut', 'headsman', 'sharpen', 'venge', 'poise'],
+  fire: ['focus', 'fire1', 'fire2', 'pyro', 'power', 'hardy', 'iron', 'steady', 'reflex', 'vast', 'fire3', 'fire4', 'wildfire', 'keen', 'trigger'],
+  cold: ['focus', 'cold1', 'cold2', 'rime', 'power', 'hardy', 'iron', 'steady', 'reflex', 'cold4', 'cold5', 'winter', 'keen', 'trigger', 'measure'],
+  light: ['focus', 'light1', 'light2', 'volt', 'precise', 'hardy', 'iron', 'steady', 'reflex', 'arcing', 'light3', 'light4', 'thunder', 'keen', 'trigger'],
+  riposte: ['steady', 'counter', 'sharpen', 'venge', 'punish', 'wound', 'riposte', 'keen', 'hardy', 'iron', 'reflex', 'trigger', 'measure'],
+  duelist: ['steady', 'reflex', 'trigger', 'measure', 'poise', 'master', 'duelist', 'keen', 'hardy', 'iron', 'counter', 'cut', 'headsman'],
+  bulwark: ['steady', 'brace', 'settle', 'wall', 'stout', 'anchor', 'bulwark', 'keen', 'hardy', 'iron', 'hands', 'counter', 'reflex'],
+  blood: ['hardy', 'iron', 'hunger', 'pact', 'blood', 'mend', 'keen', 'power', 'steady', 'reflex', 'trigger', 'focus', 'cold1'],
+};
+export const PAR_TREE = { sword: 'shield', cleave: 'fire', fstrike: 'cold', slam: 'light' };
+// The nodes the tools give a hero at a level: the first treePoints(level) of a preset (default: the par preset for the Main gem).
+export const parTree = (lvl, main = PAR_MAIN, preset = PAR_TREE[main] || 'shield') => (TREE_PRESETS[preset] || []).slice(0, Math.max(0, lvl - 1));
 export const parLevel = t => t <= PAR.length ? PAR[t - 1] : Math.round(PAR[PAR.length - 1] + PAR_AFTER * (t - PAR.length));
 
 // What a balanced fight looks like at par. [low, high]; both tools flag numbers outside these.
