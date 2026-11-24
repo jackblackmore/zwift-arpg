@@ -119,7 +119,7 @@ try {
       `tree: presets are takeable in order, each keystone preset reaches its keystone by 7 points, par presets give one node per level after the first${presetBad.length ? ' · bad: ' + presetBad.join(', ') : ''}`);
     // computeStats applies the nodes: life, elemental damage, the fight numbers and keystones.
     const st0 = computeStats({}, [], 10), st = computeStats({}, ['hardy', 'focus', 'fire1', 'steady', 'reflex', 'counter', 'brace', 'blood'], 10);
-    check(Math.abs(st.maxLife - Math.round(st0.maxLife * 1.06)) <= 1 && Math.abs(st.fire - .16) < 1e-9 && Math.abs(st.cold - .06) < 1e-9 && Math.abs(st.fight.parry - 1.1) < 1e-9
+    check(Math.abs(st.maxLife - Math.round(st0.maxLife * (1 + TREE.hardy.v.lifePct))) <= 1 && Math.abs(st.fire - .16) < 1e-9 && Math.abs(st.cold - .06) < 1e-9 && Math.abs(st.fight.parry - 1.1) < 1e-9
       && Math.abs(st.fight.riposte - 1.15) < 1e-9 && Math.abs(st.fight.posture - .1) < 1e-9 && Math.abs(st.fight.block - .04) < 1e-9 && st.ks.blood === TREE.blood.v && !st0.ks.blood,
       `tree: recalc's stats add up the nodes (life ${st0.maxLife} → ${st.maxLife}, fire +${Math.round(st.fire * 100)}%, parry window ×${st.fight.parry}, riposte ×${st.fight.riposte}) and keystones switch on`);
     const ev = computeStats({}, ['tumbler'], 10, { roll: 1, sword: 1 });
@@ -855,11 +855,13 @@ try {
       setTree(['steady']); clear(); let z = foe('zombie', 0, 1.2); D.sim(1); const post0 = blockPost(z); // every keystone preset below holds Steady Stance too
       // Riposte: every parry strikes back at once; blocked hits fill posture 50% faster.
       setTree(['steady', 'counter', 'sharpen', 'venge', 'punish', 'wound', 'riposte']); clear(); z = foe('zombie', 0, 1.2); D.sim(1);
-      const hp0 = z.hp; out.rParry = parry(z) === 'parry'; out.rStruck = z.hp < hp0 && P.riposteT <= 0;
+      const hp0 = z.hp; out.rParry = parry(z) === 'parry'; out.rStruck = z.hp < hp0 && P.riposteT <= 0 && P.castT > 0;
       out.rPosture = Math.round(blockPost(z) / post0 * 100) / 100;
       // Bulwark: blocking doesn't slow you; a press only blocks; less posture.
       setTree(['steady', 'brace', 'settle', 'wall', 'stout', 'anchor', 'bulwark']); clear(); z = foe('zombie', 0, 1.2); D.sim(1);
       out.bMove = D.blockStats().move; out.bParry = parry(z); out.bPosture = Math.round(blockPost(z) / post0 * 100) / 100;
+      clear(); const rr = D.spawnEnemy('zombie', P.x, P.z + 1.2, null, 2); rr.awake = true; rr.spd = 0; rr.atkT = 99; D.sim(1); blockPost(rr); out.bBash = Math.round(rr.stag * 1000) / 1000;
+      out.bBashOk = Math.abs(rr.stag - D.STAGGER.parryRare * TR.bulwark.v.bash) < .01;
       // Duelist: holding Guard doesn't block; the parry window is 60% longer (with the parry nodes on the way).
       setTree(['steady', 'reflex', 'trigger', 'measure', 'poise', 'master', 'duelist']); clear(); z = foe('zombie', 0, 1.2); D.sim(1);
       ctl.guard = true; D.sim(15); const l0 = P.life; out.dHold = hit(z); out.dTaken = Math.round(l0 - P.life); ctl.guard = false; D.sim(1);
@@ -883,7 +885,7 @@ try {
     check(r.awayNo && r.entranceYes, 'tree: a full reset is refused away from a safe room and free at the map entrance, refunding every point');
     check(r.saved, 'tree: the save keeps the tree');
     check(r.rParry && r.rStruck && Math.abs(r.rPosture - 1.5) < .08, `tree: Riposte keystone: a parry strikes back at once; blocked hits fill posture ${r.rPosture}× (want 1.5×)`);
-    check(r.bMove === 1 && r.bParry === 'block' && r.bPosture < .75 * .95, `tree: Bulwark keystone: no slow while blocking, a press only blocks (${r.bParry}), less posture (${r.bPosture}×)`);
+    check(r.bMove === 1 && r.bParry === 'block' && r.bPosture < .75 * .95 && r.bBashOk, `tree: Bulwark keystone: no slow while blocking, a press only blocks (${r.bParry}), less posture (${r.bPosture}×), a block fills a rare's stagger (${r.bBash})`);
     check(r.dHold === 'hit' && r.dTaken > 15 && r.dParry && r.dWindowOk, `tree: Duelist keystone: holding Guard doesn't block (took ${r.dTaken} of 20), parries still work with a ${r.dWindow}s window`);
     check(r.bloodOk && r.bloodLow && r.noBloodCd, `tree: Blood Rite keystone: Frost Nova cast ${r.bloodCasts}× in 40 ticks ignoring its cooldown, costing ${r.bloodCost} life; refused near empty; without it the cooldown holds`);
     check(errors.length === 0, `tree: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);

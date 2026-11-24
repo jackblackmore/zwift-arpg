@@ -72,11 +72,12 @@ function stun(e, t) {
   e.stun = t; e.windup = 0; e.cast = null; e.charging = null; e.fuse = 0;
   if (e.model.rigged) { const [n, sp] = ANIM.stun, d = e.model.play(n, { once: true, speed: sp * 3 / Math.max(1, t), fade: .05 }); e.lock = d / (sp * 3 / Math.max(1, t)); }
 }
-// You parried monster e (game/sk/guard.js): stagger a guardian or rare, stun anything else for a moment.
-export function parried(e) {
+// You parried monster e (game/sk/guard.js): stagger a guardian or rare, stun anything else for a moment. k < 1: a share of a
+// parry's stagger and no stun (the Bulwark keystone's blocks).
+export function parried(e, k = 1) {
   if (e.deathT) return;
-  if (e.stagMax) stagger(e, (e.type === 'boss' ? STAGGER.parry : STAGGER.parryRare) * (e.channel ? BOSS.channel.parry : 1) * stagMul());
-  else stun(e, STAGGER.minorStun);
+  if (e.stagMax) stagger(e, (e.type === 'boss' ? STAGGER.parry : STAGGER.parryRare) * (e.channel ? BOSS.channel.parry : 1) * stagMul() * k);
+  else if (k >= 1) stun(e, STAGGER.minorStun);
 }
 
 export function kill(e) {

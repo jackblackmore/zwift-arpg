@@ -86,12 +86,13 @@ export function shieldHit(d, o) {
     SFX.parry(); stop(.09); shake(.12);
     if (o.by) parried(o.by);
     if (art) art.parry(o.by);
-    if (S.ks && S.ks.riposte && o.by) { const g = barGem('main'); if (g && counter(g.gem, o.by, B.riposte)) P.riposteT = 0; } // Riposte keystone: strike back now
+    if (S.ks && S.ks.riposte && o.by) { const g = barGem('main'); if (g && counter(g.gem, o.by, B.riposte)) P.riposteT = 0; } // Riposte keystone: the riposte lands now (game/sk/strike.js counter)
     return 0;
   }
   P.posture += cost; P.postWait = B.drainDelay;
   if (P.posture >= 1) { breakGuard(); o.result = 'broken'; return d; }
   P.castSeq++; P.lastCast = 'blockhit'; o.result = 'block'; SFX.block();
+  if (S.ks && S.ks.bulwark && o.by) parried(o.by, S.ks.bulwark.bash); // Bulwark: a block pushes back
   ringFx(P.x + Math.sin(P.face) * .6, P.z + Math.cos(P.face) * .6, .7, art ? art.col : 0xe8d8a8, .2, .3);
   return d * (1 - (o.elem ? B.elem : kind === 'heavy' ? B.heavy : B.block));
 }
