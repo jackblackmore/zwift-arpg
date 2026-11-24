@@ -38,7 +38,7 @@ Status: ✅ done · ▶ next · ☐ later
 - **Elite vs ambush split** (proposal: elite is one strong named enemy for quality loot, ambush is many weak ones for quantity).
 
 **Autopilot queue: what a session can build without asking, in order.** One PR per item, merged when `npm run build && npm test` pass (CLAUDE.md). After each item, add a line under "Built while the owner was away" below, so the owner can review it in one place: what changed, how to try it, the arena or test numbers, and anything that needs the owner's call.
-1. **Stagger payoff** (step 3⅞ part 2, item 2): a finisher on staggered guardians and rares, so the arena's perfect bot is at least 15% faster than the good rider.
+1. ✅ **Stagger payoff** (step 3⅞ part 2, item 2): a finisher on staggered guardians and rares, so the arena's perfect bot is at least 15% faster than the good rider.
 2. **Guardian channels** (step 3⅞ part 2, item 3), including the RIDE short-effort bonus.
 3. **Shield arts** (item 4): Magic Shield and Frost Ward change the block and parry.
 4. **Elites' heavy swings, Flame Dash through the target, a Sword level 5 milestone** (items 5 and 6).
@@ -49,7 +49,8 @@ Status: ✅ done · ▶ next · ☐ later
 
 **Don't, without asking:** change gem drop rates, build ambush or shrine rooms, delete content, make big asset changes, upgrade three.js, start Bluetooth. Keep the difficulty where the owner liked it: if a change makes fights easier or harder, say so with arena numbers.
 
-**Built while the owner was away:** (nothing yet: sessions add a line per merged PR, newest last)
+**Built while the owner was away:** (sessions add a line per merged PR, newest last)
+- **Stagger payoff: the finisher** (queue item 1). Break a guardian's or rare's stagger bar and your first hit on it is a finisher: 3× damage, a white flash, big "FINISHER" text and a deep crunch. Parries now do the breaking (two parries in a row break the guardian; plain hits fill a third as much as before), and a hit the monster lands on you knocks 60% off its bar, so careless play doesn't get finishers. Try it: parry the Pale Warden's yellow swings twice in a row, then hit it. Arena guardians (mean of 6 seeds), good rider vs perfect: perfect is 20–31% faster on every tier (was about the same); the good rider wins every run, careless loses every run (it won some tier 3–5 runs before). Your call: good-rider guardian fights got about 10–25% shorter on tiers 1, 2 and 4; if they feel too short, raise guardian life rather than weaken the finisher. Numbers in `STAGGER` (`src/data/monsters.js`); details under "Built: stagger payoff" in the design notes.
 
 ---
 
@@ -265,7 +266,7 @@ Status: ✅ done · ▶ next · ☐ later
 **Part 2 ▶ (after the owner's next play).** The brief further down is the original full plan; most of it is done in prototype form. What's left, in order:
 
 1. **Tune from the playtest.** The numbers most likely to move: the parry window (`SK.block.parry`, 0.35 s), posture per blocked hit and its drain, normal monster windups (`FIGHT.windup`), swings per zombie (zombie life, Sword `mult`), the first guardian's damage. Re-run `npm run balance` and `npm run arena` after.
-2. **Make stagger pay off.** In the arena the perfect bot is barely faster than the good rider, so timing isn't rewarded enough yet. Options: a parry fills more (`STAGGER.parry`), a longer stun, or a **finisher** (Sekiro's deathblow): the first hit on a staggered guardian or rare deals a big chunk (say 3× and more stagger damage taken). Target: the perfect bot kills guardians at least 15% faster than the good rider.
+2. ✅ **Make stagger pay off.** Built: a finisher, a parry-led stagger bar and a bar that recovers when the monster lands a hit ("Built: stagger payoff" in the design notes). Original brief: In the arena the perfect bot is barely faster than the good rider, so timing isn't rewarded enough yet. Options: a parry fills more (`STAGGER.parry`), a longer stun, or a **finisher** (Sekiro's deathblow): the first hit on a staggered guardian or rare deals a big chunk (say 3× and more stagger damage taken). Target: the perfect bot kills guardians at least 15% faster than the good rider.
 3. **Channels (🔵), broken by stagger.** The guardian's phase 2 gains a channel: it stops, a blue bar fills over about 3 s, and if it completes it does something bad (a big unblockable burst you must roll, or it heals and summons). Filling its stagger bar before the bar completes cancels it and staggers it. While a channel is up, Surge fills stagger faster, and in RIDE mode a short effort spike does too (tuning in `src/data/ride.js`; it must stay optional, so parrying alone can still break it). Data in `BOSS.channel`; a blue telegraph colour in `TELL` and its own cue sound. Arena bot: surges during a channel; report how often it breaks one.
 4. **Shield arts.** Guard gems change the block and parry instead of being timed casts (design notes, "Fight mechanics"): **Magic Shield**: a parry grants a barrier (blocking absorbs a little more); **Frost Ward**: parries chill the attacker and leave a short frost ring. Rework their supports (Warding, Lingering Frost) and the text in `gems.js` (the test checks text against numbers). The level 3 Guard shrine keeps offering Frost Ward.
 5. **Elites' heavy swings.** Rares get an occasional red heavy swing (longer windup, more damage, block for less or roll), so rare packs ask for more than parrying. Data in `RARE` or `FIGHT`.

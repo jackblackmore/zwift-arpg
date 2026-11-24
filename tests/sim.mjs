@@ -526,10 +526,10 @@ try {
       for (let i = 0; i < 6 && !(b.stun > 0); i++) { P.parryCd = 0; ctl.tap.guard = true; D.sim(1); D.hurtP(10, 'boss', { from: b, by: b }); st.push(Math.round(b.stag * 100) / 100); }
       out.stagSteps = st.join(','); out.stunned = b.stun > 0 && !b.cast;
       // The first swing on a staggered guardian is a finisher (about STAGGER.finisher × a stunned swing); the rest of the stun
-      // still hits harder than normal. Crits are off so the comparison is fair.
-      const crit = S.crit; S.crit = 0; const bswing = () => { const h = b.hp; P.aimAt = [b.x, b.z]; D.strike('sword'); P.aimAt = null; D.sim(10); return h - b.hp; };
-      ctl.guard = false; D.sim(12); const f0 = P.finishers, finHit = bswing(); out.finCount = P.finishers - f0; const stunHit = bswing(); out.stillStunned = b.stun > 0;
-      b.stun = 0; b.stag = 0; D.sim(1); const plainHit = bswing(); S.crit = crit;
+      // still hits harder than normal. Crits, the hit spread (Math.random pinned) and the parry's riposte are off so the comparison is fair.
+      const crit = S.crit, rnd = Math.random; S.crit = 0; Math.random = () => .5; const bswing = () => { const h = b.hp; P.aimAt = [b.x, b.z]; D.strike('sword'); P.aimAt = null; D.sim(10); return h - b.hp; };
+      ctl.guard = false; D.sim(12); P.riposteT = 0; const f0 = P.finishers, finHit = bswing(); out.finCount = P.finishers - f0; const stunHit = bswing(); out.stillStunned = b.stun > 0;
+      b.stun = 0; b.stag = 0; D.sim(1); const plainHit = bswing(); S.crit = crit; Math.random = rnd;
       out.finRatio = Math.round(finHit / stunHit * 100) / 100; out.stunTaken = stunHit > plainHit * 1.08;
       out.finisher = out.finCount === 1 && out.stillStunned && out.finRatio > D.STAGGER.finisher * .7 && P.finishers - f0 === 1;
       // A hit the guardian lands (not blocked or parried) steadies it: its stagger bar drops.
