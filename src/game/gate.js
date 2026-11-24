@@ -11,13 +11,15 @@ import { glowSprite, glowTex } from '../render/assets.js';
 import { SFX } from '../core/audio.js';
 import { burst } from '../render/fx.js';
 
+// The look's randomness has its own little generator, so building a gate doesn't shift the game's Math.random sequence (seeded tests).
+let vs = 7; const vr = () => (vs = (vs * 16807) % 2147483647) / 2147483647;
 let mistTex = null;
 function mist() {
   if (mistTex) return mistTex;
   const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d');
   // Soft vertical wisps, thick at the floor and thinning upward, fading at the sides; the texture scrolls (see updGate).
   for (let k = 0; k < 70; k++) {
-    const px = Math.random() * 128, w = 6 + Math.random() * 18, a = .05 + Math.random() * .12, g = x.createLinearGradient(0, 128, 0, 0);
+    const px = vr() * 128, w = 6 + vr() * 18, a = .05 + vr() * .12, g = x.createLinearGradient(0, 128, 0, 0);
     g.addColorStop(0, `rgba(235,240,255,${a * 1.6})`); g.addColorStop(.55, `rgba(220,228,255,${a})`); g.addColorStop(1, 'rgba(220,228,255,0)');
     x.fillStyle = g; for (const o of [-128, 0, 128]) x.fillRect(px - w / 2 + o, 0, w, 128); // wrapped, so it tiles across
   }
@@ -42,8 +44,8 @@ export function initGate() {
   // Drifting puffs fill the gap: they face the camera, so a gate on a side wall (seen edge-on) still reads as a wall of mist.
   const puffMat = new T.SpriteMaterial({ map: glowTex, color: 0xc4ccdc, transparent: true, depthWrite: false, opacity: 0 }), puffs = [];
   for (let k = 0; k < 14; k++) {
-    const sp = glowSprite(0xdde6ff, 1); sp.material = puffMat; const t = (k / 13 - .5) * door.w * .95, d = Math.random();
-    const base = { x: nz ? t : nx * L.cell * (.15 + d * .7), z: nx ? t : nz * L.cell * (.15 + d * .7), y: .4 + Math.random() * (h - .9), s: 1.6 + Math.random() * 1.4, ph: Math.random() * 6 };
+    const sp = glowSprite(0xdde6ff, 1); sp.material = puffMat; const t = (k / 13 - .5) * door.w * .95, d = vr();
+    const base = { x: nz ? t : nx * L.cell * (.15 + d * .7), z: nx ? t : nz * L.cell * (.15 + d * .7), y: .4 + vr() * (h - .9), s: 1.6 + vr() * 1.4, ph: vr() * 6 };
     sp.position.set(base.x, base.y, base.z); grp.add(sp); puffs.push({ sp, ...base });
   }
   grp.position.set(door.x, 0, door.z); G.world.add(grp);
@@ -54,9 +56,9 @@ function setCells(g, v) { const L = G.layout; for (const [i, j] of g.cells) L.gr
 function seal(g) { g.shut = true; setCells(g, 0); SFX.dash(); burst(g.door.x, 1.2, g.door.z, 0xdde6ff, 30, 4); }
 function open(g, done) { if (g.shut) setCells(g, 1); g.shut = false; if (done && !g.done) { g.done = true; SFX.nova(); burst(g.door.x, 1.2, g.door.z, 0xdde6ff, 40, 5); } }
 
-// Is the hero far enough into the gate's room to be committed?
-function inside(g) {
-  const L = G.layout, r = roomAt(L, P.x, P.z); if (!r || r.id !== g.room) return false;
+// Is the hero far enough into the gate's room to be committed (and the guardian in there too, so it can't be shut out)?
+function inside(g, boss) {
+  const L = G.layout, r = roomAt(L, P.x, P.z), b = roomAt(L, boss.x, boss.z); if (!r || r.id !== g.room || !b || b.id !== g.room) return false;
   return -((P.x - g.door.x) * g.n[0] + (P.z - g.door.z) * g.n[1]) > GATE.inside;
 }
 
@@ -65,7 +67,7 @@ export function updGate(dt) {
   const boss = G.bossSpec && G.bossSpec.e, fight = boss && boss.awake && !boss.deathT;
   if (boss && boss.deathT) open(g, true);
   else if (g.shut && (P.dead > 0 || !fight)) open(g, false);
-  else if (!g.shut && !g.done && fight && P.dead <= 0 && inside(g)) seal(g);
+  else if (!g.shut && !g.done && fight && P.dead <= 0 && inside(g, boss)) seal(g);
   // Look: faint while it waits, thick while sealed, gone once the guardian is dead.
   const want = g.done ? 0 : g.shut ? 1 : .35; g.a += (want - g.a) * Math.min(1, dt * 3);
   g.grp.visible = g.a > .01;
