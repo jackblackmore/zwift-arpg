@@ -63,3 +63,10 @@ export const GEAR_PROFILES = { start: { n: 0 }, magic: { rar: 1, n: 1 }, rare: {
 export const AFFIX_PRIORITY = ['spell', 'fire', 'dmg', 'cast', 'lifeF', 'crit', 'ms', 'lregen'];
 // The gear a player is expected to have at par on each tier (targets are checked against this profile).
 export const PAR_GEAR = t => t === 1 ? 'start' : 'magic';
+
+// Level time (`npm run level`, game/levelrun.js, and the estimate in `npm run balance`). A full clear at par is aimed at
+// `target` minutes (design notes "Level generation v2"). The par rider: rides at `pace` of FTP (endurance, full walking speed),
+// at `cad` rpm, goes to `surge` when the bot wants Surge and to `spike` while the guardian channels (data/ride.js RIDE). The
+// estimate's fight time is the balance maths (a floor) times `fightSlack`, because real fights also walk between monsters, wait out
+// wind-ups and guard; `walkSlack` is how much longer than the room-to-room tour the autopilot really walks (steering, loot, packs).
+export const LEVEL_TIME = { target: [25, 35], pace: .75, cad: 88, surge: 1.05, spike: 1.4, fightSlack: 1, walkSlack: 1 };

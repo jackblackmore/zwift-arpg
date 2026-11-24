@@ -13,7 +13,10 @@ import { GEMS } from '../data/gems.js';
 import { routeTarget } from './route.js';
 
 // Stuck detection: if we've been trying to move but haven't, sidestep for a moment.
-const ST = { x: 0, z: 0, t: 0, side: 0, sideT: 0 };
+const ST = { x: 0, z: 0, t: 0, side: 0, sideT: 0, n: 0, at: -9 }; // n: sidesteps in a row (within 3 s of the last)
+
+// A fresh start (the level run, game/levelrun.js, so a run doesn't inherit the last one's sidestep).
+export function resetAutopilot() { Object.assign(ST, { x: P.x, z: P.z, t: 0, side: 0, sideT: 0, n: 0, at: -9 }); }
 
 const toward = (x, z) => steer(P, x, z);
 
@@ -21,8 +24,10 @@ export function autopilot(dt = .033) {
   if (P.apPause > 0) return [0, 0]; // just evaded: don't walk straight back into it
   const d = pick(dt);
   if (Math.hypot(d[0], d[1]) < .01) { ST.t = 0; return d; }
-  if (ST.sideT > 0) { ST.sideT -= dt; return [d[0] * .3 - d[1] * ST.side, d[1] * .3 + d[0] * ST.side]; }
-  if (dist(P.x, P.z, ST.x, ST.z) < .05) { ST.t += dt; if (ST.t > .8) { ST.t = 0; ST.sideT = .9; ST.side = Math.random() < .5 ? 1 : -1; } } else ST.t = 0;
+  // Sidestepping: a little forward at first; on a second try in a row, backing off a little too (a prop in a doorway's corner can
+  // pin you against the wall, where a forward sidestep never gets round it), and to the other side each time.
+  if (ST.sideT > 0) { ST.sideT -= dt; const f = ST.n > 1 ? -.4 : .3; return [d[0] * f - d[1] * ST.side, d[1] * f + d[0] * ST.side]; }
+  if (dist(P.x, P.z, ST.x, ST.z) < .05) { ST.t += dt; if (ST.t > .8) { ST.t = 0; ST.sideT = .9; ST.n = G.gt - ST.at < 3 ? ST.n + 1 : 1; ST.at = G.gt; ST.side = ST.n > 1 ? -ST.side || 1 : Math.random() < .5 ? 1 : -1; } } else ST.t = 0;
   ST.x = P.x; ST.z = P.z;
   return d;
 }

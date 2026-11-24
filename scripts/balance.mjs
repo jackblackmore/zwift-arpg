@@ -4,8 +4,11 @@
 // Usage: npm run balance [-- maxTier]   (default 5, the Crypt). MAIN=<gem> picks the Main gem (default PAR_MAIN, the Sword).
 // The Main gem at the tier's par gem level (PAR_GEM) with its par support (parSock), nothing else, so it's a floor on real kill speed.
 // Melee hits ESTIMATE.targets monsters per swing in a pack (gemDps in formulas.js), one on a rare or the guardian.
-import { computeStats, gemDps, monsterStats, gearProfile, xpNeedFor, packCount } from '../src/game/formulas.js';
-import { TARGETS, RARITY, ESTIMATE, PAR_MAIN, parLevel, parGem, parSock, PAR_GEAR, GEAR_PROFILES } from '../src/data/balance.js';
+import { computeStats, gemDps, monsterStats, gearProfile, xpNeedFor, packCount, rideMove } from '../src/game/formulas.js';
+import { TARGETS, RARITY, ESTIMATE, PAR_MAIN, parLevel, parGem, parSock, PAR_GEAR, GEAR_PROFILES, LEVEL_TIME } from '../src/data/balance.js';
+import { RIDE } from '../src/data/ride.js';
+import { generateLevel, junctionRooms, tourLen } from '../src/world/gen.js';
+import { seeded } from '../src/core/rng.js';
 import { MT, TIER, PACKS, PACK } from '../src/data/monsters.js';
 import { GEMS } from '../src/data/gems.js';
 import { SURGE } from '../src/data/skills.js';
@@ -34,6 +37,7 @@ function avgPack(t) {
 }
 
 let warn = 0;
+const levelEst = [];
 console.log(`Watt Dungeon balance report · ${GEMS[MAIN].n} only · ${GEMS[MAIN].melee ? ESTIMATE.targets[MAIN] + ' targets per swing in a pack' : 'single target'} · targets in src/data/balance.js`);
 console.log('  ↑ above target  ↓ below target  (checked on the par gear row, marked *)\n');
 // The level track: a character that full-clears every map from map 1 (XP carried over), to compare with the par levels.
@@ -53,9 +57,28 @@ for (let t = 1; t <= maxTier; t++) {
     const hits = z.hp / hit;
     const clear = hitTime(pack.hp / G.pack, G.rate, st), rk = hitTime(rare.hp / hit, G.rate, st), gk = hitTime(boss.hp / hit, G.rate, st), gs = hitTime(boss.hp / hit, G.rate, st, true);
     const tank = st.maxLife / pack.dps, gain = G.dps / startDps;
+    if (PAR_GEAR(t) === kind) levelEst[t] = { st, clear: hitTime(pack.hp * (1 + PACK.magicChance * (RARITY.magic.hp - 1)) / G.pack, G.rate, st), rk, gs };
     const par = PAR_GEAR(t) === kind, chk = (v, k) => { if (!par || (k === 'hitsNormal' && MAIN !== PAR_MAIN)) return ' '; const f = flag(v, TARGETS[k]); if (f !== ' ') warn++; return f; };
     console.log(`  ${(kind + (par ? '*' : ' ')).padEnd(7)}│ ${fmt(hit).padStart(4)} │ ${fmt(hits).padStart(9)} ${chk(hits, 'hitsNormal')} │ ${fmt(clear).padStart(8)}s${chk(clear, 'packClear')}│ ${fmt(rk).padStart(7)}s${chk(rk, 'rareKill')}│ ${fmt(gk, 0).padStart(6)}s${chk(gk, 'guardian')}│ ${fmt(gs, 0).padStart(6)}s ${chk(gs, 'guardianSurge')}│ ${fmt(tank).padStart(7)}s${chk(tank, 'faceTank')}│ ×${fmt(gain, 2)}${kind === 'magic' && t === 1 ? flag(gain, TARGETS.lootGain) : ''}`);
   }
   console.log('');
 }
 console.log(warn ? `${warn} par numbers outside target.` : 'All par numbers inside target.');
+
+// Level time estimate: a full clear at par (data/balance.js LEVEL_TIME), from the layouts (200 seeds, the map viewer's 1–200) and
+// the maths above: the walk through every room / walking speed at the par pace, + packs × the average pack's clear time (magic packs
+// included) + rare packs × the rare's kill time + the guardian (a full Surge gauge) + junction stops × the wait (data/ride.js).
+// Fight times are the maths floor above; `npm run level` measures a real one (game/levelrun.js).
+{
+  const N = 200; let tour = 0, jn = 0;
+  for (let k = 1; k <= N; k++) { const L = generateLevel({}, seeded(k)); tour += tourLen(L) / N; jn += junctionRooms(L).length / N; }
+  const E = LEVEL_TIME, m = x => fmt(x / 60).padStart(5);
+  console.log(`\nLevel time, full clear at par (estimate; npm run level measures it) · ${fmt(tour, 0)} units of rooms and corridors, ${fmt(jn)} junctions, mean of ${N} layouts · minutes`);
+  console.log('  tier │  walk │ packs │ rares │ guard │ junc  │ total │ target ' + E.target.join('–'));
+  for (let t = 1; t <= maxTier; t++) {
+    const e = levelEst[t]; if (!e) continue;
+    const walk = tour / (e.st.ms * rideMove(E.pace)) * E.walkSlack, packs = packCount(t) * e.clear * E.fightSlack, rares = packCount(t) * PACK.rareChance * e.rk * E.fightSlack;
+    const guard = e.gs * E.fightSlack, junc = jn * RIDE.junction.wait, total = walk + packs + rares + guard + junc, f = flag(total / 60, E.target);
+    console.log(`  ${String(t).padStart(4)} │ ${m(walk)} │ ${m(packs)} │ ${m(rares)} │ ${m(guard)} │ ${m(junc)} │ ${m(total)} ${f}`);
+  }
+}

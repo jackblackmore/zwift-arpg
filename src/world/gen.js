@@ -156,3 +156,19 @@ export function wallHit(L, x, z, r) {
   }
   return false;
 }
+
+// Rooms with more than one way on once you're in them (the autopilot's junctions, game/route.js): a route room with a side room
+// off it, or the entrance with more than one corridor. On a full clear the autopilot stops at each once.
+export function junctionRooms(L) {
+  const deg = new Map(L.rooms.map(r => [r.id, 0]));
+  for (const e of L.edges) { deg.set(e.a, deg.get(e.a) + 1); deg.set(e.b, deg.get(e.b) + 1); }
+  return L.rooms.filter(r => r.kind !== 'side' && r.kind !== 'boss' && deg.get(r.id) >= (r.kind === 'start' ? 2 : 3));
+}
+
+// Length of a full clear's walk: from the entrance through every room (room centre to room centre along the corridors) and
+// back out of each dead end, ending in the guardian arena. Each corridor is walked twice except those on the main route.
+export function tourLen(L) {
+  const R = L.rooms, leg = e => { const a = R[e.a], b = R[e.b], p0 = e.pts[0], p1 = e.pts[e.pts.length - 1]; return e.len + Math.min(Math.hypot(a.x - p0.x, a.z - p0.z) + Math.hypot(b.x - p1.x, b.z - p1.z), Math.hypot(a.x - p1.x, a.z - p1.z) + Math.hypot(b.x - p0.x, b.z - p0.z)); };
+  const onRoute = new Set(); for (let k = 1; k < L.route.length; k++) onRoute.add(L.route[k - 1] + ',' + L.route[k]);
+  return L.edges.reduce((n, e) => n + leg(e) * (onRoute.has(e.a + ',' + e.b) || onRoute.has(e.b + ',' + e.a) ? 1 : 2), 0);
+}
