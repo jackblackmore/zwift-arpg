@@ -15,7 +15,7 @@ import { makePortal } from './maps.js';
 import * as skel from './sk/skeletons.js';
 import { HERO, RARITY, COMBAT } from '../data/balance.js';
 import { DROP } from '../data/items.js';
-import { BLAST, RARE, STAGGER, ANIM } from '../data/monsters.js';
+import { BLAST, RARE, STAGGER, ANIM, BOSS } from '../data/monsters.js';
 import { TELL } from '../data/graphics.js';
 import { shieldHit } from './sk/guard.js';
 import { SUPPORTS } from '../data/gems.js';
@@ -37,7 +37,7 @@ export function hit(e, mult, elem, src = {}) {
     d *= 1 + STAGGER.taken;
     if (e.finisher && !src.dot && src.by !== 'minion') { e.finisher = false; d *= STAGGER.finisher; finisherFx(e); }
   }
-  else if (e.stagMax && !src.dot) stagger(e, d / e.maxHp * STAGGER.dmg * (1 + STAGGER.surge * (P.surgeK || 0)));
+  else if (e.stagMax && !src.dot) { const C = e.channel && BOSS.channel; stagger(e, d / e.maxHp * STAGGER.dmg * (C ? C.hits * (1 + C.surge * (P.surgeK || 0)) : 1 + STAGGER.surge * (P.surgeK || 0))); } // a channel is easier to break, more so surging
   e.hp -= d; e.flash = .07; e.lastElem = elem; e.lastGem = src.by || gem; e.lastHit = Math.max(e.lastHit || 0, d);
   if (!src.dot) {
     floatT(e.x, e.h + .3, e.z, Math.round(d), crit ? '#ffe060' : ECOL[elem] || '#fff', crit ? 17 : 12);
@@ -66,13 +66,14 @@ function finisherFx(e) {
   shake(.6); stop(.2); SFX.finisher();
 }
 function stun(e, t) {
+  if (e.channel) { e.channel = null; P.chanBroken++; floatT(e.x, e.h + 1.4, e.z, 'CHANNEL BROKEN', '#' + TELL.channel.toString(16).padStart(6, '0'), 16, 1.4); } // stagger breaks a channel (BOSS.channel)
   e.stun = t; e.windup = 0; e.cast = null; e.charging = null; e.fuse = 0;
   if (e.model.rigged) { const [n, sp] = ANIM.stun, d = e.model.play(n, { once: true, speed: sp * 3 / Math.max(1, t), fade: .05 }); e.lock = d / (sp * 3 / Math.max(1, t)); }
 }
 // You parried monster e (game/sk/guard.js): stagger a guardian or rare, stun anything else for a moment.
 export function parried(e) {
   if (e.deathT) return;
-  if (e.stagMax) stagger(e, e.type === 'boss' ? STAGGER.parry : STAGGER.parryRare);
+  if (e.stagMax) stagger(e, (e.type === 'boss' ? STAGGER.parry : STAGGER.parryRare) * (e.channel ? BOSS.channel.parry : 1));
   else stun(e, STAGGER.minorStun);
 }
 
@@ -101,7 +102,7 @@ export function kill(e) {
   }
 }
 
-// src: what hit you (a monster type, 'slam', 'nova', 'arrow', 'blast', 'aura', 'charge'), tallied after shields in P.takenBy for the arena.
+// src: what hit you (a monster type, 'slam', 'nova', 'arrow', 'blast', 'aura', 'charge', 'burst'), tallied after shields in P.takenBy for the arena.
 // o: { from: {x, z} where it comes from, kind: 'hit' (parry or block) | 'heavy' (block for less, or roll) | 'unblockable' (roll),
 // by: the monster, for a parry's stagger }. The Knight's Shield (game/sk/guard.js) takes it first. Returns what happened:
 // 'miss' (dead or untouchable, e.g. rolling), 'parry', 'block', 'broken' or 'hit'.

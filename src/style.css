@@ -19,6 +19,9 @@ button.glow{border-color:#ffd23f;box-shadow:0 0 12px #ffd23f99;animation:gl 1s e
 #bossbar div.stag{height:5px;border-color:#6a4a1a;background:#1a1006;margin:2px auto 0;width:70%}
 #bossbar .stag i{background:linear-gradient(#ffd070,#c07010);width:0;transition:width .1s}
 #bossbar .stag i.stun{background:#fff;box-shadow:0 0 8px #ffb040}
+#bossbar div.chan{height:6px;border-color:#1a4a8a;background:#06101e;margin:3px auto 0;width:55%;visibility:hidden}
+#bossbar div.chan.on{visibility:visible;box-shadow:0 0 10px #3a9cff}
+#bossbar .chan i{background:linear-gradient(#8ac8ff,#2a6ad0);width:0}
 .orb{position:fixed;bottom:14px;width:104px;height:104px;border-radius:50%;border:3px solid #3a2a1a;box-shadow:inset 0 0 18px #000,0 0 0 2px #6a5030,0 4px 14px #000;overflow:hidden;background:#100808;z-index:3;pointer-events:none}
 .orb i{position:absolute;left:0;right:0;bottom:0;height:100%}
 .orb span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:700 13px 'JetBrains Mono';text-shadow:0 1px 3px #000,0 0 4px #000}

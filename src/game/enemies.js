@@ -9,9 +9,10 @@ import { scene } from '../render/scene.js';
 import { GB, eyeMat, glowSprite, decal, aura } from '../render/assets.js';
 import { buildModel } from '../render/models.js';
 import { chars, makeChar } from '../render/characters.js';
-import { sparks, emit, burst, ringFx, flashFx, telegraph, banner, floatT } from '../render/fx.js';
+import { sparks, glows, emit, burst, ringFx, flashFx, telegraph, banner, floatT } from '../render/fx.js';
 import { pushOut, blocked, los, pathStep } from '../world/map.js';
-import { hurtP, kill } from './combat.js';
+import { hurtP, kill, stagger } from './combat.js';
+import { RIDE } from '../data/ride.js';
 import { RARITY } from '../data/balance.js';
 import { tierHp } from './formulas.js';
 
@@ -173,9 +174,9 @@ export function updEnemy(e, dt) {
     const tg = meleeTarget(e, d), td = tg === P ? d : dist(e.x, e.z, tg.x, tg.z);
     if (e.windup > 0) {
       e.windup -= dt; e.face = Math.atan2(tg.x - e.x, tg.z - e.z);
-      if (e.windup <= 0) { e.swing = 1; if (td < e.range + e.r + tg.r + FIGHT.reach) { if (tg === P) hurtP(e.dmg, e.type, { from: e, by: e }); else tg.hurt(e.dmg * (e.type === 'boss' ? BOSS.vsMinion : 1)); if (e.type === 'boss') { shake(.3); SFX.slam(); hurtMinions(e.x, e.z, e.range + e.r + FIGHT.reach, e.dmg * BOSS.vsMinion, tg); } } e.atkT = e.cd * cdm; }
+      if (e.windup <= 0) { e.swing = 1; if (td < e.range + e.r + tg.r + FIGHT.reach) { if (tg === P) hurtP(e.dmg, e.type, { from: e, by: e }); else tg.hurt(e.dmg * (e.type === 'boss' ? BOSS.vsMinion : 1)); if (e.type === 'boss') { shake(.3); SFX.slam(); hurtMinions(e.x, e.z, e.range + e.r + FIGHT.reach, e.dmg * BOSS.vsMinion, tg); } } e.atkT = (e.channel ? BOSS.channel.swingCd : e.cd) * cdm; }
     } else if (td < e.range + e.r + tg.r) { e.face = Math.atan2(tg.x - e.x, tg.z - e.z); e.atkT -= dt; if (e.atkT <= 0) { e.windup = e.type === 'boss' ? FIGHT.windup.boss : FIGHT.windup.melee; e.atkSeq = (e.atkSeq || 0) + 1; if ((e.type === 'boss' || e.rar === 2) && tg === P) { cue('parry'); flashFx(e.x, e.h * .8, e.z, TELL.parry, e.r * 3, e.windup); } } }
-    else moveE(e, P.x, P.z, spd, dt);
+    else if (!e.channel) moveE(e, P.x, P.z, spd, dt); // channelling: rooted, but it still swings at you
   } else if (e.ai === 'ranged') {
     if (e.windup > 0) { e.windup -= dt; e.face = Math.atan2(P.x - e.x, P.z - e.z); if (e.windup <= 0) { e.swing = 1; eShoot(e, e.face + rand(-FIGHT.arrowJitter, FIGHT.arrowJitter), FIGHT.arrowSpeed, e.dmg, 'arrow'); e.shootT = e.cd * cdm * rand(FIGHT.shotJitter[0], FIGHT.shotJitter[1]); } }
     else if (d < FIGHT.flee) { const [dx, dz] = steer(e, e.x - (P.x - e.x), e.z - (P.z - e.z)); e.x += dx * spd * dt; e.z += dz * spd * dt; e.walk += dt * spd * 2.6; e.moving = true; e.face = Math.atan2(P.x - e.x, P.z - e.z); }
@@ -205,7 +206,14 @@ function cue(kind) { if (P.dead > 0) return; floatT(P.x, 2.9, P.z, '!', '#' + TE
 
 // Returns true while the boss is busy with an ability (so it doesn't also walk or swing).
 function bossAI(e, dt) {
-  if (!e.phase2 && e.hp < e.maxHp * BOSS.enrage) { e.phase2 = true; e.spd *= BOSS.enrageSpd; banner('THE WARDEN IS ENRAGED', '#ff4fd8', 'It charges · purple means roll'); SFX.roar(); }
+  if (!e.phase2 && e.hp < e.maxHp * BOSS.enrage) { e.phase2 = true; e.rot = 0; e.spd *= BOSS.enrageSpd; banner('THE WARDEN IS ENRAGED', '#ff4fd8', 'Purple: roll · blue: break it before the bar fills'); SFX.roar(); }
+  if (e.channel) { // the channel (blue, BOSS.channel): rooted, still swinging; break its stagger before the bar fills
+    const C = BOSS.channel, ch = e.channel; ch.t += dt; e.face = Math.atan2(P.x - e.x, P.z - e.z);
+    if (Math.random() < dt * 24) { const a = rand(0, 6.3), r = rand(.6, 1.6) * e.r; emit(glows, e.x + Math.cos(a) * r, rand(.3, e.h * .8), e.z + Math.sin(a) * r, -Math.cos(a) * .8, rand(1, 2.5), -Math.sin(a) * .8, .6, TELL.channel); }
+    if (P.eff && P.eff.spike > 0) stagger(e, RIDE.spike.fill * P.eff.spike * dt); // RIDE: a short effort spike (stagger can end the channel here)
+    if (e.channel && ch.t >= C.t) { e.channel = null; channelDone(e, ch.fx); return true; }
+    return false;
+  }
   if (e.charging) { // the charge (unblockable): rush along a line, hitting you once if you're in the way
     const c = e.charging, step = Math.min(c.left, BOSS.charge.speed * dt); c.left -= step;
     const nx = e.x + c.dx * step, nz = e.z + c.dz * step;
@@ -228,9 +236,11 @@ function bossAI(e, dt) {
     // A fan of bolts aimed at you: block them with the shield or roll through (a second fan in phase 2, re-aimed).
     if (c.kind === 'nova') for (let k = 0; k < (e.phase2 ? 2 : 1); k++) G.queue.push({ k: 'later', t: k * BOSS.novaGap, fn: () => { if (e.deathT || e.gone || e.stun > 0) return; const a0 = Math.atan2(P.x - e.x, P.z - e.z), n = BOSS.novaBolts; for (let i = 0; i < n; i++) eShoot(e, a0 + (i / (n - 1) - .5) * BOSS.novaSpread, BOSS.novaSpeed, e.dmg * BOSS.novaDmg, 0xff2bd6, 1.1); SFX.arc(); } }); // game time, so it pauses and replays the same
     if (c.kind === 'charge') { const dx = c.x - e.x, dz = c.z - e.z, l = Math.hypot(dx, dz) || 1; e.charging = { dx: dx / l, dz: dz / l, left: BOSS.charge.range, hit: false }; SFX.roar(); }
-    if (c.kind === 'summon') for (let i = 0; i < (e.phase2 ? BOSS.summon2 : BOSS.summon); i++) {
-      const a = i * 1.26, x = e.x + Math.cos(a) * 2.5, z = e.z + Math.sin(a) * 2.5;
-      if (!blocked(x, z, .3)) { const r = spawnEnemy(BOSS.summonType, x, z, null, 0); r.awake = true; G.mapTotal++; burst(x, .5, z, 0xff4fd8, 10, 3); }
+    if (c.kind === 'summon') summon(e, e.phase2 ? BOSS.summon2 : BOSS.summon);
+    if (c.kind === 'burst') { // a completed channel's burst (unblockable): roll it
+      const B = BOSS.channel.burst; ringFx(e.x, e.z, B.r, TELL.unblockable, .5, .2); burst(e.x, 1, e.z, TELL.channel, 70, 9); burst(e.x, 1, e.z, TELL.unblockable, 50, 7); flashFx(e.x, 1, e.z, TELL.channel, B.r * 2, .35); SFX.boom(); SFX.slam(); shake(.8); stop(.1);
+      if (dist(P.x, P.z, e.x, e.z) < B.r + P.r) hurtP(e.dmg * B.dmg, 'burst', { from: e, kind: 'unblockable', by: e });
+      hurtMinions(e.x, e.z, B.r, e.dmg * B.dmg * BOSS.vsMinion);
     }
     return true;
   }
@@ -240,10 +250,30 @@ function bossAI(e, dt) {
     if (k === 'slam') { e.cast = { kind: k, t: e.phase2 ? BOSS.slamT2 : BOSS.slamT, x: P.x, z: P.z, r: BOSS.slamR }; telegraph(P.x, P.z, BOSS.slamR, e.cast.t, TELL.heavy); cue('heavy'); }
     else if (k === 'nova') { e.cast = { kind: k, t: BOSS.novaT }; flashFx(e.x, 3, e.z, 0xff2bd6, 5, BOSS.novaT); cue('parry'); }
     else if (k === 'charge') { const C = BOSS.charge; e.cast = { kind: k, t: C.t, x: P.x, z: P.z }; telegraph(P.x, P.z, 1.4, C.t, TELL.unblockable); flashFx(e.x, e.h * .7, e.z, TELL.unblockable, e.r * 5, C.t); cue('unblockable'); }
+    else if (k === 'channel') {
+      const C = BOSS.channel; e.chanN = (e.chanN || 0) + 1; e.channel = { t: 0, fx: C.effects[(e.chanN - 1) % C.effects.length] };
+      e.atkT = Math.min(e.atkT, C.firstSwing); P.chans++;
+      telegraph(e.x, e.z, e.r * 2.2, C.t, TELL.channel); flashFx(e.x, e.h * .7, e.z, TELL.channel, e.r * 5, .5); floatT(e.x, e.h + 1, e.z, 'CHANNELLING', '#' + TELL.channel.toString(16).padStart(6, '0'), 16, 1.2); cue('channel');
+      return false; // it swings while it channels
+    }
     else { e.cast = { kind: k, t: .7 }; ringFx(e.x, e.z, 3, 0xff4fd8, .7, .2); }
     return true;
   }
   return false;
+}
+// A channel that completed (BOSS.channel.effects): an unblockable burst after a purple wind-up, or it mends and summons.
+function channelDone(e, fx) {
+  const C = BOSS.channel;
+  if (fx === 'burst') { e.cast = { kind: 'burst', t: C.burst.t }; telegraph(e.x, e.z, C.burst.r, C.burst.t, TELL.unblockable); flashFx(e.x, e.h * .7, e.z, TELL.unblockable, e.r * 6, C.burst.t); cue('unblockable'); return; }
+  const h = e.maxHp * C.mend.heal; e.hp = Math.min(e.maxHp, e.hp + h);
+  floatT(e.x, e.h + 1, e.z, '+' + Math.round(h), '#5ad890', 18, 1.4); burst(e.x, e.h * .6, e.z, 0x5ad890, 40, 5); burst(e.x, e.h * .6, e.z, TELL.channel, 30, 4); SFX.flask(); SFX.roar();
+  summon(e, C.mend.summon);
+}
+function summon(e, n) {
+  for (let i = 0; i < n; i++) {
+    const a = i * 1.26, x = e.x + Math.cos(a) * 2.5, z = e.z + Math.sin(a) * 2.5;
+    if (!blocked(x, z, .3)) { const r = spawnEnemy(BOSS.summonType, x, z, null, 0); r.awake = true; G.mapTotal++; burst(x, .5, z, 0xff4fd8, 10, 3); }
+  }
 }
 
 export function animE(e, dt) { // (also animates minions, game/sk/skeletons.js)
@@ -279,7 +309,7 @@ function animRig(e, M, dt) {
   else if (big && e.lock <= 0 && e.windup <= 0 && e.type !== 'boss') once([pick(ANIM.hits), ANIM.hitSpeed], .05);
   else if (e.lock <= 0) {
     if (e.moving) { const run = L.walk === 'Running_A'; M.play(L.walk, { speed: Math.min(1.8, Math.max(.6, e.spd * (e.chill > 0 ? .5 : 1) / (run ? 3.6 : 1.7))) }); }
-    else M.play(L.idle || 'Idle');
+    else M.play(e.channel && chars.clips[ANIM.channel] ? ANIM.channel : L.idle || 'Idle');
   }
   M.mixer.update(dt);
 }

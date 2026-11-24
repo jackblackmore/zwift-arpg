@@ -15,7 +15,7 @@
 <div id="info" class="hud"><b id="iMap">MAP 1</b><br><span id="iLvl">Level 1</span> · <span id="iKill">0 slain</span></div>
 <div id="btns" class="hud"><button id="bInv">BAG <kbd>I</kbd><span class="badge" id="invBadge">0</span></button><button id="bGems">GEMS <kbd>G</kbd></button><button id="bPass">PASSIVES <kbd>P</kbd><span class="badge" id="passBadge">0</span></button><button id="bAtk">ATTACK</button><button id="bMode">MODE</button><button id="bLook">LOOK</button><button id="bFx">FX</button><button id="bMute">♪</button><button id="bMenu">☰</button></div>
 <canvas id="mm" class="hud" width="300" height="300"></canvas>
-<div id="bossbar" class="hud"><span>THE PALE WARDEN</span><div><i id="bossHp"></i></div><div class="stag"><i id="bossStag"></i></div></div>
+<div id="bossbar" class="hud"><span>THE PALE WARDEN</span><div><i id="bossHp"></i></div><div class="stag"><i id="bossStag"></i></div><div class="chan"><i id="bossChan"></i></div></div>
 <div id="toasts"></div>
 <div id="banner"><h2 id="bT"></h2><p id="bS"></p></div>
 <div class="orb" id="orbL"><i id="lifeF"></i><span id="lifeT"></span></div>
@@ -76,7 +76,7 @@
   <ul>
     <li><b>You're a knight: fight up close.</b> Your sword <b>attacks on its own</b> whatever's in reach (the ATTACK button or <kbd>T</kbd> switches to hold-to-attack). The skill is in the timing, not where you stand.</li>
     <li><b>Your shield (Guard, <kbd>Space</kbd>):</b> hold to block hits from the front; press just before a hit lands to <b>parry</b>: no damage, the attacker staggers and your next swing is a riposte. Blocking fills your posture bar (over your head); fill it and your guard breaks.</li>
-    <li><b>Roll (Evade, <kbd>E</kbd>):</b> untouchable for a moment. <b style="color:#ffd23f">Yellow flash</b>: parry it. <b style="color:#ff5050">Red ground</b>: block it for less or roll for none. <b style="color:#c060ff">Purple</b>: roll, a block won't hold. Every cue has its own sound.</li>
+    <li><b>Roll (Evade, <kbd>E</kbd>):</b> untouchable for a moment. <b style="color:#ffd23f">Yellow flash</b>: parry it. <b style="color:#ff5050">Red ground</b>: block it for less or roll for none. <b style="color:#c060ff">Purple</b>: roll, a block won't hold. <b style="color:#3a9cff">Blue bar</b> on the guardian: break its stagger (parry, hit while surging) before it fills. Every cue has its own sound.</li>
     <li><b>Stagger</b> guardians and rares: parries fill the bar under their life (hits a little; a hit they land on you knocks it back). Full, they're stunned and your first hit is a <b>finisher</b> for triple damage.</li>
     <li><b>Shrines</b> at levels 3, 5, 8 and 12 add skills: Frost Ward, Frost Nova, Arc, Meteor, Flame Totem, the melee gems, Flame Dash and Blink.</li>
     <li><b>Skill gems level up</b> as you kill (up to 10) and change at level 5: Cleave swings wider, Arc chains further, Nova grows. Swap them with <kbd>G</kbd>.</li>
