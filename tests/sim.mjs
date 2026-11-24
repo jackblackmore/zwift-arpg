@@ -185,7 +185,12 @@ try {
       out.treeTaken = P.tree.length === 1 && D.tree.treeLeft() === left0 - 1 && left0 === P.lvl - 1;
       document.getElementById('treeClose').click();
       // Boss
-      P.x = D.G.bossSpot.x - 6; P.z = D.G.bossSpot.z + 6; D.sim(30);
+      // Stand on clear floor about 7 units from the guardian with a line of sight to it (the arena's set piece has pillars on the
+      // diagonals, and a hero placed inside one gets pushed out somewhere arbitrary).
+      const bs = D.G.bossSpot, spot = [0, 1, 2, 3, 4, 5, 6, 7].map(k => k * Math.PI / 4 + Math.PI / 8).flatMap(a => [7, 6, 8].map(d => ({ x: bs.x + Math.cos(a) * d, z: bs.z + Math.sin(a) * d })))
+        .find(p => !D.blocked(p.x, p.z, .6) && D.los(p.x, p.z, bs.x, bs.z)) || { x: bs.x - 6, z: bs.z };
+      out.bossSpotClear = !D.blocked(spot.x, spot.z, .6);
+      P.x = spot.x; P.z = spot.z; D.sim(30);
       const boss = D.enemies().find(e => e.type === 'boss'); out.boss = !!boss;
       if (boss) { for (let i = 0; i < 30; i++) { P.life = Math.max(P.life, 60); D.sim(5); } out.bossCast = boss.rot > 0; P.x = D.G.start.x; P.z = D.G.start.z; D.kill(boss); out.portal = !!D.G.portal; D.sim(10); }
       if (D.G.portal) { P.x = D.G.portal.x; P.z = D.G.portal.z; D.sim(3); }
