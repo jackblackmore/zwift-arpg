@@ -10,6 +10,7 @@ import { SK } from '../data/skills.js';
 import { FIGHT, BLAST, RARE, BOSS } from '../data/monsters.js';
 import { GEMS, BAR } from '../data/gems.js';
 import { barGem } from './gems.js';
+import { blockStats } from './sk/guard.js';
 
 // Reaction skill: the chance it answers each kind of threat in time. smart is a good rider; perfect never misses. brace: a swing
 // it will parry is braced for with a held block until the parry moment (a good rider hedges; a perfect one keeps swinging).
@@ -43,11 +44,14 @@ export function wantSurge(alive) {
 }
 
 // Press gems in attack slots: tap them when enough monsters are within reach (SK[...].bot); a flask under half life.
+// Under the Blood Rite keystone (casts cost life, no cooldowns) it only casts above `BLOOD_LIFE` of its life, like a careful rider.
+export const BLOOD_LIFE = .6;
 export function botTaps(bot, alive) {
+  const blood = S.ks && S.ks.blood && P.life < S.maxLife * BLOOD_LIFE;
   const reach = K => (K.bot && K.bot.range) || (K.radius ? K.radius * S.aoe * .8 : K.range) || 9;
   for (const s of bot.attacks) {
     const K = SK[GEMS[barGem(s).gem].sk], need = s === 'main' ? 1 : (K.bot && K.bot.crowd) || 1;
-    if (bot.ready(s) && within(alive, reach(K) * (K.radius && barGem(s).gem === 'nova' ? S.sk.nova.novaR : 1)) >= need) ctl.tap[s] = true;
+    if (!blood && bot.ready(s) && within(alive, reach(K) * (K.radius && barGem(s).gem === 'nova' ? S.sk.nova.novaR : 1)) >= need) ctl.tap[s] = true;
   }
   if (P.life < S.maxLife * .5 && P.flask >= 1 && P.flaskT <= 0) ctl.flask = true;
 }
@@ -64,10 +68,12 @@ export function botDefend(bot, alive, t) {
   if (bot.shieldGuard) {
     let hold = false, tap = false, roll = false;
     const B = SK.block, rollIn = SK.roll.invuln * .6;
+    // A longer parry window (the tree's parry nodes, Duelist) is easier to hit: the chance to miss shrinks with it.
+    const pParry = 1 - (1 - skill.parry) * B.parry / blockStats().parry;
     // Heavies: roll as they land, else block.
     const heavy = (o, key, left) => { const r = react(o, key, skill.roll); if (r === 'ok') { if (left <= rollIn) roll = true; } else if (r === 'block') hold = true; };
     // Swings: parry just before they land, else hold the block (or eat it). A rare's heavy swing is a heavy.
-    for (const e of swingAt) { if (e.heavy) { heavy(e, 'swing' + e.atkSeq, e.windup); continue; } const r = react(e, 'swing' + e.atkSeq, skill.parry); if (r === 'ok') { if (e.windup <= B.parry * .7) tap = true; else hold = hold || (skill.brace && e.windup < B.parry * 2); } else if (r === 'block') hold = true; }
+    for (const e of swingAt) { if (e.heavy) { heavy(e, 'swing' + e.atkSeq, e.windup); continue; } const r = react(e, 'swing' + e.atkSeq, pParry); if (r === 'ok') { if (e.windup <= B.parry * .7) tap = true; else hold = hold || (skill.brace && e.windup < B.parry * 2); } else if (r === 'block') hold = true; }
     if (inSlam) heavy(bc, 'slam', bc.t);
     if (bc && bc.kind === 'charge') { const r = react(bc, 'charge', skill.roll); if (r === 'ok' && bc.t <= .12) roll = true; }
     if (bc && bc.kind === 'burst' && Math.hypot(P.x - boss.x, P.z - boss.z) < BOSS.channel.burst.r + P.r && react(bc, 'burst', skill.roll) === 'ok' && bc.t <= rollIn) roll = true;

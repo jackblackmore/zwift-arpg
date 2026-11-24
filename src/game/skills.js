@@ -80,13 +80,13 @@ export function castDash() {
     if (t - lastPatch >= D.patchEvery) { lastPatch = t; addPatch(nx, nz, D.patchR * S.aoe, SK.burn.life, 'dash'); }
     for (let i = 0; i < 2; i++) emit(glows, nx + rand(-.2, .2), rand(.4, 1.4), nz + rand(-.2, .2), 0, rand(.5, 2), 0, rand(.3, .6), 0xff5a10, 0, 1);
   }
-  P.face = a; P.invuln = D.invuln; P.castSeq++; P.lastCast = 'dash';
+  P.face = a; P.invuln = D.invuln * S.fight.evadeInv; P.castSeq++; P.lastCast = 'dash';
   flashFx(sx, 1, sz, 0xff6a1a, 3, .3); flashFx(P.x, 1, P.z, 0xffa060, 3, .3); flashLight(P.x, P.z, 0xff6a1a, 3, .3); SFX.dash();
   return true;
 }
 
 export function useFlask() {
   const F = SK.flask; if (P.flask < 1 || P.life >= S.maxLife) return;
-  P.flask--; P.flaskT = F.dur; P.flaskRate = S.maxLife * F.heal / F.dur; SFX.flask();
+  P.flask--; P.flaskT = F.dur; P.flaskRate = S.maxLife * F.heal * S.flask / F.dur; // S.flask: the tree's Field Medic SFX.flask();
   for (let i = 0; i < 20; i++) emit(glows, P.x + rand(-.4, .4), rand(.2, 1.5), P.z + rand(-.4, .4), 0, rand(1, 3), 0, rand(.4, .8), 0xff3a5a);
 }

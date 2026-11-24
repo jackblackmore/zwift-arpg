@@ -14,7 +14,7 @@ import { save } from './save.js';
 import { autopilot } from './autopilot.js';
 import { updGate } from './gate.js';
 import { updRooms } from './rooms.js';
-import { updGuard } from './sk/guard.js';
+import { updGuard, blockStats } from './sk/guard.js';
 import { stepRoll } from './sk/roll.js';
 import { RIDE } from '../data/ride.js';
 import { EXTRA } from '../data/items.js';
@@ -54,7 +54,7 @@ function updPlayer(dt) {
   updGuard(dt, ctl.guard, !!ctl.tap.guard); P.apPause -= dt;
   if (ctl.auto && Math.hypot(mx, mz) < .08) [mx, mz] = autopilot(dt);
   if (P.broken > 0) mx = mz = 0; // guard broken: stunned
-  const ml = Math.hypot(mx, mz), spd = S.ms * fx.move * (P.blocking ? SK.block.move : P.castAnim > 0 ? .65 : 1);
+  const ml = Math.hypot(mx, mz), spd = S.ms * fx.move * (P.blocking ? blockStats().move : P.castAnim > 0 ? .65 : 1);
   P.moving = ml > .08 && spd > .05;
   if (P.rollT > 0) stepRoll(dt);
   else if (P.moving) {

@@ -39,7 +39,7 @@ export default {
     if (L < .6) return false;
     const sx = P.x, sz = P.z;
     P.x = sx + Math.sin(a) * L; P.z = sz + Math.cos(a) * L;
-    P.face = a + Math.PI; P.invuln = Math.max(P.invuln, B.invuln); P.castSeq++; P.lastCast = 'blink';
+    P.face = a + Math.PI; P.invuln = Math.max(P.invuln, B.invuln * S.fight.evadeInv); P.castSeq++; P.lastCast = 'blink';
     const col = 0x9fe8ff;
     for (const [x, z] of [[sx, sz], [P.x, P.z]]) {
       flashFx(x, 1, z, col, 3.2, .3); ringFx(x, z, 1.4, col, .3, .2);

@@ -1,7 +1,7 @@
-// Modal panels: inventory (bag), passive picker, shrine choice, skill gems, main menu. Opening any of them pauses the game.
+// Modal panels: inventory (bag), passive tree (ui/tree.js), shrine choice, skill gems, main menu. Opening any of them pauses the game.
 import { G, P, S } from '../core/state.js';
 import { SLOTS, GLY, DROP } from '../data/items.js';
-import { PASS } from '../data/passives.js';
+import { openTree, initTree } from './tree.js';
 import { clearHeld } from '../input/input.js';
 import { $ } from '../core/util.js';
 import { SFX } from '../core/audio.js';
@@ -15,7 +15,7 @@ import { toast } from '../render/fx.js';
 import { xpNeedFor } from '../game/formulas.js';
 
 const isOpen = id => $(id).classList.contains('show');
-export function syncPause() { G.paused = !G.started || ['mInv', 'mPass', 'mMenu', 'mShrine', 'mGems'].some(isOpen); clearHeld(); }
+export function syncPause() { G.paused = !G.started || ['mInv', 'mTree', 'mMenu', 'mShrine', 'mGems'].some(isOpen); clearHeld(); }
 
 // ================= INVENTORY =================
 const ui = { sel: null };
@@ -61,32 +61,13 @@ export function equip(i) {
   P.gear[it.slot] = it; P.inv.splice(i, 1); if (prev) P.inv.push(prev);
   ui.sel = null; recalc(); renderInv(); save(); SFX.loot(1);
 }
-export function openInv(v) { $('mInv').classList.toggle('show', v); if (v) { P.newItems = 0; ui.sel = null; renderInv(); $('mPass').classList.remove('show'); } syncPause(); }
+export function openInv(v) { $('mInv').classList.toggle('show', v); if (v) { P.newItems = 0; ui.sel = null; renderInv(); $('mTree').classList.remove('show'); } syncPause(); }
 export const toggleInv = () => openInv(!isOpen('mInv'));
 
-// ================= PASSIVES =================
-function genOffer() {
-  const pool = Object.keys(PASS).filter(k => (P.passives[k] || 0) < PASS[k].max), out = [];
-  while (out.length < 3 && pool.length) {
-    const w = pool.map(k => PASS[k].note === 2 ? .25 : PASS[k].note ? .5 : 1), tot = w.reduce((a, b) => a + b, 0);
-    let r = Math.random() * tot, i = 0; while (r > w[i]) { r -= w[i]; i++; }
-    out.push(pool.splice(i, 1)[0]);
-  }
-  return out;
-}
-function renderPass() {
-  $('passSub').textContent = P.pts ? `${P.pts} point${P.pts > 1 ? 's' : ''} to spend · choose one` : 'No points to spend · level up to earn more';
-  if (P.pts && !P.offer) P.offer = genOffer();
-  $('passCards').innerHTML = P.pts ? P.offer.map(k => {
-    const p = PASS[k];
-    return `<div class="pc ${p.note === 2 ? 'key' : p.note ? 'note' : ''}" data-k="${k}"><b style="color:${p.c}">${p.n}</b><span>${p.d}</span><em>${p.note === 2 ? 'KEYSTONE' : p.note ? 'NOTABLE' : 'PASSIVE'} · ${P.passives[k] || 0}/${p.max}</em></div>`;
-  }).join('') : '';
-  const tk = Object.entries(P.passives);
-  $('taken').innerHTML = tk.length ? 'Allocated: ' + tk.map(([k, n]) => `<span style="color:${PASS[k].c}">${PASS[k].n}${PASS[k].max > 1 ? ' ×' + n : ''}</span>`).join(' · ') : 'Nothing allocated yet.';
-}
-export function openPass() { $('mPass').classList.add('show'); $('mInv').classList.remove('show'); renderPass(); syncPause(); }
-export function closePass() { $('mPass').classList.remove('show'); syncPause(); }
-export const togglePass = () => isOpen('mPass') ? closePass() : openPass();
+// ================= PASSIVE TREE (ui/tree.js draws it) =================
+export function openPass() { $('mTree').classList.add('show'); $('mInv').classList.remove('show'); $('mGems').classList.remove('show'); openTree(); syncPause(); }
+export function closePass() { $('mTree').classList.remove('show'); syncPause(); }
+export const togglePass = () => isOpen('mTree') ? closePass() : openPass();
 export function closeAll() { $('mInv').classList.remove('show'); $('mGems').classList.remove('show'); closeShrine(); closePass(); }
 
 // ================= SHRINE (pick 1 of 3 skill gems for a newly unlocked slot) =================
@@ -101,7 +82,7 @@ export function openShrine(slot) {
     : `${S.n} unlocked at level ${S.unlock}. ${offer.length > 1 ? 'Choose one' : 'Take it'}; the others may drop later.`;
   $('shrineCards').innerHTML = offer.map(id => gemCard(id)).join('');
   $('shrineClose').style.display = slot === 'main' ? 'none' : '';
-  ['mInv', 'mPass', 'mGems'].forEach(id => $(id).classList.remove('show'));
+  ['mInv', 'mTree', 'mGems'].forEach(id => $(id).classList.remove('show'));
   $('mShrine').classList.add('show'); syncPause();
 }
 export function closeShrine() { $('mShrine').classList.remove('show'); syncPause(); }
@@ -158,7 +139,7 @@ export function renderGems() {
 }
 // A tap on a gem while feeding picks the target; otherwise it selects.
 function gemTap(id) { if (gui.feed) { if (id !== gui.feed) gui.into = id; } else gui.sel = gui.sel === id ? null : id; renderGems(); }
-export function openGems(v) { $('mGems').classList.toggle('show', v); if (v) { gui.sel = gui.feed = gui.into = null; P.newGems = 0; renderGems(); $('mInv').classList.remove('show'); $('mPass').classList.remove('show'); } syncPause(); }
+export function openGems(v) { $('mGems').classList.toggle('show', v); if (v) { gui.sel = gui.feed = gui.into = null; P.newGems = 0; renderGems(); $('mInv').classList.remove('show'); $('mTree').classList.remove('show'); } syncPause(); }
 export const toggleGems = () => openGems(!isOpen('mGems'));
 
 export function initPanels() {
@@ -166,12 +147,7 @@ export function initPanels() {
   $('invGrid').addEventListener('click', e => { const c = e.target.closest('.cell'); if (c && P.inv[+c.dataset.i]) { ui.sel = { i: +c.dataset.i }; renderInv(); } });
   $('junkMagic').onclick = () => { P.inv = P.inv.filter(it => it.rar !== 1); ui.sel = null; renderInv(); save(); };
   $('bInv').onclick = toggleInv; $('invClose').onclick = () => openInv(false);
-  $('passCards').addEventListener('click', e => {
-    const c = e.target.closest('.pc'); if (!c) return;
-    const k = c.dataset.k; P.passives[k] = (P.passives[k] || 0) + 1; P.pts--; P.offer = null;
-    recalc(); SFX.lvl(); save(); renderPass(); if (!P.pts) setTimeout(closePass, 250);
-  });
-  $('bPass').onclick = togglePass; $('passClose').onclick = closePass;
+  initTree(); $('bPass').onclick = togglePass; $('treeClose').onclick = closePass;
   $('shrineCards').addEventListener('click', e => {
     const c = e.target.closest('.pc'); if (!c || !shrineSlot) return;
     if (takeShrine(shrineSlot, c.dataset.k)) { save(); closeShrine(); }

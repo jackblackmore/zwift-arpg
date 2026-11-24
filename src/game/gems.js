@@ -9,7 +9,7 @@ import { ctl } from '../input/input.js';
 import { dist } from '../core/util.js';
 import { scene } from '../render/scene.js';
 import { glowSprite, decal } from '../render/assets.js';
-import { toast, banner } from '../render/fx.js';
+import { toast, banner, floatT } from '../render/fx.js';
 import { SFX } from '../core/audio.js';
 import { blocked } from '../world/map.js';
 import { xpNeedFor, gemTotalXp, feedShare } from './formulas.js';
@@ -89,9 +89,15 @@ export function clearSlot(slot) { P.bar[slot] = null; recalc(); }
 // ---- casting ----
 const cast = gem => CAST[gem] ? CAST[gem]() : false;
 // Press gems: one cast per tap; holding the button recasts whenever it's ready.
+// The Blood Rite keystone (data/tree.js, S.ks.blood): Main and Flex press gems ignore their cooldown and charges, waiting only
+// `gap` s between casts, and each cast costs `cost` of max life (never the last of it). Evade keeps its charges.
 function tryPress(slot, g) {
-  const st = slotState(slot), K = SK[GEMS[g.gem].sk];
+  const st = slotState(slot), K = SK[GEMS[g.gem].sk], BR = slot !== 'evade' && S.ks && S.ks.blood;
   if (st.cd > 0) return;
+  if (BR) {
+    const cost = S.maxLife * BR.cost; if (P.life <= cost + 1 || !cast(g.gem)) return;
+    P.life -= cost; st.cd = BR.gap; floatT(P.x, 2.3, P.z, '-' + Math.round(cost), '#b0182a', 12); pressed(slot); return;
+  }
   if (K.charges) { if (st.ch < 1 || !cast(g.gem)) return; st.ch--; pressed(slot); return; }
   if (cast(g.gem)) { if (K.cd) st.cd = K.cd; pressed(slot); }
 }

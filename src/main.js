@@ -21,7 +21,7 @@ import { newMap } from './game/maps.js';
 import { save, load } from './game/save.js';
 // Dev: ?seed=N plays the level layouts the map viewer (/maps/) shows for that seed.
 try { G.devSeed = parseInt(new URLSearchParams(location.search).get('seed'), 10) || 0; } catch (e) {}
-import { PASS } from './data/passives.js';
+import { TREE } from './data/tree.js';
 import { SK } from './data/skills.js';
 import { STAGGER, BOSS, RARE } from './data/monsters.js';
 import { START_WEAPON, parLevel, parBar, PAR_GEAR } from './data/balance.js';
@@ -42,16 +42,18 @@ import { gateFoe } from './game/gate.js';
 import { freshGems, readySlots, takeShrine, shrineDue, refreshShrine, placeGem, addGem, socketGem, unsocket, feedGem, feedPreview, sockCount, autoTarget, meleeReach } from './game/gems.js';
 import { GEMS, SUPPORTS } from './data/gems.js';
 import { setAutoAtk } from './input/devices.js';
+import * as treeApi from './game/tree.js';
+import { blockStats } from './game/sk/guard.js';
 
 function begin(fresh) {
   audio();
   const sv = load();
   if (fresh || !sv) {
-    Object.assign(P, { lvl: 1, xp: 0, gear: {}, inv: [], passives: {}, pts: 0, offer: null, newItems: 0, kills: 0 });
+    Object.assign(P, { lvl: 1, xp: 0, gear: {}, inv: [], tree: [], treeNew: [], newItems: 0, kills: 0 });
     P.gear.weapon = { ...START_WEAPON, id: G.itemId++, mods: START_WEAPON.mods.map(m => [...m]) };
     freshGems(); newMap(1); save();
   } else {
-    Object.assign(P, { lvl: sv.lvl, xp: sv.xp, gear: sv.gear || {}, inv: sv.inv || [], passives: sv.passives || {}, pts: sv.pts || 0, offer: null, newGems: 0 });
+    Object.assign(P, { lvl: sv.lvl, xp: sv.xp, gear: sv.gear || {}, inv: sv.inv || [], tree: sv.tree || [], treeNew: [], newGems: 0 });
     G.itemId = sv.itemId || 100;
     Object.assign(P, { gems: sv.gems || [], bar: sv.bar || {}, sock: sv.sock || {}, cd: {}, shrined: sv.shrined || {} });
     recalc(); readySlots();
@@ -113,6 +115,6 @@ window.__dbg = {
   sim: n => { for (let i = 0; i < n; i++) { update(.033); updFx(.033); } },
   enemies: () => G.enemies, packs: () => G.packs, items: () => G.ground,
   arena, levelRun, parLevel, parBar, parGear: PAR_GEAR, newMap, kill, dropItem, strike, targets, aim, autoTarget, meleeReach, setAutoAtk, castArc, castNova, castDash, openInv, openPass, openGems, openShrine, equip,
-  xpNeedFor, routeTarget, resetRoute, routeOptions, gateFoe, takeShrine, shrineDue, placeGem, addGem, socketGem, unsocket, feedGem, feedPreview, sockCount, dropGem, pickUp, PASS, GEMS, SUPPORTS, recalc, save, load, begin, CAST, blocked, los, snapCam, spawnEnemy, hurtP, cast: id => CAST[id] ? CAST[id]() : false, frostRings,
+  xpNeedFor, routeTarget, resetRoute, routeOptions, gateFoe, takeShrine, shrineDue, placeGem, addGem, socketGem, unsocket, feedGem, feedPreview, sockCount, dropGem, pickUp, TREE, tree: treeApi, blockStats, GEMS, SUPPORTS, recalc, save, load, begin, CAST, blocked, los, snapCam, spawnEnemy, hurtP, cast: id => CAST[id] ? CAST[id]() : false, frostRings,
   skel, minions: () => G.minions, // Raise Skeletons support: skel.raise(x, z, gem), skel.cap(), skel.living()
 };

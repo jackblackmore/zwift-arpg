@@ -1,7 +1,7 @@
 // Roll, the starting Evade gem (design notes "Fight mechanics"; tuning SK.roll in data/skills.js). A quick roll, untouchable for
 // a moment. It goes the way you steer; with no steering (autopilot, or standing still) it rolls away from the nearest threat, so it
 // works without aiming on every device. Rolling cancels the swing being wound up and lowers the shield.
-import { G, P } from '../../core/state.js';
+import { G, P, S } from '../../core/state.js';
 import { SK } from '../../data/skills.js';
 import { ctl } from '../../input/input.js';
 import { dist } from '../../core/util.js';
@@ -31,7 +31,7 @@ function cast() {
     if (blocked(P.x + ux * K.range * .6, P.z + uz * K.range * .6, P.r)) { const s = blocked(P.x - uz * K.range * .6, P.z + ux * K.range * .6, P.r) ? -1 : 1; dx = -uz * s; dz = ux * s; }
   }
   const l = Math.hypot(dx, dz) || 1, sp = K.range / K.dur;
-  P.rollVx = dx / l * sp; P.rollVz = dz / l * sp; P.rollT = K.dur; P.invuln = Math.max(P.invuln, K.invuln);
+  P.rollVx = dx / l * sp; P.rollVz = dz / l * sp; P.rollT = K.dur; P.invuln = Math.max(P.invuln, K.invuln * S.fight.evadeInv); // the tree's Evade nodes
   cancelSwing(); P.blocking = false; P.parryT = 0;
   // Which way relative to where you face picks the clip (render/draw.js).
   const rel = wrap(Math.atan2(dx, dz) - P.face);

@@ -3,9 +3,12 @@
 // danger and XP, and flags anything outside the targets in src/data/balance.js.
 // Usage: npm run balance [-- maxTier]   (default 5, the Crypt). MAIN=<gem> picks the Main gem (default PAR_MAIN, the Sword).
 // The Main gem at the tier's par gem level (PAR_GEM) with its par support (parSock), nothing else, so it's a floor on real kill speed.
+// The passive tree: the par preset for the Main gem (data/balance.js PAR_TREE, parTree), one node per level after the first; TREE=none
+// leaves it empty, TREE=<preset> picks another. The fight nodes (posture, parry, riposte, stagger, finisher) don't show here: the arena plays them.
 // Melee hits ESTIMATE.targets monsters per swing in a pack (gemDps in formulas.js), one on a rare or the guardian.
 import { computeStats, gemDps, monsterStats, gearProfile, xpNeedFor, packCount, rideMove } from '../src/game/formulas.js';
-import { TARGETS, RARITY, ESTIMATE, PAR_MAIN, parLevel, parGem, parSock, PAR_GEAR, GEAR_PROFILES, LEVEL_TIME } from '../src/data/balance.js';
+import { TARGETS, RARITY, ESTIMATE, PAR_MAIN, parLevel, parGem, parSock, PAR_GEAR, GEAR_PROFILES, LEVEL_TIME, parTree, PAR_TREE } from '../src/data/balance.js';
+import { TREE } from '../src/data/tree.js';
 import { RIDE } from '../src/data/ride.js';
 import { generateLevel, junctionRooms, tourLen } from '../src/world/gen.js';
 import { ROLES } from '../src/data/dungeon.js';
@@ -14,7 +17,8 @@ import { MT, TIER, PACKS, PACK } from '../src/data/monsters.js';
 import { GEMS } from '../src/data/gems.js';
 import { SURGE } from '../src/data/skills.js';
 
-const maxTier = Number(process.argv[2]) || 5, MAIN = process.env.MAIN || PAR_MAIN;
+const maxTier = Number(process.argv[2]) || 5, MAIN = process.env.MAIN || PAR_MAIN, PRESET = process.env.TREE || PAR_TREE[MAIN] || 'shield';
+const treeAt = lvl => PRESET === 'none' ? [] : parTree(lvl, MAIN, PRESET);
 if (!GEMS[MAIN]) { console.error('Unknown gem ' + MAIN); process.exit(1); }
 
 // Seconds to land n hits at `rate` per second. Skills cost nothing, so it's swing rate only. surge: spend a full Surge gauge
@@ -39,10 +43,10 @@ function avgPack(t) {
 
 let warn = 0;
 const levelEst = [];
-console.log(`Watt Dungeon balance report · ${GEMS[MAIN].n} only · ${GEMS[MAIN].melee ? ESTIMATE.targets[MAIN] + ' targets per swing in a pack' : 'single target'} · targets in src/data/balance.js`);
+console.log(`Watt Dungeon balance report · ${GEMS[MAIN].n} only · tree preset ${PRESET} · ${GEMS[MAIN].melee ? ESTIMATE.targets[MAIN] + ' targets per swing in a pack' : 'single target'} · targets in src/data/balance.js`);
 console.log('  ↑ above target  ↓ below target  (checked on the par gear row, marked *)\n');
 // The level track: a character that full-clears every map from map 1 (XP carried over), to compare with the par levels.
-const track = { lv: 1, xp: 0 };
+const track = { lv: 1, xp: 0 }, treeRows = [];
 for (let t = 1; t <= maxTier; t++) {
   const atStart = track.lv + track.xp / xpNeedFor(track.lv);
   const lvl = parLevel(t), gl = parGem(t), gems = { [MAIN]: gl }, socks = { [MAIN]: (parSock(t, MAIN).main || []) }, pack = avgPack(t), boss = monsterStats('boss', t);
@@ -51,10 +55,12 @@ for (let t = 1; t <= maxTier; t++) {
   let lv = lvl, xp = xpMap; while (xp >= xpNeedFor(lv)) { xp -= xpNeedFor(lv); lv++; }
   track.xp += xpMap; while (track.xp >= xpNeedFor(track.lv)) { track.xp -= xpNeedFor(track.lv); track.lv++; }
   console.log(`Tier ${t} · par level ${lvl} · ${GEMS[MAIN].n} gem ${gl}${socks[MAIN].length ? ' + ' + socks[MAIN].join(', ') : ''} · zombie ${fmt(z.hp, 0)} hp · pack ~${fmt(pack.n)} monsters ${fmt(pack.hp, 0)} hp · rare ${fmt(rare.hp, 0)} hp · guardian ${fmt(boss.hp, 0)} hp · map XP takes you to level ${fmt(lv + xp / xpNeedFor(lv))} · full clears from map 1 arrive at level ${fmt(atStart)}`);
+  const tree = treeAt(lvl);
   console.log('  gear   │ hit  │ zombie hits │ pack clear │ rare kill │ guardian │ surging  │ face-tank │ vs starter');
-  const startDps = gemDps(computeStats(gearProfile('start'), {}, lvl, gems, socks), MAIN).dps;
+  const startDps = gemDps(computeStats(gearProfile('start'), tree, lvl, gems, socks), MAIN).dps;
   for (const kind of Object.keys(GEAR_PROFILES)) {
-    const st = computeStats(gearProfile(kind, t), {}, lvl, gems, socks), G = gemDps(st, MAIN), hit = G.one;
+    const st = computeStats(gearProfile(kind, t), tree, lvl, gems, socks), G = gemDps(st, MAIN), hit = G.one;
+    if (PAR_GEAR(t) === kind) { const st0 = computeStats(gearProfile(kind, t), [], lvl, gems, socks); treeRows[t] = { lvl, tree, dps: G.dps / gemDps(st0, MAIN).dps, life: st.maxLife - st0.maxLife, life0: st0.maxLife, surge: st.surgeMax / st0.surgeMax - 1, f: st.fight }; }
     const hits = z.hp / hit;
     const clear = hitTime(pack.hp / G.pack, G.rate, st), rk = hitTime(rare.hp / hit, G.rate, st), gk = hitTime(boss.hp / hit, G.rate, st), gs = hitTime(boss.hp / hit, G.rate, st, true);
     const tank = st.maxLife / pack.dps, gain = G.dps / startDps;
@@ -65,6 +71,14 @@ for (let t = 1; t <= maxTier; t++) {
   console.log('');
 }
 console.log(warn ? `${warn} par numbers outside target.` : 'All par numbers inside target.');
+
+// What the tree preset gives at par (on the par gear), against the same hero with no points spent. Power per point should be modest.
+console.log(`\nPassive tree at par · preset ${PRESET} · against no points spent`);
+console.log('  tier │ lvl │ pts │ DPS   │ life      │ Surge │ parry window │ riposte │ stagger │ finisher │ posture │ nodes');
+for (let t = 1; t <= maxTier; t++) {
+  const r = treeRows[t]; if (!r) continue; const p = v => (v >= 0 ? '+' : '') + fmt(v * 100, 0) + '%';
+  console.log(`  ${String(t).padStart(4)} │ ${String(r.lvl).padStart(3)} │ ${String(r.tree.length).padStart(3)} │ ×${fmt(r.dps, 2)} │ +${fmt(r.life, 0).padStart(3)} (${p(r.life / r.life0).padStart(4)}) │ ${p(r.surge).padStart(5)} │ ${p(r.f.parry - 1).padStart(12)} │ ${p(r.f.riposte - 1).padStart(7)} │ ${p(r.f.stagger - 1).padStart(7)} │ ${p(r.f.finisher - 1).padStart(8)} │ ${('-' + fmt(r.f.posture * 100, 0) + '%').padStart(7)} │ ${r.tree.map(id => TREE[id].n).join(', ')}`);
+}
 
 // Level time estimate: a full clear at par (data/balance.js LEVEL_TIME), from the layouts (200 seeds, the map viewer's 1–200) and
 // the maths above: the walk through every room / walking speed at the par pace, + packs × the average pack's clear time (magic packs

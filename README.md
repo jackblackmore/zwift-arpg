@@ -18,7 +18,7 @@ SCREENSHOT=/tmp/shot.png npm test   # also saves an ARPG mid-fight screenshot
 
 ## Controls
 
-- **Desktop:** WASD to move, mouse to aim. The Main melee attack swings on its own at whatever's in reach (T or the ATTACK button switches to hold-to-attack; holding LMB swings at the cursor). RMB is Flex A, Q Flex B, Space is the shield (hold to block, tap just before a hit to parry), E rolls (Evade) and F drinks a flask. G opens the gems, I the bag, P the passives, Esc closes panels.
+- **Desktop:** WASD to move, mouse to aim. The Main melee attack swings on its own at whatever's in reach (T or the ATTACK button switches to hold-to-attack; holding LMB swings at the cursor). RMB is Flex A, Q Flex B, Space is the shield (hold to block, tap just before a hit to parry), E rolls (Evade) and F drinks a flask. G opens the gems, I the bag, P the passive tree, Esc closes panels.
 - **RIDE mode** (MODE button): plays with only what a Zwift Ride and KICKR give you. You pedal to move: set power with the slider or <kbd>W</kbd>/<kbd>S</kbd>, and cadence with <kbd>A</kbd>/<kbd>D</kbd>; below 30% FTP you stand still. The D-pad steers (arrows). A is the Main attack (<kbd>K</kbd>, hold; it also auto-attacks), B is Flex A (<kbd>L</kbd>), Z is Flex B (<kbd>J</kbd>), and Y toggles autopilot (<kbd>I</kbd>), which walks you to the next fight, loot or pack and into swing reach. When a cleared room has more than one way on, it stops for 5 s and a D-pad tap picks the way (Onward, Side room, Back); with no pick it clears everything. The right shifter is the shield (<kbd>E</kbd>: hold to block, tap to parry), the left power-up button rolls (<kbd>U</kbd>) and the left shifter drinks a flask (<kbd>Q</kbd>). There is no mana: riding above endurance pace (~80% FTP) surges (faster swings, casts and cooldowns while the Surge gauge drains), easing off refills it, below ~65% FTP casts slow down, and cadence above 80 rpm casts faster (up to +15%). The on-screen pad works on touch too.
 - **Touch:** drag the left side to move; the Main attack swings on its own (moving away from a monster pauses it). The skill buttons on the right auto-aim at the nearest enemy. Walk over loot to pick it up.
 
@@ -30,7 +30,7 @@ SCREENSHOT=/tmp/shot.png npm test   # also saves an ARPG mid-fight screenshot
 - **Monsters:** zombies, runners, archers and bloaters that explode. They come in packs of 6–14. Magic packs are blue. Rare leaders have yellow names and affixes: Hasted, Fortified, Burning, Splitting, Volatile or Frenzied.
 - **Boss:** The Pale Warden uses telegraphed slams, a bolt nova and summons, and enrages at 50%. Killing it opens a portal to the next map tier, where monsters have +45% HP per tier.
 - **Loot:** six gear slots in magic, rare and unique rarities. Each item has an implicit and 1–5 affixes. Drops show loot beams and labels. The bag compares an item against your current gear (Main attack DPS, life, move speed) and outlines upgrades in green. Uniques change how skills work: Wattbringer, Heart of the Storm, Emberstride, The Glass Crown, Frostbound Loop and Aegis of the Long Ride.
-- **Passives:** each level, pick 1 of 3 (a passive tree replaces this in build step 4). Second Wind adds Surge capacity.
+- **Passive tree:** each level after the first gives a point (P or the TREE button; a badge shows unspent points). 64 nodes: a core of life and Surge, the shield (riposte, parry, block and posture, roll, finishers) above, fire, cold and lightning below, and four keystones (Riposte, Bulwark, Duelist, Blood Rite). Tap a glowing node twice to take it; a full reset is free in the room you enter a map by or at a rest room's flame.
 - **Save:** the character saves to localStorage on this device. Until release there's no save migration: a format change bumps the save key and old saves are ignored.
 
 ## Layout
@@ -39,7 +39,7 @@ SCREENSHOT=/tmp/shot.png npm test   # also saves an ARPG mid-fight screenshot
 index.html, src/          the ARPG
   main.js                 boot, main loop, window.__dbg test hooks
   core/                   shared state (G world, P player, S stats), helpers, audio
-  data/                   tuning tables: monsters (+ their clips), skills, items/affixes/uniques, passives, dungeon layout, look
+  data/                   tuning tables: monsters (+ their clips), skills, items/affixes/uniques, the passive tree, dungeon layout, look
   input/input.js          the input layer: `ctl` is all the game reads
   input/devices.js        keyboard + mouse and touch devices that write into `ctl`
   input/ridesim.js        RIDE mode: simulated Zwift Ride pad + KICKR power/cadence, writes into `ctl`
@@ -47,7 +47,7 @@ index.html, src/          the ARPG
   world/dungeon.js        the crypt built from KayKit Dungeon pieces (instanced), primitive rocks if they don't load
   game/                   rules: stats, combat, skills, enemies + AI, items, maps, save, tick
   render/                 three.js scene, assets, primitive + KayKit characters, post-processing, effects, drawing + overlay
-  ui/                     HUD + minimap, panels (bag, passives, menu)
+  ui/                     HUD + minimap, panels (bag, passive tree, gems, menu)
 public/models/            trimmed KayKit .glb files: characters, extra clips, dungeon pieces (rebuild with scripts/prep-models.mjs)
 gallery/, src/gallery/    asset gallery page: characters × both animation sets, held gear, prop packs
 public/gallery/           gallery files: KayKit Adventurers, Skeletons, Character Animations 1.1, Dungeon Remastered, Halloween Bits, Medieval Hexagon, Forest Nature, Resource Bits (rebuild with scripts/prep-gallery.mjs)

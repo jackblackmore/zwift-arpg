@@ -46,6 +46,17 @@ export function strike(id) {
   G.queue.push({ k: 'later', t: SK[id].windup / rate(), fn: () => { if (P.swingTok === tok) land(id, a, n, 1); } });
   return true;
 }
+// The Riposte keystone (data/tree.js): a parry strikes the attacker back at once with Main gem `id`, `mul` × a swing (the riposte).
+// Only a melee gem, and only if the attacker is near enough to reach. It takes the place of your next swing (the swing timer restarts),
+// so it's the riposte arriving at once and always landing, not a free extra hit. Returns true if it struck.
+export function counter(id, e, mul) {
+  const K = SK[id], D = GEMS[id]; if (!D || !D.melee || e.deathT) return false;
+  const d = dist(e.x, e.z, P.x, P.z) || 1; if (d > K.reach + (K.radius || 0) + e.r + P.r + .5) return false;
+  cancelSwing(); P.face = Math.atan2(e.x - P.x, e.z - P.z); P.castAnim = .3; P.castT = K.cast / (S.cast * ((P.eff && P.eff.cast) || 1));
+  hit(e, K.mult * mul, D.elem, { gem: id, kx: (e.x - P.x) / d, kz: (e.z - P.z) / d, kb: K.kb });
+  floatT(P.x, 2.9, P.z, 'RIPOSTE', '#ffd23f', 15); flashFx(e.x, 1, e.z, COL[D.elem][1], 2.4, .15); SFX.thud();
+  return true;
+}
 // Raising the shield or rolling drops the swing being wound up (game/sk/guard.js, game/sk/roll.js) and frees the next one.
 export function cancelSwing() { P.swingTok = (P.swingTok || 0) + 1; P.castT = 0; P.castAnim = 0; }
 

@@ -1,5 +1,5 @@
 // Headless playtest. Builds nothing itself: run `npm run build` first. Serves dist/, then:
-//   1. ARPG (/): a scripted player clears packs, loots, equips, spends passives, kills the boss and takes the portal.
+//   1. ARPG (/): a scripted player clears packs, loots, equips, spends a passive tree point, kills the boss and takes the portal.
 //      Then balance guard rails: a few arena fights (src/game/arena.js) must land in sane ranges.
 //      Then the room-and-corridor layout: generated layouts are checked in Node, the live map in the browser, and the autopilot walks the route.
 //   2. Pedal demo (/pedal/): two 12-minute simulated rides, as before.
@@ -14,6 +14,9 @@ import { ROLES, RHYTHM } from '../src/data/dungeon.js'; // pure: layouts are che
 import { HERO } from '../src/data/balance.js';
 import { GEMS, SUPPORTS } from '../src/data/gems.js';
 import { SK } from '../src/data/skills.js';
+import { TREE, TREE_START, TREE_UNIT } from '../src/data/tree.js';
+import { TREE_PRESETS, PAR_TREE, parTree } from '../src/data/balance.js';
+import { computeStats, treeCanTake, treeConnected, TREE_ADJ } from '../src/game/formulas.js';
 
 const chrome = process.env.CHROME_PATH || ['/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser'].find(existsSync);
 if (!chrome) { console.error('No Chrome found. Set CHROME_PATH.'); process.exit(1); }
@@ -98,6 +101,31 @@ try {
     check(!bad.length && !missing.length, `data: support, milestone and shield art text matches their numbers${bad.length ? ' · out of step: ' + bad.join(', ') : ''}${missing.length ? ' · no text check for: ' + missing.join(', ') : ''}`);
   }
 
+  // ---------- Data: the passive tree (data/tree.js): its shape, its text, its presets, and what its nodes add ----------
+  {
+    const ids = Object.keys(TREE), keys = ids.filter(id => TREE[id].kind === 'key'), at = new Set(ids.map(id => TREE[id].at.join()));
+    const badLink = ids.filter(id => TREE[id].links.some(l => !TREE[l] || l === id));
+    check(ids.length >= 60 && ids.length <= 80 && keys.length >= 3 && keys.length <= 4 && at.size === ids.length && !badLink.length && treeConnected(ids.filter(id => id !== TREE_START)),
+      `tree: ${ids.length} nodes, ${keys.length} keystones (${keys.join(', ')}), one per grid spot, links valid, all joined to the start${badLink.length ? ' · bad links: ' + badLink.join(', ') : ''}`);
+    check(keys.every(k => TREE_ADJ[k].size === 1) && ids.every(id => TREE[id].at[0] >= 0 && TREE[id].at[0] <= 6 && TREE[id].at[1] >= 0 && TREE[id].at[1] <= 14), 'tree: keystones sit at the end of a path; every node is on the 7 × 15 grid');
+    // Text and numbers agree: every number in a node's v is in its text (a share as a percent, TREE_UNIT n as a number, s as seconds).
+    const fmtV = (k, v) => TREE_UNIT[k] === 'n' ? String(v) : TREE_UNIT[k] === 's' ? v + 's' : Math.round(v * 100) + '%';
+    const textBad = ids.filter(id => Object.entries(TREE[id].v).some(([k, v]) => !TREE[id].d.includes(fmtV(k, v))) || (TREE[id].kind !== 'start' && !Object.keys(TREE[id].v).length));
+    check(!textBad.length, `tree: every node's text carries its numbers${textBad.length ? ' · out of step: ' + textBad.join(', ') : ''}`);
+    // Presets: real nodes, no repeats, each one next to the start or an earlier node (a sensible player could take them in order).
+    const presetBad = Object.entries(TREE_PRESETS).filter(([, L]) => new Set(L).size !== L.length || L.some((id, i) => !treeCanTake(L.slice(0, i), id))).map(([k]) => k);
+    const keyReach = ['riposte', 'duelist', 'bulwark', 'blood'].every(k => TREE_PRESETS[k].indexOf(k) >= 0 && TREE_PRESETS[k].indexOf(k) < 7);
+    check(!presetBad.length && keyReach && Object.values(PAR_TREE).every(p => TREE_PRESETS[p]) && parTree(10).length === 9 && parTree(1).length === 0,
+      `tree: presets are takeable in order, each keystone preset reaches its keystone by 7 points, par presets give one node per level after the first${presetBad.length ? ' · bad: ' + presetBad.join(', ') : ''}`);
+    // computeStats applies the nodes: life, elemental damage, the fight numbers and keystones.
+    const st0 = computeStats({}, [], 10), st = computeStats({}, ['hardy', 'focus', 'fire1', 'steady', 'reflex', 'counter', 'brace', 'blood'], 10);
+    check(Math.abs(st.maxLife - Math.round(st0.maxLife * (1 + TREE.hardy.v.lifePct))) <= 1 && Math.abs(st.fire - .16) < 1e-9 && Math.abs(st.cold - .06) < 1e-9 && Math.abs(st.fight.parry - 1.1) < 1e-9
+      && Math.abs(st.fight.riposte - 1.15) < 1e-9 && Math.abs(st.fight.posture - .1) < 1e-9 && Math.abs(st.fight.block - .04) < 1e-9 && st.ks.blood === TREE.blood.v && !st0.ks.blood,
+      `tree: recalc's stats add up the nodes (life ${st0.maxLife} → ${st.maxLife}, fire +${Math.round(st.fire * 100)}%, parry window ×${st.fight.parry}, riposte ×${st.fight.riposte}) and keystones switch on`);
+    const ev = computeStats({}, ['tumbler'], 10, { roll: 1, sword: 1 });
+    check(ev.sk.roll.ch === 1 && ev.sk.sword.ch === 0 && Math.abs(ev.fight.evadeInv - 1.1) < 1e-9, 'tree: Tumbler adds a charge to the Evade gem only');
+  }
+
   // ---------- ARPG ----------
   {
     const { page, errors } = await open('/');
@@ -134,9 +162,11 @@ try {
       for (let i = 0; i < 4; i++) D.dropItem(P.x, P.z, .5);
       D.sim(40); for (const d of D.items()) { P.x = d.x; P.z = d.z; D.sim(2); } out.inv = P.inv.length; // walk over anything that bounced away
       const before = JSON.stringify(P.gear); D.equip(0); out.equipped = JSON.stringify(P.gear) !== before;
-      P.pts = 1; D.openPass(); out.cards = document.querySelectorAll('#passCards .pc').length; document.querySelector('#passCards .pc').click();
-      out.passives = Object.keys(P.passives).length;
-      document.getElementById('passClose').click();
+      // The passive tree: a level gave points; tapping a glowing node twice takes it.
+      D.openPass(); out.treeNodes = document.querySelectorAll('#treeSvg .tn').length; const left0 = D.tree.treeLeft();
+      const can = document.querySelector('#treeSvg .tn.can'); can.dispatchEvent(new MouseEvent('click', { bubbles: true })); document.querySelector(`#treeSvg .tn[data-id="${can.dataset.id}"]`).dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      out.treeTaken = P.tree.length === 1 && D.tree.treeLeft() === left0 - 1 && left0 === P.lvl - 1;
+      document.getElementById('treeClose').click();
       // Boss
       P.x = D.G.bossSpot.x - 6; P.z = D.G.bossSpot.z + 6; D.sim(30);
       const boss = D.enemies().find(e => e.type === 'boss'); out.boss = !!boss;
@@ -156,7 +186,7 @@ try {
     check(r.loot > 0, `arpg: monsters dropped loot (${r.loot})`);
     check(r.inv >= 4, `arpg: loot picked up into the bag (${r.inv})`);
     check(r.equipped, 'arpg: equipping an item changes gear');
-    check(r.cards === 3 && r.passives >= 1, `arpg: passive offer shows 3 cards and allocates`);
+    check(r.treeNodes === Object.keys(TREE).length && r.treeTaken, `arpg: the passive tree panel draws every node (${r.treeNodes}) and a double tap takes a glowing one`);
     check(r.boss && r.bossCast, 'arpg: boss spawned and used abilities');
     check(r.portal && r.tier === 2, `arpg: boss kill opens portal to map 2 (tier ${r.tier})`);
     if (process.env.SCREENSHOT) {
@@ -789,6 +819,84 @@ try {
     check(r.lingerOk, `shield arts: Lingering Frost makes the parry chill and ring last 50% longer (${r.lingerChill}s, ${r.lingerRing}s)`);
     check(r.cleared, 'shield arts: frost rings are cleared with the map');
     check(errors.length === 0, `shield arts: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
+  }
+
+  // ---------- Passive tree in play: points, adjacency, respec, keystones, save ----------
+  {
+    const { page, errors } = await open('/');
+    const r = await page.evaluate(() => {
+      const D = window.__dbg, P = D.P, S = D.S, G = D.G, ctl = D.ctl, SK = D.SK, T = D.tree, TR = D.TREE, out = {};
+      D.start(true); ctl.aim = null; ctl.mx = ctl.mz = 0; D.setAutoAtk(false);
+      const clear = () => { G.enemies.forEach(e => { e.deathT = 1; e.gone = true; }); G.eproj = []; G.queue = []; Object.assign(P, { invuln: 0, life: S.maxLife, posture: 0, broken: 0, blocking: false, parryT: 0, parryCd: 0, riposteT: 0, rollT: 0, shield: 0, shieldT: 0 }); ctl.guard = false; ctl.tap = {}; P.x = G.start.x; P.z = G.start.z; };
+      const foe = (type, dx, dz) => { const e = D.spawnEnemy(type, P.x + dx, P.z + dz, null, 0); e.awake = true; e.spd = 0; e.atkT = 99; e.hp = e.maxHp = 1e6; return e; };
+      const setTree = list => { P.tree = [...list]; P.treeNew = []; D.recalc(); };
+      // Points = levels: none at level 1, one per level after; levelling up gives one.
+      out.lvl1 = T.treeLeft() === 0 && !T.take('steady');
+      P.lvl = 5; D.recalc(); out.pts5 = T.treeLeft() === 4;
+      // Adjacency: a node needs a held neighbour (or the start).
+      out.farRefused = !T.take('venge') && !T.take('riposte');
+      out.chain = T.take('steady') && T.take('counter') && T.take('sharpen') && T.take('venge') && P.tree.length === 4 && T.treeLeft() === 0 && !T.take('reflex');
+      // recalc applies node stats.
+      out.stats = Math.abs(S.fight.riposte - (1 + TR.counter.v.riposte + TR.venge.v.riposte)) < 1e-9 && Math.abs(S.fight.posture - TR.steady.v.posture) < 1e-9;
+      // Giving back: a node taken since the panel opened can be given back anywhere, but not one others hang from.
+      out.noOrphan = !T.drop('counter') && T.drop('venge') && T.treeLeft() === 1 && T.take('venge');
+      // Respec: free at the map entrance, refused in another room for nodes from before; refunds every point.
+      P.treeNew = []; clear();
+      const far = G.layout.rooms.find(rm => rm.role === 'combat' && Math.hypot(rm.cx - G.start.x, rm.cz - G.start.z) > 30) || G.layout.rooms[G.layout.rooms.length - 2];
+      P.x = far.cx; P.z = far.cz; out.awayNo = !T.canRespec() && !T.respec() && !T.drop('venge') && P.tree.length === 4;
+      P.x = G.start.x; P.z = G.start.z; out.entranceYes = T.canRespec() && T.respec() && P.tree.length === 0 && T.treeLeft() === 4;
+      // Save: the tree round-trips.
+      T.take('steady'); T.take('reflex'); D.save(); out.saved = JSON.stringify(D.load().tree) === JSON.stringify(['steady', 'reflex']);
+      P.lvl = 10; D.recalc();
+      const hit = z => D.hurtP(20, 'zombie', { from: z, by: z });
+      const parry = z => { P.parryCd = 0; ctl.tap.guard = true; D.sim(1); return hit(z); };
+      const blockPost = z => { P.posture = 0; ctl.guard = true; D.sim(15); hit(z); const p = P.posture; ctl.guard = false; D.sim(1); return p; };
+      // Baseline (no keystone): posture from a blocked hit, the parry window.
+      setTree(['steady']); clear(); let z = foe('zombie', 0, 1.2); D.sim(1); const post0 = blockPost(z); // every keystone preset below holds Steady Stance too
+      // Riposte: every parry strikes back at once; blocked hits fill posture 50% faster.
+      setTree(['steady', 'counter', 'sharpen', 'venge', 'punish', 'wound', 'riposte']); clear(); z = foe('zombie', 0, 1.2); D.sim(1);
+      const hp0 = z.hp; out.rParry = parry(z) === 'parry'; out.rStruck = z.hp < hp0 && P.riposteT <= 0 && P.castT > 0;
+      out.rPosture = Math.round(blockPost(z) / post0 * 100) / 100;
+      // Bulwark: blocking doesn't slow you; a press only blocks; less posture.
+      setTree(['steady', 'brace', 'settle', 'wall', 'stout', 'anchor', 'bulwark']); clear(); z = foe('zombie', 0, 1.2); D.sim(1);
+      out.bMove = D.blockStats().move; out.bParry = parry(z); out.bPosture = Math.round(blockPost(z) / post0 * 100) / 100;
+      clear(); const rr = D.spawnEnemy('zombie', P.x, P.z + 1.2, null, 2); rr.awake = true; rr.spd = 0; rr.atkT = 99; D.sim(1); blockPost(rr); out.bBash = Math.round(rr.stag * 1000) / 1000;
+      out.bBashOk = Math.abs(rr.stag - D.STAGGER.parryRare * TR.bulwark.v.bash) < .01;
+      // Duelist: holding Guard doesn't block; the parry window is 60% longer (with the parry nodes on the way).
+      setTree(['steady', 'reflex', 'trigger', 'measure', 'poise', 'master', 'duelist']); clear(); z = foe('zombie', 0, 1.2); D.sim(1);
+      ctl.guard = true; D.sim(15); const l0 = P.life; out.dHold = hit(z); out.dTaken = Math.round(l0 - P.life); ctl.guard = false; D.sim(1);
+      out.dParry = parry(z) === 'parry'; out.dWindow = Math.round(D.blockStats().parry * 1000) / 1000;
+      out.dWindowOk = Math.abs(D.blockStats().parry - SK.block.parry * (1 + TR.reflex.v.parry + TR.trigger.v.parry + TR.poise.v.parry + TR.master.v.parry) * (1 + TR.duelist.v.parry)) < 1e-9;
+      // Blood Rite: Frost Nova in Flex A ignores its cooldown (one cast per gap), each cast costs life; refused near empty.
+      setTree(['hardy', 'iron', 'hunger', 'pact', 'blood']); clear();
+      const nova = D.addGem('nova', 5); D.placeGem(nova.id, 'flexA'); D.recalc(); clear(); D.sim(1);
+      let casts = 0; const seq0 = P.castSeq; const life0 = P.life;
+      for (let i = 0; i < 40; i++) { const s0 = P.castSeq; ctl.tap.flexA = true; D.sim(1); if (P.castSeq !== s0 && P.lastCast === 'nova') casts++; }
+      out.bloodCasts = casts; out.bloodCost = Math.round(life0 - P.life);
+      out.bloodOk = casts >= 2 && Math.abs((life0 - P.life) - casts * S.maxLife * TR.blood.v.cost) < S.maxLife * .03;
+      P.life = S.maxLife * TR.blood.v.cost * .9; const s1 = P.castSeq; P.cd.flexA.cd = 0; ctl.tap.flexA = true; D.sim(1); out.bloodLow = P.castSeq === s1;
+      setTree([]); P.cd.flexA.cd = 0; P.life = S.maxLife; ctl.tap.flexA = true; D.sim(1); const s2 = P.castSeq; ctl.tap.flexA = true; D.sim(15); out.noBloodCd = P.castSeq === s2 && P.life === S.maxLife;
+      clear(); return out;
+    });
+    if (process.env.SCREENSHOT) { // the passive tree panel: desktop, then a phone held upright (SCREENSHOT-tree.png, -tree-phone.png)
+      const shot = n => process.env.SCREENSHOT.replace(/\.png$/, `-${n}.png`);
+      const setup = () => { const D = window.__dbg, P = D.P; D.start(true); P.lvl = 10; P.tree = []; D.recalc(); for (const id of ['steady', 'keen', 'reflex', 'power', 'trigger', 'hardy']) D.tree.take(id); D.openPass(); document.querySelector('#treeSvg .tn[data-id="iron"]').dispatchEvent(new MouseEvent('click', { bubbles: true })); };
+      await page.evaluate(setup); await new Promise(r => setTimeout(r, 300)); await page.screenshot({ path: shot('tree') });
+      await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true, deviceScaleFactor: 2 }); // (reloads the page)
+      await page.waitForFunction(() => window.__dbg && window.__dbg.ready(), { timeout: 20000 }); await page.evaluate(setup);
+      await new Promise(r => setTimeout(r, 300)); await page.screenshot({ path: shot('tree-phone') });
+    }
+    console.log('  tree:', JSON.stringify(r));
+    check(r.lvl1 && r.pts5, 'tree: points come from levels (none at level 1, 4 at level 5)');
+    check(r.farRefused && r.chain && r.stats, 'tree: a node needs a held neighbour; points run out; recalc applies the nodes');
+    check(r.noOrphan, 'tree: a node others hang from can\'t be given back; one taken since opening the tree can');
+    check(r.awayNo && r.entranceYes, 'tree: a full reset is refused away from a safe room and free at the map entrance, refunding every point');
+    check(r.saved, 'tree: the save keeps the tree');
+    check(r.rParry && r.rStruck && Math.abs(r.rPosture - 1.5) < .08, `tree: Riposte keystone: a parry strikes back at once; blocked hits fill posture ${r.rPosture}× (want 1.5×)`);
+    check(r.bMove === 1 && r.bParry === 'block' && r.bPosture < .75 * .95 && r.bBashOk, `tree: Bulwark keystone: no slow while blocking, a press only blocks (${r.bParry}), less posture (${r.bPosture}×), a block fills a rare's stagger (${r.bBash})`);
+    check(r.dHold === 'hit' && r.dTaken > 15 && r.dParry && r.dWindowOk, `tree: Duelist keystone: holding Guard doesn't block (took ${r.dTaken} of 20), parries still work with a ${r.dWindow}s window`);
+    check(r.bloodOk && r.bloodLow && r.noBloodCd, `tree: Blood Rite keystone: Frost Nova cast ${r.bloodCasts}× in 40 ticks ignoring its cooldown, costing ${r.bloodCost} life; refused near empty; without it the cooldown holds`);
+    check(errors.length === 0, `tree: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   }
 
   // ---------- Fight mechanics: the Knight's Shield (block, parry, posture), Roll, stagger, telegraph kinds ----------

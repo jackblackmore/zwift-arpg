@@ -3,11 +3,11 @@
 // saves are ignored (the menu offers only NEW).
 import { G, P } from '../core/state.js';
 
-export const KEY = 'wd-arpg-3';
+export const KEY = 'wd-arpg-4';
 let store = null; try { store = window.localStorage; store.getItem('x'); } catch (e) { store = null; }
 
 export function save(nextTier) {
   if (!store) return;
-  try { store.setItem(KEY, JSON.stringify({ lvl: P.lvl, xp: P.xp, gear: P.gear, inv: P.inv, passives: P.passives, pts: P.pts, gems: P.gems, bar: P.bar, sock: P.sock, shrined: P.shrined, tier: nextTier || G.tier, itemId: G.itemId })); } catch (e) {}
+  try { store.setItem(KEY, JSON.stringify({ lvl: P.lvl, xp: P.xp, gear: P.gear, inv: P.inv, tree: P.tree, gems: P.gems, bar: P.bar, sock: P.sock, shrined: P.shrined, tier: nextTier || G.tier, itemId: G.itemId })); } catch (e) {}
 }
 export function load() { if (!store) return null; try { return JSON.parse(store.getItem(KEY)); } catch (e) { return null; } }
