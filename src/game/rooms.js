@@ -54,9 +54,9 @@ export function initRooms() {
         const col = piece('column', s), cand = piece('candle_triple', s * DUNGEON.torch); cand.position.y = 1.4 * s; g.add(col, cand);
         for (let k = 0; k < 7; k++) { const a = k / 7 * Math.PI * 2, c = piece('candle_lit', s); c.position.set(Math.cos(a) * 1.5, 0, Math.sin(a) * 1.5); g.add(c); }
       } else { const m = new T.Mesh(GCY, new T.MeshLambertMaterial({ color: 0x6a5a58 })); m.scale.set(.35, 1.4, .35); m.position.y = .7; g.add(m); }
-      const glow = glowSprite(0xffb060, 3.2); glow.material = glow.material.clone(); glow.position.y = 1.4 * s + 1; g.add(glow);
+      const glow = glowSprite(0xffb060, 2.4); glow.material = glow.material.clone(); glow.position.y = 1.4 * s + 1; g.add(glow);
       const calm = decal(0x5ad0c0, 7.5), warm = decal(0xff9a40, 4.5); calm.position.y = .04; warm.position.y = .06; g.add(calm, warm);
-      g.position.set(x, 0, z); G.world.add(g); G.obst.push({ x, z, r: .45 }); G.torches.push({ f: glow, x, z, s: 3.2 });
+      g.position.set(x, 0, z); G.world.add(g); G.obst.push({ x, z, r: .45 }); G.torches.push({ f: glow, x, z, s: 2.4 });
       G.rest = { room: r.id, x, z, g, glow, calm, used: false };
     }
   }

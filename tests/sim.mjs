@@ -160,7 +160,16 @@ try {
     check(r.boss && r.bossCast, 'arpg: boss spawned and used abilities');
     check(r.portal && r.tier === 2, `arpg: boss kill opens portal to map 2 (tier ${r.tier})`);
     if (process.env.SCREENSHOT) {
-      await page.evaluate(() => { const D = window.__dbg, P = D.P; const pk = D.packs().find(p => !p.spawned); if (pk) { P.x = pk.x - 6; P.z = pk.z + 3; } D.sim(25); D.castNova(); D.strike('cleave'); D.castArc(); D.sim(3); });
+      // Mid-fight: stand on clear floor in sight of a pack that hasn't spawned yet (an offset straight from the pack can land in a
+      // wall now that maps are rooms, which left the camera looking at black rock), walk in until it's awake, then swing.
+      await page.evaluate(() => {
+        const D = window.__dbg, P = D.P, G = D.G; let spot = null;
+        for (const pk of D.packs().filter(p => !p.spawned)) { for (let a = 0; a < 12 && !spot; a++) { const x = pk.x + Math.cos(a * .52) * 6, z = pk.z + Math.sin(a * .52) * 6; if (!D.blocked(x, z, .8) && D.los(x, z, pk.x, pk.z)) spot = [x, z, pk]; } if (spot) break; }
+        if (spot) { P.x = spot[0]; P.z = spot[1]; }
+        P.life = 1e4; G.bannerT = .01; D.sim(10);
+        for (let k = 0; k < 90; k++) { const e = D.enemies().filter(e => !e.deathT).sort((a, b) => Math.hypot(a.x - P.x, a.z - P.z) - Math.hypot(b.x - P.x, b.z - P.z))[0]; if (e) { const dx = e.x - P.x, dz = e.z - P.z, l = Math.hypot(dx, dz) || 1; D.ctl.mx = l > 2 ? dx / l : 0; D.ctl.mz = l > 2 ? dz / l : 0; } P.life = Math.max(P.life, 100); D.sim(1); }
+        D.ctl.mx = D.ctl.mz = 0; D.strike('cleave'); D.sim(4); D.snapCam(); document.getElementById('banner').style.opacity = 0; // the camera eases after the hero at a few frames a second headless: without this it was still looking where the hero had been (the dark shots)
+      });
       await new Promise(r => setTimeout(r, 300)); await page.screenshot({ path: process.env.SCREENSHOT });
     }
     check(errors.length === 0, `arpg: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
@@ -461,6 +470,14 @@ try {
       out.jnLabels = G.jn && G.jn.opts.map(o => o.label);
       return out;
     });
+    if (process.env.SCREENSHOT) { // a junction's role signs (left up by the last check), then a rest room and a treasure chest
+      const shot = n => process.env.SCREENSHOT.replace(/\.png$/, `-${n}.png`);
+      await page.evaluate(() => { const D = window.__dbg; D.G.bannerT = .01; D.sim(2); D.snapCam(); document.getElementById('banner').style.opacity = 0; }); await new Promise(r => setTimeout(r, 300)); await page.screenshot({ path: shot('sign') });
+      await page.evaluate(() => { const D = window.__dbg, G = D.G, P = D.P; G.jn = null; for (let n = 0; n < 30 && !(G.rest && G.chests.length); n++) D.newMap(1); const R = G.rest; if (R) { P.x = R.x + 3; P.z = R.z + 3.5; P.life = D.S.maxLife * .4; } G.bannerT = .01; D.sim(12); D.snapCam(); document.getElementById('banner').style.opacity = 0; });
+      await new Promise(r => setTimeout(r, 300)); await page.screenshot({ path: shot('rest') });
+      await page.evaluate(() => { const D = window.__dbg, G = D.G, P = D.P, c = G.chests[0]; if (c) { G.packs = G.packs.filter(p => p !== c.guard); let best = null; for (let a = 0; a < 16; a++) { const x = c.x + Math.cos(a * .4) * 4.5, z = c.z + Math.sin(a * .4) * 4.5; if (!D.blocked(x, z, .6) && (!best || z > best[1])) best = [x, z]; } if (best) { P.x = best[0]; P.z = best[1]; } } G.bannerT = .01; D.sim(8); D.snapCam(); document.getElementById('banner').style.opacity = 0; });
+      await new Promise(r => setTimeout(r, 300)); await page.screenshot({ path: shot('treasure') });
+    }
     console.log('  roles:', JSON.stringify(r));
     check(r.rest && r.restPacks === 0 && r.restMonsters === 0, `rest: a rest room has no monsters (${r.restPacks} packs placed, ${r.restMonsters} spawned in it)`);
     check(r.restHealed && r.restRefill && r.restOnce && r.restWaits, 'rest: stepping into it heals you to full, refills flasks and clears posture, once per map (it waits while you need nothing)');

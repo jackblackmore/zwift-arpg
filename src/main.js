@@ -8,8 +8,8 @@ import { chars, loadCharacters, makeChar } from './render/characters.js';
 import { Q, applyQuality, cycleQuality, cycleStyle } from './render/post.js';
 import { STYLES, TELL } from './data/graphics.js';
 import { updFx } from './render/fx.js';
-import { draw } from './render/draw.js';
-import { buildMap, blocked } from './world/map.js';
+import { draw, snapCam } from './render/draw.js';
+import { buildMap, blocked, los } from './world/map.js';
 import { spawnEnemy } from './game/enemies.js';
 import { loadDungeon } from './world/dungeon.js';
 import { ctl } from './input/input.js';
@@ -113,6 +113,6 @@ window.__dbg = {
   sim: n => { for (let i = 0; i < n; i++) { update(.033); updFx(.033); } },
   enemies: () => G.enemies, packs: () => G.packs, items: () => G.ground,
   arena, levelRun, parLevel, parBar, parGear: PAR_GEAR, newMap, kill, dropItem, strike, targets, aim, autoTarget, meleeReach, setAutoAtk, castArc, castNova, castDash, openInv, openPass, openGems, openShrine, equip,
-  xpNeedFor, routeTarget, resetRoute, routeOptions, gateFoe, takeShrine, shrineDue, placeGem, addGem, socketGem, unsocket, feedGem, feedPreview, sockCount, dropGem, pickUp, PASS, GEMS, SUPPORTS, recalc, save, load, begin, CAST, blocked, spawnEnemy, hurtP, cast: id => CAST[id] ? CAST[id]() : false, frostRings,
+  xpNeedFor, routeTarget, resetRoute, routeOptions, gateFoe, takeShrine, shrineDue, placeGem, addGem, socketGem, unsocket, feedGem, feedPreview, sockCount, dropGem, pickUp, PASS, GEMS, SUPPORTS, recalc, save, load, begin, CAST, blocked, los, snapCam, spawnEnemy, hurtP, cast: id => CAST[id] ? CAST[id]() : false, frostRings,
   skel, minions: () => G.minions, // Raise Skeletons support: skel.raise(x, z, gem), skel.cap(), skel.living()
 };

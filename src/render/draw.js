@@ -56,7 +56,7 @@ export function draw(dt) {
   } else if (boss && !boss.deathT && boss.awake) { blight.position.set(boss.x, 4, boss.z); blight.intensity = 1.2; }
   else blight.intensity = 0;
   for (const d of G.ground) if (d.g.children[1]) d.g.children[1].material.opacity = (d.it.rar === 3 ? .45 : .25) + Math.sin(gt * 3) * .08;
-  // camera
+  // camera (it eases after the hero; snapCam jumps it there, for headless screenshots, which run at a few frames a second)
   const k = V.camMul, cx = P.x + CAM.x * k, cz = P.z + CAM.z * k;
   cam.position.x += (cx - cam.position.x) * Math.min(1, dt * 6); cam.position.z += (cz - cam.position.z) * Math.min(1, dt * 6); cam.position.y = CAM.y * k;
   cam.lookAt(cam.position.x - CAM.x * k, 0, cam.position.z - CAM.z * k);
@@ -144,3 +144,4 @@ export function draw(dt) {
   if (joy.on) { J.style.display = 'block'; J.style.left = joy.bx + 'px'; J.style.top = joy.by + 'px'; J.firstChild.style.transform = `translate(${joy.x * 32}px,${joy.y * 32}px)`; }
   else J.style.display = 'none';
 }
+export function snapCam() { const k = V.camMul; cam.position.set(P.x + CAM.x * k, CAM.y * k, P.z + CAM.z * k); cam.lookAt(P.x, 0, P.z); }
