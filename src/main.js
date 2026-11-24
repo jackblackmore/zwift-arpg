@@ -43,6 +43,7 @@ import { freshGems, readySlots, takeShrine, shrineDue, refreshShrine, placeGem, 
 import { GEMS, SUPPORTS } from './data/gems.js';
 import { setAutoAtk } from './input/devices.js';
 import * as treeApi from './game/tree.js';
+import { blockStats } from './game/sk/guard.js';
 
 function begin(fresh) {
   audio();
@@ -114,6 +115,6 @@ window.__dbg = {
   sim: n => { for (let i = 0; i < n; i++) { update(.033); updFx(.033); } },
   enemies: () => G.enemies, packs: () => G.packs, items: () => G.ground,
   arena, levelRun, parLevel, parBar, parGear: PAR_GEAR, newMap, kill, dropItem, strike, targets, aim, autoTarget, meleeReach, setAutoAtk, castArc, castNova, castDash, openInv, openPass, openGems, openShrine, equip,
-  xpNeedFor, routeTarget, resetRoute, routeOptions, gateFoe, takeShrine, shrineDue, placeGem, addGem, socketGem, unsocket, feedGem, feedPreview, sockCount, dropGem, pickUp, TREE, tree: treeApi, GEMS, SUPPORTS, recalc, save, load, begin, CAST, blocked, los, snapCam, spawnEnemy, hurtP, cast: id => CAST[id] ? CAST[id]() : false, frostRings,
+  xpNeedFor, routeTarget, resetRoute, routeOptions, gateFoe, takeShrine, shrineDue, placeGem, addGem, socketGem, unsocket, feedGem, feedPreview, sockCount, dropGem, pickUp, TREE, tree: treeApi, blockStats, GEMS, SUPPORTS, recalc, save, load, begin, CAST, blocked, los, snapCam, spawnEnemy, hurtP, cast: id => CAST[id] ? CAST[id]() : false, frostRings,
   skel, minions: () => G.minions, // Raise Skeletons support: skel.raise(x, z, gem), skel.cap(), skel.living()
 };

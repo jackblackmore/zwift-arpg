@@ -25,11 +25,13 @@ const R = { start: 3.6, small: 2.7, notable: 3.6, key: 4.4 }; // radius in grid 
 
 const ui = { sel: null, wide: false };
 const held = id => id === TREE_START || P.tree.includes(id);
-const pos = id => { const [c, r] = TREE[id].at; return ui.wide ? [r * 10 + 5, c * 10 + 5] : [c * 10 + 5, r * 10 + 5]; };
+const M = 8; // margin round the grid (a keystone's diamond and its name stick out)
+const pos = id => { const [c, r] = TREE[id].at; return ui.wide ? [r * 10 + M, c * 10 + M] : [c * 10 + M, r * 10 + M]; };
+const size = () => ui.wide ? [140 + M * 2, 60 + M * 2 + 3] : [60 + M * 2, 140 + M * 2];
 const presetFor = () => { const g = barGem('main'); return TREE_PRESETS[(g && PAR_TREE[g.gem]) || 'shield']; };
 
 function svg() {
-  const W = ui.wide ? 150 : 70, H = ui.wide ? 70 : 150;
+  const [W, H] = size();
   let edges = '', nodes = '';
   const done = new Set();
   for (const a in TREE) for (const b of TREE_ADJ[a]) {
@@ -42,7 +44,8 @@ function svg() {
     const cls = `tn ${N.kind} ${h ? 'held' : can ? 'can' : ''} ${ui.sel === id ? 'sel' : ''}`;
     const shape = N.kind === 'key' ? `<rect x="${x - r}" y="${y - r}" width="${r * 2}" height="${r * 2}" transform="rotate(45 ${x} ${y})" class="body" style="--c:${col}"/>`
       : `<circle cx="${x}" cy="${y}" r="${r}" class="body" style="--c:${col}"/>`;
-    nodes += `<g class="${cls}" data-id="${id}"><circle cx="${x}" cy="${y}" r="4.9" class="hit"/>${shape}${N.kind === 'notable' ? `<circle cx="${x}" cy="${y}" r="${r + 1}" class="ring" style="--c:${col}"/>` : ''}<text x="${x}" y="${y + r * .38}" style="font-size:${r * 1.05}px;fill:${h ? '#140e0a' : col}">${gl}</text></g>`;
+    const lbl = N.kind === 'key' ? `<text class="lbl" x="${x}" y="${!ui.wide && N.at[1] === 0 ? y - r - 1.6 : y + r + 3.6}" style="fill:${col}">${N.n.toUpperCase()}</text>` : '';
+    nodes += `<g class="${cls}" data-id="${id}">${lbl}<circle cx="${x}" cy="${y}" r="4.9" class="hit"/>${shape}${N.kind === 'notable' ? `<circle cx="${x}" cy="${y}" r="${r + 1}" class="ring" style="--c:${col}"/>` : ''}<text x="${x}" y="${y + r * .38}" style="font-size:${r * 1.05}px;fill:${h ? '#140e0a' : col}">${gl}</text></g>`;
   }
   return `<svg id="treeSvg" viewBox="0 0 ${W} ${H}" class="${ui.wide ? 'wide' : 'tall'}" xmlns="http://www.w3.org/2000/svg">${edges}${nodes}</svg>`;
 }
@@ -75,13 +78,22 @@ export function renderTree() {
   ui.wide = innerWidth > innerHeight;
   const left = treeLeft();
   $('treeSub').innerHTML = left > 0 ? `<b style="color:var(--gold)">${left} point${left > 1 ? 's' : ''} to spend</b> · glowing nodes are next to ones you hold` : 'No points to spend · each level gives one';
-  $('treeWrap').innerHTML = svg();
+  const w = $('treeWrap'), top = w.scrollTop; w.innerHTML = svg(); fit(); w.scrollTop = top; // keep the scroll when it redraws
   $('treeTip').innerHTML = tip();
   $('treeSum').innerHTML = summary();
   $('treeReset').disabled = !P.tree.length; $('treeReset').textContent = canRespec() ? 'RESET (FREE HERE)' : 'RESET';
   $('treeSuggest').disabled = left <= 0;
   if ($('tTake')) $('tTake').onclick = () => tryTake(ui.sel);
   if ($('tDrop')) $('tDrop').onclick = () => { if (drop(ui.sel)) { save(); renderTree(); } };
+}
+// Size the SVG in pixels: upright, as wide as the panel (it scrolls down); wide, as tall as fits (short screens put the rest beside it).
+function fit() {
+  const el = $('treeSvg'), [W, H] = size(), wrap = $('treeWrap');
+  if (!ui.wide) { const w = wrap.clientWidth - 2; el.style.width = w + 'px'; el.style.height = w * H / W + 'px'; return; }
+  const short = innerHeight <= 520, card = wrap.closest('.card').clientWidth - 30;
+  let h = short ? innerHeight * .94 - 70 : Math.min(innerHeight * .55, 420), w = h * W / H;
+  const maxW = short ? card - 180 : card; if (w > maxW) { w = maxW; h = w * H / W; }
+  el.style.width = w + 'px'; el.style.height = h + 'px';
 }
 function tryTake(id) { if (take(id)) { SFX.lvl(); save(); renderTree(); } }
 
