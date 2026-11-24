@@ -12,7 +12,7 @@ import { barGem, meleeReach } from './gems.js';
 import { GEMS } from '../data/gems.js';
 import { routeTarget } from './route.js';
 
-// Stuck detection: if we've been trying to move but haven't, sidestep for a moment.
+// Stuck detection: if we've been trying to move but haven't got anywhere, sidestep for a moment.
 const ST = { x: 0, z: 0, t: 0, side: 0, sideT: 0, n: 0, at: -9 }; // n: sidesteps in a row (within 3 s of the last)
 
 // A fresh start (the level run, game/levelrun.js, so a run doesn't inherit the last one's sidestep).
@@ -27,8 +27,11 @@ export function autopilot(dt = .033) {
   // Sidestepping: a little forward at first; on a second try in a row, backing off a little too (a prop in a doorway's corner can
   // pin you against the wall, where a forward sidestep never gets round it), and to the other side each time.
   if (ST.sideT > 0) { ST.sideT -= dt; const f = ST.n > 1 ? -.4 : .3; return [d[0] * f - d[1] * ST.side, d[1] * f + d[0] * ST.side]; }
-  if (dist(P.x, P.z, ST.x, ST.z) < .05) { ST.t += dt; if (ST.t > .8) { ST.t = 0; ST.sideT = .9; ST.n = G.gt - ST.at < 3 ? ST.n + 1 : 1; ST.at = G.gt; ST.side = ST.n > 1 ? -ST.side || 1 : Math.random() < .5 ? 1 : -1; } } else ST.t = 0;
-  ST.x = P.x; ST.z = P.z;
+  // Stuck: trying to move for 0.8 s but got less than 0.8 units from where it started (also catches jittering in place, pushed
+  // back and forth between a wall and a prop).
+  if (ST.t <= 0) { ST.x = P.x; ST.z = P.z; }
+  ST.t += dt;
+  if (ST.t > .8) { ST.t = 0; if (dist(P.x, P.z, ST.x, ST.z) < .8) { ST.sideT = .9; ST.n = G.gt - ST.at < 3 ? ST.n + 1 : 1; ST.at = G.gt; ST.side = ST.n > 1 ? -ST.side || 1 : Math.random() < .5 ? 1 : -1; } }
   return d;
 }
 

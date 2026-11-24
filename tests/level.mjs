@@ -3,14 +3,15 @@
 // time dead. Compare with the 30-minute target (design notes "Level generation v2") and the estimate in `npm run balance`.
 // Columns: walk, loot (walking to drops), fight (packs), guard (the guardian fight), junc (waiting at junctions), dead (waiting to
 // respawn), stop (hit-stop: the game freezes for a moment on big hits); then deaths, junction stops, packs placed and left uncleared.
-// Run `npm run build` first. Usage: npm run level [-- maxTier [seeds]]   (default tiers 1–5, seeds 1–3)
+// Run `npm run build` first. Usage: npm run level [-- maxTier [seeds]]   (default tiers 1–5, seeds 1–5; about a minute)
 //   SEEDS=1,4,9 picks the layout seeds (the map viewer's seeds: tier t plays layout seed + t − 1, like ?seed=), BOT=perfect|careless.
-// Monsters, packs and drops use a fixed random seed per run, so a row repeats exactly.
+// Monsters, packs and drops use a fixed random seed per run, so a row nearly repeats (a little state carries over between runs).
+// After re-measuring, copy the means into LEVEL_TIME.measured (src/data/balance.js) so `npm run balance` shows them.
 import { preview } from 'vite';
 import puppeteer from 'puppeteer-core';
 import { existsSync } from 'node:fs';
 
-const maxTier = Number(process.argv[2]) || 5, nSeeds = Number(process.argv[3]) || 3;
+const maxTier = Number(process.argv[2]) || 5, nSeeds = Number(process.argv[3]) || 5;
 const SEEDS = process.env.SEEDS ? process.env.SEEDS.split(',').map(Number) : Array.from({ length: nSeeds }, (_, i) => i + 1);
 const BOT = process.env.BOT || 'smart';
 const chrome = process.env.CHROME_PATH || ['/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser', '/opt/pw-browsers/chromium'].find(existsSync);

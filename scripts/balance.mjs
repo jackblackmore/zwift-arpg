@@ -68,17 +68,19 @@ console.log(warn ? `${warn} par numbers outside target.` : 'All par numbers insi
 // Level time estimate: a full clear at par (data/balance.js LEVEL_TIME), from the layouts (200 seeds, the map viewer's 1–200) and
 // the maths above: the walk through every room / walking speed at the par pace, + packs × the average pack's clear time (magic packs
 // included) + rare packs × the rare's kill time + the guardian (a full Surge gauge) + junction stops × the wait (data/ride.js).
-// Fight times are the maths floor above; `npm run level` measures a real one (game/levelrun.js).
+// Fight times are the maths floor above; `npm run level` measures a real one (game/levelrun.js; its last means are LEVEL_TIME.measured).
+// Not counted in par numbers outside target: levels are short of the target until build order step 10 tunes them.
 {
   const N = 200; let tour = 0, jn = 0;
   for (let k = 1; k <= N; k++) { const L = generateLevel({}, seeded(k)); tour += tourLen(L) / N; jn += junctionRooms(L).length / N; }
   const E = LEVEL_TIME, m = x => fmt(x / 60).padStart(5);
   console.log(`\nLevel time, full clear at par (estimate; npm run level measures it) · ${fmt(tour, 0)} units of rooms and corridors, ${fmt(jn)} junctions, mean of ${N} layouts · minutes`);
-  console.log('  tier │  walk │ packs │ rares │ guard │ junc  │ total │ target ' + E.target.join('–'));
+  console.log('  tier │  walk │ packs │ rares │ guard │ junc  │ total │ measured │ target ' + E.target.join('–'));
   for (let t = 1; t <= maxTier; t++) {
     const e = levelEst[t]; if (!e) continue;
     const walk = tour / (e.st.ms * rideMove(E.pace)) * E.walkSlack, packs = packCount(t) * e.clear * E.fightSlack, rares = packCount(t) * PACK.rareChance * e.rk * E.fightSlack;
     const guard = e.gs * E.fightSlack, junc = jn * RIDE.junction.wait, total = walk + packs + rares + guard + junc, f = flag(total / 60, E.target);
-    console.log(`  ${String(t).padStart(4)} │ ${m(walk)} │ ${m(packs)} │ ${m(rares)} │ ${m(guard)} │ ${m(junc)} │ ${m(total)} ${f}`);
+    const ms = E.measured[t - 1];
+    console.log(`  ${String(t).padStart(4)} │ ${m(walk)} │ ${m(packs)} │ ${m(rares)} │ ${m(guard)} │ ${m(junc)} │ ${m(total)} ${f} │ ${ms ? fmt(ms).padStart(5) + ' ' + flag(ms, E.target) : '    –  '}  │`);
   }
 }

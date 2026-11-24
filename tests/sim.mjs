@@ -303,6 +303,18 @@ try {
     check(errors.length === 0, `balance: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   }
 
+  // ---------- Level time (src/game/levelrun.js: the RIDE autopilot plays a whole level at par; full table via `npm run level`) ----------
+  {
+    const { page, errors } = await open('/');
+    const r = await page.evaluate(() => { const D = window.__dbg; D.start(true); D.G.paused = true; return D.levelRun({ tier: 1, seed: 7, maxMin: 30 }); });
+    const s = r.split, sum = Object.values(s).reduce((a, v) => a + v, 0);
+    console.log('  level time:', JSON.stringify({ result: r.result, min: r.min, split: s, deaths: r.deaths, junctions: r.junctions, packsLeft: r.packsLeft, stuck: r.stuck }));
+    check(r.result === 'clear' && r.min > 3 && r.min < 30, `level time: the autopilot clears a whole tier 1 level at par, start to guardian (${r.result}, ${r.min} min)`);
+    check(s.walk > 0 && s.fight > 0 && s.guardian > 0 && r.junctions > 0 && s.junction > 0 && s.idle < .2 && Math.abs(sum - r.min) < .05, `level time: its time splits into walking, fighting, the guardian and junction waits (${JSON.stringify(s)})`);
+    check(r.packsLeft <= 1 && r.kills > 50, `level time: a full clear fights (nearly) every pack (${r.packs - r.packsLeft} of ${r.packs}, ${r.kills} kills)`);
+    check(errors.length === 0, `level time: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
+  }
+
   // ---------- Skill gems: the bar, shrines, gem levels, milestones, saves ----------
   {
     const { page, errors } = await open('/');
