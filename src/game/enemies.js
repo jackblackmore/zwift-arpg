@@ -157,7 +157,7 @@ export function updEnemy(e, dt) {
   const frozen = e.freeze > 0; if (frozen) e.freeze -= dt;
   for (const m of M.mats) {
     if (frozen) { m.color.setHex(0xa8eaff); m.emissive.setHex(0x113344); }
-    else { m.color.setHex(m.userData.c); m.emissive.setHex(e.flash > 0 ? 0x888888 : e.shock > 0 && Math.sin(G.gt * 30) > .3 ? 0x2a1a44 : e.rar === 2 ? 0x221a00 : 0); }
+    else { m.color.setHex(m.userData.c); m.emissive.setHex(e.flash > 0 ? 0x888888 : e.shock > 0 && Math.sin(G.gt * 30) > .3 ? 0x2a1a44 : e.chill > 0 ? 0x10384c : e.rar === 2 ? 0x221a00 : 0); }
   }
   if (Math.abs(e.vx) + Math.abs(e.vz) > .01) { e.x += e.vx * dt; e.z += e.vz * dt; const f = Math.exp(-8 * dt); e.vx *= f; e.vz *= f; }
   if (e.stun > 0) { e.stun -= dt; if (Math.random() < dt * 10) emit(sparks, e.x + rand(-.3, .3), e.h + .2, e.z + rand(-.3, .3), rand(-1, 1), rand(.5, 1.5), rand(-1, 1), .4, 0xffd23f, 0, 1); pushOut(e); return animE(e, dt); } // staggered or parried

@@ -3,7 +3,8 @@
 //   spec: { tier, lvl, gear: 'start' | 'magic' | 'rare', fight: [[type, count], ...], rar: 0 | 1 | 2 (for the whole group),
 //           rare: type (adds one rare), guardian: true, maxT: seconds, bot: 'smart' (default) | 'perfect' | 'careless',
 //           bar: { slot: [gemId, level] } (default: parBar(tier) in data/balance.js), main: gemId (swap the Main gem, same level),
-//           sock: { slot: [supportId, ...] } (default: parSock(tier, Main gem); {} for none), surge: false (never surge) }
+//           sock: { slot: [supportId, ...] } (default: parSock(tier, Main gem); {} for none), surge: false (never surge),
+//           guard: gemId (swap the Guard gem, same level, e.g. a shield art) }
 // The bot uses whatever is on the bar. With a melee Main gem it walks into reach of its target (guardian and rares first, then the
 // nearest) and lets the auto-attack swing; a held ranged gem is held on the target from casting range. It taps press gems (Main or
 // Flex) when enough monsters are in reach (SK[...].bot), drinks flasks under half life, and surges against rares, guardians and
@@ -11,8 +12,9 @@
 // (design notes "Fight mechanics"). With the Knight's Shield and Roll it plays the timing game at a reaction skill (SKILL below):
 // it decides once per threat whether it reacts in time. Against a guardian it keeps some Surge back and surges through its channels. A swing it sees coming: parry (else block, else nothing). A heavy (slam,
 // bloater, burning pulse): roll just before it lands (else block). An unblockable (charge, volatile blast): roll (else nothing).
-// Bolts and arrows flying at it: block. 'careless' never Guards or Evades. A Guard gem other than the shield (Magic Shield, Frost
-// Ward) is cast when a hit is coming. Obstacles are cleared so fights repeat.
+// Bolts and arrows flying at it: block. 'careless' never Guards or Evades. The shield arts (Magic Shield, Frost Ward; spec.guard
+// swaps one into Guard) are played the same way: they change what the block and parry do, not when to press. A Guard gem that
+// isn't a shield would be cast when a hit is coming. Obstacles are cleared so fights repeat.
 import { G, P, S } from '../core/state.js';
 import { ctl } from '../input/input.js';
 import { SK } from '../data/skills.js';
@@ -39,6 +41,7 @@ export function arena(spec) {
     blocking: false, parryT: 0, parryCd: 0, posture: 0, broken: 0, riposteT: 0, rollT: 0, apPause: 0, flaskT: 0, kills: 0, staggers: 0, finishers: 0, chans: 0, chanBroken: 0, taken: 0, takenBy: {}, gems: [], bar: {}, sock: {}, cd: {}, shrined: { main: 1, flexA: 1, flexB: 1, guard: 1, evade: 1 } });
   const bar = { ...(spec.bar || parBar(tier)) };
   if (spec.main && bar.main) { bar.main = [spec.main, bar.main[1]]; for (const s of BAR) if (s !== 'main' && bar[s] && bar[s][0] === spec.main) delete bar[s]; }
+  if (spec.guard && bar.guard) bar.guard = [spec.guard, bar.guard[1]];
   for (const [slot, [gem, gl]] of Object.entries(bar)) P.bar[slot] = addGem(gem, gl).id;
   for (const [slot, sups] of Object.entries(spec.sock || parSock(tier, bar.main && bar.main[0]))) for (const sup of sups) socketGem(addGem(sup).id, slot);
   recalc(); readySlots(); P.life = S.maxLife; P.surge = S.surgeMax; P.spent = false; P.surgeWait = 0; P.flask = SK.flask.max;

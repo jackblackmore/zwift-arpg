@@ -57,7 +57,7 @@ function land(id, a, n, mult, at) {
   if (at) near(at.cx, at.cz, at.r, e => T.list.push(e));
   const freezeNow = id === 'fstrike' && M && n % M.every === 0 && mult === 1;
   // A riposte: the first swing to connect after a parry (data/skills.js SK.block) hits harder (and so staggers more).
-  const rip = mult === 1 && !at && T.list.length && P.riposteT > 0 ? SK.block.riposte : 1;
+  const rip = mult === 1 && !at && T.list.length && P.riposteT > 0 ? P.riposteMul || SK.block.riposte : 1; // the shield art in Guard can change it (SK[art].guard)
   if (rip > 1) { P.riposteT = 0; floatT(P.x, 2.6, P.z, 'RIPOSTE', '#ffd23f', 15); }
   for (const e of T.list) {
     const d = dist(e.x, e.z, P.x, P.z) || 1, dmg = hit(e, K.mult * mult * rip, elem, { gem: id, kx: (e.x - P.x) / d, kz: (e.z - P.z) / d, kb: K.kb });

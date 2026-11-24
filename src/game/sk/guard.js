@@ -3,6 +3,8 @@
 // guard (stunned, taking extra damage). Press Guard just before a hit lands to parry: no damage, almost no posture, the attacker
 // staggers, and your next swing is a riposte. Raising the shield or rolling cancels the swing you were winding up (the Main gem
 // auto-attacks, so you didn't choose to commit to it). Unblockable attacks go through a block and break your guard.
+// Shield arts (Magic Shield, Frost Ward; game/sk/arts.js) are Guard gems that keep all of this and change it: SK[art].guard
+// overrides the block numbers, and the art's parry() and block() run on a parry or a blocked hit.
 import { G, P, S, shake, stop } from '../../core/state.js';
 import { SK } from '../../data/skills.js';
 import { GEMS } from '../../data/gems.js';
@@ -13,11 +15,16 @@ import { flashFx, ringFx, floatT, burst } from '../../render/fx.js';
 import { barGem } from '../gems.js';
 import { cancelSwing } from './strike.js';
 import { parried } from '../combat.js';
+import { ART } from './arts.js';
 
 const wrap = a => ((a + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
 const hex = c => '#' + c.toString(16).padStart(6, '0');
 // Is the Guard slot's gem the shield?
 export const hasShield = () => { const g = barGem('guard'); return !!g && !!GEMS[g.gem].shield; };
+// The shield art in Guard (a GEMS id with `art`), or null for the plain Knight's Shield.
+export const guardArt = () => { const g = barGem('guard'); return (g && GEMS[g.gem].art) || null; };
+// The block numbers in use: SK.block with the art's overrides.
+export const blockStats = () => { const a = guardArt(); return a && SK[a].guard ? { ...SK.block, ...SK[a].guard } : SK.block; };
 
 // Every tick from updPlayer. down: Guard held; tapped: Guard pressed since last tick.
 export function updGuard(dt, down, tapped) {
@@ -48,7 +55,7 @@ function threat() {
 // A hit is about to land on you. d: its damage; o: { from: {x, z} where it comes from, kind: 'hit' | 'heavy' | 'unblockable',
 // by: the monster (for a parry's stagger), elem: elemental }. Returns the damage left after the shield and sets o.result.
 export function shieldHit(d, o) {
-  const B = SK.block, kind = o.kind || 'hit';
+  const B = blockStats(), kind = o.kind || 'hit', art = ART[guardArt()];
   if (P.broken > 0) { o.result = 'broken'; return d * B.brokenMul; }
   if (!P.blocking || !o.from) return d;
   const dd = dist(o.from.x, o.from.z, P.x, P.z), off = Math.abs(wrap(Math.atan2(o.from.x - P.x, o.from.z - P.z) - P.face));
@@ -57,17 +64,18 @@ export function shieldHit(d, o) {
   const cost = d / S.maxLife * B.posture;
   if (kind === 'hit' && P.parryT > 0) {
     P.posture = Math.min(.99, P.posture + cost * B.parryPosture); P.postWait = B.drainDelay;
-    P.parryCd = 0; P.riposteT = B.riposteT; P.castSeq++; P.lastCast = 'parry'; o.result = 'parry';
+    P.parryCd = 0; P.riposteT = B.riposte > 1 ? B.riposteT : 0; P.riposteMul = B.riposte; P.castSeq++; P.lastCast = 'parry'; o.result = 'parry';
     const fx = P.x + Math.sin(P.face) * .7, fz = P.z + Math.cos(P.face) * .7;
     flashFx(fx, 1.2, fz, TELL.parry, 3.2, .25); burst(fx, 1.2, fz, TELL.parry, 18, 6); floatT(P.x, 2.6, P.z, 'PARRY', hex(TELL.parry), 16);
     SFX.parry(); stop(.09); shake(.12);
     if (o.by) parried(o.by);
+    if (art) art.parry(o.by);
     return 0;
   }
   P.posture += cost; P.postWait = B.drainDelay;
   if (P.posture >= 1) { breakGuard(); o.result = 'broken'; return d; }
   P.castSeq++; P.lastCast = 'blockhit'; o.result = 'block'; SFX.block();
-  ringFx(P.x + Math.sin(P.face) * .6, P.z + Math.cos(P.face) * .6, .7, 0xe8d8a8, .2, .3);
+  ringFx(P.x + Math.sin(P.face) * .6, P.z + Math.cos(P.face) * .6, .7, art ? art.col : 0xe8d8a8, .2, .3);
   return d * (1 - (o.elem ? B.elem : kind === 'heavy' ? B.heavy : B.block));
 }
 

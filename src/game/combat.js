@@ -110,8 +110,9 @@ export function hurtP(d, src = '?', o = {}) {
   if (P.dead > 0 || P.invuln > 0) return 'miss';
   d = shieldHit(d, o); if (o.result === 'parry') return 'parry';
   if (o.by && o.by.stagMax && o.result !== 'block' && !(o.by.stun > 0)) o.by.stag = Math.max(0, (o.by.stag || 0) - STAGGER.recover); // it landed one: it steadies
-  d *= 1 - S.dr; if (P.wardT > 0) d *= 1 - SK.ward.dr;
-  if (P.shield > 0) { const a = Math.min(P.shield, d); P.shield -= a; d -= a; floatT(P.x, 2.4, P.z, Math.round(a), '#9fc8ff', 12); if (d <= 0) return o.result || 'hit'; }
+  d *= 1 - S.dr;
+  if (P.shield > 0) { // Magic Shield's parry barrier (game/sk/arts.js)
+    const a = Math.min(P.shield, d); P.shield -= a; d -= a; floatT(P.x, 2.4, P.z, Math.round(a), '#9fc8ff', 12); if (d <= 0) return o.result || 'hit'; }
   P.life -= d; P.taken = (P.taken || 0) + d; if (P.takenBy) P.takenBy[src] = (P.takenBy[src] || 0) + d;
   floatT(P.x, 2.1, P.z, Math.round(d), '#ff5050', 13); G.vign = Math.min(.9, G.vign + .35); SFX.hurt();
   if (P.life <= 0) {
