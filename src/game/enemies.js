@@ -174,8 +174,13 @@ export function updEnemy(e, dt) {
     const tg = meleeTarget(e, d), td = tg === P ? d : dist(e.x, e.z, tg.x, tg.z);
     if (e.windup > 0) {
       e.windup -= dt; e.face = Math.atan2(tg.x - e.x, tg.z - e.z);
-      if (e.windup <= 0) { e.swing = 1; if (td < e.range + e.r + tg.r + FIGHT.reach) { if (tg === P) hurtP(e.dmg, e.type, { from: e, by: e }); else tg.hurt(e.dmg * (e.type === 'boss' ? BOSS.vsMinion : 1)); if (e.type === 'boss') { shake(.3); SFX.slam(); hurtMinions(e.x, e.z, e.range + e.r + FIGHT.reach, e.dmg * BOSS.vsMinion, tg); } } e.atkT = (e.channel ? BOSS.channel.swingCd : e.cd) * cdm; }
-    } else if (td < e.range + e.r + tg.r) { e.face = Math.atan2(tg.x - e.x, tg.z - e.z); e.atkT -= dt; if (e.atkT <= 0) { e.windup = e.type === 'boss' ? FIGHT.windup.boss : FIGHT.windup.melee; e.atkSeq = (e.atkSeq || 0) + 1; if ((e.type === 'boss' || e.rar === 2) && tg === P) { cue('parry'); flashFx(e.x, e.h * .8, e.z, TELL.parry, e.r * 3, e.windup); } } }
+      if (e.windup <= 0) {
+        e.swing = 1; const hv = e.heavy, dmg = e.dmg * (hv ? RARE.heavy.dmg : 1); e.heavy = false;
+        if (td < e.range + e.r + tg.r + FIGHT.reach) { if (tg === P) hurtP(dmg, hv ? 'heavy' : e.type, { from: e, by: e, kind: hv ? 'heavy' : 'hit' }); else tg.hurt(dmg * (e.type === 'boss' ? BOSS.vsMinion : 1)); if (e.type === 'boss' || hv) { shake(hv ? .4 : .3); SFX.slam(); hurtMinions(e.x, e.z, e.range + e.r + FIGHT.reach, dmg * BOSS.vsMinion, tg); } }
+        if (hv) { ringFx(e.x, e.z, e.range + e.r + FIGHT.reach, TELL.heavy, .3, .3); burst(e.x + Math.sin(e.face) * e.range, .5, e.z + Math.cos(e.face) * e.range, TELL.heavy, 18, 5); }
+        e.atkT = (e.channel ? BOSS.channel.swingCd : e.cd) * cdm;
+      }
+    } else if (td < e.range + e.r + tg.r) { e.face = Math.atan2(tg.x - e.x, tg.z - e.z); e.atkT -= dt; if (e.atkT <= 0) startSwing(e, tg); }
     else if (!e.channel) moveE(e, P.x, P.z, spd, dt); // channelling: rooted, but it still swings at you
   } else if (e.ai === 'ranged') {
     if (e.windup > 0) { e.windup -= dt; e.face = Math.atan2(P.x - e.x, P.z - e.z); if (e.windup <= 0) { e.swing = 1; eShoot(e, e.face + rand(-FIGHT.arrowJitter, FIGHT.arrowJitter), FIGHT.arrowSpeed, e.dmg, 'arrow'); e.shootT = e.cd * cdm * rand(FIGHT.shotJitter[0], FIGHT.shotJitter[1]); } }
@@ -188,6 +193,18 @@ export function updEnemy(e, dt) {
     else moveE(e, P.x, P.z, spd, dt);
   }
   pushOut(e); animE(e, dt);
+}
+
+// A melee swing begins. The guardian's and rares' swings at you are parryable (yellow); every few swings a rare winds up a heavy
+// one instead (red, RARE.heavy): block it for less or roll it.
+function startSwing(e, tg) {
+  const H = RARE.heavy, rare = e.rar === 2 && e.type !== 'boss';
+  if (rare && e.heavyIn === undefined) e.heavyIn = Math.round(rand(H.every[0], H.every[1]));
+  e.heavy = rare && tg === P && e.heavyIn <= 0;
+  if (e.heavy) e.heavyIn = Math.round(rand(H.every[0], H.every[1])); else if (rare && tg === P) e.heavyIn--;
+  e.windup = e.heavy ? H.windup : e.type === 'boss' ? FIGHT.windup.boss : FIGHT.windup.melee; e.atkSeq = (e.atkSeq || 0) + 1;
+  if (e.heavy) { cue('heavy'); flashFx(e.x, e.h * .8, e.z, TELL.heavy, e.r * 4, e.windup); telegraph(e.x, e.z, e.range + e.r + FIGHT.reach, e.windup, TELL.heavy); }
+  else if ((e.type === 'boss' || rare) && tg === P) { cue('parry'); flashFx(e.x, e.h * .8, e.z, TELL.parry, e.r * 3, e.windup); }
 }
 
 // Minions (G.minions, e.g. Raise Skeletons) draw melee aggro: a monster swings at one that's in its reach and closer than
@@ -305,7 +322,7 @@ function animRig(e, M, dt) {
   }
   else if (e.riseAnim) { const R = e.riseAnim; e.riseAnim = null; once([R.clip, R.speed], .05); }
   else if (e.cast && e.castAnim !== e.cast) { e.castAnim = e.cast; once(ANIM.bossCast[e.cast.kind]); }
-  else if (e.windup > 0 && e.swingAnim !== e.atkSeq && L.attacks) { e.swingAnim = e.atkSeq; once(pick(L.attacks)); }
+  else if (e.windup > 0 && e.swingAnim !== e.atkSeq && L.attacks) { e.swingAnim = e.atkSeq; const [n, sp] = pick(L.attacks); once([n, e.heavy ? sp * FIGHT.windup.melee / RARE.heavy.windup : sp]); } // a heavy swing plays slower
   else if (big && e.lock <= 0 && e.windup <= 0 && e.type !== 'boss') once([pick(ANIM.hits), ANIM.hitSpeed], .05);
   else if (e.lock <= 0) {
     if (e.moving) { const run = L.walk === 'Running_A'; M.play(L.walk, { speed: Math.min(1.8, Math.max(.6, e.spd * (e.chill > 0 ? .5 : 1) / (run ? 3.6 : 1.7))) }); }

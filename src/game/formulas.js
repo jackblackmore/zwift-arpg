@@ -62,6 +62,7 @@ export function gemDps(st, id) {
     n = ESTIMATE.targets[id] * (k.sweep ? ESTIMATE.sweep : 1);
     if (k.aftershock) one *= 1 + SUPPORTS.aftershock.mult;
     if (k.brittle) one *= 1 + SUPPORTS.brittle.taken * .5; // about half its hits land on an already-brittle target
+    const M = D.mile; if (st.mile && st.mile[id] && M.every && M.mult) one *= 1 + (M.mult - 1) / M.every; // the Sword's heavy cut
   } else if (id === 'arc') n = 1 + k.chains * ESTIMATE.perChain;
   if (k.ignite) one *= 1 + SUPPORTS.ignite.share;
   return { rate, one, pack: one * n, dps: one * rate, packDps: one * n * rate };

@@ -53,6 +53,7 @@ try {
       cleave: [pc(M('cleave').arc - 1) + ' wider', pc(M('cleave').reach - 1) + ' further'], fstrike: ['Every ' + M('fstrike').every + 'rd', M('fstrike').freeze + 's'], slam: ['+' + pc(M('slam').radius - 1)], arc: ['+' + M('arc').add.chains + ' chains'], nova: ['+' + pc(M('nova').add.novaR)],
       totem: [pc(M('totem').dur - 1)], meteor: ['+' + pc(M('meteor').radius - 1)], shield: [pc(M('shield').add.shieldPct)],
       ward: ['+' + pc(M('ward').radius - 1)], dash: ['+' + M('dash').add.dashCh + ' charge'],
+      sword: ['Every ' + M('sword').every + 'rd', pc(M('sword').mult - 1) + ' more damage', M('sword').stagger === 2 ? 'twice the stagger' : M('sword').stagger + '× the stagger'],
     };
     // Shield arts: their gem text carries their numbers (SK.shield, SK.ward).
     const art = { shield: [pc(SK.shield.barrier), pc(SK.shield.cap), SK.shield.dur + 's'], ward: [SK.ward.chill + 's', SK.ward.dur + 's'] };
@@ -614,6 +615,27 @@ try {
       // Bloaters: killed before the fuse runs out, no blast; a fuse that runs out blows up.
       clear(); const bl = foe('bloater', 0, 4); D.kill(bl); out.defused = !G.queue.some(q => q.k === 'bloat');
       const bl2 = foe('bloater', 0, 1); bl2.spd = 0; D.sim(40); out.fused = bl2.deathT > 0 && bl2.fused;
+      // A rare's heavy swing (RARE.heavy): after a few parryable swings it winds up a longer red one that hits harder; a parry press
+      // only blocks it (like the guardian's slam), and a roll avoids it.
+      const H = D.RARE.heavy, rareFoe = () => { clear(); const e = D.spawnEnemy('zombie', P.x, P.z + 1.4, null, 2); e.awake = true; e.spd = 0; e.hp = e.maxHp = 1e6; e.aff = []; e.fireAura = null; e.cd = .5; e.atkT = .1; e.rise = 0; return e; };
+      let rr = rareFoe(); const swings = []; let sawHeavy = null, lastSeq = 0;
+      for (let i = 0; i < 600 && swings.length < 8; i++) {
+        P.life = S.maxLife; P.invuln = 0; const l = P.life, wasHeavy = rr.heavy, w0 = rr.windup; D.sim(1);
+        if (rr.atkSeq !== lastSeq) { lastSeq = rr.atkSeq; if (rr.heavy && !sawHeavy) sawHeavy = { windup: Math.round(rr.windup * 100) / 100 }; }
+        if (w0 > 0 && rr.windup <= 0 && l > P.life) swings.push({ heavy: wasHeavy, dmg: l - P.life });
+      }
+      const plainS = swings.filter(x => !x.heavy), heavyS = swings.filter(x => x.heavy);
+      out.rareHeavy = { seen: !!sawHeavy, windup: sawHeavy && sawHeavy.windup, plain: plainS.length, heavy: heavyS.length, ratio: heavyS.length && plainS.length ? Math.round(heavyS[0].dmg / plainS[0].dmg * 100) / 100 : 0 };
+      out.rareHeavyOk = !!sawHeavy && sawHeavy.windup > D.SK.block.parry * 2 && heavyS.length > 0 && plainS.length >= H.every[0] && out.rareHeavy.ratio > H.dmg * .8;
+      // At the heavy's landing: a parry press doesn't parry it (it's blocked for less), a roll takes nothing.
+      const toHeavy = () => { rr = rareFoe(); rr.heavyIn = 0; rr.atkT = .05; for (let i = 0; i < 10 && !(rr.windup > 0); i++) D.sim(1); return rr.heavy; };
+      out.heavyStarts = toHeavy(); while (rr.windup > D.SK.block.parry * .5) D.sim(1);
+      ctl.tap.guard = true; const lp = P.life; D.sim(8); out.heavyParry = P.life < lp && P.life > lp - rr.dmg * H.dmg * (1 - S.dr) * .7 && P.lastCast !== 'parry' && !(rr.stun > 0);
+      ctl.guard = false; P.blocking = false;
+      toHeavy(); while (rr.windup > D.SK.roll.invuln * .5) D.sim(1); ctl.tap.evade = true; const lr = P.life; D.sim(8); out.heavyRoll = P.life === lr;
+      // Flame Dash goes through the monster you aim at and ends beyond it, hitting it on the way.
+      clear(); const fz = foe('zombie', 0, 3); D.sim(1); ctl.aim = [fz.x, fz.z]; const pz0 = P.z; D.castDash(); ctl.aim = null;
+      out.dashEnd = Math.round((P.z - fz.z) * 100) / 100; out.dashThrough = P.z > fz.z + fz.r && fz.hp < fz.maxHp && P.z - pz0 <= D.SK.dash.range + .01;
       // The guardian's swings and slams carry a telegraph cue over the hero.
       clear(); ctl.guard = false;
       return out;
@@ -635,6 +657,9 @@ try {
     check(r.surgeFaster, `fight: Surge fills stagger faster during a channel (stagger per swing: surging in a channel, not surging in one, surging outside one: ${r.chanSurge})`);
     check(r.rideSpike, `fight: in RIDE mode a short effort spike fills a channelling guardian's stagger (${r.spike} in 1 s at 160% FTP), steady riding doesn't`);
     check(r.defused && r.fused, 'fight: a bloater killed before its fuse runs out doesn\'t blow up; one whose fuse runs out does');
+    check(r.rareHeavyOk, `fight: a rare eventually winds up a red heavy swing (${JSON.stringify(r.rareHeavy)}): a longer windup and it hits harder`);
+    check(r.heavyStarts && r.heavyParry && r.heavyRoll, `fight: a rare's heavy swing can't be parried (a parry press blocks it for less) and a roll avoids it (${r.heavyStarts}, ${r.heavyParry}, ${r.heavyRoll})`);
+    check(r.dashThrough, `fight: Flame Dash goes through the monster you aim at, hitting it, and ends beyond it (${r.dashEnd} past its centre)`);
     check(errors.length === 0, `fight: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   }
 
@@ -697,6 +722,13 @@ try {
       clear(); let e = foe(0, 1.5); swing('fstrike'); out.chill = e.chill > 0;
       const g = P.gems.find(x => x.id === P.bar.main); g.gem = 'fstrike'; g.lvl = 5; D.recalc(); P.atkN = 0;
       swing('fstrike'); const f1 = e.freeze > 0; swing('fstrike'); const f2 = e.freeze > 0; swing('fstrike'); out.freeze3 = !f1 && !f2 && e.freeze > 0;
+      // The Sword's level 5 milestone: every 3rd swing is a heavy cut (more damage and more stagger). Crits and the spread are pinned.
+      { const crit = S.crit, rnd = Math.random; g.gem = 'sword'; g.lvl = 5; D.recalc(); S.crit = 0; Math.random = () => .5; clear();
+        const rz = D.spawnEnemy('zombie', P.x, P.z + 1.5, null, 2); rz.awake = true; rz.spd = 0; rz.atkT = 99; rz.hp = rz.maxHp = 5000; rz.aff = []; rz.fireAura = null; P.atkN = 0;
+        const cuts = []; for (let i = 0; i < 3; i++) { const h = rz.hp, st = rz.stag; swing('sword'); cuts.push([h - rz.hp, rz.stag - st]); }
+        g.lvl = 4; D.recalc(); P.atkN = 2; const h4 = rz.hp; swing('sword'); const l4 = h4 - rz.hp; S.crit = crit; Math.random = rnd;
+        const Ms = D.GEMS.sword.mile; out.cut = cuts.map(c => Math.round(c[0])).join(',') + ' · L4 3rd: ' + Math.round(l4);
+        out.heavyCut = Math.abs(cuts[2][0] / cuts[0][0] - Ms.mult) < .05 && Math.abs(cuts[1][0] - cuts[0][0]) < 1 && cuts[2][1] > cuts[0][1] * (Ms.stagger - .1) && Math.abs(l4 - cuts[0][0]) < 1; g.gem = 'fstrike'; g.lvl = 5; D.recalc(); }
       // Thunder Slam knocks back harder than Cleave.
       clear(); e = foe(0, 1.8); e.hp = e.maxHp = 1e6; const z0 = e.z; P.aimAt = [P.x, P.z + 5]; D.strike('slam'); P.aimAt = null; D.sim(14); out.kbSlam = e.z - z0;
       clear(); e = foe(0, 1.5); const z1 = e.z; P.aimAt = [P.x, P.z + 5]; D.strike('cleave'); P.aimAt = null; D.sim(9); out.kbCleave = e.z - z1;
@@ -724,6 +756,7 @@ try {
     console.log('  melee:', JSON.stringify(r));
     check(r.shape.cleave === '110' && r.shape.fstrike === '100' && r.shape.slam === '110', `melee: Cleave hits the wide front, Frost Strike a narrow one, Slam a circle ahead; none hit behind (${JSON.stringify(r.shape)})`);
     check(r.chill && r.freeze3, 'melee: Frost Strike chills, and at level 5 every 3rd strike freezes');
+    check(r.heavyCut, `melee: at level 5 every 3rd Sword swing is a heavy cut, hitting harder and staggering more (damage ${r.cut})`);
     check(r.kbSlam > r.kbCleave && r.kbCleave >= 0 && r.kbCleave < .6, `melee: Thunder Slam knocks back, Cleave only nudges (${r.kbSlam.toFixed(2)} vs ${r.kbCleave.toFixed(2)})`);
     check(r.brittle && r.aftershock && r.ignite, `melee: Brittle marks, Aftershock hits again, Ignite burns (${r.brittle}, ${r.aftershock}, ${r.ignite})`);
     check(r.noSleeper && r.noFar && r.swings > 0 && r.hitNear, `melee: auto-attack swings at an awake monster in reach, not a sleeping or distant one (${r.swings} swings)`);

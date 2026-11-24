@@ -49,18 +49,20 @@ export function strike(id) {
 // Raising the shield or rolling drops the swing being wound up (game/sk/guard.js, game/sk/roll.js) and frees the next one.
 export function cancelSwing() { P.swingTok = (P.swingTok || 0) + 1; P.castT = 0; P.castAnim = 0; }
 
-// The hit. n: which swing this is (Frost Strike's milestone, Heart of the Storm). mult: × the damage (Aftershock's echo).
+// The hit. n: which swing this is (the Sword's and Frost Strike's milestones, Heart of the Storm). mult: × the damage (Aftershock's echo).
 function land(id, a, n, mult, at) {
   if (P.dead > 0) return;
   const K = SK[id], k = S.sk[id], D = GEMS[id], elem = D.elem, M = S.mile && S.mile[id] ? D.mile : null, c = COL[elem];
   const T = at ? { list: [], ...at } : targets(id, P.x, P.z, a);
   if (at) near(at.cx, at.cz, at.r, e => T.list.push(e));
   const freezeNow = id === 'fstrike' && M && n % M.every === 0 && mult === 1;
+  const cut = id === 'sword' && M && n % M.every === 0 && mult === 1 && !at; // the Sword's milestone: every 3rd swing is a heavy cut
   // A riposte: the first swing to connect after a parry (data/skills.js SK.block) hits harder (and so staggers more).
   const rip = mult === 1 && !at && T.list.length && P.riposteT > 0 ? P.riposteMul || SK.block.riposte : 1; // the shield art in Guard can change it (SK[art].guard)
   if (rip > 1) { P.riposteT = 0; floatT(P.x, 2.6, P.z, 'RIPOSTE', '#ffd23f', 15); }
+  if (cut && T.list.length) { floatT(P.x, 2.4, P.z, 'HEAVY CUT', '#e8ecf4', 13); shake(.1); }
   for (const e of T.list) {
-    const d = dist(e.x, e.z, P.x, P.z) || 1, dmg = hit(e, K.mult * mult * rip, elem, { gem: id, kx: (e.x - P.x) / d, kz: (e.z - P.z) / d, kb: K.kb });
+    const d = dist(e.x, e.z, P.x, P.z) || 1, dmg = hit(e, K.mult * mult * rip * (cut ? M.mult : 1), elem, { gem: id, kx: (e.x - P.x) / d, kz: (e.z - P.z) / d, kb: K.kb * (cut ? 2 : 1), stag: cut ? M.stagger / M.mult : 1 });
     if (e.deathT) continue;
     if (k.ignite) { const IG = SUPPORTS.ignite; e.burnT = IG.dur; e.burnDps = Math.max(e.burnDps, dmg * IG.share / IG.dur); }
     if (K.chill) e.chill = Math.max(e.chill, K.chill);
@@ -74,7 +76,7 @@ function land(id, a, n, mult, at) {
       const t = a + (i / 15 - .5) * 2 * T.half, rr = T.r * rand(.6, .95), x = P.x + Math.sin(t) * rr, z = P.z + Math.cos(t) * rr;
       emit(sparks, x, rand(.6, 1.3), z, Math.cos(t) * 3, rand(.5, 2), -Math.sin(t) * 3, rand(.2, .35), pick(c), 2, 2);
     }
-    flashFx(T.cx, 1, T.cz, c[0], T.r * 1.4, .12);
+    flashFx(T.cx, 1, T.cz, c[0], T.r * (cut ? 2 : 1.4), cut ? .2 : .12);
   } else {
     ringFx(T.cx, T.cz, T.r, c[0], .3, .3); flashFx(T.cx, .5, T.cz, c[1], T.r * 2.2, .2);
     for (let i = 0; i < 26; i++) { const t = rand(0, 6.28), s = rand(3, 8); emit(sparks, T.cx, .3, T.cz, Math.cos(t) * s, rand(1, 4), Math.sin(t) * s, rand(.3, .5), pick(c), 6, 2); }
@@ -82,7 +84,7 @@ function land(id, a, n, mult, at) {
   }
   if (T.list.length) {
     if (mult === 1) P.life = Math.min(S.maxLife, P.life + S.loh * Math.min(T.list.length, HERO.lifeOnHitMax)); // life on hit
-    stop(K.stop * mult); SFX.thud(); if (T.half !== undefined) shake(.04);
+    stop(K.stop * mult * (cut ? 2 : 1)); SFX.thud(); if (cut) SFX.thud(); if (T.half !== undefined) shake(.04);
     if (k.burnGround) addPatch(T.cx, T.cz, EXTRA.burnGround.r * S.aoe, EXTRA.burnGround.dur, id);
     if (S.storm && mult === 1 && n % EXTRA.storm.every === 0) { const e = T.list[0]; castArc(e.x, e.z, true); }
   }

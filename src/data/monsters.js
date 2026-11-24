@@ -78,5 +78,8 @@ export const FIGHT = { windup: { melee: .42, boss: .7, ranged: .45 }, reach: .45
 export const BLAST = { bloater: { r: 2.2, dmg: .7, delay: .15, kind: 'heavy' }, volatile: { r: 2.6, dmg: 1.2, delay: .9, kind: 'unblockable' }, vsMonsters: 20 };
 // Rare monsters: size and radius multipliers, affixes rolled (more from tier `moreFrom`), and what each affix does.
 //   fortified's life is in data/balance.js RARITY.rare. burning: a fire pulse (heavy) every `every` s within r for `dmg` (× the tier's damage growth), telegraphed `windup` s.
-export const RARE = { size: 1.4, radius: 1.35, affixes: 2, moreFrom: 3, more: 3,
+//   heavy (🔴, melee rares): after `every` [min, max] of its parryable swings, the next is a heavy swing: a `windup` s red wind-up
+//   (FIGHT.windup.melee for the others), then `dmg` × its damage. It can't be parried (a parry press blocks it, like the guardian's
+//   slam): block it for less (SK.block.heavy) or roll it. Staggering the rare during the wind-up cancels it.
+export const RARE = { size: 1.4, radius: 1.35, affixes: 2, moreFrom: 3, more: 3, heavy: { every: [2, 3], windup: 1, dmg: 3.2 },
   hasted: { spd: 1.5, cd: .7 }, frenzied: { cd: .55, dmg: 1.1 }, fortified: { size: 1.12 }, burning: { r: 2.75, dmg: 16, every: 3.2, windup: .8 }, splitting: { n: 3, type: 'runner' } };

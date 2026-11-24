@@ -7,7 +7,7 @@ import { ctl } from '../input/input.js';
 import { rand, pick, dist } from '../core/util.js';
 import { SFX } from '../core/audio.js';
 import { scene, flashLight } from '../render/scene.js';
-import { sparks, glows, emit, ringFx, flashFx, boltFx } from '../render/fx.js';
+import { sparks, glows, emit, ringFx, flashFx, boltFx, burst } from '../render/fx.js';
 import { blocked } from '../world/map.js';
 import { near } from './enemies.js';
 import { hit, addPatch } from './combat.js';
@@ -61,16 +61,22 @@ export function castNova(free = false) {
   flashLight(P.x, P.z, 0x7fd8ff, 4, .35); SFX.nova(); shake(.12); return true;
 }
 
+// Flame Dash: through the monster you aim at (ending SK.dash.past beyond it), hitting each monster it passes once and leaving
+// burning ground. With no aim point it goes the way you're moving (or facing), its full range.
 export function castDash() {
   const D = SK.dash;
-  // Toward the aim point if the device gives one, else the way the player is moving, else facing.
   let a, L = D.range;
-  if (ctl.aim) { a = Math.atan2(ctl.aim[0] - P.x, ctl.aim[1] - P.z); L = Math.min(D.range, dist(ctl.aim[0], ctl.aim[1], P.x, P.z) || D.range); }
-  else a = Math.hypot(ctl.mx, ctl.mz) > .1 ? Math.atan2(ctl.mx, ctl.mz) : P.face;
-  const sx = P.x, sz = P.z; let lastPatch = -1;
+  if (ctl.aim) {
+    const [ax, az] = ctl.aim; a = Math.atan2(ax - P.x, az - P.z);
+    let tgt = null, bd = 1.5; for (const e of G.enemies) { if (e.deathT) continue; const d = dist(e.x, e.z, ax, az) - e.r; if (d < bd) { bd = d; tgt = e; } } // a monster at the aim point
+    if (tgt) { a = Math.atan2(tgt.x - P.x, tgt.z - P.z); L = Math.min(D.range, dist(tgt.x, tgt.z, P.x, P.z) + tgt.r + P.r + D.past); }
+    else L = Math.min(D.range, dist(ax, az, P.x, P.z) || D.range);
+  } else a = Math.hypot(ctl.mx, ctl.mz) > .1 ? Math.atan2(ctl.mx, ctl.mz) : P.face;
+  const sx = P.x, sz = P.z, hitS = new Set(); let lastPatch = -1;
   for (let t = 0; t <= L; t += .2) {
     const nx = sx + Math.sin(a) * t, nz = sz + Math.cos(a) * t; if (blocked(nx, nz, P.r)) break;
     P.x = nx; P.z = nz;
+    near(nx, nz, P.r + .2, e => { if (hitS.has(e)) return; hitS.add(e); const sd = (e.x - nx) * Math.cos(a) - (e.z - nz) * Math.sin(a) < 0 ? -1 : 1; hit(e, D.mult, 'fire', { gem: 'dash', kx: Math.cos(a) * sd, kz: -Math.sin(a) * sd }); burst(e.x, 1, e.z, 0xff6a1a, 10, 4); }); // knocked aside
     if (t - lastPatch >= D.patchEvery) { lastPatch = t; addPatch(nx, nz, D.patchR * S.aoe, SK.burn.life, 'dash'); }
     for (let i = 0; i < 2; i++) emit(glows, nx + rand(-.2, .2), rand(.4, 1.4), nz + rand(-.2, .2), 0, rand(.5, 2), 0, rand(.3, .6), 0xff5a10, 0, 1);
   }

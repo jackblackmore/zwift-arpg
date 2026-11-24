@@ -11,7 +11,7 @@
 // crowds of four or more. It never steps out of anything: like the autopilot, it stands in reach, so defence is all timing
 // (design notes "Fight mechanics"). With the Knight's Shield and Roll it plays the timing game at a reaction skill (SKILL below):
 // it decides once per threat whether it reacts in time. Against a guardian it keeps some Surge back and surges through its channels. A swing it sees coming: parry (else block, else nothing). A heavy (slam,
-// bloater, burning pulse): roll just before it lands (else block). An unblockable (charge, volatile blast): roll (else nothing).
+// a rare's heavy swing, bloater, burning pulse): roll just before it lands (else block). An unblockable (charge, volatile blast): roll (else nothing).
 // Bolts and arrows flying at it: block. 'careless' never Guards or Evades. The shield arts (Magic Shield, Frost Ward; spec.guard
 // swaps one into Guard) are played the same way: they change what the block and parry do, not when to press. A Guard gem that
 // isn't a shield would be cast when a hit is coming. Obstacles are cleared so fights repeat.
@@ -100,10 +100,10 @@ export function arena(spec) {
       if (shieldGuard) {
         let hold = false, tap = false, roll = false;
         const B = SK.block, rollIn = SK.roll.invuln * .6;
-        // Swings: parry just before they land, else hold the block (or eat it).
-        for (const e of swingAt) { const r = react(e, 'swing' + e.atkSeq, skill.parry); if (r === 'ok') { if (e.windup <= B.parry * .7) tap = true; else hold = hold || (skill.brace && e.windup < B.parry * 2); } else if (r === 'block') hold = true; }
         // Heavies: roll as they land, else block.
         const heavy = (o, key, left) => { const r = react(o, key, skill.roll); if (r === 'ok') { if (left <= rollIn) roll = true; } else if (r === 'block') hold = true; };
+        // Swings: parry just before they land, else hold the block (or eat it). A rare's heavy swing is a heavy.
+        for (const e of swingAt) { if (e.heavy) { heavy(e, 'swing' + e.atkSeq, e.windup); continue; } const r = react(e, 'swing' + e.atkSeq, skill.parry); if (r === 'ok') { if (e.windup <= B.parry * .7) tap = true; else hold = hold || (skill.brace && e.windup < B.parry * 2); } else if (r === 'block') hold = true; }
         if (inSlam) heavy(bc, 'slam', bc.t);
         if (bc && bc.kind === 'charge') { const r = react(bc, 'charge', skill.roll); if (r === 'ok' && bc.t <= .12) roll = true; }
         if (bc && bc.kind === 'burst' && Math.hypot(P.x - boss.x, P.z - boss.z) < BOSS.channel.burst.r + P.r && react(bc, 'burst', skill.roll) === 'ok' && bc.t <= rollIn) roll = true;
