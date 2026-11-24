@@ -71,4 +71,4 @@ export const PAR_GEAR = t => t === 1 ? 'start' : 'magic';
 // wind-ups and guard; `walkSlack` is how much longer than the room-to-room tour the autopilot really walks (steering, loot, packs).
 // fightSlack and walkSlack are 1 (not calibrated yet: build order step 10, build step 6 tunes them against the measured run).
 // measured: the last `npm run level` means per tier (10 seeds, Nov 2026), printed next to the estimate; update it when you re-measure.
-export const LEVEL_TIME = { target: [25, 35], pace: .75, cad: 88, surge: 1.05, spike: 1.4, fightSlack: 1, walkSlack: 1, measured: [6.8, 6.2, 6.1, 6.7, 6.8] };
+export const LEVEL_TIME = { target: [25, 35], pace: .75, cad: 88, surge: 1.05, spike: 1.4, fightSlack: 1, walkSlack: 1, measured: [7.0, 6.5, 6.8, 7.2, 7.0] };

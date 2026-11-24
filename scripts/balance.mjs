@@ -8,6 +8,7 @@ import { computeStats, gemDps, monsterStats, gearProfile, xpNeedFor, packCount, 
 import { TARGETS, RARITY, ESTIMATE, PAR_MAIN, parLevel, parGem, parSock, PAR_GEAR, GEAR_PROFILES, LEVEL_TIME } from '../src/data/balance.js';
 import { RIDE } from '../src/data/ride.js';
 import { generateLevel, junctionRooms, tourLen } from '../src/world/gen.js';
+import { ROLES } from '../src/data/dungeon.js';
 import { seeded } from '../src/core/rng.js';
 import { MT, TIER, PACKS, PACK } from '../src/data/monsters.js';
 import { GEMS } from '../src/data/gems.js';
@@ -71,8 +72,8 @@ console.log(warn ? `${warn} par numbers outside target.` : 'All par numbers insi
 // Fight times are the maths floor above; `npm run level` measures a real one (game/levelrun.js; its last means are LEVEL_TIME.measured).
 // Not counted in par numbers outside target: levels are short of the target until build order step 10 tunes them.
 {
-  const N = 200; let tour = 0, jn = 0;
-  for (let k = 1; k <= N; k++) { const L = generateLevel({}, seeded(k)); tour += tourLen(L) / N; jn += junctionRooms(L).length / N; }
+  const N = 200; let tour = 0, jn = 0; const roles = {};
+  for (let k = 1; k <= N; k++) { const L = generateLevel({}, seeded(k)); tour += tourLen(L) / N; jn += junctionRooms(L).length / N; for (const r of L.rooms) roles[r.role] = (roles[r.role] || 0) + 1 / N; }
   const E = LEVEL_TIME, m = x => fmt(x / 60).padStart(5);
   console.log(`\nLevel time, full clear at par (estimate; npm run level measures it) · ${fmt(tour, 0)} units of rooms and corridors, ${fmt(jn)} junctions, mean of ${N} layouts · minutes`);
   console.log('  tier │  walk │ packs │ rares │ guard │ junc  │ total │ measured │ target ' + E.target.join('–'));
@@ -83,4 +84,8 @@ console.log(warn ? `${warn} par numbers outside target.` : 'All par numbers insi
     const ms = E.measured[t - 1];
     console.log(`  ${String(t).padStart(4)} │ ${m(walk)} │ ${m(packs)} │ ${m(rares)} │ ${m(guard)} │ ${m(junc)} │ ${m(total)} ${f} │ ${ms ? fmt(ms).padStart(5) + ' ' + flag(ms, E.target) : '    –  '}  │`);
   }
+  // Room roles (world/gen.js, data/dungeon.js ROLES and RHYTHM): how many of each a level has, and their first-guess time estimates
+  // (ROLES[].est, seconds of content beyond walking) added up, for the time budget (build order step 10, step 6) to calibrate.
+  const est = Object.entries(roles).reduce((a, [k, n]) => a + n * ROLES[k].est, 0);
+  console.log(`  room roles per level: ${Object.entries(ROLES).filter(([k]) => roles[k]).map(([k, R]) => `${R.icon} ${R.name.toLowerCase()} ${fmt(roles[k])}`).join(' · ')} · role estimates add up to ${fmt(est / 60)} min (first guesses, not yet calibrated)`);
 }

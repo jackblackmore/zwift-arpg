@@ -58,8 +58,8 @@ export const GATE = { rooms: ['boss', 'elite'], inside: 1.5 };
 //   rest: heals, refills flasks and clears posture, once per map; no monsters (REST below).   guardian: the level's end.
 export const ROLES = {
   start: { icon: '⌂', name: 'Entrance', col: '#5fe39a', est: 0 },
-  combat: { icon: '⚔', name: 'Combat', col: '#a08a62', est: 50 },
-  elite: { icon: '☠', name: 'Elite', col: '#ff7a3a', est: 75 },
+  combat: { icon: '⚔', name: 'Combat', col: '#a08a62', est: 20 }, // about 2 packs of 10 s (packs are shared out over the combat rooms)
+  elite: { icon: '☠', name: 'Elite', col: '#ff7a3a', est: 60 },
   treasure: { icon: '✦', name: 'Treasure', col: '#ffd23f', est: 20 },
   rest: { icon: '☗', name: 'Rest', col: '#5ad0c0', est: 15 },
   guardian: { icon: '♛', name: 'Guardian', col: '#ff4fd8', est: 70 },
