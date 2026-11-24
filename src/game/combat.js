@@ -16,10 +16,10 @@ import * as skel from './sk/skeletons.js';
 import { HERO, RARITY, COMBAT } from '../data/balance.js';
 import { DROP } from '../data/items.js';
 import { BLAST, RARE, STAGGER, ANIM, BOSS, ELITE } from '../data/monsters.js';
-import { TELL } from '../data/graphics.js';
+import { TELL, DMG_COL, DMG_ICON } from '../data/graphics.js';
 import { shieldHit } from './sk/guard.js';
 import { SUPPORTS } from '../data/gems.js';
-import { tierHp, hitBase } from './formulas.js';
+import { tierHp, dmgType, hitBase, defended, mainType, isElem } from './formulas.js';
 
 const ECOL = { fire: '#ffb070', cold: '#bff0ff', light: '#e0c8ff' };
 
@@ -98,7 +98,7 @@ export function kill(e) {
   if (e.shatter && e.freeze > 0) G.queue.push({ k: 'shatter', x: e.x, z: e.z, hp: e.maxHp }); // frozen by a Frost Nova with Shatter
   if (S.sk[e.lastGem] && S.sk[e.lastGem].raise) skel.onKill(e); // Raise Skeletons support on the skill that killed it
   // Death blasts: a bloater only when its fuse ran out (killing it first defuses it); a volatile rare always.
-  if ((e.type === 'bloater' && e.fused) || e.aff.includes('volatile')) { const B = e.type === 'bloater' ? BLAST.bloater : BLAST.volatile; G.queue.push({ k: 'bloat', x: e.x, z: e.z, t: B.delay, dmg: e.dmg * B.dmg, r: B.r, kind: B.kind }); }
+  if ((e.type === 'bloater' && e.fused) || e.aff.includes('volatile')) { const B = e.type === 'bloater' ? BLAST.bloater : BLAST.volatile; G.queue.push({ k: 'bloat', x: e.x, z: e.z, t: B.delay, dmg: e.dmg * B.dmg, r: B.r, kind: B.kind, type: dmgType(B.dt, G.tier) }); }
   if (e.aff.includes('splitting')) for (let i = 0; i < RARE.splitting.n; i++) { const r = spawnEnemy(RARE.splitting.type, e.x + rand(-1, 1), e.z + rand(-1, 1), null, 1); r.awake = true; G.mapTotal++; }
   if (e.type === 'boss') {
     banner('THE WARDEN FALLS', '#ff4fd8', 'A portal opens · step through for a harder map'); shake(1); stop(.3); $('bossbar').style.display = 'none';
@@ -110,17 +110,25 @@ export function kill(e) {
 
 // src: what hit you (a monster type, 'slam', 'nova', 'arrow', 'blast', 'aura', 'charge', 'burst'), tallied after shields in P.takenBy for the arena.
 // o: { from: {x, z} where it comes from, kind: 'hit' (parry or block) | 'heavy' (block for less, or roll) | 'unblockable' (roll),
-// by: the monster, for a parry's stagger }. The Knight's Shield (game/sk/guard.js) takes it first. Returns what happened:
+// by: the monster, for a parry's stagger, type: its damage type (data/monsters.js DMG_TYPES, or a mix; default physical) }.
+// Order (design notes "Defence"): untouchable (rolling, dead) → the shield (game/sk/guard.js: parry, block or broken guard; posture
+// from the full hit; an elemental hit is blocked for less) → armour and resistances (formulas.js defended; armour judged on the
+// full hit) → less damage taken (S.dr) → Magic Shield's barrier → life. Returns what happened:
 // 'miss' (dead or untouchable, e.g. rolling), 'parry', 'block', 'broken' or 'hit'.
 export function hurtP(d, src = '?', o = {}) {
   if (P.dead > 0 || P.invuln > 0) return 'miss';
+  const raw = d, type = o.type || 'phys'; o.elem = isElem(type);
   d = shieldHit(d, o); if (o.result === 'parry') return 'parry';
   if (o.by && o.by.stagMax && o.result !== 'block' && !(o.by.stun > 0)) o.by.stag = Math.max(0, (o.by.stag || 0) - STAGGER.recover); // it landed one: it steadies
+  if (raw > 0) d *= defended(S, raw, type) / raw; // armour and resistances: the same share of whatever the shield let through
   d *= 1 - S.dr;
+  const main = mainType(type), col = DMG_COL[main] || DMG_COL.phys;
+  P.lastHurt = { raw, type, src, taken: d, result: o.result || 'hit' }; // (tests: what the last hit did)
   if (P.shield > 0) { // Magic Shield's parry barrier (game/sk/arts.js)
     const a = Math.min(P.shield, d); P.shield -= a; d -= a; floatT(P.x, 2.4, P.z, Math.round(a), '#9fc8ff', 12); if (d <= 0) return o.result || 'hit'; }
   P.life -= d; P.taken = (P.taken || 0) + d; if (P.takenBy) P.takenBy[src] = (P.takenBy[src] || 0) + d;
-  floatT(P.x, 2.1, P.z, Math.round(d), '#ff5050', 13); G.vign = Math.min(.9, G.vign + .35); SFX.hurt();
+  if (P.takenType) P.takenType[main] = (P.takenType[main] || 0) + d;
+  floatT(P.x, 2.1, P.z, Math.round(d) + (DMG_ICON[main] ? ' ' + DMG_ICON[main] : ''), col, 13); G.vign = Math.min(.9, G.vign + .35); G.vignCol = col; SFX.hurt();
   if (P.life <= 0) {
     P.life = 0; P.dead = 2.6; banner('YOU HAVE DIED', '#ff3030', 'Respawning at the map entrance');
     burst(P.x, 1, P.z, 0xff2020, 50, 5); P.xp = Math.max(0, P.xp - xpNeed(P.lvl) * COMBAT.deathXp);
@@ -151,9 +159,9 @@ export function processQueue(dt) {
       ringFx(q.x, q.z, r, 0xbff0ff, .3, .3); burst(q.x, .8, q.z, 0xbff0ff, 24, 6);
     }
     if (q.k === 'bloat') {
-      const r = q.r;
-      ringFx(q.x, q.z, r, 0x9ad060, .35, .5); flashFx(q.x, .8, q.z, 0x9ad060, r * 2.5, .3); burst(q.x, .6, q.z, 0x9ad060, 30, 6); burst(q.x, .6, q.z, 0x5a8a20, 15, 4); SFX.boom(); shake(.15);
-      if (dist(P.x, P.z, q.x, q.z) < r + P.r) hurtP(q.dmg, 'blast', { from: q, kind: q.kind });
+      const r = q.r, c = mainType(q.type) === 'fire' ? [0xff7a30, 0xc03a10] : [0x9ad060, 0x5a8a20]; // a volatile rare's fire, a bloater's poison
+      ringFx(q.x, q.z, r, c[0], .35, .5); flashFx(q.x, .8, q.z, c[0], r * 2.5, .3); burst(q.x, .6, q.z, c[0], 30, 6); burst(q.x, .6, q.z, c[1], 15, 4); SFX.boom(); shake(.15);
+      if (dist(P.x, P.z, q.x, q.z) < r + P.r) hurtP(q.dmg, 'blast', { from: q, kind: q.kind, type: q.type });
       near(q.x, q.z, r, e => { e.hp -= BLAST.vsMonsters * tierHp(G.tier); if (e.hp <= 0) kill(e); });
     }
   }

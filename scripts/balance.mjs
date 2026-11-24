@@ -6,14 +6,14 @@
 // The passive tree: the par preset for the Main gem (data/balance.js PAR_TREE, parTree), one node per level after the first; TREE=none
 // leaves it empty, TREE=<preset> picks another. The fight nodes (posture, parry, riposte, stagger, finisher) don't show here: the arena plays them.
 // Melee hits ESTIMATE.targets monsters per swing in a pack (gemDps in formulas.js), one on a rare or the guardian.
-import { computeStats, gemDps, monsterStats, gearProfile, xpNeedFor, packCount, rideMove } from '../src/game/formulas.js';
+import { computeStats, gemDps, monsterStats, gearProfile, xpNeedFor, packCount, rideMove, hitTaken, armourCut, dmgType } from '../src/game/formulas.js';
 import { TARGETS, RARITY, ESTIMATE, PAR_MAIN, parLevel, parGem, parSock, PAR_GEAR, GEAR_PROFILES, LEVEL_TIME, parTree, PAR_TREE } from '../src/data/balance.js';
 import { TREE } from '../src/data/tree.js';
 import { RIDE } from '../src/data/ride.js';
 import { generateLevel, junctionRooms, tourLen } from '../src/world/gen.js';
 import { ROLES } from '../src/data/dungeon.js';
 import { seeded } from '../src/core/rng.js';
-import { MT, TIER, PACKS, PACK } from '../src/data/monsters.js';
+import { MT, TIER, PACKS, PACK, BOSS, BLAST, RARE } from '../src/data/monsters.js';
 import { GEMS } from '../src/data/gems.js';
 import { SURGE } from '../src/data/skills.js';
 
@@ -31,18 +31,21 @@ function hitTime(n, rate, st, surge = false) {
 const flag = (v, [lo, hi]) => v < lo ? '↓' : v > hi ? '↑' : ' ';
 const fmt = (v, d = 1) => (Math.round(v * 10 ** d) / 10 ** d).toFixed(d);
 
-// The average pack at a tier: members, total HP and melee DPS against you.
+// The average pack at a tier: members, total HP and its damage per second against you (dps: raw; taken(st): after armour,
+// resistances and less damage taken, hit by hit through formulas.js hitTaken, the game's own maths). A bloater counts as
+// its damage every 4 s, of its blast's type.
 function avgPack(t) {
-  const sz = 1 + TIER.packSize * (t - 1); let hp = 0, dps = 0, n = 0, xp = 0;
+  const sz = 1 + TIER.packSize * (t - 1); let hp = 0, dps = 0, n = 0, xp = 0; const hits = [];
   for (const tpl of PACKS) for (const [type, c] of tpl) {
-    const k = c * sz, m = monsterStats(type, t);
-    n += k; hp += k * m.hp; xp += k * MT[type].xp; dps += k * (MT[type].cd ? m.dmg / MT[type].cd : m.dmg / 4);
+    const k = c * sz, m = monsterStats(type, t), every = MT[type].cd || 4, d = m.dmg;
+    const dt = MT[type].ai === 'bomb' ? dmgType(BLAST.bloater.dt, t) : m.dt;
+    n += k; hp += k * m.hp; xp += k * MT[type].xp; dps += k * (MT[type].cd ? m.dmg / MT[type].cd : m.dmg / 4); hits.push([k / every, d, dt]);
   }
-  const L = PACKS.length; return { n: n / L, hp: hp / L, dps: dps / L, xp: xp / L };
+  const L = PACKS.length; return { n: n / L, hp: hp / L, dps: dps / L, xp: xp / L, taken: st => hits.reduce((a, [r, d, dt]) => a + r * hitTaken(st, d, dt), 0) / L };
 }
 
 let warn = 0;
-const levelEst = [];
+const levelEst = [], defRows = [];
 console.log(`Watt Dungeon balance report · ${GEMS[MAIN].n} only · tree preset ${PRESET} · ${GEMS[MAIN].melee ? ESTIMATE.targets[MAIN] + ' targets per swing in a pack' : 'single target'} · targets in src/data/balance.js`);
 console.log('  ↑ above target  ↓ below target  (checked on the par gear row, marked *)\n');
 // The level track: a character that full-clears every map from map 1 (XP carried over), to compare with the par levels.
@@ -63,11 +66,15 @@ for (let t = 1; t <= maxTier; t++) {
     if (PAR_GEAR(t) === kind) { const st0 = computeStats(gearProfile(kind, t), [], lvl, gems, socks); treeRows[t] = { lvl, tree, dps: G.dps / gemDps(st0, MAIN).dps, life: st.maxLife - st0.maxLife, life0: st0.maxLife, surge: st.surgeMax / st0.surgeMax - 1, f: st.fight }; }
     const hits = z.hp / hit;
     const clear = hitTime(pack.hp / G.pack, G.rate, st), rk = hitTime(rare.hp / hit, G.rate, st), gk = hitTime(boss.hp / hit, G.rate, st), gs = hitTime(boss.hp / hit, G.rate, st, true);
-    const tank = st.maxLife / pack.dps, gain = G.dps / startDps;
+    const tank = st.maxLife / pack.taken(st), gain = G.dps / startDps;
     if (PAR_GEAR(t) === kind) levelEst[t] = { st, clear: hitTime(pack.hp * (1 + PACK.magicChance * (RARITY.magic.hp - 1)) / G.pack, G.rate, st), rk, gs };
     const par = PAR_GEAR(t) === kind, chk = (v, k) => { if (!par || (k === 'hitsNormal' && MAIN !== PAR_MAIN)) return ' '; const f = flag(v, TARGETS[k]); if (f !== ' ') warn++; return f; };
     console.log(`  ${(kind + (par ? '*' : ' ')).padEnd(7)}│ ${fmt(hit).padStart(4)} │ ${fmt(hits).padStart(9)} ${chk(hits, 'hitsNormal')} │ ${fmt(clear).padStart(8)}s${chk(clear, 'packClear')}│ ${fmt(rk).padStart(7)}s${chk(rk, 'rareKill')}│ ${fmt(gk, 0).padStart(6)}s${chk(gk, 'guardian')}│ ${fmt(gs, 0).padStart(6)}s ${chk(gs, 'guardianSurge')}│ ${fmt(tank).padStart(7)}s${chk(tank, 'faceTank')}│ ×${fmt(gain, 2)}${kind === 'magic' && t === 1 ? flag(gain, TARGETS.lootGain) : ''}`);
   }
+  // Defence on the par gear (data/balance.js DEFENCE, GEAR_PROFILES): armour, resistances, and how much of each kind of hit gets through.
+  { const st = computeStats(gearProfile(PAR_GEAR(t), t), tree, lvl, gems, socks), zr = monsterStats('zombie', t, 2), pc = v => fmt(v * 100, 0) + '%', cut = (d, dt = 'phys') => pc(1 - hitTaken(st, d, dt) / d);
+    defRows[t] = { armour: st.armour, res: st.res, zombie: 1 - hitTaken(st, z.dmg, z.dt) / z.dmg };
+    console.log(`  defence (${PAR_GEAR(t)}): armour ${st.armour} · resist fire ${pc(st.res.fire)} cold ${pc(st.res.cold)} lightning ${pc(st.res.light)} poison ${pc(st.res.poison)} · cut off a zombie hit (${fmt(z.dmg)}) ${cut(z.dmg, z.dt)}, a rare's heavy (${fmt(zr.dmg * RARE.heavy.dmg, 0)}) ${cut(zr.dmg * RARE.heavy.dmg)}, the guardian's swing (${fmt(boss.dmg, 0)}) ${cut(boss.dmg)}, slam (${fmt(boss.dmg * BOSS.slamDmg, 0)}) ${cut(boss.dmg * BOSS.slamDmg, dmgType(BOSS.dt.slam, t))}, poison bolt ${cut(boss.dmg * BOSS.novaDmg, dmgType(BOSS.dt.nova, t))}, bloater blast ${cut(monsterStats('bloater', t).dmg * BLAST.bloater.dmg, dmgType(BLAST.bloater.dt, t))}`); }
   console.log('');
 }
 console.log(warn ? `${warn} par numbers outside target.` : 'All par numbers inside target.');

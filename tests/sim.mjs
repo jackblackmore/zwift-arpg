@@ -16,7 +16,10 @@ import { GEMS, SUPPORTS } from '../src/data/gems.js';
 import { SK } from '../src/data/skills.js';
 import { TREE, TREE_START, TREE_UNIT } from '../src/data/tree.js';
 import { TREE_PRESETS, PAR_TREE, parTree } from '../src/data/balance.js';
-import { computeStats, treeCanTake, treeConnected, TREE_ADJ } from '../src/game/formulas.js';
+import { computeStats, treeCanTake, treeConnected, TREE_ADJ, armourCut, defended, hitTaken, dmgType, gearProfile, monsterStats, tierDmg } from '../src/game/formulas.js';
+import { DEFENCE } from '../src/data/balance.js';
+import { MT, BOSS, BLAST, RARE, LEAN } from '../src/data/monsters.js';
+import { readFileSync } from 'node:fs';
 
 const chrome = process.env.CHROME_PATH || ['/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser'].find(existsSync);
 if (!chrome) { console.error('No Chrome found. Set CHROME_PATH.'); process.exit(1); }
@@ -145,6 +148,32 @@ try {
       `tree: recalc's stats add up the nodes (life ${st0.maxLife} → ${st.maxLife}, fire +${Math.round(st.fire * 100)}%, parry window ×${st.fight.parry}, riposte ×${st.fight.riposte}) and keystones switch on`);
     const ev = computeStats({}, ['tumbler'], 10, { roll: 1, sword: 1 });
     check(ev.sk.roll.ch === 1 && ev.sk.sword.ch === 0 && Math.abs(ev.fight.evadeInv - 1.1) < 1e-9, 'tree: Tumbler adds a charge to the Evade gem only');
+  }
+
+  // ---------- Defence (step 5): armour, resistances, typed monster damage (game/formulas.js; data/balance.js DEFENCE) ----------
+  {
+    const near = (a, b) => Math.abs(a - b) < 1e-6;
+    const st = computeStats({ chest: { mods: [['armour', 100], ['resPoison', .3], ['resElem', .9]] } }, [], 5);
+    const small = armourCut(st.armour, 10), big = armourCut(st.armour, 100);
+    check(st.armour === 100 && near(small, 100 / (100 + DEFENCE.armourK * 10)) && small > big * 2 && near(defended(st, 10), 10 * (1 - small)) && near(defended(st, 100), 100 * (1 - big)),
+      `defence: armour cuts a small physical hit by more than a big one (100 armour: ${Math.round(small * 100)}% off a 10, ${Math.round(big * 100)}% off a 100)`);
+    check(near(st.res.fire, DEFENCE.resCap) && near(st.res.light, DEFENCE.resCap) && near(st.resRaw.cold, .9) && near(defended(st, 100, 'fire'), 100 * (1 - DEFENCE.resCap)) && near(defended(st, 100, 'cold'), 25),
+      `defence: resistances cut elemental hits, capped at ${Math.round(DEFENCE.resCap * 100)}% (90% on gear: a 100 fire hit does ${defended(st, 100, 'fire')})`);
+    check(near(st.res.poison, .3) && near(defended(st, 100, 'poison'), 70) && near(defended(computeStats({ ring: { mods: [['resElem', .5]] } }), 100, 'poison'), 100),
+      'defence: poison is cut by poison resistance only (elemental resistance does nothing to it)');
+    check(near(defended(st, 100, { phys: .5, poison: .5 }), 50 * (1 - armourCut(100, 50)) + 35) && near(hitTaken({ ...st, dr: .2 }, 100, 'poison'), 56),
+      'defence: a mixed hit is cut part by part (armour on its physical part), then less damage taken');
+    const tr = computeStats({ chest: { mods: [['armour', 100]] } }, ['hardy', 'iron', 'plated', 'temper', 'purity']);
+    check(tr.armour === 140 && near(tr.res.fire, .08) && near(tr.res.poison, .2), `defence: the tree's defence nodes add armour (${tr.armour}) and resistances`);
+    const g2 = computeStats(gearProfile('magic', 2)), g1 = computeStats(gearProfile('start'));
+    check(g1.armour === 0 && g2.armour > 0 && g2.res.poison > 0 && g2.res.fire > 0, `defence: par magic gear has armour (${g2.armour}) and some resistance (poison ${Math.round(g2.res.poison * 100)}%); the starter sword has none`);
+    // Typed monster damage (data/monsters.js): the Crypt is physical and poison, with a little fire and cold; later regions lean.
+    check(MT.bloater.dt === 'poison' && BLAST.bloater.dt === 'poison' && BOSS.dt.nova === 'poison' && RARE.burning.dt === 'fire' && !MT.zombie.dt && dmgType(undefined, 3) === 'phys'
+      && monsterStats('zombie', 5).dt === 'phys' && near(dmgType('phys', LEAN[1].tiers[0]).poison, LEAN[1].mix.poison) && dmgType('fire', LEAN[1].tiers[0]) === 'fire' && tierDmg(6) > tierDmg(5),
+      'defence: monster attacks carry a damage type; a region lean turns a share of physical attacks into its element; typed ones keep theirs');
+    // The balance report's face-tank uses the game's own formula.
+    const bal = readFileSync(new URL('../scripts/balance.mjs', import.meta.url), 'utf8');
+    check(/hitTaken\(st, d, dt\)/.test(bal) && /pack\.taken\(st\)/.test(bal), 'defence: npm run balance\'s face-tank goes through formulas.js hitTaken');
   }
 
   // ---------- ARPG ----------
@@ -1141,6 +1170,38 @@ try {
     check(r.heavyStarts && r.heavyParry && r.heavyRoll, `fight: a rare's heavy swing can't be parried (a parry press blocks it for less) and a roll avoids it (${r.heavyStarts}, ${r.heavyParry}, ${r.heavyRoll})`);
     check(r.dashThrough, `fight: Flame Dash goes through the monster you aim at, hitting it, and ends beyond it (${r.dashEnd} past its centre)`);
     check(errors.length === 0, `fight: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
+  }
+
+  // ---------- Defence in play: typed damage from monster attacks through hurtP (game/combat.js), the same maths as the tools ----------
+  {
+    const { page, errors } = await open('/');
+    const r = await page.evaluate(() => {
+      const D = window.__dbg, P = D.P, S = D.S, G = D.G, ctl = D.ctl, out = {};
+      D.start(true); ctl.aim = null; ctl.mx = ctl.mz = 0; D.setAutoAtk(false);
+      P.gear.chest = { slot: 'chest', rar: 1, base: 'Plate Cuirass', name: 'test chest', il: 1, impl: 1, mods: [['armour', 60], ['resPoison', .4]] }; D.recalc();
+      const clear = () => { G.enemies.forEach(e => { e.deathT = 1; e.gone = true; }); G.eproj = []; G.queue = []; Object.assign(P, { invuln: 0, life: S.maxLife, posture: 0, broken: 0, blocking: false, parryT: 0, parryCd: 0, rollT: 0, shield: 0, lastHurt: null }); ctl.guard = false; ctl.tap = {}; P.x = G.start.x; P.z = G.start.z; };
+      const foe = (type, dx, dz) => { const e = D.spawnEnemy(type, P.x + dx, P.z + dz, null, 0); e.awake = true; e.rise = 0; e.hp = e.maxHp = 1e6; return e; };
+      const wait = (n = 200) => { for (let i = 0; i < n && !P.lastHurt; i++) D.sim(1); return P.lastHurt; };
+      // A zombie's swing: physical, cut by armour by the formulas' amount.
+      clear(); let z = foe('zombie', 0, 1.1); z.atkT = .1; z.spd = 0; let l0 = P.life, h = wait();
+      out.zType = h && h.type; out.zOk = !!h && h.src === 'zombie' && h.type === 'phys' && Math.abs(h.taken - D.hitTaken(S, h.raw, 'phys')) < 1e-6 && h.taken < h.raw * .9 && Math.abs(l0 - P.life - h.taken) < 1e-6;
+      out.zCut = h && Math.round((1 - h.taken / h.raw) * 100);
+      // A bloater's blast: poison, cut by poison resistance (40%).
+      clear(); const b = foe('bloater', 0, 1); l0 = P.life; h = wait();
+      out.bType = h && h.type; out.bOk = !!h && h.src === 'blast' && h.type === 'poison' && Math.abs(h.taken - h.raw * .6) < 1e-6;
+      // The guardian's nova bolts are poison; its slam physical.
+      clear(); const g = foe('boss', 0, 4); g.abilT = 99; g.atkT = 99; P.face = 0; D.sim(1);
+      g.cast = { kind: 'nova', t: 0 }; h = wait(80); out.nType = h && h.type;
+      clear(); const g2 = foe('boss', 0, 2); g2.abilT = 99; g2.atkT = 99; g2.cast = { kind: 'slam', t: 0, x: P.x, z: P.z, r: 3 }; h = wait(5); out.sType = h && h.type;
+      out.hud = getComputedStyle(document.getElementById('vign')).boxShadow;
+      D.openInv(true); out.sheet = document.getElementById('defSheet').textContent; D.openInv(false);
+      return out;
+    });
+    console.log('  defence:', JSON.stringify(r));
+    check(r.zOk, `defence: a zombie's swing reaches hurtP as physical, armour cuts it by the formulas' amount (${r.zCut}% off)`);
+    check(r.bOk && r.nType === 'poison' && r.sType === 'phys', `defence: a bloater's blast (${r.bType}) and the guardian's bolts (${r.nType}) are poison, cut by poison resistance; its slam is ${r.sType}`);
+    check(/Armour 60/.test(r.sheet) && /Poison 40%/.test(r.sheet), `defence: the character sheet shows armour and resistances (${r.sheet})`);
+    check(errors.length === 0, `defence: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   }
 
   // ---------- Flame Totem and Meteor (Flex gems): damage, milestone, cleanup on map clear ----------

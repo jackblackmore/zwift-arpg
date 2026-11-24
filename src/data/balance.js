@@ -20,6 +20,11 @@ export const RARITY = {
 // Every hit rolls between spread[0] and spread[1] × its average. Dying costs deathXp of the XP needed for your next level.
 // After dying you respawn at the map entrance, untouchable for respawnInvuln s.
 export const COMBAT = { spread: [.88, 1.12], deathXp: .1, respawnInvuln: 2 };
+// Defence (design notes "Defence"; the maths in game/formulas.js defended). Armour cuts a physical hit of d by A / (A + armourK × d),
+// at most armourCap: the same armour takes a bigger share off small hits than off big ones (Path of Exile's armour). Resistances
+// cut fire, cold, lightning and poison hits by their value, at most resCap each (and can go below zero). Monster damage types are in
+// data/monsters.js (DMG_TYPES, MT[].dt, LEAN).
+export const DEFENCE = { armourK: 10, armourCap: .9, resCap: .75 };
 // Experience to go from level l to l + 1: base × l^exp (the character and every gem use the same curve).
 export const XP_CURVE = { base: 65, exp: 1.6 };
 // Item level scaling of rolled values: flat affixes +flat per item level above 1, percent affixes +pct per level.
@@ -76,8 +81,10 @@ export const TARGETS = {
 };
 
 // Gear profiles used by both tools: every slot filled with average rolls of the best affixes for an Ember Cleave build.
-//   start: the starter sword only. magic: implicit + 1 good affix per slot (magic items roll 1–2). rare: implicit + 3 good affixes (rares roll 3–5).
-export const GEAR_PROFILES = { start: { n: 0 }, magic: { rar: 1, n: 1 }, rare: { rar: 2, n: 3 } };
+//   start: the starter sword only. magic: implicits + 1 good affix per slot (magic items roll 1–2). rare: implicits + 3 good affixes (rares roll 3–5).
+//   Implicits bring armour on the helm, chest and boots (data/items.js IMPL). res: one more affix on these slots, a resistance
+//   (a magic item's second affix; most players pick up a little resistance by the second map).
+export const GEAR_PROFILES = { start: { n: 0 }, magic: { rar: 1, n: 1, res: { boots: 'resPoison', ring: 'resElem' } }, rare: { rar: 2, n: 3, res: { boots: 'resPoison', ring: 'resElem' } } };
 export const AFFIX_PRIORITY = ['spell', 'fire', 'dmg', 'cast', 'lifeF', 'crit', 'ms', 'lregen'];
 // The gear a player is expected to have at par on each tier (targets are checked against this profile).
 export const PAR_GEAR = t => t === 1 ? 'start' : 'magic';
@@ -89,4 +96,4 @@ export const PAR_GEAR = t => t === 1 ? 'start' : 'magic';
 // wind-ups and guard; `walkSlack` is how much longer than the room-to-room tour the autopilot really walks (steering, loot, packs).
 // fightSlack and walkSlack are 1 (not calibrated yet: build order step 10, build step 6 tunes them against the measured run).
 // measured: the last `npm run level` means per tier (10 seeds, Nov 2026), printed next to the estimate; update it when you re-measure.
-export const LEVEL_TIME = { target: [25, 35], pace: .75, cad: 88, surge: 1.05, spike: 1.4, fightSlack: 1, walkSlack: 1, measured: [6.9, 6.6, 7.1, 7.6, 8.6] };
+export const LEVEL_TIME = { target: [25, 35], pace: .75, cad: 88, surge: 1.05, spike: 1.4, fightSlack: 1, walkSlack: 1, measured: [7.1, 6.8, 7.0, 7.6, 8.1] };

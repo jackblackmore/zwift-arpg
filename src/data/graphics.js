@@ -26,3 +26,8 @@ export const DUNGEON = { scale: .8, bright: .72, floor: .55, torch: 1.3 };
 // ground: block or roll), unblockable (purple: roll only), channel (blue: break its stagger before the bar fills). The same colour
 // marks the '!' over the hero. stagger: the stagger bar.
 export const TELL = { parry: 0xffd23f, heavy: 0xff3030, unblockable: 0xb040ff, channel: 0x3a9cff, stagger: 0xffb040 };
+
+// Damage types (data/monsters.js DMG_TYPES): the colour of the number when a hit lands on you and of the red flash round the screen
+// (game/combat.js hurtP, ui/hud.js), a glyph after the number for the non-physical ones, and the character sheet (ui/panels.js).
+export const DMG_COL = { phys: '#ff5050', fire: '#ff8a3c', cold: '#8fd8ff', light: '#d8b0ff', poison: '#8ee04a' };
+export const DMG_ICON = { fire: '✹', cold: '❄', light: 'ϟ', poison: '☣' };

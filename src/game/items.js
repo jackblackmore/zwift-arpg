@@ -1,14 +1,14 @@
 // Item generation, ground drops and pickup.
 import * as T from 'three';
 import { G, P } from '../core/state.js';
-import { SLOTS, BASES, IMPL, AFF, AFFBY, EXTRA, UNIQ, RAREN1, RAREN2, RCOL, DROP } from '../data/items.js';
+import { SLOTS, BASES, AFF, AFFBY, EXTRA, UNIQ, RAREN1, RAREN2, RCOL, DROP } from '../data/items.js';
 import { rand, randi, pick } from '../core/util.js';
 import { scene } from '../render/scene.js';
 import { GB, GCY, decal } from '../render/assets.js';
 import { toast } from '../render/fx.js';
 import { SFX } from '../core/audio.js';
 import { save } from './save.js';
-import { flatScale, pctScale } from './formulas.js';
+import { flatScale, pctScale, implMods } from './formulas.js';
 import { GEMS, SUPPORTS, GEM_POOL, GEM_DROP, gemDef } from '../data/gems.js';
 import { parGem } from '../data/balance.js';
 import { addGem } from './gems.js';
@@ -27,12 +27,12 @@ export function rollItem(il, boost = 0) {
     const u = pick(UNIQ.filter(u => u.slot === slot));
     return { id: G.itemId++, slot, rar: 3, name: u.name, base: u.base, uid: u.id, il, fl: u.fl, mods: u.mods.map(([st, v]) => [st, (st === 'spell' || st === 'lifeF') ? Math.round(v * flatScale(il)) : v]) };
   }
-  const [ist, iv] = IMPL[slot];
-  const it = { id: G.itemId++, slot, rar, base: pick(BASES[slot]), il, mods: [[ist, ist === 'ms' || ist === 'dmg' ? iv : Math.round(iv * flatScale(il))]], impl: 1 };
+  const mods = implMods(slot, il), impl = mods.length; // impl: how many of mods are the base's implicits (shown first)
+  const it = { id: G.itemId++, slot, rar, base: pick(BASES[slot]), il, mods, impl };
   const pool = AFF.filter(a => !a.slots || a.slots.includes(slot)).sort(() => Math.random() - .5);
   const A = DROP.affixes[rar === 1 ? 'magic' : 'rare'], n = rar ? randi(A[0], A[1]) : 0, skip = DROP.rareAffixSkip[rar === 1 ? 'magic' : 'rare'];
-  for (const a of pool) { if (it.mods.length - 1 >= n) break; if (a.rare && Math.random() < skip) continue; it.mods.push([a.st, rollVal(a, il)]); }
-  it.name = rar === 2 ? pick(RAREN1) + ' ' + pick(RAREN2) : rar === 1 ? `${AFFBY[it.mods[1][0]].mp} ${it.base}` : it.base;
+  for (const a of pool) { if (it.mods.length - impl >= n) break; if (a.rare && Math.random() < skip) continue; it.mods.push([a.st, rollVal(a, il)]); }
+  it.name = rar === 2 ? pick(RAREN1) + ' ' + pick(RAREN2) : rar === 1 ? `${AFFBY[it.mods[impl][0]].mp} ${it.base}` : it.base;
   return it;
 }
 export function modText(st, v) {

@@ -3,6 +3,7 @@ import { G, P, S } from '../core/state.js';
 import { SK } from '../data/skills.js';
 import { BOSS } from '../data/monsters.js';
 import { RCSS } from '../data/items.js';
+import { DMG_COL } from '../data/graphics.js';
 import { ROLES } from '../data/dungeon.js';
 import { ctl } from '../input/input.js';
 import { $ } from '../core/util.js';
@@ -19,6 +20,7 @@ const T = { hud: 0, mm: 0 };
 export function hud(dt) {
   if (G.bannerT > 0) { G.bannerT -= dt; if (G.bannerT <= 0) $('banner').style.opacity = 0; }
   G.vign = Math.max(0, G.vign - dt * 1.5);
+  if (G.vignCol !== T.vignCol) { T.vignCol = G.vignCol; $('vign').style.boxShadow = `inset 0 0 140px ${G.vignCol === DMG_COL.phys || !G.vignCol ? '#c00000' : G.vignCol}`; } // the flash takes the colour of the last hit's type
   $('vign').style.opacity = G.vign + (P.life < S.maxLife * .3 && P.dead <= 0 ? .25 + Math.sin(G.gt * 6) * .1 : 0);
   T.hud -= dt; if (T.hud > 0) return; T.hud = .07;
   $('lifeF').style.height = (P.life / S.maxLife * 100) + '%'; $('lifeT').textContent = `${Math.ceil(P.life)}/${S.maxLife}` + (P.shield > 0 ? ` +${Math.ceil(P.shield)}` : ''); $('orbL').classList.toggle('shielded', P.shield > 0);

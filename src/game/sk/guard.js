@@ -68,7 +68,7 @@ function threat() {
 }
 
 // A hit is about to land on you. d: its damage; o: { from: {x, z} where it comes from, kind: 'hit' | 'heavy' | 'unblockable',
-// by: the monster (for a parry's stagger), elem: elemental }. Returns the damage left after the shield and sets o.result.
+// by: the monster (for a parry's stagger), elem: a fire, cold or lightning hit (set by hurtP from its type) }. Returns the damage left after the shield and sets o.result.
 export function shieldHit(d, o) {
   const B = blockStats(), kind = o.kind || 'hit', art = ART[guardArt()];
   if (P.broken > 0) { o.result = 'broken'; return d * B.brokenMul; }
@@ -94,7 +94,7 @@ export function shieldHit(d, o) {
   P.castSeq++; P.lastCast = 'blockhit'; o.result = 'block'; SFX.block();
   if (S.ks && S.ks.bulwark && o.by) parried(o.by, S.ks.bulwark.bash); // Bulwark: a block pushes back
   ringFx(P.x + Math.sin(P.face) * .6, P.z + Math.cos(P.face) * .6, .7, art ? art.col : 0xe8d8a8, .2, .3);
-  return d * (1 - (o.elem ? B.elem : kind === 'heavy' ? B.heavy : B.block));
+  return d * (1 - (kind === 'heavy' ? B.heavy : o.elem ? B.elem : B.block)); // a heavy is a heavy whatever its type
 }
 
 export function breakGuard() {

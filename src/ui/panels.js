@@ -12,7 +12,9 @@ import { GEMS, SUPPORTS, SLOT_DEFS, BAR, GEM, supFits, gemDef } from '../data/ge
 import { SK } from '../data/skills.js';
 import { gemById, barGem, unlocked, fits, slotOf, ownsGem, placeGem, clearSlot, shrineOffer, takeShrine, shrineDue, isSupport, socketed, sockOf, nextSock, supActive, socketGem, unsocket, inBag, feedGem, feedPreview } from '../game/gems.js';
 import { toast } from '../render/fx.js';
-import { xpNeedFor } from '../game/formulas.js';
+import { xpNeedFor, monsterStats, armourCut } from '../game/formulas.js';
+import { DMG_COL, DMG_ICON } from '../data/graphics.js';
+import { DEFENCE } from '../data/balance.js';
 
 const isOpen = id => $(id).classList.contains('show');
 export function syncPause() { G.paused = !G.started || ['mInv', 'mTree', 'mMenu', 'mShrine', 'mGems'].some(isOpen); clearHeld(); }
@@ -21,7 +23,7 @@ export function syncPause() { G.paused = !G.started || ['mInv', 'mTree', 'mMenu'
 const ui = { sel: null };
 function itemHTML(it) {
   let h = `<div class="nm r${it.rar}">${it.name}</div><div class="base">${it.rar >= 2 ? it.base + ' · ' : ''}${it.slot} · item level ${it.il}</div>`;
-  it.mods.forEach(([st, v], i) => { h += `<div class="${i === 0 && it.impl ? 'impl' : 'mod' + (it.rar === 3 ? ' u' : '')}">${modText(st, v)}</div>`; });
+  it.mods.forEach(([st, v], i) => { h += `<div class="${i < (it.impl || 0) ? 'impl' + (i === it.impl - 1 ? ' last' : '') : 'mod' + (it.rar === 3 ? ' u' : '')}">${modText(st, v)}</div>`; });
   if (it.fl) h += `<div class="fl">${it.fl}</div>`;
   return h;
 }
@@ -32,7 +34,15 @@ function cmpHTML(it) {
     const p = a ? Math.round(d / a * 100) : 0;
     return `<div>${n}: ${f(a)} → <span class="${d >= 0 ? 'up' : 'dn'}">${f(b)} (${d >= 0 ? '+' : ''}${p}%)</span></div>`;
   };
-  return `<div class="cmp"><div style="color:var(--dim)">If equipped${P.gear[it.slot] ? ' (replaces ' + P.gear[it.slot].name + ')' : ''}:</div>${line(cur.gem + ' DPS', cur.dps, nx.dps)}${line('Max life', cur.life, nx.life)}${line('Move speed', cur.ms, nx.ms, v => v.toFixed(1))}</div>`;
+  return `<div class="cmp"><div style="color:var(--dim)">If equipped${P.gear[it.slot] ? ' (replaces ' + P.gear[it.slot].name + ')' : ''}:</div>${line(cur.gem + ' DPS', cur.dps, nx.dps)}${line('Max life', cur.life, nx.life)}${line('Move speed', cur.ms, nx.ms, v => v.toFixed(1))}${line('Armour', cur.armour, nx.armour)}${Object.keys(RES_N).map(k => line(RES_N[k] + ' resistance', cur.res[k] * 100, nx.res[k] * 100, v => Math.round(v) + '%')).join('')}</div>`;
+}
+// The character sheet's defence line (design notes "Defence"): life, armour (and what it takes off a typical hit on this map), and
+// each resistance in its damage type's colour (capped ones say so).
+const RES_N = { fire: 'Fire', cold: 'Cold', light: 'Lightning', poison: 'Poison' };
+function defHTML() {
+  const z = monsterStats('zombie', G.tier), cut = Math.round(armourCut(S.armour, z.dmg) * 100);
+  const res = Object.keys(RES_N).map(k => `<span style="color:${DMG_COL[k]}">${DMG_ICON[k]} ${RES_N[k]} ${Math.round(S.res[k] * 100)}%${S.resRaw[k] > DEFENCE.resCap ? ' (max)' : ''}</span>`).join(' · ');
+  return `<div>♥ Life ${S.maxLife} · <span style="color:#c8ccd4">⛊ Armour ${S.armour}</span>${S.armour ? ` <span style="color:var(--dim)">(−${cut}% of a ${Math.round(z.dmg)} hit; less off bigger ones)</span>` : ''}</div><div>${res}</div>`;
 }
 const isUpgrade = it => { const cur = estimate(S), nx = estimate(computeStats({ ...P.gear, [it.slot]: it })); return nx.dps > cur.dps * 1.02 || (nx.life > cur.life + 5 && nx.dps >= cur.dps * .98); };
 
@@ -44,7 +54,7 @@ export function renderInv() {
   }).join('');
   let h = '';
   for (let i = 0; i < DROP.bagSize; i++) { const it = P.inv[i]; h += `<div class="cell ${it ? 'c' + it.rar : ''} ${sel && sel.i === i ? 'sel' : ''}" data-i="${i}"${it && isUpgrade(it) ? ' style="box-shadow:inset 0 0 0 2px #5fe39a"' : ''}>${it ? GLY[it.slot] : ''}</div>`; }
-  $('invGrid').innerHTML = h;
+  $('invGrid').innerHTML = h; $('defSheet').innerHTML = defHTML();
   const tip = $('tip');
   if (sel && sel.i !== undefined && P.inv[sel.i]) {
     const it = P.inv[sel.i];

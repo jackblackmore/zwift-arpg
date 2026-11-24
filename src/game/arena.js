@@ -34,7 +34,7 @@ const DT = .033;
 // The scripted player at a tier's par level, gear, bar and supports (or what spec asks for), full life, Surge and flasks.
 export function parHero(spec, tier, lvl) {
   Object.assign(P, { lvl, tree: [], treeNew: [], gear: gearProfile(spec.gear || PAR_GEAR(tier), tier), dead: 0, invuln: 0, shield: 0, shieldT: 0, castT: 0,
-    blocking: false, parryT: 0, parryCd: 0, posture: 0, broken: 0, riposteT: 0, rollT: 0, apPause: 0, flaskT: 0, kills: 0, staggers: 0, finishers: 0, chans: 0, chanBroken: 0, taken: 0, takenBy: {}, gems: [], bar: {}, sock: {}, cd: {}, shrined: { main: 1, flexA: 1, flexB: 1, guard: 1, evade: 1 } });
+    blocking: false, parryT: 0, parryCd: 0, posture: 0, broken: 0, riposteT: 0, rollT: 0, apPause: 0, flaskT: 0, kills: 0, staggers: 0, finishers: 0, chans: 0, chanBroken: 0, taken: 0, takenBy: {}, takenType: {}, gems: [], bar: {}, sock: {}, cd: {}, shrined: { main: 1, flexA: 1, flexB: 1, guard: 1, evade: 1 } });
   const bar = { ...(spec.bar || parBar(tier)) };
   if (spec.main && bar.main) { bar.main = [spec.main, bar.main[1]]; for (const s of BAR) if (s !== 'main' && bar[s] && bar[s][0] === spec.main) delete bar[s]; }
   if (spec.guard && bar.guard) bar.guard = [spec.guard, bar.guard[1]];
@@ -86,7 +86,7 @@ export function arena(spec) {
   const left = G.enemies.filter(e => !e.deathT && foes.includes(e)).length;
   return {
     result: P.dead > 0 ? 'died' : left ? 'timeout' : 'clear', t: Math.round(t * 10) / 10, kills: P.kills,
-    taken: Math.round(P.taken), takenBy: Object.fromEntries(Object.entries(P.takenBy).map(([k, v]) => [k, Math.round(v)])), lowest: Math.round(lowest * 100) / 100, flasks: bot.flasks, shields: bot.shields, evades: bot.evades, parries: n.parry, blocks: n.blockhit, breaks: n.broken, rolls: n.roll, staggers: P.staggers, finishers: P.finishers, chans: P.chans, chanBroken: P.chanBroken, surged: Math.round(surged * 10) / 10,
+    taken: Math.round(P.taken), takenBy: Object.fromEntries(Object.entries(P.takenBy).map(([k, v]) => [k, Math.round(v)])), takenType: Object.fromEntries(Object.entries(P.takenType).map(([k, v]) => [k, Math.round(v)])), lowest: Math.round(lowest * 100) / 100, flasks: bot.flasks, shields: bot.shields, evades: bot.evades, parries: n.parry, blocks: n.blockhit, breaks: n.broken, rolls: n.roll, staggers: P.staggers, finishers: P.finishers, chans: P.chans, chanBroken: P.chanBroken, surged: Math.round(surged * 10) / 10,
     lvl, life: S.maxLife, bar: BAR.filter(s => barGem(s)).map(s => barGem(s).gem + barGem(s).lvl).join(' '), sup: Object.values(S.sk).flatMap(k => k.sup).join(' '),
   };
 }
