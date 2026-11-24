@@ -11,6 +11,8 @@ const $ = id => document.getElementById(id);
 const cv = $('view'), ctx = cv.getContext('2d');
 // Rooms are coloured by role (data/dungeon.js ROLES); side rooms are drawn with a blue outline.
 const gated = r => GATE.rooms.includes(r.kind) || GATE.rooms.includes(r.role);
+// Set-piece pieces (room.set props) by kind.
+const SETCOL = { pillar: '#b8aa98', pillarD: '#d8c8b0', brazier: '#ff8a30', post: '#c8c0b0', grave: '#8a8a90', coffin: '#7a5a3a', bench: '#a89a88', plinth: '#ffd23f', candles: '#ffb060', coins: '#ffd23f' };
 const st = { seed: 1, grid: false, cells: [] };
 try { const q = new URLSearchParams(location.search).get('seed'); if (q) st.seed = Math.max(1, parseInt(q, 10) || 1); } catch (e) {}
 
@@ -41,6 +43,24 @@ function drawLevel(L, x, y, s, big) {
     ctx.strokeStyle = gate ? '#eef2ff' : '#e8c878'; ctx.lineWidth = Math.max(gate ? 3 : 1.5, k * (gate ? .55 : .3)); ctx.beginPath(); ctx.moveTo(x0, z0); ctx.lineTo(x1, z1); ctx.stroke(); doors++;
   }
   if (big) { st.doors = doors; st.gates = gates; }
+  // Set pieces (room.set, world/gen.js setPieces): their pieces at true size (each collider), the dais as a square, and the spot
+  // the room is built round (the guardian's, the chest on its plinth, the rest flame, the elite) as a ring. Vault partitions are
+  // ordinary wall cells, drawn with the grid.
+  if (big) {
+    let sets = 0;
+    for (const r of L.rooms) if (r.set) {
+      sets++;
+      for (const p of r.set.props) {
+        const [px, pz] = W(p.x, p.z), u = k / L.cell;
+        if (p.k === 'dais') { ctx.strokeStyle = '#ff4fd8aa'; ctx.lineWidth = 1.5; ctx.strokeRect(px - p.s * u, pz - p.s * u, p.s * 2 * u, p.s * 2 * u); continue; }
+        ctx.fillStyle = SETCOL[p.k] || '#9a8a7a';
+        if (!p.c.length) { ctx.fillRect(px - 1.5, pz - 1.5, 3, 3); continue; }
+        for (const [cx, cz, cr] of p.c) { const [qx, qz] = W(cx, cz); ctx.beginPath(); ctx.arc(qx, qz, Math.max(1.5, cr * u), 0, 7); ctx.fill(); }
+      }
+      if (r.set.spot && r.set.kind !== 'arena') { const [px, pz] = W(r.set.spot.x, r.set.spot.z); ctx.strokeStyle = ROLES[r.role].col; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(px, pz, Math.max(4, k * .6), 0, 7); ctx.stroke(); }
+    }
+    st.sets = sets;
+  }
   if (!big) { // thumbnails: just the role icons of the beats
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `800 ${Math.max(9, s / 18)}px serif`;
     for (const r of L.rooms) if (r.role !== 'combat' && r.role !== 'start') { const [px, pz] = W(r.x, r.z); ctx.fillStyle = '#000'; ctx.fillText(ROLES[r.role].icon, px + 1, pz + 1); ctx.fillStyle = '#fff'; ctx.fillText(ROLES[r.role].icon, px, pz); }
@@ -88,7 +108,7 @@ function layout() {
   panel(level(st.seed));
 }
 
-const legend = () => `<div class="legend">${Object.values(ROLES).map(R => `<span><i style="background:${R.col}"></i>${R.icon} ${R.name}</span>`).join('')}<span><i style="background:transparent;border:2px solid #6a8aff"></i>Side room</span><span><i style="background:#4a3a2a"></i>Corridor</span><span><i style="background:#e8c878"></i>Door</span><span><i style="background:#eef2ff"></i>Fog gate</span></div>`;
+const legend = () => `<div class="legend">${Object.values(ROLES).map(R => `<span><i style="background:${R.col}"></i>${R.icon} ${R.name}</span>`).join('')}<span><i style="background:transparent;border:2px solid #6a8aff"></i>Side room</span><span><i style="background:#4a3a2a"></i>Corridor</span><span><i style="background:#e8c878"></i>Door</span><span><i style="background:#eef2ff"></i>Fog gate</span><span><i style="background:#d8c8b0;border-radius:50%"></i>Set-piece pillar</span><span><i style="background:#ff8a30;border-radius:50%"></i>Brazier</span><span><i style="background:transparent;border:2px solid #ffd23f;border-radius:50%"></i>Chest, flame or elite</span></div>`;
 function panel(L) {
   const side = L.rooms.filter(r => r.kind === 'side').length, route = L.route.length, floor = L.grid.reduce((n, c) => n + c, 0);
   const rows = [
@@ -99,10 +119,11 @@ function panel(L) {
     ['Corridors', L.edges.length],
     ['Roles', Object.entries(ROLES).filter(([k]) => k !== 'start').map(([k, R]) => [R, L.rooms.filter(r => r.role === k)]).filter(([, a]) => a.length).map(([R, a]) => `${R.icon} ${R.name} ${a.length}${a.some(r => r.kind === 'side') && R !== ROLES.combat ? ` (${a.filter(r => r.kind === 'side').length} side)` : ''}`).join(' · ')],
     ['Doors', `${L.rooms.reduce((n, r) => n + r.doors.length, 0)} (fog gates on ${L.rooms.filter(gated).map(r => r.kind === 'boss' ? 'the guardian arena' : `the ${ROLES[r.role].name.toLowerCase()} room`).join(', ')})`],
+    ['Set pieces', L.rooms.filter(r => r.set).map(r => `${ROLES[r.role].icon} ${r.set.name}${r.set.ante ? ' (antechamber)' : ''}`).join(' · ') || 'none'],
     ['Floor', `${floor} cells (${Math.round(floor * L.cell * L.cell)} units²)`],
   ];
   $('panel').innerHTML = `<h4>SEED ${st.seed}</h4><table>${rows.map(([a, b]) => `<tr><td>${a}</td><td>${b}</td></tr>`).join('')}</table>${legend()}
-    <div class="hint">Rooms are coloured by role, with its icon (the icon its door sign shows); the number under it is the route order, S a side room (blue outline). ◆ = the autopilot stops there to let you choose a way. The gold line is the main route. Doors are the short bars across gaps in the walls; the white ones are fog gates, which seal you in with the guardian or an elite until it dies.</div>
+    <div class="hint">Rooms are coloured by role, with its icon (the icon its door sign shows); the number under it is the route order, S a side room (blue outline). ◆ = the autopilot stops there to let you choose a way. The gold line is the main route. Doors are the short bars across gaps in the walls; the white ones are fog gates, which seal you in with the guardian or an elite until it dies. Special rooms are set pieces: the guardian's arena (dais, pillars, braziers), a vault (the chest on a plinth, sometimes behind a partition wall with an antechamber), a rest chapel (the flame with benches round it) and an elite hall (a colonnade to the elite at the far end). Their pieces are drawn at true size; the ring marks the chest, flame or elite.</div>
     <a class="play" href="../?seed=${st.seed}">PLAY THIS MAP ▸</a><div class="hint">Opens the game on this layout for map 1 (packs are still placed at random). Without ?seed the game makes a new layout every time.</div>`;
 }
 

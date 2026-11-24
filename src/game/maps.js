@@ -47,9 +47,9 @@ function placePacks(n) {
   const L = G.layout, PS = PACK_SPACING, { start, boss } = L;
   const ok = (x, z, gap) => dist(x, z, start.x, start.z) >= PS.fromStart && dist(x, z, boss.x, boss.z) >= PS.fromBoss && !blocked(x, z, 1.5) && !G.packs.some(p => dist(p.x, p.z, x, z) < gap);
   const add = (x, z, rank, o) => { const p = makePack(x, z, o); p.rank = rank; G.packs.push(p); return p; };
-  const spotIn = (r, gap, near) => { for (let k = 0; k < 30; k++) { const x = near && k < 20 ? near.x + (Math.random() - .5) * 5 : -L.half + (r.i0 + 1 + Math.random() * (r.w - 2)) * L.cell, z = near && k < 20 ? near.z + (Math.random() - .5) * 5 : -L.half + (r.j0 + 1 + Math.random() * (r.h - 2)) * L.cell; if (ok(x, z, gap) && roomAt(L, x, z) === r) return [x, z]; } return near ? [near.x, near.z] : [r.x, r.z]; };
+  const spotIn = (r, gap, near) => { for (let k = 0; k < 60; k++) { const x = near && k < 20 ? near.x + (Math.random() - .5) * 5 : -L.half + (r.i0 + 1 + Math.random() * (r.w - 2)) * L.cell, z = near && k < 20 ? near.z + (Math.random() - .5) * 5 : -L.half + (r.j0 + 1 + Math.random() * (r.h - 2)) * L.cell; if (ok(x, z, k < 30 ? gap : 0) && roomAt(L, x, z) === r) return [x, z]; } return [r.x, r.z]; }; // never on the chest itself
   for (const r of L.rooms) {
-    if (r.role === 'elite') { const [x, z] = spotIn(r, PS.relaxed); add(x, z, r.rank, { elite: true }).room = r.id; }
+    if (r.role === 'elite') { const sp = r.set && r.set.spot, [x, z] = sp && ok(sp.x, sp.z, PS.relaxed) ? [sp.x, sp.z] : spotIn(r, PS.relaxed); add(x, z, r.rank, { elite: true }).room = r.id; } // an elite hall's far end (world/gen.js set pieces)
     const c = G.chests.find(c => c.room === r.id);
     if (c && c.guarded) { const [x, z] = spotIn(r, PS.relaxed, c); const p = add(x, z, r.rank); p.room = r.id; c.guard = p; }
   }

@@ -6,7 +6,7 @@ import { groundTex, GB, GS, GCY, GROCK, glowSprite, decal } from '../render/asse
 import { G } from '../core/state.js';
 import { rand, clamp, dist } from '../core/util.js';
 import { dun, buildDungeon } from './dungeon.js';
-import { GEN, OBSTACLE_DENSITY } from '../data/dungeon.js';
+import { GEN, OBSTACLE_DENSITY, SET } from '../data/dungeon.js';
 import { seeded } from '../core/rng.js';
 import { generateLevel, walkField, cellOf, lineDist, solid, wallHit } from './gen.js';
 
@@ -124,6 +124,7 @@ export function buildMap() {
   const L = G.layout = generateLevel({}, G.devSeed ? seeded(G.devSeed + G.tier - 1) : Math.random); L.seen = new Uint8Array(L.n * L.n);
   G.start = { x: L.start.x, z: L.start.z }; G.bossSpot = { x: L.boss.x, z: L.boss.z };
   G.dressed = dun.ready; ground.visible = !dun.ready; // the dressed level draws its own floor, only where there is floor
+  for (const r of L.rooms) if (r.set) for (const p of r.set.props) for (const [x, z, cr] of p.c) G.obst.push({ x, z, r: cr }); // set pieces' colliders (world/gen.js)
   if (dun.ready) buildDungeon(L); else primitiveMap(L);
   // minimap base layer: dark until explored (reveal() paints cells as you see them)
   const c = G.mmBase = document.createElement('canvas'); c.width = c.height = 300; const m = c.getContext('2d');
@@ -150,9 +151,24 @@ function primitiveMap(L) {
     if (d.side !== 'n') continue;
     const m = new T.Mesh(GB, frame); m.scale.set(along ? d.w + .9 : .9, .6, along ? .9 : d.w + .9); m.position.set(d.x + nx * .2, 3.1, d.z + nz * .2); m.castShadow = true; G.world.add(m);
   }
+  // Set pieces (world/gen.js setPieces) as plain shapes; their colliders are already in G.obst.
+  const piece = (geo, mat, x, z, sx, sy, sz, rot = 0, y = sy / 2) => { const m = new T.Mesh(geo, mat); m.scale.set(sx, sy, sz); m.position.set(x, y, z); m.rotation.y = rot; m.castShadow = m.receiveShadow = true; G.world.add(m); return m; };
+  const flame = (x, z, y, sz = 1.4) => { const f = glowSprite(0xff8a30, sz); f.position.set(x, y, z); G.world.add(f); G.torches.push({ f, x, z }); };
+  for (const r of L.rooms) if (r.set) for (const p of r.set.props) {
+    const { x, z, rot } = p;
+    if (p.k === 'dais') { piece(GB, frame, x, z, p.s * 2, p.lift, p.s * 2); const d = decal(0xff4fd8, p.s * 2.6); d.position.set(x, p.lift + .05, z); G.world.add(d); }
+    else if (p.k === 'pillar' || p.k === 'pillarD') piece(GCY, frame, x, z, p.c[0][2] * 1.6, 4, p.c[0][2] * 1.6);
+    else if (p.k === 'brazier') { piece(GCY, rockMat, x, z, .5, 1.2, .5); flame(x, z, 1.5); const d = decal(0xff7020, 4); d.position.set(x, .2, z); G.world.add(d); }
+    else if (p.k === 'post') piece(GCY, woodMat, x, z, .25, 1.6, .25);
+    else if (p.k === 'grave') piece(GB, frame, x, z, 1.1, 1.3, .3, rot);
+    else if (p.k === 'coffin') piece(GB, woodMat, x, z, 1.5, .6, 2.4, rot);
+    else if (p.k === 'bench') piece(GB, frame, x, z, SET.chapel.benchLen, .45, .7, rot);
+    else if (p.k === 'plinth') { const [pw, ph, pd] = SET.vault.plinth; piece(GB, frame, x, z, pw, ph, pd, rot); }
+    else if (p.k === 'candles') flame(x, z, .8, 1);
+  }
   const start = L.start, free = (x, z, r) => !blocked(x, z, r) && lineDist(L, x, z) > r + 2.2;
   for (const room of L.rooms) {
-    if (room.kind === 'boss') continue;
+    if (room.kind === 'boss' || room.set) continue;
     const want = room.kind === 'start' || room.role === 'rest' ? 1 : Math.round(room.w * room.h * OBSTACLE_DENSITY);
     for (let t = 0, got = 0; t < 60 && got < want; t++) {
       const r = rand(.8, 1.8), x = -half + (room.i0 + rand(1, room.w - 1)) * cell, z = -half + (room.j0 + rand(1, room.h - 1)) * cell;

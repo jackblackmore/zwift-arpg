@@ -16,7 +16,10 @@
 //   path            the main route as a world polyline, entrance to guardian; routeLen is its length
 //   start, boss     world positions of the entrance and the guardian
 //   rank            rooms and edges get an order along the route (side rooms: parent + .5) for the autopilot
-import { GEN, RHYTHM } from '../data/dungeon.js';
+//   set             per room, its set piece (data/dungeon.js SET) or none: { kind: arena|vault|chapel|hall, name, spot: {x, z} (the
+//                   guardian's, chest's, flame's or elite's place) or null, face (rotation toward the way in), props: [{ k, x, z, rot,
+//                   c: [[x, z, r]] }] (pieces and their circle colliders, world units), wall: [[i, j]] (partition cells made wall) }
+import { GEN, RHYTHM, SET } from '../data/dungeon.js';
 
 const NB = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
@@ -119,8 +122,10 @@ export function generateLevel(opts = {}, rng = Math.random) {
   for (let k = 1; k < path.length; k++) routeLen += Math.hypot(path[k].x - path[k - 1].x, path[k].z - path[k - 1].z);
 
   assignRoles(rooms, routeIds.length, rng);
+  const L = { n, cell, half, grid, rooms, route: routeIds, edges, path, routeLen, zones: Z };
+  setPieces(L, rng); // after the roles (a seed's layout and roles are the same as before set pieces); vault partitions change the grid
   const start = { x: rooms[0].x, z: rooms[0].z }, boss = { x: rooms[routeIds[routeIds.length - 1]].x, z: rooms[routeIds[routeIds.length - 1]].z };
-  return { n, cell, half, grid, rooms, route: routeIds, edges, path, routeLen, start, boss, zones: Z };
+  return Object.assign(L, { start, boss });
 }
 
 // Room roles by the rhythm template (data/dungeon.js RHYTHM): the entrance and the guardian's arena keep theirs, every other room
@@ -135,6 +140,81 @@ function assignRoles(rooms, nRoute, rng) {
     const side = rooms.filter(r => r.kind === 'side' && ok(r)), main = rooms.filter(r => r.kind === 'main' && ok(r));
     const pool = b.side === 2 ? side : b.side && side.length ? side : main;
     if (pool.length) pool[Math.floor(rng() * pool.length)].role = b.role;
+  }
+}
+// ---- Set pieces (data/dungeon.js SET): authored dressing for the guardian arena, treasure vaults, rest chapels and elite halls ----
+// Each piece is a circle collider or none; a piece goes in only where it fits (in its room, clear of walls by SET.wallGap and of
+// every corridor centre line by SET.lineGap plus its radius, and of the other pieces), so doorways and the walk through stay open.
+const IN = { n: [0, 1], s: [0, -1], w: [1, 0], e: [-1, 0] }; // a door's inward direction
+function setPieces(L, rng) {
+  const X = k => -L.half + k * L.cell;
+  for (const r of L.rooms) {
+    const kind = Object.keys(SET).find(k => SET[k].role === r.role); r.set = null; if (!kind) continue;
+    const T = SET[kind], S = { kind, name: T.name, spot: null, face: 0, props: [], keep: [], wall: [] };
+    const fits = (x, z, rad) => roomAt(L, x, z) === r && !wallHit(L, x, z, rad + SET.wallGap) && lineDist(L, x, z) >= rad + SET.lineGap
+      && !S.keep.some(([px, pz, pr]) => (px - x) ** 2 + (pz - z) ** 2 < (pr + rad) ** 2)
+      && !S.props.some(p => p.c.some(([px, pz, pr]) => (px - x) ** 2 + (pz - z) ** 2 < (pr + rad + .8) ** 2));
+    // add: one piece if it fits; c: its colliders as [dx, dz, r] around (x, z) (default one circle of `rad`), all checked
+    const add = (k, x, z, rot, rad, c = rad ? [[0, 0, rad]] : []) => {
+      const cc = c.map(([dx, dz, cr]) => [x + dx, z + dz, cr]);
+      if (!(cc.length ? cc.every(([cx, cz, cr]) => fits(cx, cz, cr)) : fits(x, z, .3))) return false;
+      S.props.push({ k, x, z, rot, c: cc }); return true;
+    };
+    const R = { x0: X(r.i0), x1: X(r.i0 + r.w), z0: X(r.j0), z1: X(r.j0 + r.h) };
+    if (kind === 'arena') {
+      S.spot = { x: r.x, z: r.z }; S.props.push({ k: 'dais', x: r.x, z: r.z, rot: 0, s: T.dais, lift: T.lift, c: [] }); S.keep.push([r.x, r.z, T.dais]);
+      for (let q = 0; q < 4; q++) { const a = (q + .5) * Math.PI / 2; add('pillarD', r.x + Math.cos(a) * T.pillar, r.z + Math.sin(a) * T.pillar, 0, .85); }
+      for (const [x, z] of [[R.x0, R.z0], [R.x1, R.z0], [R.x0, R.z1], [R.x1, R.z1]]) add('brazier', x + Math.sign(r.x - x) * T.corner, z + Math.sign(r.z - z) * T.corner, rng() * 6, .35);
+      for (let q = 0; q < 12; q++) { const a = q / 12 * Math.PI * 2; add(q % 2 ? 'post' : 'grave', r.x + Math.cos(a) * T.ring, r.z + Math.sin(a) * T.ring, q % 2 ? -a + Math.PI / 2 : -a - Math.PI / 2, q % 2 ? .3 : .45); }
+    } else {
+      // The way in: the door toward the entrance (a side room's only door), and the room's frame from it: inward u, across v.
+      const d0 = r.doors.reduce((a, d) => !a || L.rooms[d.to].rank < L.rooms[a.to].rank ? d : a, null), [ux, uz] = IN[d0.side], vx = uz ? 1 : 0, vz = ux ? 1 : 0;
+      const deep = ux ? r.w : r.h, across = ux ? r.h : r.w, at = (u, v) => [d0.x + ux * u + vx * v, d0.z + uz * u + vz * v];
+      const vMin = ux ? R.z0 - d0.z : R.x0 - d0.x, vMax = ux ? R.z1 - d0.z : R.x1 - d0.x, D = deep * L.cell;
+      if (kind === 'vault') {
+        // A partition across the room with a gap on the doorway's line (the corridor's cells), both sides at least 2 cells deep.
+        if (r.doors.length === 1 && deep >= T.depth && across >= T.cross) {
+          // the antechamber is the 2 cells nearest the doorway, the vault behind it as deep as the room allows (deep − 3 cells)
+          const k0 = ux ? r.i0 : r.j0, p = ux < 0 || uz < 0 ? k0 + deep - 3 : k0 + 2, g0 = ux ? r.cj : r.ci;
+          for (let t = 0; t < across; t++) { const c = (ux ? r.j0 : r.i0) + t; if (c === g0 || c === g0 + 1) continue; const [i, j] = ux ? [p, c] : [c, p]; if (L.grid[j * L.n + i]) { L.grid[j * L.n + i] = 0; S.wall.push([i, j]); } }
+          S.ante = true;
+        }
+        // The chest: against the wall facing the way in (else another wall without a doorway), on the room's centre line.
+        const cands = [['n', r.x, R.z0 + T.wall], ['s', r.x, R.z1 - T.wall], ['w', R.x0 + T.wall, r.z], ['e', R.x1 - T.wall, r.z]]
+          .filter(([sd, x, z]) => !r.doors.some(d => d.side === sd) && roomAt(L, x, z) === r && !wallHit(L, x, z, 1 + .2) && lineDist(L, x, z) >= 1 + SET.lineGap)
+          .sort((a, b) => lineDist(L, b[1], b[2]) - lineDist(L, a[1], a[2]));
+        if (cands.length) {
+          const [sd, x, z] = cands[0], [nx, nz] = IN[sd]; S.spot = { x, z }; S.face = Math.atan2(nx, nz); S.lift = T.plinth[1];
+          S.props.push({ k: 'plinth', x, z, rot: S.face, c: [[x, z, 1]] });
+          for (const t of [-1, 1]) add('brazier', x + nz * t * T.flank, z + nx * t * T.flank, rng() * 6, .35);
+          for (let q = 0; q < 3; q++) { const a = rng() * 6.28, cx = x + Math.cos(a) * 1.6 + nx * .4, cz = z + Math.sin(a) * 1.6 + nz * .4; if (fits(cx, cz, .2)) S.props.push({ k: 'coins', x: cx, z: cz, rot: a, c: [] }); }
+        }
+        if (S.ante) for (const t of [-1, 1]) { // coffins lying along the partition, on the antechamber's side
+          const [x, z] = at(2 * L.cell - 1.8, t * (L.cell * 1.5 + 1.2));
+          add('coffin', x, z, vx ? Math.PI / 2 : 0, .8, vx ? [[-.6, 0, .8], [.6, 0, .8]] : [[0, -.6, .8], [0, .6, .8]]);
+        }
+      } else if (kind === 'chapel') {
+        // The quietest part of the room: of the points round the centre, the one furthest from the corridors that fits the flame.
+        let best = null;
+        for (const f of [1, 1.35, .75]) for (let q = 0; q < 8; q++) { const a = q * Math.PI / 4, x = r.x + Math.cos(a) * T.off * f, z = r.z + Math.sin(a) * T.off * f; if (fits(x, z, 1.4)) { const sc = lineDist(L, x, z); if (!best || sc > best[2]) best = [x, z, sc]; } }
+        if (best) {
+          const [x, z] = best; S.spot = { x, z }; S.keep.push([x, z, 1.7]);
+          let dx = x - r.x, dz = z - r.z; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l; // away from the corridors
+          const b = T.bench, h = T.benchLen / 2 - .4;
+          for (const [px, pz] of [[-dz, dx], [dz, -dx], [dx, dz]]) { // either side of the flame and behind it, each along its tangent
+            const bx = x + px * b, bz = z + pz * b, tx = -pz, tz = px;
+            add('bench', bx, bz, Math.atan2(-tz, tx), .45, [[tx * h, tz * h, .45], [-tx * h, -tz * h, .45]]);
+          }
+          for (const [cx, cz] of [[R.x0, R.z0], [R.x1, R.z0], [R.x0, R.z1], [R.x1, R.z1]]) add('candles', cx + Math.sign(r.x - cx) * 1.3, cz + Math.sign(r.z - cz) * 1.3, rng() * 6, 0);
+        }
+      } else if (kind === 'hall') {
+        const end = D - T.end; S.spot = { x: at(end, 0)[0], z: at(end, 0)[1] }; S.face = Math.atan2(-ux, -uz); S.keep.push([S.spot.x, S.spot.z, 1.8]);
+        for (const t of [-1, 1]) for (let u = T.step * .75; u < end - 1; u += T.step) { const [x, z] = at(u, t * T.side); add('pillar', x, z, 0, .65); }
+        for (const t of [-1, 1]) { const [x, z] = at(end + .6, t * T.flank); add('brazier', x, z, rng() * 6, .35); }
+        for (const v of [vMin + 1.75, vMax - 1.75]) { const [x, z] = at(D / 2, v); add('coffin', x, z, vx ? 0 : Math.PI / 2, .8, vx ? [[0, -.6, .8], [0, .6, .8]] : [[-.6, 0, .8], [.6, 0, .8]]); }
+      }
+    }
+    delete S.keep; r.set = S;
   }
 }
 export const routePlace = (L, r) => (r.kind === 'side' ? L.rooms[r.parent].rank : r.rank) / (L.route.length - 1);

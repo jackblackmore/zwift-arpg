@@ -41,15 +41,16 @@ export function initRooms() {
   G.chests = []; G.rest = null; const L = G.layout; if (!L) return;
   for (const r of L.rooms) {
     if (r.role === 'treasure') {
-      const p = spotIn(L, r, .8, true) || [r.x + L.cell, r.z]; const [x, z] = p;
+      const sp = r.set && r.set.spot, lift = sp ? r.set.lift || 0 : 0; // a vault's plinth (world/gen.js set pieces)
+      const [x, z] = sp ? [sp.x, sp.z] : spotIn(L, r, .8, true) || [r.x + L.cell, r.z];
       const g = dun.ready ? piece('chest', DUNGEON.scale * 1.25) : (() => { const b = new T.Group(), m = new T.Mesh(GB, new T.MeshLambertMaterial({ color: 0x8a5a2a })); m.scale.set(1.1, .7, .7); m.position.y = .35; b.add(m); return b; })();
-      g.rotation.y = Math.atan2(r.x - x, r.z - z); g.position.set(x, 0, z);
-      const glow = glowSprite(0xffd23f, 2.6); glow.material = glow.material.clone(); glow.position.set(x, 1, z); const dc = decal(0xffc040, 3.2); dc.position.set(x, .05, z);
+      g.rotation.y = Math.atan2(r.x - x, r.z - z); g.position.set(x, lift, z);
+      const glow = glowSprite(0xffd23f, 2.6); glow.material = glow.material.clone(); glow.position.set(x, 1 + lift, z); const dc = decal(0xffc040, 3.2); dc.position.set(x, .05 + lift, z);
       G.world.add(g, glow, dc); G.obst.push({ x, z, r: .7 });
       G.chests.push({ room: r.id, x, z, g, glow, dc, open: false, guarded: Math.random() < CHEST.guarded, guard: null, t: 0 });
     }
     if (r.role === 'rest' && !G.rest) {
-      const [x, z] = spotIn(L, r, 1.6, false) || [r.x + L.cell * .8, r.z + L.cell * .8], s = DUNGEON.scale, g = new T.Group();
+      const sp = r.set && r.set.spot, [x, z] = sp ? [sp.x, sp.z] : spotIn(L, r, 1.6, false) || [r.x + L.cell * .8, r.z + L.cell * .8], s = DUNGEON.scale, g = new T.Group(); // a rest chapel's flame (world/gen.js set pieces)
       if (dun.ready) {
         const col = piece('column', s), cand = piece('candle_triple', s * DUNGEON.torch); cand.position.y = 1.4 * s; g.add(col, cand);
         for (let k = 0; k < 7; k++) { const a = k / 7 * Math.PI * 2, c = piece('candle_lit', s); c.position.set(Math.cos(a) * 1.5, 0, Math.sin(a) * 1.5); g.add(c); }
