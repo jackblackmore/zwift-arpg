@@ -26,7 +26,7 @@ export const ANIM = {
 // Per-tier scaling. hp: monster life multiplier per map tier (index 0 = tier 1), then +hpAfter per tier.
 // Tier 2 jumps because by then you've swapped the starter sword for magic gear (see `npm run balance`).
 // dmg, xp, packSize: fraction added per tier on top of tier 1.
-export const TIER = { hp: [1, 2.5, 2.9, 3.4, 3.9], hpAfter: .5, dmg: .25, xp: 1, packSize: .2 };
+export const TIER = { hp: [1, 2.65, 3.2, 3.95, 4.65], hpAfter: .5, dmg: .25, xp: 1, packSize: .2 };
 
 // Pack templates: [type, count] pairs. Counts scale with tier.
 export const PACKS = [
