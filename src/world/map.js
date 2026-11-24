@@ -142,6 +142,14 @@ function primitiveMap(L) {
   const im = new T.InstancedMesh(new T.BoxGeometry(1, 1, 1), rockMat, boxes.length), M = new T.Matrix4();
   boxes.forEach(([i, j, h], k) => { im.setMatrixAt(k, M.makeScale(cell, h, cell).setPosition(-half + (i + .5) * cell, h / 2, -half + (j + .5) * cell)); });
   im.castShadow = im.receiveShadow = true; im.frustumCulled = false; G.world.add(im);
+  // Door frames (world/gen.js room.doors): a post each side of the gap, and a lintel across the top of a north doorway (as world/dungeon.js).
+  const frame = new T.MeshLambertMaterial({ color: 0x6a5a58, flatShading: true });
+  for (const r of L.rooms) for (const d of r.doors) {
+    const along = d.side === 'n' || d.side === 's', [nx, nz] = { n: [0, -1], s: [0, 1], w: [-1, 0], e: [1, 0] }[d.side], hp = d.side === 's' ? 1.6 : 3.4;
+    for (const t of [-1, 1]) { const m = new T.Mesh(GB, frame); m.scale.set(.9, hp, .9); m.position.set(d.x + (along ? t * d.w / 2 : nx * .2), hp / 2, d.z + (along ? nz * .2 : t * d.w / 2)); m.castShadow = true; G.world.add(m); }
+    if (d.side !== 'n') continue;
+    const m = new T.Mesh(GB, frame); m.scale.set(along ? d.w + .9 : .9, .6, along ? .9 : d.w + .9); m.position.set(d.x + nx * .2, 3.1, d.z + nz * .2); m.castShadow = true; G.world.add(m);
+  }
   const start = L.start, free = (x, z, r) => !blocked(x, z, r) && lineDist(L, x, z) > r + 2.2;
   for (const room of L.rooms) {
     if (room.kind === 'boss') continue;

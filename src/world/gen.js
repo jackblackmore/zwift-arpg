@@ -183,3 +183,11 @@ export function tourLen(L) {
   const onRoute = new Set(); for (let k = 1; k < L.route.length; k++) onRoute.add(L.route[k - 1] + ',' + L.route[k]);
   return L.edges.reduce((n, e) => n + leg(e) * (onRoute.has(e.a + ',' + e.b) || onRoute.has(e.b + ',' + e.a) ? 1 : 2), 0);
 }
+
+// The cells of a door's gap: the corridor cells just outside room r's wall line (what a fog gate fills, game/gate.js).
+export function doorCells(L, r, d) {
+  const along = d.side === 'n' || d.side === 's', line = d.side === 'e' ? r.i0 + r.w : d.side === 'w' ? r.i0 - 1 : d.side === 's' ? r.j0 + r.h : r.j0 - 1;
+  const a = cellOf(L, (along ? d.x : d.z) - d.w / 2 + .01), b = cellOf(L, (along ? d.x : d.z) + d.w / 2 - .01), out = [];
+  for (let k = a; k <= b; k++) out.push(along ? [k, line] : [line, k]);
+  return out;
+}

@@ -52,10 +52,9 @@ export function options(L, C) {
   for (const { to, e } of adj(L).get(C.id)) {
     const rooms = subtree(L, to, C.id); if (!anyPending(L, rooms)) continue;
     const kind = [...rooms].some(r => L.rooms[r].kind === 'boss') ? 'onward' : L.rooms[to].kind === 'side' ? 'side' : 'back';
-    const p0 = e.pts[0], p1 = e.pts[e.pts.length - 1], door = dist(p0.x, p0.z, C.x, C.z) < dist(p1.x, p1.z, C.x, C.z) ? p1 : p0;
-    // The doorway: where the corridor leaves the room (the first corridor point outside it).
-    const out1 = e.pts.find(pt => !roomAt(L, pt.x, pt.z) || roomAt(L, pt.x, pt.z).id !== C.id) || door;
-    out.push({ to, kind, rooms, label: L.rooms[to].kind === 'boss' ? LABEL.boss : LABEL[kind], door: out1 });
+    // The doorway: the real gap in this room's wall that this corridor leaves by (world/gen.js room.doors).
+    const door = C.doors.find(d => d.edge === L.edges.indexOf(e));
+    out.push({ to, kind, rooms, label: L.rooms[to].kind === 'boss' ? LABEL.boss : LABEL[kind], door });
   }
   return out.sort((a, b) => ORDER[a.kind] - ORDER[b.kind]);
 }

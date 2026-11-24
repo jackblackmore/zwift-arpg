@@ -14,6 +14,7 @@ import { makePack } from './enemies.js';
 import { packCount, tierHp } from './formulas.js';
 import { refreshShrine, readySlots } from './gems.js';
 import { CLEAR } from './casts.js';
+import { initGate } from './gate.js';
 
 export function makePortal(x, z) {
   const g = new T.Group();
@@ -31,6 +32,7 @@ export function clearMap() {
   G.effects.forEach(f => scene.remove(f.mesh)); G.effects = []; G.queue = []; G.floats = [];
   if (G.portal) { scene.remove(G.portal.g); G.portal = null; }
   if (G.shrine) { scene.remove(G.shrine.g); G.shrine = null; }
+  G.gate = null; // its mesh lives in G.world, rebuilt with the map
   $('bossbar').style.display = 'none';
 }
 
@@ -49,7 +51,7 @@ function placePacks(n) {
 }
 
 export function newMap(t) {
-  G.tier = t; clearMap(); buildMap(); G.mapKills = 0; G.mapTotal = 0; G.packs = []; resetRoute();
+  G.tier = t; clearMap(); buildMap(); initGate(); G.mapKills = 0; G.mapTotal = 0; G.packs = []; resetRoute();
   placePacks(packCount(t));
   G.bossSpec = { spawned: false }; G.mapTotal++;
   P.x = G.start.x; P.z = G.start.z; P.dead = 0; P.life = S.maxLife; P.surge = S.surgeMax; P.spent = false; P.flask = SK.flask.max; readySlots();
