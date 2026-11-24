@@ -1,6 +1,6 @@
 // Balance arena: scripted fights with the real game code, one encounter at a time (no level runs).
 // Run `npm run build` first. Usage: npm run arena [-- maxTier]   (SEED=n changes the fixed random seed; MAIN=gemId swaps the Main gem;
-// TREE=none plays with no passive tree points, TREE=<preset> another data/balance.js TREE_PRESETS entry; default: the par preset)
+// ONLY='^guardian' runs just the rows whose names match that regular expression; TREE=none plays with no passive tree points, TREE=<preset> another data/balance.js TREE_PRESETS entry; default: the par preset)
 // Each row is one fight at the tier's par level and par gear (src/data/balance.js) unless the row says otherwise.
 // The bot walks into swing reach and lets the Main gem auto-attack, novas when crowded, flasks at half life and surges on rares,
 // guardians and crowds. It never steps out of anything: it parries, blocks and rolls at a reaction skill (src/game/arena.js):
@@ -11,6 +11,7 @@ import { preview } from 'vite';
 import puppeteer from 'puppeteer-core';
 import { existsSync } from 'node:fs';
 
+const ONLY = process.env.ONLY ? new RegExp(process.env.ONLY) : null; // ONLY=<regex>: just the rows whose names match it
 const maxTier = Number(process.argv[2]) || 5, SEED = Number(process.env.SEED) || 1234, MAIN = process.env.MAIN || undefined, TREE = process.env.TREE === 'none' ? false : process.env.TREE || undefined;
 const chrome = process.env.CHROME_PATH || ['/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser', '/opt/pw-browsers/chromium'].find(existsSync);
 if (!chrome) { console.error('No Chrome found. Set CHROME_PATH.'); process.exit(1); }
@@ -42,7 +43,7 @@ const encounters = (t, n) => [
     { name: `rare + pack, ${k}`, fight: [['zombie', n(3)]], rare: 'zombie', tree: k, skip: t < 4 || TREE !== undefined },
     { name: `guardian, ${k}`, guardian: true, maxT: 240, tree: k, skip: t < 4 || TREE !== undefined },
   ]),
-].filter(e => !e.skip);
+].filter(e => !e.skip && (!ONLY || ONLY.test(e.name)));
 
 const PORT = Number(process.env.PORT) || 4174; // PORT=4184 npm run arena
 const server = await preview({ preview: { port: PORT, strictPort: true } });
@@ -52,11 +53,13 @@ try {
   await page.evaluateOnNewDocument(seed => {
     let a = seed >>> 0;
     Math.random = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    window.__reseed = () => { a = seed >>> 0; };
   }, SEED);
   await page.setViewport({ width: 800, height: 500 });
   await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.__dbg && window.__dbg.ready(), { timeout: 20000 });
-  await page.evaluate(() => window.__dbg.start(true));
+  // Loading draws on the random stream a varying number of times, so restart it: the same SEED then gives the same table every run.
+  await page.evaluate(() => { window.__reseed(); window.__dbg.start(true); });
   console.log(`Watt Dungeon arena · real game code, scripted player · times in game seconds${MAIN ? ' · Main gem: ' + MAIN : ''} · passive tree: ${TREE === false ? 'none' : TREE || 'par preset'}\n`);
   console.log('tier lvl gear   encounter                     result   time   taken  lowest  flasks  parry block roll break stag fin  chan  surged');
   for (let t = 1; t <= maxTier; t++) {

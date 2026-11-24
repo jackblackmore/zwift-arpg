@@ -26,7 +26,7 @@ export const ANIM = {
 // Per-tier scaling. hp: monster life multiplier per map tier (index 0 = tier 1), then +hpAfter per tier.
 // Tier 2 jumps because by then you've swapped the starter sword for magic gear (see `npm run balance`).
 // dmg, xp, packSize: fraction added per tier on top of tier 1.
-export const TIER = { hp: [1, 2.5, 2.9, 3.4, 3.9], hpAfter: .5, dmg: .25, xp: 1, packSize: .2 };
+export const TIER = { hp: [1, 2.65, 3.2, 3.95, 4.9], hpAfter: .5, dmg: .28, xp: 1, packSize: .2 };
 
 // Pack templates: [type, count] pairs. Counts scale with tier.
 export const PACKS = [
@@ -65,7 +65,7 @@ export const BOSS = { vsMinion: 1.4, aggro: 13, rotation: ['slam', 'nova', 'slam
 // that. A hit it lands on you (not blocked or parried) knocks the bar back by `recover`: it steadies, so a broken guard
 // is earned by timing, not by trading hits. The bar drains `drain` per second once `delay` s pass without adding to it.
 // A parried normal monster is stunned for `minorStun` s.
-export const STAGGER = { parry: .5, parryRare: .5, dmg: .5, surge: 1, stunT: 3, taken: .15, finisher: 3, recover: .6, drain: .06, delay: 2.5, minorStun: .9 };
+export const STAGGER = { parry: .5, parryRare: .5, dmg: .5, surge: 1, stunT: 3, taken: .15, finisher: 3, recover: .85, drain: .06, delay: 2.5, minorStun: .9 };
 // Status effects on monsters. chill: speed × chillSpd, attack and shot cooldowns × chillCd. Burns tick every burnTick s.
 export const STATUS = { chillSpd: .5, chillCd: 1.6, burnTick: .5 };
 // How monsters fight. windup: seconds from starting a swing to the hit (melee, boss, ranged). reach: extra hit range on top of

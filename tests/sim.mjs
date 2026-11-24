@@ -33,6 +33,7 @@ async function open(path) {
   await page.evaluateOnNewDocument(seed => {
     let a = seed >>> 0;
     Math.random = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    window.__reseed = () => { a = seed >>> 0; };
   }, SEED);
   page.on('pageerror', e => errors.push(e.message));
   // Ignore network failures (web fonts may be unreachable in CI/sandboxes); catch real script errors.
@@ -40,6 +41,9 @@ async function open(path) {
   await page.setViewport({ width: 1100, height: 700 });
   await page.goto(`http://localhost:${PORT}${path}`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.__gal || window.__maps || (window.__dbg && (!window.__dbg.ready || window.__dbg.ready())), { timeout: 20000 });
+  // Loading uses the random stream a varying number of times (models and the map arrive in whatever order the network gives), so
+  // restart it once the page is ready: every check then sees the same maps, packs and rolls on every run. The idle page draws none.
+  await page.evaluate(() => window.__reseed());
   return { page, errors };
 }
 
@@ -185,7 +189,12 @@ try {
       out.treeTaken = P.tree.length === 1 && D.tree.treeLeft() === left0 - 1 && left0 === P.lvl - 1;
       document.getElementById('treeClose').click();
       // Boss
-      P.x = D.G.bossSpot.x - 6; P.z = D.G.bossSpot.z + 6; D.sim(30);
+      // Stand on clear floor about 7 units from the guardian with a line of sight to it (the arena's set piece has pillars on the
+      // diagonals, and a hero placed inside one gets pushed out somewhere arbitrary).
+      const bs = D.G.bossSpot, spot = [0, 1, 2, 3, 4, 5, 6, 7].map(k => k * Math.PI / 4 + Math.PI / 8).flatMap(a => [7, 6, 8].map(d => ({ x: bs.x + Math.cos(a) * d, z: bs.z + Math.sin(a) * d })))
+        .find(p => !D.blocked(p.x, p.z, .6) && D.los(p.x, p.z, bs.x, bs.z)) || { x: bs.x - 6, z: bs.z };
+      out.bossSpotClear = !D.blocked(spot.x, spot.z, .6);
+      P.x = spot.x; P.z = spot.z; D.sim(30);
       const boss = D.enemies().find(e => e.type === 'boss'); out.boss = !!boss;
       if (boss) { for (let i = 0; i < 30; i++) { P.life = Math.max(P.life, 60); D.sim(5); } out.bossCast = boss.rot > 0; P.x = D.G.start.x; P.z = D.G.start.z; D.kill(boss); out.portal = !!D.G.portal; D.sim(10); }
       if (D.G.portal) { P.x = D.G.portal.x; P.z = D.G.portal.z; D.sim(3); }
@@ -686,7 +695,8 @@ try {
   // ---------- Level time (src/game/levelrun.js: the RIDE autopilot plays a whole level at par; full table via `npm run level`) ----------
   {
     const { page, errors } = await open('/');
-    const r = await page.evaluate(() => { const D = window.__dbg; D.start(true); D.G.paused = true; return D.levelRun({ tier: 1, seed: 7, maxMin: 30 }); });
+    // Layout seed 3: three junctions on the route (seed 7 has one, which the autopilot can pass mid-fight without stopping).
+    const r = await page.evaluate(() => { const D = window.__dbg; D.start(true); D.G.paused = true; return D.levelRun({ tier: 1, seed: 3, maxMin: 30 }); });
     const s = r.split, sum = Object.values(s).reduce((a, v) => a + v, 0);
     console.log('  level time:', JSON.stringify({ result: r.result, min: r.min, split: s, deaths: r.deaths, junctions: r.junctions, packsLeft: r.packsLeft, stuck: r.stuck }));
     check(r.result === 'clear' && r.min > 3 && r.min < 30, `level time: the autopilot clears a whole tier 1 level at par, start to guardian (${r.result}, ${r.min} min)`);
