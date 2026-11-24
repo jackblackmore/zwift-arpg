@@ -3,6 +3,7 @@ import { G, P, S } from '../core/state.js';
 import { SK } from '../data/skills.js';
 import { BOSS } from '../data/monsters.js';
 import { RCSS } from '../data/items.js';
+import { ROLES } from '../data/dungeon.js';
 import { ctl } from '../input/input.js';
 import { $ } from '../core/util.js';
 import { HALF, reveal, seen } from '../world/map.js';
@@ -68,7 +69,9 @@ function minimap() {
   if (G.bossSpec && !G.bossSpec.spawned && seen(G.bossSpot.x, G.bossSpot.z)) { mmc.fillStyle = '#ff4fd8'; mmc.beginPath(); mmc.arc(X(G.bossSpot.x), X(G.bossSpot.z), 7, 0, 7); mmc.fill(); }
   for (const d of G.ground) if (d.it.rar >= 2 && seen(d.x, d.z)) { mmc.fillStyle = d.it.col || RCSS[d.it.rar]; mmc.fillRect(X(d.x) - 3, X(d.z) - 3, 6, 6); }
   if (G.jn) { const d = G.jn.opts[G.jn.sel].door; mmc.strokeStyle = '#ffd23f'; mmc.lineWidth = 3; mmc.setLineDash([6, 5]); mmc.beginPath(); mmc.moveTo(X(P.x), X(P.z)); mmc.lineTo(X(d.x), X(d.z)); mmc.stroke(); mmc.setLineDash([]); } // the way chosen at a junction (game/route.js)
-  if (G.gate && !G.gate.done && seen(G.gate.door.x, G.gate.door.z)) { const d = G.gate.door, a = d.side === 'n' || d.side === 's'; mmc.strokeStyle = G.gate.shut ? '#e8eeff' : '#8890a8'; mmc.lineWidth = G.gate.shut ? 4 : 2; mmc.beginPath(); mmc.moveTo(X(d.x - (a ? d.w / 2 : 0)), X(d.z - (a ? 0 : d.w / 2))); mmc.lineTo(X(d.x + (a ? d.w / 2 : 0)), X(d.z + (a ? 0 : d.w / 2))); mmc.stroke(); } // the fog gate (game/gate.js)
+  for (const g of G.gates) for (const { door: d } of g.parts) if (!g.done && seen(d.x, d.z)) { const a = d.side === 'n' || d.side === 's'; mmc.strokeStyle = g.shut ? '#e8eeff' : '#8890a8'; mmc.lineWidth = g.shut ? 4 : 2; mmc.beginPath(); mmc.moveTo(X(d.x - (a ? d.w / 2 : 0)), X(d.z - (a ? 0 : d.w / 2))); mmc.lineTo(X(d.x + (a ? d.w / 2 : 0)), X(d.z + (a ? 0 : d.w / 2))); mmc.stroke(); } // fog gates (game/gate.js)
+  for (const c of G.chests) if (!c.open && seen(c.x, c.z)) { mmc.fillStyle = ROLES.treasure.col; mmc.save(); mmc.translate(X(c.x), X(c.z)); mmc.rotate(Math.PI / 4); mmc.fillRect(-4, -4, 8, 8); mmc.restore(); } // treasure chests (game/rooms.js)
+  if (G.rest && seen(G.rest.x, G.rest.z)) { mmc.fillStyle = G.rest.used ? '#3a6a64' : ROLES.rest.col; mmc.beginPath(); mmc.arc(X(G.rest.x), X(G.rest.z), 5, 0, 7); mmc.fill(); } // the rest room's flame
   if (G.portal) { mmc.strokeStyle = '#b06bff'; mmc.lineWidth = 3; mmc.beginPath(); mmc.arc(X(G.portal.x), X(G.portal.z), 8, 0, 7); mmc.stroke(); }
   mmc.save(); mmc.translate(X(P.x), X(P.z)); mmc.rotate(-P.face + Math.PI); mmc.fillStyle = '#fff';
   mmc.beginPath(); mmc.moveTo(0, -9); mmc.lineTo(6, 6); mmc.lineTo(-6, 6); mmc.fill(); mmc.restore();

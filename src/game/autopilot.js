@@ -1,4 +1,5 @@
-// Autopilot for RIDE mode: steer toward the nearest fight, then loot, then the next room. At a room with more than one way on, it
+// Autopilot for RIDE mode: steer toward the nearest fight, then loot, then the next room (and treasure chests: game/route.js
+// counts an unopened chest as something to go to, and walking up to it opens it). At a room with more than one way on, it
 // stops and lets you pick with the D-pad (game/route.js); otherwise it clears everything along the route (`steer` finds the way
 // round walls), then the boss / portal.
 // A melee hero: it walks into the fight and stays in swing reach (the Main gem auto-attacks), so the rider pedals and times the
@@ -11,6 +12,7 @@ import { los } from '../world/map.js';
 import { barGem, meleeReach } from './gems.js';
 import { GEMS } from '../data/gems.js';
 import { routeTarget } from './route.js';
+import { gateFoe } from './gate.js';
 
 // Stuck detection: if we've been trying to move but haven't got anywhere, sidestep for a moment.
 const ST = { x: 0, z: 0, t: 0, side: 0, sideT: 0, n: 0, at: -9 }; // n: sidesteps in a row (within 3 s of the last)
@@ -50,8 +52,8 @@ function pick(dt) {
   for (const d of G.ground) { if (!d.landed || d.gone) continue; const dd = dist(d.x, d.z, P.x, P.z); if (dd < ld) { ld = dd; loot = d; } }
   if (loot) return toward(loot.x, loot.z);
   if (G.portal) return toward(G.portal.x, G.portal.z);
-  // Behind a sealed fog gate (game/gate.js) the fight is a commitment: back to the guardian, never a way out.
-  if (G.gate && G.gate.shut && G.bossSpec && G.bossSpec.e) return toward(G.bossSpec.e.x, G.bossSpec.e.z);
+  // Behind a sealed fog gate (game/gate.js) the fight is a commitment: back to the guardian or elite, never a way out.
+  const sg = G.gates.find(g => g.shut), foe = sg && gateFoe(sg); if (foe) return toward(foe.x, foe.z);
   // Room levels: the route choice at junctions (game/route.js) decides where next.
   const r = routeTarget(dt); if (r === 'wait') return [0, 0]; if (r) return toward(r.x, r.z);
   let pack = null, pr = 1e9, pd = 1e9;

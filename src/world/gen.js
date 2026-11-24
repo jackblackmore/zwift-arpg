@@ -5,7 +5,9 @@
 // Returns a layout:
 //   n, cell, half   grid is n × n cells, each `cell` units; world x,z = -half + (i|j) * cell
 //   grid            Uint8Array, index j * n + i; 1 = floor, 0 = wall
-//   rooms           [{ id, kind: start|main|side|boss, i0, j0, w, h, x, z (centre), rank, doors }]
+//   rooms           [{ id, kind: start|main|side|boss, role, i0, j0, w, h, x, z (centre), rank, doors }]
+//   role            what the room holds (data/dungeon.js ROLES): start, combat, elite, treasure, rest, guardian; set by the
+//                   rhythm template (RHYTHM) after the layout is made, so the layout for a seed is the same with or without roles
 //   doors           per room: [{ side: n|s|e|w, x, z, w, to, edge }] the real gaps in its walls, one per corridor. x, z is the middle
 //                   of the gap on the room's wall line (n = smaller z, s = larger z, the camera side); w its width in units;
 //                   to the room the corridor leads to; edge the corridor's index in edges
@@ -14,7 +16,7 @@
 //   path            the main route as a world polyline, entrance to guardian; routeLen is its length
 //   start, boss     world positions of the entrance and the guardian
 //   rank            rooms and edges get an order along the route (side rooms: parent + .5) for the autopilot
-import { GEN } from '../data/dungeon.js';
+import { GEN, RHYTHM } from '../data/dungeon.js';
 
 const NB = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
@@ -116,9 +118,26 @@ export function generateLevel(opts = {}, rng = Math.random) {
   }
   for (let k = 1; k < path.length; k++) routeLen += Math.hypot(path[k].x - path[k - 1].x, path[k].z - path[k - 1].z);
 
+  assignRoles(rooms, routeIds.length, rng);
   const start = { x: rooms[0].x, z: rooms[0].z }, boss = { x: rooms[routeIds[routeIds.length - 1]].x, z: rooms[routeIds[routeIds.length - 1]].z };
   return { n, cell, half, grid, rooms, route: routeIds, edges, path, routeLen, start, boss, zones: Z };
 }
+
+// Room roles by the rhythm template (data/dungeon.js RHYTHM): the entrance and the guardian's arena keep theirs, every other room
+// is combat unless a beat takes it. A beat takes one combat room within its stretch of the route (a side room counts its parent's
+// place), a side room when it prefers one and there is one, else a route room (side: 2, side rooms only). The warm-up stretch stays combat.
+function assignRoles(rooms, nRoute, rng) {
+  const last = nRoute - 1, place = r => (r.kind === 'side' ? rooms[r.parent].rank : r.rank) / last;
+  for (const r of rooms) r.role = r.kind === 'start' ? 'start' : r.kind === 'boss' ? 'guardian' : 'combat';
+  for (const b of RHYTHM.beats) {
+    if (b.chance !== undefined && rng() >= b.chance) continue;
+    const ok = r => r.role === 'combat' && place(r) >= Math.max(b.at[0], RHYTHM.warm) && place(r) <= b.at[1];
+    const side = rooms.filter(r => r.kind === 'side' && ok(r)), main = rooms.filter(r => r.kind === 'main' && ok(r));
+    const pool = b.side === 2 ? side : b.side && side.length ? side : main;
+    if (pool.length) pool[Math.floor(rng() * pool.length)].role = b.role;
+  }
+}
+export const routePlace = (L, r) => (r.kind === 'side' ? L.rooms[r.parent].rank : r.rank) / (L.route.length - 1);
 
 // Distance in cells from (ci, cj) to every floor cell: 8-way moves, diagonals only when both neighbours are floor. -1 = unreachable.
 export function walkField(L, ci, cj) {

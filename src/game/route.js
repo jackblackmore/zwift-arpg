@@ -7,6 +7,7 @@ import { G, P } from '../core/state.js';
 import { RIDE } from '../data/ride.js';
 import { ctl } from '../input/input.js';
 import { roomAt } from '../world/gen.js';
+import { ROLES } from '../data/dungeon.js';
 import { dist } from '../core/util.js';
 import { SFX } from '../core/audio.js';
 
@@ -33,10 +34,11 @@ function packRoom(L, p) {
 }
 const packLeft = p => !p.spawned || p.list.some(e => !e.deathT);
 const bossLeft = () => !(G.bossSpec && G.bossSpec.e && G.bossSpec.e.deathT);
-// Does room `id` still hold something to fight?
+const chestLeft = (id, c = G.chests.find(c => c.room === id)) => c && !c.open ? c : null;
+// Does room `id` still hold something to fight, or a chest to open?
 function pending(L, id) {
   if (L.rooms[id].kind === 'boss' && bossLeft()) return true;
-  return G.packs.some(p => packLeft(p) && packRoom(L, p) === id);
+  return !!chestLeft(id) || G.packs.some(p => packLeft(p) && packRoom(L, p) === id);
 }
 // Rooms reachable from `start` without passing through `from`.
 function subtree(L, start, from) {
@@ -46,20 +48,31 @@ function subtree(L, start, from) {
 }
 const anyPending = (L, rooms, skip) => [...rooms].some(r => pending(L, r) && !(skip && G.skip.has(r)));
 
-// The ways on from room C that still lead somewhere worth going.
+// What a way's sign says (data/dungeon.js ROLES): the role of the room it leads to, for example "☠ Elite". Back says what's still
+// waiting behind you, the biggest beat first ("Back · ✦ Treasure"). A way with nothing left shows greyed with a ✓.
+const RANK = ['elite', 'treasure', 'guardian', 'combat'];
+export function signText(L, o) {
+  const R = ROLES[L.rooms[o.to].role] || ROLES.combat, tag = r => `${ROLES[r].icon} ${ROLES[r].name}`;
+  if (o.done) return `✓ ${o.kind === 'back' ? LABEL.back : tag(L.rooms[o.to].role)}`;
+  if (o.kind === 'back') { const left = RANK.find(k => [...o.rooms].some(r => L.rooms[r].role === k && pending(L, r))); return left ? `${LABEL.back} · ${tag(left)}` : LABEL.back; }
+  return o.kind === 'onward' && L.rooms[o.to].kind !== 'boss' ? `${LABEL.onward} · ${R.icon} ${R.name}` : `${R.icon} ${R.name}`;
+}
+// The ways on from room C: every corridor out of it, each with its doorway, what's behind it and whether anything is left there
+// (`done`: cleared, shown greyed with a ✓ and never the default).
 export function options(L, C) {
   const out = [];
   for (const { to, e } of adj(L).get(C.id)) {
-    const rooms = subtree(L, to, C.id); if (!anyPending(L, rooms)) continue;
+    const rooms = subtree(L, to, C.id);
     const kind = [...rooms].some(r => L.rooms[r].kind === 'boss') ? 'onward' : L.rooms[to].kind === 'side' ? 'side' : 'back';
     // The doorway: the real gap in this room's wall that this corridor leaves by (world/gen.js room.doors).
     const door = C.doors.find(d => d.edge === L.edges.indexOf(e));
-    out.push({ to, kind, rooms, label: L.rooms[to].kind === 'boss' ? LABEL.boss : LABEL[kind], door });
+    const o = { to, kind, rooms, door, role: L.rooms[to].role, done: !anyPending(L, rooms) }; o.label = signText(L, o);
+    out.push(o);
   }
-  return out.sort((a, b) => ORDER[a.kind] - ORDER[b.kind]);
+  return out.sort((a, b) => a.done - b.done || ORDER[a.kind] - ORDER[b.kind]);
 }
 // The default: clear everything, nearest dead ends first, skipping what you chose to skip; else onward.
-const defaultPick = (L, opts) => { const i = opts.findIndex(o => o.kind !== 'onward' && anyPending(L, o.rooms, true)); return i >= 0 ? i : opts.findIndex(o => o.kind === 'onward'); };
+const defaultPick = (L, opts) => { const i = opts.findIndex(o => !o.done && o.kind !== 'onward' && anyPending(L, o.rooms, true)); return i >= 0 ? i : opts.findIndex(o => !o.done && o.kind === 'onward'); };
 
 function choose(L, i, picked) {
   const J = G.jn, o = J.opts[i]; if (!o) return;
@@ -72,10 +85,10 @@ function choose(L, i, picked) {
 function tapPick(L) {
   const t = ctl.tapDir; ctl.tapDir = null; if (!t || !G.jn) return;
   let best = -1, bs = -2;
-  G.jn.opts.forEach((o, i) => { const dx = o.door.x - P.x, dz = o.door.z - P.z, l = Math.hypot(dx, dz) || 1, s = (dx * t[0] + dz * t[1]) / l; if (s > bs) { bs = s; best = i; } });
+  G.jn.opts.forEach((o, i) => { if (o.done) return; const dx = o.door.x - P.x, dz = o.door.z - P.z, l = Math.hypot(dx, dz) || 1, s = (dx * t[0] + dz * t[1]) / l; if (s > bs) { bs = s; best = i; } });
   if (best >= 0) { choose(L, best, true); if (G.jn.mode === 'wait') { G.jn.mode = 'go'; G.jn.t = RIDE.junction.grace; } }
 }
-// Nearest leftover pack in a set of rooms (lowest route rank first), or the guardian.
+// Nearest leftover pack in a set of rooms (lowest route rank first), else an unopened chest, else the guardian.
 function targetIn(L, rooms, skip) {
   let best = null, br = 1e9, bd = 1e9;
   for (const p of G.packs) {
@@ -83,6 +96,7 @@ function targetIn(L, rooms, skip) {
     const d = dist(p.x, p.z, P.x, P.z), k = p.rank || 0; if (k < br || (k === br && d < bd)) { br = k; bd = d; best = p; }
   }
   if (best) return best;
+  for (const r of rooms) { const c = chestLeft(r); if (c && !(skip && G.skip.has(r))) return c; } // an unopened chest (game/rooms.js): walking up to it opens it
   if (bossLeft() && [...rooms].some(r => L.rooms[r].kind === 'boss' && !(skip && G.skip.has(r)))) return G.bossSpot;
   return null;
 }
@@ -103,8 +117,8 @@ export function routeTarget(dt) {
     if (here) return here;
     if (!G.jnDone.has(C.id)) {
       G.jnDone.add(C.id);
-      const opts = options(L, C);
-      if (opts.length >= 2) { G.jn = { room: C.id, opts, sel: Math.max(0, defaultPick(L, opts)), t: J.wait, mode: 'wait', picked: false }; SFX.cue('parry'); return 'wait'; }
+      const all = options(L, C), opts = all.filter(o => !o.done);
+      if (opts.length >= 2) { G.jn = { room: C.id, opts: all, sel: Math.max(0, defaultPick(L, all)), t: J.wait, mode: 'wait', picked: false }; SFX.cue('parry'); return 'wait'; }
       if (opts.length === 1) G.goal = { to: opts[0].to, rooms: opts[0].rooms };
     }
   }

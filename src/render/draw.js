@@ -4,6 +4,7 @@ import { G, P, S } from '../core/state.js';
 import { RAREAFF } from '../data/monsters.js';
 import { RCSS } from '../data/items.js';
 import { SK } from '../data/skills.js';
+import { ROLES } from '../data/dungeon.js';
 import { rand, $ } from '../core/util.js';
 import { cam, CAM, V, plight, blight, ctx, scene } from './scene.js';
 import { render } from './post.js';
@@ -67,7 +68,7 @@ export function draw(dt) {
   for (const e of G.enemies) {
     if (e.deathT || e.type === 'boss' || !(e.hp < e.maxHp || e.rar)) continue;
     const s = toScreen(e.x, e.h + .25, e.z); if (!s || s[0] < -50 || s[0] > W + 50 || s[1] < -50 || s[1] > H + 50) continue;
-    const bw = e.rar === 2 ? 60 : e.rar === 1 ? 38 : 28;
+    const bw = e.elite ? 84 : e.rar === 2 ? 60 : e.rar === 1 ? 38 : 28;
     ctx.fillStyle = '#000c'; ctx.fillRect(s[0] - bw / 2 - 1, s[1] - 1, bw + 2, 6);
     ctx.fillStyle = e.freeze > 0 ? '#7fd8ff' : '#c02020'; ctx.fillRect(s[0] - bw / 2, s[1], bw * Math.max(0, e.hp / e.maxHp), 4);
     if (e.stagMax) { // stagger bar (game/combat.js stagger): fills toward a stun; flashes while staggered
@@ -75,7 +76,7 @@ export function draw(dt) {
       ctx.fillStyle = e.stun > 0 ? (Math.sin(G.gt * 20) > 0 ? '#fff' : '#ffb040') : '#ffb040'; ctx.fillRect(s[0] - bw / 2, s[1] + 6, bw * (e.stun > 0 ? 1 : e.stag), 2);
     }
     if (e.rar === 2) {
-      ctx.font = '800 13px Cinzel, serif'; ctx.fillStyle = '#ffd23f'; ctx.fillText(e.name, s[0], s[1] - 18);
+      ctx.font = `800 ${e.elite ? 15 : 13}px Cinzel, serif`; ctx.fillStyle = e.elite ? '#ff9a5a' : '#ffd23f'; ctx.fillText(e.elite ? '☠ ' + e.name : e.name, s[0], s[1] - 18);
       ctx.font = '400 10px JetBrains Mono, monospace'; ctx.fillStyle = '#c8b070'; ctx.fillText(e.aff.map(a => RAREAFF[a]).join(' · '), s[0], s[1] - 7);
     }
   }
@@ -106,7 +107,8 @@ export function draw(dt) {
     ctx.fillStyle = '#000000d0'; ctx.fillRect(x, y, tw, 16); ctx.strokeStyle = d.it.col || RCSS[d.it.rar]; ctx.lineWidth = d.it.rar >= 2 ? 1.5 : 1; ctx.strokeRect(x + .5, y + .5, tw - 1, 15);
     ctx.fillStyle = d.it.col || RCSS[d.it.rar]; ctx.fillText(d.it.name, x + tw / 2, y + 8.5);
   }
-  // Route choice (game/route.js): a sign at each exit's doorway (world/gen.js room.doors), the chosen one in gold, and a countdown
+  // Route choice (game/route.js): a sign at each exit's doorway (world/gen.js room.doors) saying what kind of room is behind it
+  // (data/dungeon.js ROLES, in the role's colour; a cleared way greyed with a ✓), the chosen one in gold, and a countdown
   // while the autopilot waits. A doorway off screen keeps its sign at the screen edge, pointing the way.
   if (G.jn && P.dead <= 0) {
     const J = G.jn;
@@ -117,15 +119,17 @@ export function draw(dt) {
       let vx = top[0] - h[0], vy = top[1] - h[1]; const vl = Math.hypot(vx, vy) || 1; vx /= vl; vy /= vl;
       const arrow = Math.abs(vx) > Math.abs(vy) ? (vx > 0 ? '▶' : '◀') : (vy < 0 ? '▲' : '▼');
       const on = i === J.sel, txt = `${arrow} ${o.label}`; ctx.font = `800 ${on ? 15 : 13}px Cinzel, serif`;
+      const ink = on ? '#ffd23f' : o.done ? '#7a746a' : (ROLES[o.role] || ROLES.combat).col; // a cleared way greyed; else the role's colour
       const w = ctx.measureText(txt).width + 18;
       const x = Math.max(4, Math.min(W - w - 4, top[0] - w / 2)), y = Math.max(150, Math.min(H - 150, top[1] - 30));
       // a gold mark on the threshold, and a line up to the sign
       if (foot && foot[0] > 0 && foot[0] < W && foot[1] > 0 && foot[1] < H) {
-        ctx.strokeStyle = on ? '#ffd23fcc' : '#c8b89066'; ctx.lineWidth = on ? 2 : 1; ctx.beginPath(); ctx.moveTo(foot[0], foot[1]); ctx.lineTo(Math.max(x, Math.min(x + w, foot[0])), y + 26); ctx.stroke();
-        ctx.fillStyle = on ? '#ffd23f' : '#c8b890'; ctx.beginPath(); ctx.moveTo(foot[0], foot[1] - 6); ctx.lineTo(foot[0] + 8, foot[1]); ctx.lineTo(foot[0], foot[1] + 6); ctx.lineTo(foot[0] - 8, foot[1]); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = on ? '#ffd23fcc' : o.done ? '#7a746a55' : '#c8b89066'; ctx.lineWidth = on ? 2 : 1; ctx.beginPath(); ctx.moveTo(foot[0], foot[1]); ctx.lineTo(Math.max(x, Math.min(x + w, foot[0])), y + 26); ctx.stroke();
+        ctx.fillStyle = on ? '#ffd23f' : o.done ? '#7a746a' : '#c8b890'; ctx.beginPath(); ctx.moveTo(foot[0], foot[1] - 6); ctx.lineTo(foot[0] + 8, foot[1]); ctx.lineTo(foot[0], foot[1] + 6); ctx.lineTo(foot[0] - 8, foot[1]); ctx.closePath(); ctx.fill();
       }
-      ctx.fillStyle = on ? '#2a1f08ee' : '#000000b0'; ctx.fillRect(x, y, w, 26); ctx.strokeStyle = on ? '#ffd23f' : '#6a5a40'; ctx.lineWidth = on ? 2 : 1; ctx.strokeRect(x + .5, y + .5, w - 1, 25);
-      ctx.fillStyle = on ? '#ffd23f' : '#c8b890'; ctx.fillText(txt, x + w / 2, y + 13.5);
+      ctx.globalAlpha = o.done && !on ? .7 : 1;
+      ctx.fillStyle = on ? '#2a1f08ee' : '#000000b0'; ctx.fillRect(x, y, w, 26); ctx.strokeStyle = on ? '#ffd23f' : o.done ? '#4a463e' : '#6a5a40'; ctx.lineWidth = on ? 2 : 1; ctx.strokeRect(x + .5, y + .5, w - 1, 25);
+      ctx.fillStyle = ink; ctx.fillText(txt, x + w / 2, y + 13.5); ctx.globalAlpha = 1;
     });
     const msg = J.mode === 'wait' ? `CHOOSE YOUR WAY · tap the D-pad · ${Math.ceil(J.t)}` : `${J.opts[J.sel].label.toUpperCase()}${J.picked ? '' : ' (default)'} · tap the D-pad to change`;
     ctx.font = '800 15px Cinzel, serif'; ctx.lineWidth = 4; ctx.strokeStyle = '#000'; ctx.strokeText(msg, W / 2, 125); ctx.fillStyle = '#ffd23f'; ctx.fillText(msg, W / 2, 125);

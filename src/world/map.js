@@ -153,7 +153,7 @@ function primitiveMap(L) {
   const start = L.start, free = (x, z, r) => !blocked(x, z, r) && lineDist(L, x, z) > r + 2.2;
   for (const room of L.rooms) {
     if (room.kind === 'boss') continue;
-    const want = room.kind === 'start' ? 1 : Math.round(room.w * room.h * OBSTACLE_DENSITY);
+    const want = room.kind === 'start' || room.role === 'rest' ? 1 : Math.round(room.w * room.h * OBSTACLE_DENSITY);
     for (let t = 0, got = 0; t < 60 && got < want; t++) {
       const r = rand(.8, 1.8), x = -half + (room.i0 + rand(1, room.w - 1)) * cell, z = -half + (room.j0 + rand(1, room.h - 1)) * cell;
       if (dist(x, z, start.x, start.z) < 7 || !free(x, z, r + 1.2)) continue;

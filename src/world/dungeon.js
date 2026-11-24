@@ -123,7 +123,7 @@ export function buildDungeon(L) {
   const total = OBSTACLES.reduce((a, o) => a + o.w, 0);
   for (const room of L.rooms) {
     if (room.kind === 'boss') continue;
-    const want = room.kind === 'start' ? 1 : Math.round(room.w * room.h * OBSTACLE_DENSITY * (room.kind === 'side' ? 1.3 : 1));
+    const want = room.kind === 'start' || room.role === 'rest' ? 1 : Math.round(room.w * room.h * OBSTACLE_DENSITY * (room.kind === 'side' ? 1.3 : 1)); // a rest room stays open and calm
     for (let t = 0, got = 0; t < 70 && got < want; t++) {
       let r = Math.random() * total, ob = OBSTACLES[0];
       for (const o of OBSTACLES) if ((r -= o.w) <= 0) { ob = o; break; }
@@ -165,15 +165,8 @@ export function buildDungeon(L) {
     else solidB.add('gravestone', x, z, -a - Math.PI / 2, s);
   }
 
-  // Clutter on the floor, and chests: one in each side room, against a wall.
+  // Clutter on the floor. (Chests are only in treasure rooms now, and open: game/rooms.js.)
   for (const [name, count] of CLUTTER) for (let q = 0; q < count; q++) { const p = spot(.3); if (p) floor.add(name, p[0], p[1], rand(0, 6), s); }
-  for (const room of L.rooms.filter(r => r.kind === 'side').slice(0, 5)) {
-    for (let t = 0; t < 40; t++) {
-      const x = edgeX(room.i0 + .5 + Math.random() * (room.w - 1)), z = edgeX(room.j0 + .5 + Math.random() * (room.h - 1));
-      if (!wallHit(L, x, z, 2) || wallHit(L, x, z, 1.2) || !free(x, z, 1) || lineDist(L, x, z) < 2.2) continue;
-      solidB.add('chest', x, z, Math.atan2(room.x - x, room.z - z), s); G.obst.push({ x, z, r: .7 }); break;
-    }
-  }
 
   floor.flush(G.world, { cast: false, tint: DUNGEON.floor }); solidB.flush(G.world);
 }
