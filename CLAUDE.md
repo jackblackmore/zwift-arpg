@@ -7,6 +7,7 @@
 - Every gameplay and balance number lives in `src/data/`, never in game code. Visual, physics and animation numbers (particles, knockback, steering) can stay in code. Where things go:
   - `skills.js` (`SK`, `SURGE`): each skill's cast time, cooldown, damage multiplier, radius, range and duration; burning ground; the flask.
   - `gems.js`: gems, slots, sockets, milestone numbers (`mile`), support gems and their numbers (`SUPPORTS`), gem drops, feeding.
+  - `tree.js` (`TREE`, `TREE_CAP`, `RESPEC`): the passive tree: its nodes and their numbers, keystones, caps on summed tree stats, the respec rule. Node text sits next to its numbers (`npm test` checks); the tools' tree presets are in `balance.js` (`TREE_PRESETS`).
   - `monsters.js`: monster stats, tiers, packs, rare affixes (`RARE`), status effects (`STATUS`), how monsters fight (`FIGHT`), death blasts (`BLAST`), the guardian (`BOSS`).
   - `items.js`: bases, affixes, uniques and their effect numbers (`EXTRA`), drop chances (`DROP`).
   - `balance.js`: hero growth, rarity multipliers, hit spread and death penalty (`COMBAT`), XP curve, item scaling, par levels, par gear and supports, targets.
