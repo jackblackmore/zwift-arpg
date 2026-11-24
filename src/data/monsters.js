@@ -29,7 +29,7 @@ export const ANIM = {
 // dmg: monster damage multiplier per tier (the same way), then +dmgAfter per tier. It steps up at tier 2 for the same reason:
 //   by then your gear has armour and some resistance (step 5, design notes "Defence"), so what reaches your life stays where it was.
 // xp, packSize: fraction added per tier on top of tier 1.
-export const TIER = { hp: [1, 2.65, 3.2, 3.95, 4.9], hpAfter: .5, dmg: [1, 1.56, 1.9, 2.24, 2.58], dmgAfter: .34, xp: 1, packSize: .2 };
+export const TIER = { hp: [1, 2.65, 3.2, 3.95, 4.9], hpAfter: .5, dmg: [1, 1.54, 1.87, 2.21, 2.54], dmgAfter: .34, xp: 1, packSize: .2 };
 
 // Damage types (design notes "Defence"). Physical is cut by armour, the others by the matching resistance (data/balance.js DEFENCE).
 // Fire, cold and lightning are elemental (a block takes off SK.block.elem of them); poison isn't.
