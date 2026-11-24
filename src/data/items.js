@@ -28,7 +28,7 @@ export const AFF = [
 export const AFFBY = Object.fromEntries(AFF.map(a => [a.st, a]));
 // Mods that only uniques carry.
 export const EXTRA = {
-  lifePct: { t: '#% to maximum life', pct: 1, sign: 1 }, dr: { t: '#% less damage taken', pct: 1 }, dashCh: { t: 'Flame Dash has +# charges', int: 1 }, shieldPct: { t: 'Magic Shield absorbs #% more', pct: 1 },
+  lifePct: { t: '#% to maximum life', pct: 1, sign: 1 }, dr: { t: '#% less damage taken', pct: 1 }, dashCh: { t: 'Flame Dash has +# charges', int: 1 }, shieldPct: { t: 'Magic Shield\'s barrier absorbs #% more', pct: 1 },
   // Rule-bending unique mods, with their numbers (keep the text in step). burnGround: a patch of radius r where a melee swing lands, lasting dur s.
   burnGround: { t: 'Your melee hits leave burning ground', flag: 1, r: 1.2, dur: 2.5 }, storm: { t: 'Every 4th melee attack also casts Arc at the target', flag: 1, every: 4 },
   autoNova: { t: 'Casts Frost Nova automatically every 5 seconds', flag: 1, every: 5 },

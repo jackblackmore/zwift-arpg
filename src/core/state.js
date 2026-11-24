@@ -16,7 +16,7 @@ export const G = {
 // P: the player character (position, resources, progression, gear).
 export const P = {
   x: 0, z: 0, r: .4, face: 0, life: 100, surge: 30, spent: false, surgeK: 0, surgeWait: 0, lvl: 1, xp: 0, kills: 0,
-  castT: 0, castAnim: 0, shield: 0, shieldT: 0, wardT: 0, flask: 3, flaskT: 0, flaskRate: 0,
+  castT: 0, castAnim: 0, shield: 0, shieldT: 0, barrierFx: 0, flask: 3, flaskT: 0, flaskRate: 0,
   inv: [], gear: {}, passives: {}, pts: 0, offer: null, newItems: 0,
   // Skill gems (game/gems.js): gems = the gem bag, every gem owned ({ id, gem, lvl, xp }); bar = slot → gem id or null;
   // cd = per-slot cooldown / charges ({ cd, ch, t }); shrined = slots whose shrine has been used.

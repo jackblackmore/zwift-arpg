@@ -12,6 +12,7 @@ import { existsSync } from 'node:fs';
 import { generateLevel, walkField, cellOf } from '../src/world/gen.js'; // pure: layouts are checked here in Node as well as in the game
 import { HERO } from '../src/data/balance.js';
 import { GEMS, SUPPORTS } from '../src/data/gems.js';
+import { SK } from '../src/data/skills.js';
 
 const chrome = process.env.CHROME_PATH || ['/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser'].find(existsSync);
 if (!chrome) { console.error('No Chrome found. Set CHROME_PATH.'); process.exit(1); }
@@ -53,9 +54,12 @@ try {
       totem: [pc(M('totem').dur - 1)], meteor: ['+' + pc(M('meteor').radius - 1)], shield: [pc(M('shield').add.shieldPct)],
       ward: ['+' + pc(M('ward').radius - 1)], dash: ['+' + M('dash').add.dashCh + ' charge'],
     };
-    const bad = [...Object.entries(want).filter(([k, w]) => w.some(t => !U[k].d.includes(t))).map(([k]) => k), ...Object.entries(mile).filter(([k, w]) => w.some(t => !GEMS[k].ms[5].includes(t))).map(([k]) => k + ' (milestone)')];
+    // Shield arts: their gem text carries their numbers (SK.shield, SK.ward).
+    const art = { shield: [pc(SK.shield.barrier), pc(SK.shield.cap), SK.shield.dur + 's'], ward: [SK.ward.chill + 's', SK.ward.dur + 's'] };
+    const bad = [...Object.entries(want).filter(([k, w]) => w.some(t => !U[k].d.includes(t))).map(([k]) => k), ...Object.entries(mile).filter(([k, w]) => w.some(t => !GEMS[k].ms[5].includes(t))).map(([k]) => k + ' (milestone)'),
+      ...Object.entries(art).filter(([k, w]) => w.some(t => !GEMS[k].d.includes(t))).map(([k]) => k + ' (art)')];
     const missing = Object.keys(U).filter(k => !want[k]);
-    check(!bad.length && !missing.length, `data: support and milestone text matches their numbers${bad.length ? ' · out of step: ' + bad.join(', ') : ''}${missing.length ? ' · no text check for: ' + missing.join(', ') : ''}`);
+    check(!bad.length && !missing.length, `data: support, milestone and shield art text matches their numbers${bad.length ? ' · out of step: ' + bad.join(', ') : ''}${missing.length ? ' · no text check for: ' + missing.join(', ') : ''}`);
   }
 
   // ---------- ARPG ----------
@@ -436,6 +440,7 @@ try {
       // Frost Ward shrine: appears at level 3, takes Ward into the bag, the Knight's Shield stays in Guard.
       out.noShrineEarly = !D.shrineDue().includes('guard');
       P.lvl = 3; D.recalc(); out.due = D.shrineDue().includes('guard');
+      D.openShrine('guard'); out.guardOffer = [...document.querySelectorAll('#shrineCards .pc')].map(c => c.dataset.k).sort().join(','); document.getElementById('mShrine').classList.remove('show');
       const w = D.takeShrine('guard', 'ward');
       out.wardInBag = !!w && P.gems.find(g => g.id === P.bar.guard).gem === 'block' && !D.shrineDue().includes('guard');
       D.placeGem(w.id, 'guard'); out.wardSlotted = P.gems.find(g => g.id === P.bar.guard).gem === 'ward';
@@ -463,23 +468,70 @@ try {
         const px = P.x, pz = P.z; if (D.CAST.blink()) moved++; if (walls(P.x, P.z, P.r)) bad++;
       }
       out.wallBad = bad; out.wallMoved = moved;
-      // Frost Ward: chills and damages a monster inside, not one far away, and cuts damage taken.
-      clear(); P.x = G.start.x; P.z = G.start.z;
-      const a = D.spawnEnemy('zombie', P.x + 2, P.z, null, 0), b = D.spawnEnemy('zombie', P.x + 9, P.z, null, 0); a.awake = b.awake = true; a.hp = a.maxHp = b.hp = b.maxHp = 1e6; a.spd = b.spd = 0; // held in place, so only the radius decides
-      const life0 = P.life; D.CAST.ward(); D.sim(30);
-      out.wardChill = a.chill > 0 && !(b.chill > 0); out.chills = [a.chill, b.chill].map(c => Math.round((c || 0) * 100) / 100); out.wardDmg = a.hp < 1e6 && b.hp === 1e6;
-      P.invuln = 0; const h0 = P.life; D.hurtP(100); out.wardDr = Math.abs((h0 - P.life) - 100 * (1 - S.dr) * .7) < .5;
-      D.sim(200); out.wardEnds = !(P.wardT > 0);
       clear();
       return out;
     });
     console.log('  skills D:', JSON.stringify(r));
-    check(r.noShrineEarly && r.due && r.wardInBag && r.wardSlotted, `skills D: Frost Ward shrine at level 3 gives Ward to the bag, swappable into Guard`);
+    check(r.noShrineEarly && r.due && r.wardInBag && r.wardSlotted && r.guardOffer === 'shield,ward', `skills D: the level 3 Guard shrine offers Frost Ward and Magic Shield (${r.guardOffer}); Ward goes to the bag, swappable into Guard`);
     check(r.noEvadeEarly && r.evadeOffer.split(',').sort().join() === 'blink,dash', `skills D: the Evade shrine at level 8 offers Flame Dash and Blink (${r.evadeOffer})`);
     check(r.blinked && r.blinkAway && r.blinkClear, `skills D: Blink moves the player away from a nearby monster, with invulnerability`);
     check(r.wallBad === 0 && r.wallMoved > 5, `skills D: Blink never lands in a wall (${r.wallBad} bad of ${r.wallMoved})`);
-    check(r.wardChill && r.wardDmg && r.wardDr && r.wardEnds, `skills D: Frost Ward chills and damages monsters inside only, cuts damage taken, and ends (${JSON.stringify(r)})`);
     check(errors.length === 0, `skills D: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
+  }
+
+  // ---------- Shield arts: Magic Shield and Frost Ward change the Knight's Shield's block and parry ----------
+  {
+    const { page, errors } = await open('/');
+    const r = await page.evaluate(() => {
+      const D = window.__dbg, P = D.P, S = D.S, G = D.G, ctl = D.ctl, SK = D.SK, out = {};
+      D.start(true); ctl.aim = null; ctl.mx = ctl.mz = 0; D.setAutoAtk(false);
+      const clear = () => { G.enemies.forEach(e => { e.deathT = 1; e.gone = true; }); G.eproj = []; G.queue = []; Object.assign(P, { invuln: 0, life: S.maxLife, posture: 0, broken: 0, blocking: false, parryT: 0, parryCd: 0, riposteT: 0, rollT: 0, shield: 0, shieldT: 0 }); ctl.guard = false; ctl.tap = {}; P.x = G.start.x; P.z = G.start.z; };
+      const foe = (type, dx, dz) => { const e = D.spawnEnemy(type, P.x + dx, P.z + dz, null, 0); e.awake = true; e.spd = 0; e.atkT = 99; e.hp = e.maxHp = 1e6; return e; };
+      const gems = {}; const art = (gem, sup) => { const g = gems[gem] || (gems[gem] = D.addGem(gem)); D.placeGem(g.id, 'guard'); if (sup) D.socketGem(D.addGem(sup).id, 'guard'); D.recalc(); };
+      const parry = z => { P.parryCd = 0; ctl.tap.guard = true; D.sim(1); return D.hurtP(20, 'zombie', { from: z, by: z }); };
+      const blocked = z => { ctl.guard = true; D.sim(15); const l = P.life; D.hurtP(20, 'zombie', { from: z, by: z }); ctl.guard = false; D.sim(1); return l - P.life; };
+      // The Knight's Shield: no barrier, no ring, a riposte.
+      clear(); let z = foe('zombie', 0, 1.2); D.sim(1); out.kParry = parry(z) === 'parry' && !(P.shield > 0) && D.frostRings().length === 0 && P.riposteT > 0;
+      P.posture = 0; const kBlock = blocked(z);
+      // Magic Shield: a parry grants a barrier (12% of life), stacking to the cap; the barrier soaks the next hit; no riposte; blocks take less.
+      art('shield'); clear(); z = foe('zombie', 0, 1.2); D.sim(1);
+      out.mParry = parry(z); out.barrier = Math.round(P.shield); out.mRiposte = P.riposteT > 0;
+      out.barrierOk = out.mParry === 'parry' && Math.abs(P.shield - S.maxLife * SK.shield.barrier) < 1 && P.shieldT > 0 && z.stun > 0 && !out.mRiposte;
+      for (let i = 0; i < 5; i++) { D.sim(25); parry(z); } out.capOk = Math.abs(P.shield - S.maxLife * SK.shield.cap) < 1;
+      ctl.guard = false; P.blocking = false; P.parryT = 0; D.sim(25); const l0 = P.life, sh0 = P.shield; D.hurtP(30, 'zombie', { from: { x: P.x - Math.sin(P.face) * 2, z: P.z - Math.cos(P.face) * 2 } });
+      out.absorbs = P.life === l0 && P.shield < sh0 - 30 * (1 - S.dr) * .9;
+      P.shield = 0; P.posture = 0; const mBlock = blocked(z); out.blocks = [kBlock, mBlock].map(v => Math.round(v * 100) / 100); out.mBlockMore = mBlock < kBlock * .85;
+      P.shield = 0; D.sim(1); parry(z); D.sim(Math.ceil(SK.shield.dur / .033) + 5); out.fades = !(P.shield > 0);
+      // Warding: the same parry grants 30% more.
+      art('shield', 'warding'); clear(); z = foe('zombie', 0, 1.2); D.sim(1); parry(z); out.warded = Math.round(P.shield); out.wardingOk = Math.abs(P.shield - S.maxLife * SK.shield.barrier * (1 + D.SUPPORTS.warding.shieldPct)) < 1;
+      // Frost Ward: a parry chills the attacker and drops a frost ring that chills and bites a monster inside, not one outside.
+      art('ward'); clear(); z = foe('zombie', 0, 1.2); const far = foe('zombie', 8, 0), inRing = foe('zombie', -1.5, 0); D.sim(1);
+      out.wParry = parry(z) === 'parry'; out.chill = Math.round(z.chill * 100) / 100; out.rings = D.frostRings().length;
+      const ring = D.frostRings()[0]; out.ringDur = ring && Math.round(ring.max * 100) / 100;
+      out.wardOk = out.wParry && Math.abs(z.chill - SK.ward.chill) < .1 && out.rings === 1 && Math.abs(out.ringDur - SK.ward.dur) < .01 && P.riposteT > 0;
+      D.sim(20); out.ringBites = inRing.hp < 1e6 && inRing.chill > 0 && far.hp === 1e6 && !(far.chill > 0);
+      P.posture = 0; const wBlock = blocked(z); out.wBlockLess = wBlock > kBlock * 1.2; out.blocks.push(Math.round(wBlock * 100) / 100);
+      D.sim(Math.ceil(SK.ward.dur / .033) + 5); out.ringEnds = D.frostRings().length === 0;
+      for (let i = 0; i < SK.ward.rings + 2; i++) { D.sim(25); parry(z); } out.ringCap = D.frostRings().length === SK.ward.rings;
+      // Lingering Frost: the parry chill and the ring last 50% longer.
+      D.sim(200); art('ward', 'lingering'); clear(); z = foe('zombie', 0, 1.2); D.sim(1); parry(z);
+      out.lingerChill = Math.round(z.chill * 100) / 100; out.lingerRing = Math.round(D.frostRings()[0].max * 100) / 100;
+      out.lingerOk = Math.abs(z.chill - SK.ward.chill * 1.5) < .1 && Math.abs(out.lingerRing - SK.ward.dur * 1.5) < .01;
+      // A Frost Ward parry on the guardian chills it (it swings less often).
+      clear(); const b = D.spawnEnemy('boss', P.x, P.z + 2.2, null, 0); b.awake = true; b.abilT = 99; b.atkT = 99; b.spd = 0; D.sim(1); parry(b); out.bossChill = b.chill > 0;
+      // Map change clears the rings.
+      D.newMap(1); out.cleared = D.frostRings().length === 0;
+      clear(); return out;
+    });
+    console.log('  shield arts:', JSON.stringify(r));
+    check(r.kParry, 'shield arts: the Knight\'s Shield parry gives a riposte, no barrier and no frost ring');
+    check(r.barrierOk && r.capOk && r.absorbs && r.fades, `shield arts: a Magic Shield parry grants a barrier (${r.barrier}) that stacks to its cap, absorbs damage, fades, and gives no riposte`);
+    check(r.mBlockMore && r.wBlockLess, `shield arts: Magic Shield blocks take less, Frost Ward blocks more, than the Knight's Shield (taken of 20: ${r.blocks})`);
+    check(r.wardingOk, `shield arts: Warding makes the parry barrier 30% bigger (${r.warded} vs ${r.barrier})`);
+    check(r.wardOk && r.ringBites && r.ringEnds && r.ringCap && r.bossChill, `shield arts: a Frost Ward parry chills the attacker (${r.chill}s) and leaves a frost ring (${r.ringDur}s) that chills and bites only what's inside, ends, and is capped`);
+    check(r.lingerOk, `shield arts: Lingering Frost makes the parry chill and ring last 50% longer (${r.lingerChill}s, ${r.lingerRing}s)`);
+    check(r.cleared, 'shield arts: frost rings are cleared with the map');
+    check(errors.length === 0, `shield arts: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   }
 
   // ---------- Fight mechanics: the Knight's Shield (block, parry, posture), Roll, stagger, telegraph kinds ----------

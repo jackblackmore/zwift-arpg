@@ -3,6 +3,7 @@ import * as T from 'three';
 import { G, P, S } from '../core/state.js';
 import { RAREAFF } from '../data/monsters.js';
 import { RCSS } from '../data/items.js';
+import { SK } from '../data/skills.js';
 import { rand, $ } from '../core/util.js';
 import { cam, CAM, V, plight, blight, ctx, scene } from './scene.js';
 import { render } from './post.js';
@@ -28,7 +29,7 @@ function animHero(M, dt) {
   M.mixer.update(dt);
 }
 
-// Magic Shield bubble around the hero, fading as it's used up.
+// Magic Shield's parry barrier (game/sk/arts.js): a bubble around the hero, fading as it's used up, flaring when a parry adds to it.
 const bubble = new T.Mesh(new T.SphereGeometry(1, 20, 14), new T.MeshBasicMaterial({ color: 0x7fb8ff, transparent: true, opacity: .2, blending: T.AdditiveBlending, depthWrite: false }));
 bubble.scale.set(.95, 1.2, .95); scene.add(bubble);
 
@@ -40,7 +41,11 @@ export function draw(dt) {
   if (M.rigged) animHero(M, G.paused ? 0 : dt);
   else { const w = P.moving ? Math.sin(P.walkT) : 0; M.legL.rotation.x = w * .7; M.legR.rotation.x = -w * .7; M.armL.rotation.x = P.blocking ? -1.4 : -w * .5; M.armR.rotation.x = P.castAnim > 0 ? -1.5 : w * .4; }
   bubble.visible = P.shield > 0 && P.dead <= 0;
-  if (bubble.visible) { bubble.position.set(P.x, 1, P.z); bubble.material.opacity = .08 + .17 * Math.min(1, P.shield / (S.maxLife * .35)) + Math.sin(gt * 8) * .03; }
+  if (P.barrierFx > 0) P.barrierFx -= dt;
+  if (bubble.visible) {
+    const f = Math.max(0, P.barrierFx || 0) * 2; bubble.position.set(P.x, 1, P.z); bubble.scale.set(.95 + f * .25, 1.2 + f * .3, .95 + f * .25);
+    bubble.material.opacity = .1 + .2 * Math.min(1, P.shield / (S.maxLife * SK.shield.cap)) + Math.sin(gt * 8) * .03 + f * .25;
+  }
   plight.position.set(P.x, 3, P.z);
   G.torches.forEach((t, i) => { const f = (t.s || 1.4) * (1 + Math.sin(gt * 11 + i) * .11 + Math.sin(gt * 23 + i * 3) * .06); t.f.scale.set(f, f * 1.15, 1); });
   const boss = G.bossSpec && G.bossSpec.e;

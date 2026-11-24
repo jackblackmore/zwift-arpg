@@ -198,7 +198,7 @@ export function takeShrine(slot, gem) {
   if (!SHRINES[slot] || P.shrined[slot] || !shrineOffer(slot).includes(gem)) return null;
   const main = gemById(P.bar.main), lvl = slot !== 'main' && main && GEMS[gem].kind === 'attack' ? Math.max(1, main.lvl - GEM.flexStart) : 1;
   const g = addGem(gem, lvl); P.shrined[slot] = 1;
-  if (slot !== 'guard') placeGem(g.id, slot); // the Guard shrine gives Frost Ward to the bag: Magic Shield stays until you swap
+  if (slot !== 'guard') placeGem(g.id, slot); // the Guard shrine gives a shield art to the bag: the Knight's Shield stays until you swap
   SFX.lvl();
   refreshShrine();
   return g;

@@ -61,15 +61,6 @@ export function castNova(free = false) {
   flashLight(P.x, P.z, 0x7fd8ff, 4, .35); SFX.nova(); shake(.12); return true;
 }
 
-export function castShield() {
-  const H = SK.shield;
-  P.shield = S.maxLife * H.absorb * S.sk.shield.shieldMul; P.shieldT = H.dur;
-  P.castAnim = .2; P.castSeq++; P.lastCast = 'shield';
-  ringFx(P.x, P.z, 1.3, 0x7fb8ff, .35, .1); flashFx(P.x, 1, P.z, 0x7fb8ff, 3, .3);
-  for (let i = 0; i < 24; i++) { const a = rand(0, 6.28); emit(glows, P.x + Math.cos(a) * .9, rand(.2, 1.8), P.z + Math.sin(a) * .9, 0, rand(.3, 1), 0, rand(.3, .6), 0x9fc8ff); }
-  SFX.nova(); return true;
-}
-
 export function castDash() {
   const D = SK.dash;
   // Toward the aim point if the device gives one, else the way the player is moving, else facing.

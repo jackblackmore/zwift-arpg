@@ -20,9 +20,11 @@ export const GEMS = {
   block: { n: "Knight's Shield", kind: 'guard', held: 0, shield: 1, sk: 'block', icon: '🛡', col: '#e8d8a8', d: 'Hold to block hits from the front. Press just before a hit lands to parry: no damage, and the attacker staggers', ms: {}, mile: {} },
   // Roll (src/game/sk/roll.js): the starting Evade gem. Untouchable for a moment.
   roll: { n: 'Roll', kind: 'evade', held: 0, sk: 'roll', icon: '↻', col: '#c8e0ff', d: 'Roll out of the way, untouchable for a moment. Rolls the way you steer, or away from the nearest threat', ms: {}, mile: {} },
-  shield: { n: 'Magic Shield', kind: 'guard', held: 0, sk: 'shield', icon: '◎', col: '#7fb8ff', d: 'A barrier that absorbs damage for a few seconds', ms: { 5: 'Absorbs 25% more' }, mile: { add: { shieldPct: .25 } } },
+  // Shield arts (src/game/sk/arts.js; numbers in SK.shield and SK.ward): Guard gems that keep the block and parry and change them.
+  // `art` names the art; `d` carries its numbers (npm test checks them against SK).
+  shield: { n: 'Magic Shield', kind: 'guard', held: 0, shield: 1, art: 'shield', sk: 'shield', icon: '◎', col: '#7fb8ff', d: 'A shield art: block and parry as with the Knight\'s Shield. A parry wraps you in a barrier worth 12% of your life (stacking up to 30%, for 5s), and blocks take off a little more, but parries give no riposte', ms: { 5: 'Its barrier absorbs 25% more' }, mile: { add: { shieldPct: .25 } } },
   blink: { n: 'Blink', kind: 'evade', held: 0, sk: 'blink', elem: 'cold', icon: '⇝', col: '#9fe8ff', d: 'Teleport away from the nearest threat, untouchable for a moment', ms: { 5: 'Leaves a frost burst behind that chills' }, mile: { burstR: 3, burstMult: .9, burstChill: 3 } },
-  ward: { n: 'Frost Ward', kind: 'guard', held: 0, sk: 'ward', elem: 'cold', icon: '❅', col: '#8fe0ff', d: 'A ring of frost around you: monsters inside are slowed and chilled, and you take less damage', ms: { 5: '+25% radius' }, mile: { radius: 1.25 } },
+  ward: { n: 'Frost Ward', kind: 'guard', held: 0, shield: 1, art: 'ward', sk: 'ward', elem: 'cold', icon: '❅', col: '#8fe0ff', d: 'A shield art: block and parry as with the Knight\'s Shield. A parry chills the attacker for 2.5s and leaves a frost ring for 3s that chills and bites everything inside, but blocks take off less', ms: { 5: 'Frost rings +25% radius' }, mile: { radius: 1.25 } },
   dash: { n: 'Flame Dash', kind: 'evade', held: 0, sk: 'dash', elem: 'fire', icon: '➶', col: '#ff6a1a', d: 'Dash forward, leaving burning ground', ms: { 5: '+1 charge' }, mile: { add: { dashCh: 1 } } },
 };
 
@@ -39,8 +41,8 @@ export const BAR = Object.keys(SLOT_DEFS);
 
 // Shrines: one per slot unlock, pick 1 of the offered gems. A new character starts with the Sword, the Knight's Shield and Roll
 // (START_*), so Main has no shrine. Evade's shrine at level 8 (shrineLvl) offers a gem to replace Roll; Guard's at level 3 puts
-// Frost Ward in the bag. Flex shrines skip attack gems you already own while there are others to offer.
-export const SHRINES = { flexA: ['nova', 'arc', 'meteor', 'totem', 'cleave', 'fstrike', 'slam'], flexB: ['nova', 'arc', 'meteor', 'totem', 'cleave', 'fstrike', 'slam'], evade: ['dash', 'blink'], guard: ['ward'] };
+// a shield art (Frost Ward or Magic Shield) in the bag. Flex shrines skip attack gems you already own while there are others to offer.
+export const SHRINES = { flexA: ['nova', 'arc', 'meteor', 'totem', 'cleave', 'fstrike', 'slam'], flexB: ['nova', 'arc', 'meteor', 'totem', 'cleave', 'fstrike', 'slam'], evade: ['dash', 'blink'], guard: ['ward', 'shield'] };
 export const START_MAIN = 'sword', START_GUARD = 'block', START_EVADE = 'roll';
 
 // Gem levels. Base damage = base × grow^(level − 1), for every gem (skill `mult` in data/skills.js scales it per skill).
@@ -70,13 +72,15 @@ export const SUPPORTS = {
   conduit: { n: 'Conduit', for: ['arc'], icon: '⌁', col: '#c98bff', d: 'Arc always shocks, and its shocked enemies take 35% more damage instead of 20%', shockMore: .35, fn: s => s.conduit = 1 },
   // Shatter: a frozen enemy's death deals `pct` of its max life to enemies within `radius`, and freezes them for `freeze` s.
   shatter: { n: 'Shatter', for: ['nova'], icon: '✳', col: '#7fd8ff', d: 'Enemies frozen by Frost Nova explode on death, dealing 30% of their life to foes nearby and freezing them', pct: .3, radius: 2.4, freeze: .9, fn: s => s.shatter = 1 },
-  warding: { n: 'Warding', for: ['shield'], icon: '⊚', col: '#7fb8ff', d: 'Magic Shield absorbs 30% more', shieldPct: .3, fn: (s, v) => s.shieldPct += v.shieldPct },
+  // Warding: Magic Shield's parry barrier (and its cap) is `shieldPct` bigger.
+  warding: { n: 'Warding', for: ['shield'], icon: '⊚', col: '#7fb8ff', d: 'Magic Shield\'s parry barrier absorbs 30% more', shieldPct: .3, fn: (s, v) => s.shieldPct += v.shieldPct },
   // Volley: the totem shoots the `targets` nearest monsters at once, each bolt `mult` × the damage.
   volley: { n: 'Volley', for: ['totem'], icon: '⋰', col: '#ff7a2a', d: 'Flame Totem shoots the two nearest monsters at once, each bolt dealing 20% less damage', targets: 2, mult: .8, fn: s => s.volley = 1 },
   // Twin Meteor: a second meteor `delay` s later, `off` radii away, `mult` × the damage.
   twinmeteor: { n: 'Twin Meteor', for: ['meteor'], icon: '⁂', col: '#ffb070', d: 'A second meteor lands beside the first, dealing 30% less damage', delay: .3, off: 1.1, mult: .7, fn: s => s.twin = 1 },
   quickstep: { n: 'Quick Step', for: ['blink', 'dash'], icon: '»', col: '#9fe8ff', d: '+1 charge', ch: 1, fn: (s, v) => s.ch += v.ch },
-  lingering: { n: 'Lingering Frost', for: ['ward'], icon: '❆', col: '#8fe0ff', d: 'Frost Ward lasts 50% longer', dur: .5, fn: (s, v) => s.dur += v.dur },
+  // Lingering Frost: Frost Ward's parry chill and frost rings last `dur` longer.
+  lingering: { n: 'Lingering Frost', for: ['ward'], icon: '❆', col: '#8fe0ff', d: 'Frost Ward\'s parry chill and frost rings last 50% longer', dur: .5, fn: (s, v) => s.dur += v.dur },
 };
 for (const k in SUPPORTS) Object.assign(SUPPORTS[k], { kind: 'support', ms: {} });
 // Does support `sup` work with skill gem `gem`?
