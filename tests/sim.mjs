@@ -491,12 +491,12 @@ try {
       const parry = z => { P.parryCd = 0; ctl.tap.guard = true; D.sim(1); return D.hurtP(20, 'zombie', { from: z, by: z }); };
       const blocked = z => { ctl.guard = true; D.sim(15); const l = P.life; D.hurtP(20, 'zombie', { from: z, by: z }); ctl.guard = false; D.sim(1); return l - P.life; };
       // The Knight's Shield: no barrier, no ring, a riposte.
-      clear(); let z = foe('zombie', 0, 1.2); D.sim(1); out.kParry = parry(z) === 'parry' && !(P.shield > 0) && D.frostRings().length === 0 && P.riposteT > 0;
+      clear(); let z = foe('zombie', 0, 1.2); D.sim(1); out.kParry = parry(z) === 'parry' && !(P.shield > 0) && D.frostRings().length === 0 && P.riposteT > 0 && P.riposteMul === SK.block.riposte;
       P.posture = 0; const kBlock = blocked(z);
-      // Magic Shield: a parry grants a barrier (12% of life), stacking to the cap; the barrier soaks the next hit; no riposte; blocks take less.
+      // Magic Shield: a parry grants a barrier (12% of life), stacking to the cap; the barrier soaks the next hit; a weaker riposte; blocks take less.
       art('shield'); clear(); z = foe('zombie', 0, 1.2); D.sim(1);
-      out.mParry = parry(z); out.barrier = Math.round(P.shield); out.mRiposte = P.riposteT > 0;
-      out.barrierOk = out.mParry === 'parry' && Math.abs(P.shield - S.maxLife * SK.shield.barrier) < 1 && P.shieldT > 0 && z.stun > 0 && !out.mRiposte;
+      out.mParry = parry(z); out.barrier = Math.round(P.shield); out.mRiposte = P.riposteT > 0 ? P.riposteMul : 0;
+      out.barrierOk = out.mParry === 'parry' && Math.abs(P.shield - S.maxLife * SK.shield.barrier) < 1 && P.shieldT > 0 && z.stun > 0 && out.mRiposte === SK.shield.guard.riposte && out.mRiposte < SK.block.riposte;
       for (let i = 0; i < 5; i++) { D.sim(25); parry(z); } out.capOk = Math.abs(P.shield - S.maxLife * SK.shield.cap) < 1;
       ctl.guard = false; P.blocking = false; P.parryT = 0; D.sim(25); const l0 = P.life, sh0 = P.shield; D.hurtP(30, 'zombie', { from: { x: P.x - Math.sin(P.face) * 2, z: P.z - Math.cos(P.face) * 2 } });
       out.absorbs = P.life === l0 && P.shield < sh0 - 30 * (1 - S.dr) * .9;
@@ -525,7 +525,7 @@ try {
     });
     console.log('  shield arts:', JSON.stringify(r));
     check(r.kParry, 'shield arts: the Knight\'s Shield parry gives a riposte, no barrier and no frost ring');
-    check(r.barrierOk && r.capOk && r.absorbs && r.fades, `shield arts: a Magic Shield parry grants a barrier (${r.barrier}) that stacks to its cap, absorbs damage, fades, and gives no riposte`);
+    check(r.barrierOk && r.capOk && r.absorbs && r.fades, `shield arts: a Magic Shield parry grants a barrier (${r.barrier}) that stacks to its cap, absorbs damage, fades, and gives a weaker riposte (${r.mRiposte}×)`);
     check(r.mBlockMore && r.wBlockLess, `shield arts: Magic Shield blocks take less, Frost Ward blocks more, than the Knight's Shield (taken of 20: ${r.blocks})`);
     check(r.wardingOk, `shield arts: Warding makes the parry barrier 30% bigger (${r.warded} vs ${r.barrier})`);
     check(r.wardOk && r.ringBites && r.ringEnds && r.ringCap && r.bossChill, `shield arts: a Frost Ward parry chills the attacker (${r.chill}s) and leaves a frost ring (${r.ringDur}s) that chills and bites only what's inside, ends, and is capped`);

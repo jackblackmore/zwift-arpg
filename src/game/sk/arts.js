@@ -2,7 +2,8 @@
 // mechanics", build order step 3⅞ part 2 item 4). Numbers in SK.shield and SK.ward (data/skills.js), support and milestone
 // numbers in data/gems.js. game/sk/guard.js applies SK[art].guard to the block and calls parry() and col here.
 //   Magic Shield: a parry wraps you in a barrier (P.shield, absorbed in hurtP after the block; the bubble in render/draw.js).
-//   Frost Ward: a parry chills the attacker and leaves a frost ring on the ground that chills and bites what's inside.
+//   Frost Ward: a parry chills the attacker and leaves a frost ring on the ground that chills and bites what's inside
+//   (a guardian is chilled more briefly and only by the parry).
 // Everything drawn here is primitives (decals, rings, particles), so it works without the KayKit models.
 import * as T from 'three';
 import { G, P, S } from '../../core/state.js';
@@ -40,7 +41,7 @@ export const ART = {
     // A parry chills the attacker and drops a frost ring where you stand.
     parry(by) {
       const W = SK.ward, k = S.sk.ward.dur, r = W.radius * S.aoe * (S.mile.ward ? GEMS.ward.mile.radius : 1);
-      if (by && !by.deathT) { by.chill = Math.max(by.chill || 0, W.chill * k); floatT(by.x, by.h + .4, by.z, 'CHILLED', '#bff0ff', 13); burst(by.x, by.h * .6, by.z, FROST, 16, 4); }
+      if (by && !by.deathT) { by.chill = Math.max(by.chill || 0, (by.type === 'boss' ? W.bossChill : W.chill) * k); floatT(by.x, by.h + .4, by.z, 'CHILLED', '#bff0ff', 13); burst(by.x, by.h * .6, by.z, FROST, 16, 4); }
       while (rings.length >= W.rings) dropRing(rings.shift());
       const g = new T.Group(); g.add(decal(0x7fd8ff, r * 2.2)); g.position.set(P.x, 0, P.z); scene.add(g);
       rings.push({ x: P.x, z: P.z, r, t: W.dur * k, max: W.dur * k, tick: 0, g });
@@ -58,7 +59,7 @@ function tick(dt) {
     f.t -= dt; f.tick -= dt;
     f.g.scale.setScalar(.7 + .3 * Math.min(1, f.t / f.max * 3)); f.g.rotation.y += dt * .6;
     if (Math.random() < dt * 16) { const a = rand(0, 6.28); emit(glows, f.x + Math.cos(a) * f.r, .2, f.z + Math.sin(a) * f.r, 0, rand(.4, 1.2), 0, rand(.3, .5), 0xbff0ff); }
-    near(f.x, f.z, f.r, e => { e.chill = Math.max(e.chill, W.ringChill); });
+    near(f.x, f.z, f.r, e => { if (e.type !== 'boss') e.chill = Math.max(e.chill, W.ringChill); });
     if (f.tick <= 0) { f.tick = W.tick; near(f.x, f.z, f.r, e => hit(e, W.mult, 'cold', { gem: 'ward', dot: true })); }
     if (f.t <= 0) { f.dead = true; dropRing(f); }
   }

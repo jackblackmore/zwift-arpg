@@ -43,8 +43,8 @@ export const SK = {
   //   and change what they do. `guard` overrides fields of SK.block while that gem is in Guard. Sidegrades: each gives something
   //   and costs something, so the Knight's Shield stays a fine choice.
   // Magic Shield: a parry wraps you in a barrier of `barrier` × max life (× shieldMul: Warding, its milestone, gear), stacking up
-  //   to `cap` × max life and lasting `dur` s from the last parry. Blocks take off a little more, but a parry gives no riposte.
-  shield: { barrier: .12, cap: .3, dur: 5, guard: { block: .82, heavy: .6, riposte: 1 } },
+  //   to `cap` × max life and lasting `dur` s from the last parry. Blocks take off a little more, but a parry's riposte is weaker.
+  shield: { barrier: .12, cap: .3, dur: 5, guard: { block: .82, heavy: .6, riposte: 1.3 } },
   // Flame Dash: the first Evade gem (level 8 shrine). Gems with `charges` hold that many casts, recharging one per `recharge` seconds.
 // Optional `bot: { range, crowd }` tells the arena bot when to use a Flex or Main press gem: an enemy within `range` (default: radius or range, else 9), `crowd` of them (default 1).
   // Flame Dash leaves a patch of burning ground (radius patchR) every patchEvery units.
@@ -52,9 +52,9 @@ export const SK = {
   // Blink: teleports `range` away from the nearest threat (its milestone's frost burst is in data/gems.js).
   blink: { charges: 2, range: 6.5, recharge: 5, invuln: .45 },
   // Frost Ward: a parry chills the attacker for `chill` s and leaves a frost ring of `radius` where you stand for `dur` s (both × the
-  //   gem's dur: Lingering Frost). Monsters inside stay chilled (data/monsters.js STATUS) and take `mult` × the Frost Ward gem's
+  //   gem's dur: Lingering Frost); a guardian shrugs it off faster (`bossChill` s) and its rings don't chill guardians. Monsters inside stay chilled (data/monsters.js STATUS) and take `mult` × the Frost Ward gem's
   //   base as cold damage every `tick` s, and stay chilled `ringChill` s after leaving. At most `rings` at once (the oldest goes). Its block is lighter: blocks take off less.
-  ward: { chill: 2.5, radius: 2.6, dur: 3, tick: .5, mult: .15, ringChill: .6, rings: 3, guard: { block: .65, heavy: .4 } },
+  ward: { chill: 2.5, bossChill: .8, radius: 2.6, dur: 3, tick: .5, mult: .06, ringChill: .6, rings: 3, guard: { block: .65, heavy: .4 } },
   // Burning ground (Flame Dash, Meteor, Wattbringer): `mult` × the gem's base every `tick` s, lasting `life` s.
   burn: { mult: .22, tick: .25, life: 2.4 },
   flask: { heal: .6, dur: 2.5, max: 3, perKill: .05, perRare: 1 },
