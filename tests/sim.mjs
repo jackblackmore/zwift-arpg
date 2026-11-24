@@ -535,6 +535,27 @@ try {
       // A hit the guardian lands (not blocked or parried) steadies it: its stagger bar drops.
       b.stag = .8; P.invuln = 0; P.rollT = 0; ctl.guard = false; P.blocking = false; P.parryT = 0; D.sim(1); D.hurtP(5, 'boss', { from: b, by: b }); out.recover = b.stag < .8 - D.STAGGER.recover * .9;
       b.stag = 0;
+      // Channels (BOSS.channel, phase 2): it roots and channels; filling its stagger first cancels it and staggers it (finisher ready).
+      const C = D.BOSS.channel, chanAt = () => { b.stun = 0; b.stag = 0; b.channel = null; b.cast = null; b.phase2 = true; b.hp = b.maxHp * .3; b.rot = 0; b.abilT = 0; b.atkT = 99; Object.assign(P, { invuln: 0, rollT: 0, blocking: false, parryT: 0, parryCd: 0, life: S.maxLife }); ctl.guard = false; D.sim(1); b.atkT = 99; };
+      b.chanN = 0; chanAt(); out.chanUp = !!b.channel && b.channel.fx === C.effects[0];
+      const br0 = P.chanBroken; for (let i = 0; i < 4 && b.channel; i++) { P.parryCd = 0; ctl.tap.guard = true; D.sim(1); D.hurtP(10, 'boss', { from: b, by: b }); }
+      out.chanBroken = !b.channel && b.stun > 0 && b.finisher && P.chanBroken === br0 + 1;
+      // A channel left alone completes: the first is an unblockable burst you have to roll, the next mends and summons.
+      b.chanN = 0; chanAt(); const lb = P.life; D.sim(Math.ceil(C.t / .033) + 2); out.burstUp = b.cast && b.cast.kind === 'burst' && !b.channel;
+      D.sim(Math.ceil(C.burst.t / .033) + 2); out.burstHit = Math.round(lb - P.life); out.burst = out.burstUp && lb - P.life > b.dmg * C.burst.dmg * (1 - S.dr) * .8;
+      chanAt(); const h0 = b.hp, runners0 = G.enemies.filter(e => e.type === D.BOSS.summonType && !e.deathT).length; D.sim(Math.ceil(C.t / .033) + 2);
+      out.mend = !b.channel && b.hp > h0 + b.maxHp * C.mend.heal * .9 && G.enemies.filter(e => e.type === D.BOSS.summonType && !e.deathT).length >= runners0 + C.mend.summon - 1;
+      G.enemies.forEach(e => { if (e !== b) { e.deathT = 1; e.gone = true; } });
+      // Surge fills stagger faster during a channel: the same swing fills more surging, and more in a channel than out of one.
+      Math.random = () => .5; S.crit = 0;
+      const stagOf = (surge, chan) => { b.stun = 0; b.stag = 0; b.cast = null; b.abilT = 99; b.atkT = 99; b.channel = chan ? { t: 0, fx: 'burst' } : null; P.riposteT = 0; P.surge = S.surgeMax; P.spent = false; ctl.surge = surge; D.sim(2); const s0 = b.stag; bswing(); const ds = b.stag - s0; ctl.surge = false; b.channel = null; return ds; };
+      const sc = stagOf(true, true), pc = stagOf(false, true), so = stagOf(true, false);
+      S.crit = crit; Math.random = rnd;
+      out.chanSurge = [sc, pc, so].map(v => Math.round(v * 1000) / 1000).join(','); out.surgeFaster = sc > pc * 2 && sc > so * 2;
+      // RIDE: a short effort spike while it channels fills its stagger (RIDE.spike); steady riding doesn't.
+      const spike = rel => { b.stun = 0; b.stag = 0; b.abilT = 99; b.atkT = 99; b.channel = { t: 0, fx: 'burst' }; ctl.effort = { pw: rel * 250, rel, cad: 90 }; D.sim(30); const v = b.stag; ctl.effort = null; b.channel = null; return v; };
+      const sp = spike(1.6), steady = spike(.75); out.spike = Math.round(sp * 100) / 100; out.rideSpike = sp > .2 && steady === 0;
+      b.stun = 0; b.stag = 0;
       // Bloaters: killed before the fuse runs out, no blast; a fuse that runs out blows up.
       clear(); const bl = foe('bloater', 0, 4); D.kill(bl); out.defused = !G.queue.some(q => q.k === 'bloat');
       const bl2 = foe('bloater', 0, 1); bl2.spd = 0; D.sim(40); out.fused = bl2.deathT > 0 && bl2.fused;
@@ -554,6 +575,10 @@ try {
     check(r.stunned && r.stunTaken, `fight: parries fill the guardian's stagger bar (${r.stagSteps}); full, it's stunned, its ability cancelled, and takes more damage`);
     check(r.finisher, `fight: the first hit on a staggered guardian is a finisher (${r.finRatio}× the next stunned hit), once per stagger`);
     check(r.recover, 'fight: a hit the guardian lands on you (not blocked or parried) knocks its stagger bar back');
+    check(r.chanUp && r.chanBroken, 'fight: the guardian channels in phase 2; filling its stagger bar first cancels the channel and staggers it, finisher ready');
+    check(r.burst && r.mend, `fight: a completed channel does its effect: an unblockable burst (${r.burstHit} taken), then a mend that heals and summons`);
+    check(r.surgeFaster, `fight: Surge fills stagger faster during a channel (stagger per swing: surging in a channel, not surging in one, surging outside one: ${r.chanSurge})`);
+    check(r.rideSpike, `fight: in RIDE mode a short effort spike fills a channelling guardian's stagger (${r.spike} in 1 s at 160% FTP), steady riding doesn't`);
     check(r.defused && r.fused, 'fight: a bloater killed before its fuse runs out doesn\'t blow up; one whose fuse runs out does');
     check(errors.length === 0, `fight: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   }
