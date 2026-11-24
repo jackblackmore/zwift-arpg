@@ -65,7 +65,7 @@ export const BOSS = { vsMinion: 1.4, aggro: 13, rotation: ['slam', 'nova', 'slam
 // that. A hit it lands on you (not blocked or parried) knocks the bar back by `recover`: it steadies, so a broken guard
 // is earned by timing, not by trading hits. The bar drains `drain` per second once `delay` s pass without adding to it.
 // A parried normal monster is stunned for `minorStun` s.
-export const STAGGER = { parry: .5, parryRare: .5, dmg: .5, surge: 1, stunT: 3, taken: .15, finisher: 3, recover: .6, drain: .06, delay: 2.5, minorStun: .9 };
+export const STAGGER = { parry: .5, parryRare: .5, dmg: .5, surge: 1, stunT: 3, taken: .15, finisher: 3, recover: .85, drain: .06, delay: 2.5, minorStun: .9 };
 // Status effects on monsters. chill: speed × chillSpd, attack and shot cooldowns × chillCd. Burns tick every burnTick s.
 export const STATUS = { chillSpd: .5, chillCd: 1.6, burnTick: .5 };
 // How monsters fight. windup: seconds from starting a swing to the hit (melee, boss, ranged). reach: extra hit range on top of

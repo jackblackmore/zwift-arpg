@@ -1,6 +1,6 @@
 // Balance arena: scripted fights with the real game code, one encounter at a time (no level runs).
 // Run `npm run build` first. Usage: npm run arena [-- maxTier]   (SEED=n changes the fixed random seed; MAIN=gemId swaps the Main gem;
-// TREE=none plays with no passive tree points, TREE=<preset> another data/balance.js TREE_PRESETS entry; default: the par preset)
+// ONLY='^guardian' runs just the rows whose names match that regular expression; TREE=none plays with no passive tree points, TREE=<preset> another data/balance.js TREE_PRESETS entry; default: the par preset)
 // Each row is one fight at the tier's par level and par gear (src/data/balance.js) unless the row says otherwise.
 // The bot walks into swing reach and lets the Main gem auto-attack, novas when crowded, flasks at half life and surges on rares,
 // guardians and crowds. It never steps out of anything: it parries, blocks and rolls at a reaction skill (src/game/arena.js):
@@ -11,6 +11,7 @@ import { preview } from 'vite';
 import puppeteer from 'puppeteer-core';
 import { existsSync } from 'node:fs';
 
+const ONLY = process.env.ONLY ? new RegExp(process.env.ONLY) : null; // ONLY=<regex>: just the rows whose names match it
 const maxTier = Number(process.argv[2]) || 5, SEED = Number(process.env.SEED) || 1234, MAIN = process.env.MAIN || undefined, TREE = process.env.TREE === 'none' ? false : process.env.TREE || undefined;
 const chrome = process.env.CHROME_PATH || ['/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser', '/opt/pw-browsers/chromium'].find(existsSync);
 if (!chrome) { console.error('No Chrome found. Set CHROME_PATH.'); process.exit(1); }
@@ -42,7 +43,7 @@ const encounters = (t, n) => [
     { name: `rare + pack, ${k}`, fight: [['zombie', n(3)]], rare: 'zombie', tree: k, skip: t < 4 || TREE !== undefined },
     { name: `guardian, ${k}`, guardian: true, maxT: 240, tree: k, skip: t < 4 || TREE !== undefined },
   ]),
-].filter(e => !e.skip);
+].filter(e => !e.skip && (!ONLY || ONLY.test(e.name)));
 
 const PORT = Number(process.env.PORT) || 4174; // PORT=4184 npm run arena
 const server = await preview({ preview: { port: PORT, strictPort: true } });
