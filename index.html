@@ -68,10 +68,12 @@
   <div id="gemTip"></div>
 </div></div>
 
-<div class="modal show" id="mMenu"><div class="card" style="max-width:600px">
+<div class="modal show" id="mMenu"><div class="card" id="menuCard">
   <h1>WATT DUNGEON</h1>
   <div id="build" class="build"></div>
-  <div class="sub">ARPG prototype · Path of Exile style · bike controls come later · <a href="./pedal/" style="color:var(--gold)">original pedal demo</a> · <a href="./gallery/" style="color:var(--gold)">asset gallery</a> · <a href="./maps/" style="color:var(--gold)">map viewer</a><br>Characters, animations and dungeon: KayKit by Kay Lousberg (CC0)</div>
+  <div class="sub">ARPG prototype · bike controls come later</div>
+  <div class="row"><button id="goCont" class="pri" style="display:none">CONTINUE</button><button id="goNew">NEW CHARACTER</button></div>
+  <details class="sect"><summary>How to play</summary>
   <ul>
     <li><b>You're a knight: fight up close.</b> Your sword <b>attacks on its own</b> whatever's in reach (the ATTACK button or <kbd>T</kbd> switches to hold-to-attack). The skill is in the timing, not where you stand.</li>
     <li><b>Your shield (Guard, <kbd>Space</kbd>):</b> hold to block hits from the front; press just before a hit lands to <b>parry</b>: no damage, the attacker staggers and your next swing is a riposte. Blocking fills your posture bar (over your head); fill it and your guard breaks. The level 3 shrine offers a <b>shield art</b> for Guard: Magic Shield (a parry wraps you in a barrier) or Frost Ward (a parry chills the attacker and leaves a frost ring).</li>
@@ -87,9 +89,15 @@
     <li><b>FX</b> switches graphics quality (high: bloom + shadows, medium: bloom, low: plain) if your device struggles.</li>
     <li><b>Kill the map boss</b> and step through the portal into a harder map. Progress saves on this device.</li>
   </ul>
-  <div class="keys">Desktop: move <kbd>WASD</kbd> · aim with mouse · skill bar: <kbd>LMB</kbd> Main (hold to swing at the cursor) · <kbd>T</kbd> auto-attack on/off · <kbd>RMB</kbd> Flex A · <kbd>Q</kbd> Flex B · <kbd>Space</kbd> Guard · <kbd>E</kbd> Evade (or <kbd>1</kbd>–<kbd>5</kbd>) · <kbd>Shift</kbd> (hold) Surge · <kbd>F</kbd> flask · <kbd>I</kbd> bag · <kbd>G</kbd> gems · <kbd>P</kbd> passive tree<br>Touch: drag the left side to move (moving away from a monster pauses the auto-attack) · skills on the right auto-aim at the nearest enemy · walk over loot to pick it up</div>
-  <div class="keys"><b style="color:var(--gold)">RIDE mode</b> (MODE button) plays with only what a Zwift Ride + KICKR give you: pedal to move (power slider, <kbd>W</kbd>/<kbd>S</kbd>; cadence <kbd>A</kbd>/<kbd>D</kbd>), D-pad steers (<kbd>arrows</kbd>), <b>A</b> Main <kbd>K</kbd>, <b>B</b> Flex A <kbd>L</kbd>, <b>Z</b> Flex B <kbd>J</kbd>, <b>Y</b> autopilot <kbd>I</kbd> (walks into the fight; the Main attack swings on its own; when a cleared room has several ways on it waits 5 s for you to <b>tap the D-pad</b> toward one, else it clears everything), right shifter Guard <kbd>E</kbd>, left power-up button Evade <kbd>U</kbd>, left shifter flask <kbd>Q</kbd>. There is no mana: ride above endurance pace (~80% FTP) to <b>Surge</b> (faster casts and cooldowns while the gauge drains), ease off to refill it; below ~65% FTP casts slow down; high cadence casts a little faster.</div>
-  <div class="row"><button id="goCont" class="pri" style="display:none">CONTINUE</button><button id="goNew">NEW CHARACTER</button></div>
+  </details>
+  <details class="sect"><summary>Controls</summary><div class="keys">Desktop: move <kbd>WASD</kbd> · aim with mouse · skill bar: <kbd>LMB</kbd> Main (hold to swing at the cursor) · <kbd>T</kbd> auto-attack on/off · <kbd>RMB</kbd> Flex A · <kbd>Q</kbd> Flex B · <kbd>Space</kbd> Guard · <kbd>E</kbd> Evade (or <kbd>1</kbd>–<kbd>5</kbd>) · <kbd>Shift</kbd> (hold) Surge · <kbd>F</kbd> flask · <kbd>I</kbd> bag · <kbd>G</kbd> gems · <kbd>P</kbd> passive tree<br>Touch: drag the left side to move (moving away from a monster pauses the auto-attack) · skills on the right auto-aim at the nearest enemy · walk over loot to pick it up</div></details>
+  <details class="sect"><summary>RIDE mode</summary><div class="keys"><b style="color:var(--gold)">RIDE mode</b> (MODE button) plays with only what a Zwift Ride + KICKR give you: pedal to move (power slider, <kbd>W</kbd>/<kbd>S</kbd>; cadence <kbd>A</kbd>/<kbd>D</kbd>), D-pad steers (<kbd>arrows</kbd>), <b>A</b> Main <kbd>K</kbd>, <b>B</b> Flex A <kbd>L</kbd>, <b>Z</b> Flex B <kbd>J</kbd>, <b>Y</b> autopilot <kbd>I</kbd> (walks into the fight; the Main attack swings on its own; when a cleared room has several ways on it waits 5 s for you to <b>tap the D-pad</b> toward one, else it clears everything), right shifter Guard <kbd>E</kbd>, left power-up button Evade <kbd>U</kbd>, left shifter flask <kbd>Q</kbd>. There is no mana: ride above endurance pace (~80% FTP) to <b>Surge</b> (faster casts and cooldowns while the gauge drains), ease off to refill it; below ~65% FTP casts slow down; high cadence casts a little faster.</div></details>
+  <div class="tools">
+    <a href="./maps/"><b>Map viewer</b><span>Level layouts by seed</span></a>
+    <a href="./gallery/"><b>Asset gallery</b><span>Models and animations</span></a>
+    <a href="./pedal/"><b>Pedal demo</b><span>The original prototype</span></a>
+  </div>
+  <div class="sub" style="margin:10px 0 0;text-align:center">Characters, animations and dungeon: KayKit by Kay Lousberg (CC0)</div>
 </div></div>
 
 <script type="module" src="/src/main.js"></script>
