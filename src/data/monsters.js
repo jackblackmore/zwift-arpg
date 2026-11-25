@@ -67,7 +67,7 @@ export const RN2 = ['maw', 'tooth', 'spine', 'gnaw', 'husk', 'grip', 'fang', 'sk
 // A guardian: name, short (its banners), col (its colour: banners, minimap, cast flashes), hint/hint2 (banner lines on waking and in
 //   phase 2), mt (its MT entry on top of MT.boss: life, damage, size, look), rotation/rotation2 (ability keys in turn), abilGap/abilGap2
 //   (seconds between abilities), enrageSpd, phase2 (on entering phase 2: `summon` [type, n] at once), abil, channel, anim (cast clips
-//   by ability key, else ANIM.bossCast by kind).
+//   by ability key, else ANIM.bossCast by kind), summonCap (at most this many of its summons alive at once; none: no cap).
 // Ability kinds (abil[key].kind), each with its telegraph (data/graphics.js TELL) and its answer:
 //   area: after `t` s (t2 in phase 2) a hit within `r` for `dmg` × its damage. at: 'you' (where you stood when it began), 'front'
 //     (in front of it, toward you) or 'self' (round it). tell: 'heavy' (🔴 red ground: block for less, or roll) or 'unblockable'
@@ -102,14 +102,14 @@ export const GUARDIANS = {
   // Crypt Halls: the skeleton knight. Sword and shield: a three-swing combo you parry, a shield bash (heavy), a lunge (phase 2,
   // unblockable), and it calls skeleton warriors. Its channel rallies: a shockwave (roll) or a mend that calls more.
   knight: { name: 'The Skeleton Knight', short: 'THE KNIGHT', col: 0x7ab8ff, hint: 'Parry the sword combo · block or roll the shield bash', hint2: 'It lunges (purple: roll) · blue: break its rally',
-    mt: { hp: 1100, dmg: 10.5, spd: 2.6, r: 1, cd: 1.6, range: 1.7, h: 4.9, scale: 2.3, horns: 0, col: 0x3a4250, head: 0xb8c4d0, eye: 0x60c0ff,
+    mt: { hp: 1300, dmg: 10.5, spd: 2.6, r: 1, cd: 1.6, range: 1.7, h: 4.9, scale: 2.3, horns: 0, col: 0x3a4250, head: 0xb8c4d0, eye: 0x60c0ff,
       look: { kind: 'warrior', weapon: 'blade', offhand: 'shield', walk: 'Walking_A', idle: 'Melee_2H_Idle', rise: 'taunt', tint: 0xb8c8e0, attacks: [['Melee_1H_Attack_Chop', 1.4], ['Melee_1H_Attack_Slice_Diagonal', 1.3], ['Melee_1H_Attack_Slice_Horizontal', 1.6]] } },
-    rotation: ['combo', 'bash', 'combo', 'summon'], rotation2: ['channel', 'bash', 'lunge', 'combo', 'bash', 'channel', 'summon', 'lunge'], abilGap: 3.6, abilGap2: 2.2, enrageSpd: 1.25,
+    rotation: ['combo', 'bash', 'combo', 'summon'], rotation2: ['channel', 'bash', 'lunge', 'combo', 'bash', 'channel', 'summon', 'lunge'], abilGap: 3.3, abilGap2: 2.2, enrageSpd: 1.25,
     abil: {
-      combo: { kind: 'combo', n: 3, gap: .3, windup: .55, dmg: .85 },
+      combo: { kind: 'combo', n: 3, gap: .3, windup: .55, dmg: 1 },
       bash: { kind: 'area', at: 'front', tell: 'heavy', r: 2.4, dmg: 4.5, t: 1.05, t2: .85, dt: 'phys' },
       lunge: { kind: 'charge', t: 1, dmg: 4.5, speed: 15, range: 8, hitR: .5, dt: 'phys' },
-      summon: { kind: 'summon', type: 'zombie', n: 2, n2: 3 },
+      summon: { kind: 'summon', type: 'zombie', n: 3, n2: 4 },
     },
     anim: { bash: ['Melee_Block_Attack', 1], lunge: ['Melee_1H_Attack_Stab', .8], summon: ['Skeletons_Taunt', 1.4] },
     channel: { ...CH, effects: ['burst', 'mend'], burst: { kind: 'area', at: 'self', tell: 'unblockable', t: .7, dmg: 5, r: 7.5, dt: 'phys' }, mend: { heal: .15, summon: 3, type: 'zombie' } } },
@@ -118,14 +118,14 @@ export const GUARDIANS = {
   captain: { name: 'The Bone Archer Captain', short: 'THE CAPTAIN', col: 0xffc860, hint: 'Block the volleys · roll the aimed shot · parry its kicks', hint2: 'Blue: break the arrow rain before the bar fills',
     mt: { hp: 1100, dmg: 10.5, spd: 2.5, r: 1, cd: 1.7, range: 1.6, h: 4.7, scale: 2.2, horns: 0, col: 0x5a4a32, head: 0xe6dcc0, eye: 0xffc040, bow: 1,
       look: { kind: 'rogue', weapon: 'crossbow', walk: 'Walking_A', idle: 'Skeletons_Idle', rise: 'taunt', tint: 0xe8d8b0, attacks: [['Melee_Unarmed_Attack_Kick', 1.3], ['Melee_Unarmed_Attack_Punch_A', 1.5]] } },
-    rotation: ['volley', 'shot', 'volley', 'summon'], rotation2: ['channel', 'shot', 'volley', 'shot', 'channel', 'summon', 'volley'], abilGap: 3.6, abilGap2: 2.3, enrageSpd: 1.2,
+    rotation: ['volley', 'shot', 'volley', 'summon'], rotation2: ['channel', 'shot', 'volley', 'shot', 'channel', 'summon', 'volley'], abilGap: 3.6, abilGap2: 2.3, enrageSpd: 1.2, summonCap: 3,
     abil: {
-      volley: { kind: 'volley', n: 6, spread: .75, dmg: .8, speed: 13, gap: .5, t: .8, waves2: 2, look: 'arrow', dt: 'phys' },
-      shot: { kind: 'shot', t: 1.1, lock: .25, dmg: 4.5, w: .8, range: 30, dt: 'phys' },
-      summon: { kind: 'summon', type: 'archer', n: 2, n2: 3 },
+      volley: { kind: 'volley', n: 5, spread: .7, dmg: .7, speed: 13, gap: .5, t: .8, waves2: 2, look: 'arrow', dt: 'phys' },
+      shot: { kind: 'shot', t: 1.1, lock: .25, dmg: 4.2, w: .8, range: 30, dt: 'phys' },
+      summon: { kind: 'summon', type: 'archer', n: 1, n2: 2 },
     },
     anim: { volley: ['Ranged_2H_Shoot', .9], shot: ['Ranged_2H_Shoot', .55], summon: ['Skeletons_Taunt', 1.4] },
-    channel: { ...CH, effects: ['rain', 'mend'], rain: { kind: 'area', at: 'you', tell: 'heavy', t: .8, dmg: 5, r: 3.4, dt: 'phys' }, mend: { heal: .15, summon: 3, type: 'archer' } } },
+    channel: { ...CH, effects: ['rain', 'mend'], rain: { kind: 'area', at: 'you', tell: 'heavy', t: .8, dmg: 5, r: 3.4, dt: 'phys' }, mend: { heal: .15, summon: 2, type: 'archer' } } },
   // Flooded Tombs: the plague bloat (procedural, like the bloaters). A heavy belly slam, poison spew you block, pustules that burst
   // into bloaters; in phase 2 it bursts (bloaters at once) and leaps on you (unblockable). Its channel gorges: a poison burst (roll)
   // or a mend that spawns bloaters.

@@ -345,9 +345,10 @@ function channelDone(e, fx) {
   summon(e, M.summon, M.type);
 }
 function summon(e, n, type) {
+  if (e.gd.summonCap) n = Math.min(n, e.gd.summonCap - G.enemies.filter(m => !m.deathT && m.summoner === e).length); // GUARDIANS[..].summonCap: at most this many of its summons alive
   for (let i = 0; i < n; i++) {
     const a = i * 1.26, x = e.x + Math.cos(a) * 2.5, z = e.z + Math.sin(a) * 2.5;
-    if (!blocked(x, z, .3)) { const r = spawnEnemy(type, x, z, null, 0); r.awake = true; G.mapTotal++; burst(x, .5, z, e.gd.col, 10, 3); }
+    if (!blocked(x, z, .3)) { const r = spawnEnemy(type, x, z, null, 0); r.awake = true; r.summoner = e; G.mapTotal++; burst(x, .5, z, e.gd.col, 10, 3); }
   }
 }
 
