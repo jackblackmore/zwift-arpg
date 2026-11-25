@@ -758,7 +758,7 @@ try {
         o.types = [...new Set(G.packs.flatMap(p => p.mem))].sort().join(); o.rares = G.packs.filter(p => p.rare && !p.elite).length / G.packs.filter(p => !p.elite).length;
         for (let n = 0; n < 40; n++) { D.newMap(t); o.ids[G.bossSpec.id] = (o.ids[G.bossSpec.id] || 0) + 1; }
       }
-      const clear = () => { G.enemies.forEach(e => { e.deathT = 1; e.gone = true; }); D.sim(1); G.eproj.forEach(p => D.scene.remove(p.g)); G.eproj = []; G.queue = []; G.corpses.forEach(c => D.scene.remove(c.g)); G.corpses = []; Object.assign(P, { invuln: 0, life: 1e6, posture: 0, broken: 0, blocking: false, parryT: 0, parryCd: 0, riposteT: 0, rollT: 0, x: G.start.x, z: G.start.z, face: 0, raised: 0 }); ctl.guard = false; ctl.tap = {}; };
+      const clear = () => { G.enemies.forEach(e => { e.deathT = 1; e.gone = true; D.scene.remove(e.model.g); }); D.sim(1); G.eproj.forEach(p => D.scene.remove(p.g)); G.eproj = []; G.queue = []; G.corpses.forEach(c => D.scene.remove(c.g)); G.corpses = []; Object.assign(P, { invuln: 0, life: 1e6, posture: 0, broken: 0, blocking: false, parryT: 0, parryCd: 0, riposteT: 0, rollT: 0, x: G.start.x, z: G.start.z, face: 0, raised: 0 }); ctl.guard = false; ctl.tap = {}; };
       D.newMap(4); G.packs = []; G.bossSpec = null;
       // The necromancer: zombies fall and leave corpses; it channels (green rings, a green '!' and its sound), and they get up.
       const scene = () => { clear(); const n = D.spawnEnemy('necro', P.x + 6, P.z, null, 0); n.awake = true; n.raiseT = 1; n.spd = 0; n.shootT = 99; const zs = [0, 1, 2].map(i => { const z = D.spawnEnemy('zombie', P.x + 2.5, P.z + i - 1, null, 0); z.awake = true; return z; }); D.sim(2); zs.forEach(z => D.kill(z)); D.sim(1); return n; };
@@ -812,7 +812,7 @@ try {
       const setup = `const D = window.__dbg, P = D.P, G = D.G, ctl = D.ctl; G.enemies.forEach(e => { e.deathT = 1; e.gone = true; D.scene.remove(e.model.g); }); D.sim(1); G.corpses.forEach(c => D.scene.remove(c.g)); G.corpses = []; G.eproj = []; G.queue = []; P.life = 1e6; P.invuln = 0;
         const L = G.layout, R = L.rooms[0]; P.x = R.x; P.z = R.z + 2.5; P.face = Math.PI; document.getElementById('banner').style.opacity = 0; G.bannerT = .01;
         const sp = (t, dx, dz, o) => { const e = D.spawnEnemy(t, P.x + dx, P.z - dz, null, 0, o); /* +dz: up the screen, away from the camera */ e.awake = true; e.rise = 0; return e; };`;
-      await page.evaluate(() => { const D = window.__dbg; D.newMap(4); D.G.packs = []; D.G.bossSpec = null; });
+      await page.evaluate(() => { const D = window.__dbg; D.G.enemies.forEach(e => D.scene.remove(e.model.g)); D.G.enemies = []; D.start(true); D.setAutoAtk(false); D.newMap(4); D.G.packs = []; D.G.bossSpec = null; });
       await stage('necro', setup + `const n = sp('necro', 0, 5.5); n.spd = 0; n.shootT = 99; for (let i = 0; i < 3; i++) D.kill(sp('zombie', -1.6 + i * 1.6, 3)); sp('zombie', 1.2, 1.4).atkT = 99; D.sim(8); n.raiseT = 0; D.sim(18); D.snapCam();`);
       await page.evaluate(() => { const D = window.__dbg; D.newMap(5); D.G.packs = []; D.G.bossSpec = null; });
       await stage('bknight', setup + `const a = sp('bknight', -.8, 1.7), b = sp('bknight', 1.4, 2.4); a.spd = b.spd = 0; a.atkT = 99; b.atkT = .2; D.sim(3); for (let i = 0; i < 2; i++) D.hit(a, 1, 'phys', { gem: 'sword' }); P.aimAt = [a.x, a.z]; D.strike('sword'); P.aimAt = null; D.sim(5); D.snapCam();`);
