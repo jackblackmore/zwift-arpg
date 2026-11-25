@@ -89,6 +89,14 @@ export const TARGETS = {
   lootGain: [1.3, 3],     // DPS of a full magic kit over the starter sword at the same level
 };
 
+// What the arena's summary checks (tests/arena.mjs, good rider at par unless named):
+//   buildSpread: each Main gem build's guardian time is within this share of the Sword's (and it wins);
+//   perfectLead: the perfect bot beats a guardian at least this much faster than the good rider, with every build;
+//   eliteVsRare: an elite room takes at least [0] × the time of a rare + pack, and costs more life (it's the bigger fight).
+// Also: the good rider wins every guardian with every build, careless wins none, and a hero behind par (starter sword, 2 levels
+// under) loses some guardians or takes more than par.
+export const ARENA_TARGETS = { buildSpread: .25, perfectLead: .15, eliteVsRare: [1.3] };
+
 // Gear profiles used by both tools (formulas.js gearProfile): each slot's base (data/items.js BASE; default the slot's first, the
 // medium one) with its implicits, plus these affixes at average rolls.
 //   start: the starter sword only.
@@ -96,9 +104,11 @@ export const TARGETS = {
 //   (most players have picked up a little resistance by the second map). The bases' implicits bring armour on the helm, body armour
 //   and boots.
 //   rare: 3 affixes per slot, a mix of damage, life, armour and resistances (rares roll 3–5).
+//   wrong: the par kit with the wrong resistance: fire where the boots' poison resistance was (the arena's "wrong resistances" rows).
 export const GEAR_PROFILES = {
   start: {},
   magic: { rar: 1, affixes: { weapon: ['spell'], helm: ['dmg'], chest: ['lifeF'], boots: ['lifeF', 'resPoison'], ring: ['spell', 'resElem'], amulet: ['spell'] } },
+  wrong: { rar: 1, affixes: { weapon: ['spell'], helm: ['dmg'], chest: ['lifeF'], boots: ['lifeF', 'resFire'], ring: ['spell', 'resElem'], amulet: ['spell'] } },
   rare: { rar: 2, affixes: { weapon: ['spell', 'dmg', 'cast'], helm: ['dmg', 'armour', 'lifeF'], chest: ['lifeF', 'armour', 'resPoison'], boots: ['lifeF', 'ms', 'resPoison'], ring: ['spell', 'resElem', 'lifeF'], amulet: ['spell', 'dmg', 'crit'] } },
 };
 // The gear a player is expected to have at par on each tier (targets are checked against this profile).

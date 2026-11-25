@@ -20,15 +20,17 @@ function rollVal(a, il) {
 }
 // A unique's plain mod at an item level: flat values (damage, life, armour) grow like an affix's; percents, flags and whole numbers don't.
 const uniqVal = (st, v, il) => { const a = AFFBY[st]; return a && !a.pct && !a.int && !a.dec ? Math.round(v * flatScale(il)) : v; };
+// A unique (data/items.js UNIQ, by id) at an item level: its base's implicits and its own mods. Also the arena's unique rows.
+export function makeUnique(id, il) {
+  const u = UNIQ.find(x => x.id === id), mods = implMods(u.base, il);
+  return { id: G.itemId++, slot: u.slot, rar: 3, name: u.name, base: u.base, uid: u.id, il, fl: u.fl, impl: mods.length, mods: [...mods, ...u.mods.map(([st, v]) => [st, uniqVal(st, v, il)])] };
+}
 export function rollItem(il, boost = 0) {
   const r = Math.random(), uni = il >= DROP.uniqueFrom ? DROP.uniqueBase + boost * DROP.uniqueBoost : 0;
   const rb = uni + DROP.rareBase + boost;
   let rar = r < uni ? 3 : r < rb ? 2 : r < rb + DROP.magicBase + boost ? 1 : 0;
   const slot = pick(SLOTS);
-  if (rar === 3) {
-    const u = pick(UNIQ.filter(u => u.slot === slot)), mods = implMods(u.base, il);
-    return { id: G.itemId++, slot, rar: 3, name: u.name, base: u.base, uid: u.id, il, fl: u.fl, impl: mods.length, mods: [...mods, ...u.mods.map(([st, v]) => [st, uniqVal(st, v, il)])] };
-  }
+  if (rar === 3) return makeUnique(pick(UNIQ.filter(u => u.slot === slot)).id, il);
   const base = pick(BASES[slot]), mods = implMods(base, il), impl = mods.length; // impl: how many of mods are the base's implicits (shown first)
   const it = { id: G.itemId++, slot, rar, base, il, mods, impl };
   const pool = AFF.filter(a => (!a.slots || a.slots.includes(slot)) && (!a.minRar || rar >= a.minRar)).sort(() => Math.random() - .5);
