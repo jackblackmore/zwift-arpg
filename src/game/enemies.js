@@ -288,7 +288,7 @@ function bossAI(e, dt) {
 }
 // An ability begins (data/monsters.js GUARDIANS[..].abil, or a completed channel's effect): its telegraph and cue. Returns true
 // while it's busy (a cast or a charge), false when it goes on fighting (a combo).
-function startAbility(e, key, A) {
+export function startAbility(e, key, A) {
   const gd = e.gd;
   if (A.kind === 'combo') { e.combo = A.n; e.comboA = A; e.atkT = Math.min(e.atkT, .15); return false; }
   if (A.kind === 'area') {

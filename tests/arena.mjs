@@ -7,6 +7,8 @@
 //   data/balance.js TREE_PRESETS entry (default: the par preset for the row's Main gem).
 //   JOBS=n: browsers to fight in at once (default: CPU count, at most 4). JSON=path: also write every result there.
 // Each row is one fight at the tier's par level, par gems and par gear (src/data/balance.js) unless the row says otherwise.
+// 'guardian' rows fight that tier's guardian (src/data/dungeon.js LEVELS: the skeleton knight, the bone archer captain, the plague
+// bloat, then the Pale Warden); 'guardian: Pale Warden' rows fight the Warden on tiers that have another guardian, to compare.
 // The bot walks into swing reach and lets the Main gem auto-attack, novas when crowded, flasks at half life and surges on rares,
 // guardians and crowds. It never steps out of anything: it parries, blocks and rolls at a reaction skill (src/game/arena.js):
 // default a good rider (parries 70% of swings, rolls 90% of heavies in time), 'perfect' never misses, 'careless' never defends.
@@ -20,6 +22,8 @@ import puppeteer from 'puppeteer-core';
 import { existsSync, writeFileSync } from 'node:fs';
 import { cpus } from 'node:os';
 import { ARENA_TARGETS as AT, PAR_SUPPORT_FROM } from '../src/data/balance.js';
+import { MIX, PACKS, GUARDIANS } from '../src/data/monsters.js';
+import { levelOf } from '../src/game/formulas.js';
 
 const ONLY = process.env.ONLY ? new RegExp(process.env.ONLY) : null;
 const maxTier = Number(process.argv[2]) || 5, SEED = Number(process.env.SEED) || 1234, MAIN = process.env.MAIN || undefined, TREE = process.env.TREE === 'none' ? false : process.env.TREE || undefined;
@@ -44,6 +48,8 @@ const encounters = (t, n) => [
   { name: 'archer line', fight: [['archer', n(2)], ['zombie', n(2)]] },
   { name: 'zombies + runners', fight: [['zombie', n(2)], ['runner', n(3)]] },
   { name: 'magic pack', fight: [['zombie', n(3)], ['archer', n(1)]], rar: 1 },
+  // The level's own pack templates (data/monsters.js MIX, data/dungeon.js LEVELS) that aren't among the Crypt's above.
+  ...(MIX[levelOf(t).mix] ? MIX[levelOf(t).mix].packs.filter(p => !PACKS.some(q => JSON.stringify(q) === JSON.stringify(p))).map(p => ({ name: `${levelOf(t).name} pack: ${p.map(([ty, c]) => ty + ' ' + c).join(', ')}`, fight: p.map(([ty, c]) => [ty, n(c)]) })) : []),
   // Rares of every type a pack can have (PACK.rareTypes), and the elite room's elite (ELITE) with its minions.
   { name: 'rare + pack', fight: [['zombie', n(3)]], rare: 'zombie' },
   { name: 'rare archer + pack', fight: [['zombie', n(3)]], rare: 'archer' },
@@ -55,6 +61,9 @@ const encounters = (t, n) => [
   { name: 'guardian', ...G },
   { name: 'guardian, perfect', ...G, bot: 'perfect' },
   { name: 'guardian, never surging', ...G, surge: false },
+  // The level's guardian is the 'guardian' rows (data/dungeon.js LEVELS); the Pale Warden on the same tier, to compare.
+  { name: 'guardian: Pale Warden', ...G, guardian: 'warden', skip: levelOf(t).guardian === 'warden' },
+  { name: 'guardian: Pale Warden, perfect', ...G, guardian: 'warden', bot: 'perfect', skip: levelOf(t).guardian === 'warden' },
   // Each Main gem build: the same fights with that gem in Main.
   ...Object.entries(BUILDS).flatMap(([id, b]) => [
     { name: `mixed pack · ${b}`, fight: [['zombie', n(3)], ['archer', n(1)]], main: id },
@@ -120,6 +129,7 @@ async function worker() {
 }
 const res = new Array(jobs.length);
 try {
+  console.log('Guardians: ' + Array.from({ length: maxTier }, (_, i) => `tier ${i + 1} ${GUARDIANS[levelOf(i + 1).guardian].name}`).join(', ') + '\n');
   console.log(`Watt Dungeon arena · real game code, scripted player · times in game seconds${MAIN ? ' · Main gem: ' + MAIN : ''} · passive tree: ${TREE === false ? 'none' : TREE || 'par preset'} · ${SEEDS ? `means of seeds 1–${SEEDS}` : 'seed ' + SEED}\n`);
   const pages = await Promise.all(Array.from({ length: Math.max(1, Math.min(JOBS, jobs.length)) }, worker));
   let next = 0;
@@ -162,7 +172,7 @@ const pc = v => (v >= 0 ? '+' : '') + Math.round(v * 100) + '%', wins = a => a ?
 let miss = 0; const mark = ok => ok ? ' ' : (miss++, '✗');
 console.log('\nSummary (good rider unless named) · ✗ misses a data/balance.js ARENA_TARGETS target');
 for (const t of Object.keys(A).map(Number)) {
-  const R = A[t], g = R.guardian, out = [];
+  const R = A[t], g = R.guardian, out = []; if (g) out.push(GUARDIANS[levelOf(t).guardian].name + ':');
   if (g) {
     const b = Object.entries(BUILDS).filter(([, n]) => R[`guardian · ${n}`]).map(([, n]) => { const x = R[`guardian · ${n}`], d = x.t / g.t - 1; return `${n} ${tm(x)} ${pc(d)}${mark((t < PAR_SUPPORT_FROM || Math.abs(d) <= AT.buildSpread) && x.won === x.n)} ${wins(x)}`; });
     out.push(`guardian: Sword ${tm(g)} ${wins(g)}${mark(g.won === g.n)}${b.length ? ' · ' + b.join(' · ') : ''}`);
@@ -171,6 +181,8 @@ for (const t of Object.keys(A).map(Number)) {
     if (lead.length) out.push(`perfect is faster than the good rider by: ${lead.join(' · ')}`);
     const cl = [['Sword', R['guardian, careless']], ...Object.values(BUILDS).map(n => [n, R[`guardian, careless · ${n}`]])].filter(([, c]) => c).map(([n, c]) => `${n} ${wins(c)}${mark(c.won === 0)}`);
     if (cl.length) out.push(`careless guardian wins: ${cl.join(' · ')}`);
+    const pw = R['guardian: Pale Warden'], pwp = R['guardian: Pale Warden, perfect'];
+    if (pw) out.push(`${GUARDIANS[levelOf(t).guardian].name} ${tm(g)} taking ${g.taken} vs the Pale Warden on this tier ${tm(pw)} taking ${pw.taken} ${wins(pw)}${pwp ? ` (perfect ${tm(pwp)})` : ''}`);
   }
   const rp = R['rare + pack'], el = R.elite;
   if (rp && el) out.push(`elite ${tm(el)} taking ${el.taken} ${wins(el)}${mark(el.won === el.n && el.t >= rp.t * AT.eliteVsRare[0] && el.taken >= rp.taken)} vs rare + pack ${tm(rp)} taking ${rp.taken}` +

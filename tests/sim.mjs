@@ -10,7 +10,7 @@ import { preview } from 'vite';
 import puppeteer from 'puppeteer-core';
 import { existsSync } from 'node:fs';
 import { generateLevel, walkField, cellOf, routePlace, wallHit, lineDist, roomAt } from '../src/world/gen.js';
-import { ROLES, RHYTHM, SET } from '../src/data/dungeon.js'; // pure: layouts are checked here in Node as well as in the game
+import { ROLES, RHYTHM, SET, LEVELS, POOLS, GEN } from '../src/data/dungeon.js'; // pure: layouts are checked here in Node as well as in the game
 import { HERO } from '../src/data/balance.js';
 import { GEMS, SUPPORTS } from '../src/data/gems.js';
 import { SK } from '../src/data/skills.js';
@@ -22,7 +22,7 @@ import { ESTIMATE, parLevel, parGem, parSock, TARGETS, ARENA_TARGETS, PAR_SUPPOR
 import { parStats, power, powerSteps, eliteStats, eliteRoomHp, gemDps } from '../src/game/formulas.js';
 import { GEM } from '../src/data/gems.js';
 import { DEFENCE } from '../src/data/balance.js';
-import { MT, BOSS, BLAST, RARE, LEAN, ELITE, TIER } from '../src/data/monsters.js';
+import { MT, BOSS, GUARDIANS, MIX, PACKS, BLAST, RARE, LEAN, ELITE, TIER } from '../src/data/monsters.js';
 import { readFileSync } from 'node:fs';
 
 const chrome = process.env.CHROME_PATH || ['/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser'].find(existsSync);
@@ -172,7 +172,7 @@ try {
     const g2 = computeStats(gearProfile('magic', 2)), g1 = computeStats(gearProfile('start'));
     check(g1.armour === 0 && g2.armour > 0 && g2.res.poison > 0 && g2.res.fire > 0, `defence: par magic gear has armour (${g2.armour}) and some resistance (poison ${Math.round(g2.res.poison * 100)}%); the starter sword has none`);
     // Typed monster damage (data/monsters.js): the Crypt is physical and poison, with a little fire and cold; later regions lean.
-    check(MT.bloater.dt === 'poison' && BLAST.bloater.dt === 'poison' && BOSS.dt.nova === 'poison' && RARE.burning.dt === 'fire' && !MT.zombie.dt && dmgType(undefined, 3) === 'phys'
+    check(MT.bloater.dt === 'poison' && BLAST.bloater.dt === 'poison' && GUARDIANS.warden.abil.nova.dt === 'poison' && RARE.burning.dt === 'fire' && !MT.zombie.dt && dmgType(undefined, 3) === 'phys'
       && monsterStats('zombie', 5).dt === 'phys' && near(dmgType('phys', LEAN[1].tiers[0]).poison, LEAN[1].mix.poison) && dmgType('fire', LEAN[1].tiers[0]) === 'fire' && tierDmg(6) > tierDmg(5),
       'defence: monster attacks carry a damage type; a region lean turns a share of physical attacks into its element; typed ones keep theirs');
     // The balance report's face-tank uses the game's own formula.
@@ -270,7 +270,7 @@ try {
       out.bossSpotClear = !D.blocked(spot.x, spot.z, .6);
       P.x = spot.x; P.z = spot.z; D.sim(30);
       const boss = D.enemies().find(e => e.type === 'boss'); out.boss = !!boss;
-      if (boss) { for (let i = 0; i < 30; i++) { P.life = Math.max(P.life, 60); D.sim(5); } out.bossCast = boss.rot > 0; P.x = D.G.start.x; P.z = D.G.start.z; D.kill(boss); out.portal = !!D.G.portal; D.sim(10); }
+      if (boss) { for (let i = 0; i < 30; i++) { P.life = D.S.maxLife; D.sim(5); } out.bossCast = boss.rot > 0; out.bossDbg = [boss.gid, boss.awake, boss.rise, boss.abilT, boss.rot, boss.combo, boss.stun, P.dead, Math.hypot(boss.x - P.x, boss.z - P.z), boss.hp].join(','); P.x = D.G.start.x; P.z = D.G.start.z; D.kill(boss); out.portal = !!D.G.portal; D.sim(10); }
       if (D.G.portal) { P.x = D.G.portal.x; P.z = D.G.portal.z; D.sim(3); }
       out.tier = D.G.tier;
       return out;
@@ -589,6 +589,144 @@ try {
     check(r.opened && r.leaves, 'fog gate: it opens when the guardian dies and you can walk back out');
     check(r.sealed2 && r.deathOpens && r.respawned, 'fog gate: dying opens it again');
     check(errors.length === 0, `fog gate: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
+  }
+
+  // ---------- Crypt levels (step 9 part A): each tier is its own level, with its pack mix, layout, pools and guardian ----------
+  {
+    // Data and layouts, in Node: every tier names a level with a guardian; each level's layouts are sound with its own tuning.
+    const lv = LEVELS.slice(0, 3);
+    check(LEVELS.length >= 5 && LEVELS.every(L => L.name && L.rule && GUARDIANS[L.guardian]) && lv.map(L => L.guardian).join() === 'knight,captain,plague',
+      `levels: tiers 1–5 are ${LEVELS.map(L => `${L.name} (${GUARDIANS[L.guardian].name})`).join(', ')}`);
+    const types = m => new Set(MIX[m].packs.flatMap(p => p.map(([t]) => t)));
+    check([...types('halls')].sort().join() === 'runner,zombie' && types('ossuary').has('archer') && !types('ossuary').has('bloater') && types('tombs').has('bloater')
+      && MIX.ossuary.packs.filter(p => p.some(([t]) => t === 'archer')).length >= 4 && MIX.halls.rareTypes.every(t => t === 'zombie'),
+      `levels: pack mixes: Crypt Halls only skeleton warriors and runners, the Ossuary's archers in most packs, bloaters from Flooded Tombs`);
+    let s2 = SEED + 7; const rng2 = () => { s2 = (s2 + 0x6D2B79F5) >>> 0; let t = s2; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    const lay = {};
+    for (const [k, L0] of lv.entries()) {
+      const o = { ...L0.gen, pools: !!L0.pools }, q = lay[k + 1] = { doors: { doors: 0, offGap: 0, unrecorded: 0, wrongTo: 0, unpaired: 0 }, unreach: 0, w: new Set(), area: 0, pools: 0, poolBad: 0, poolRooms: 0 };
+      for (let n = 0; n < 100; n++) {
+        const L = generateLevel(o, rng2), f = walkField(L, cellOf(L, L.start.x), cellOf(L, L.start.z));
+        doorCheck(L, q.doors); for (let i = 0; i < L.n * L.n; i++) if (L.grid[i] && f[i] < 0) q.unreach++;
+        for (const r of L.rooms) for (const d of r.doors) q.w.add(d.w);
+        q.area += L.rooms.filter(r => r.role === 'combat').reduce((a, r) => a + r.w * r.h, 0) / L.rooms.filter(r => r.role === 'combat').length / 100;
+        q.pools += L.pools.length / 100; q.poolRooms += new Set(L.pools.map(p => p.room)).size / 100;
+        for (const p of L.pools) if (L.rooms[p.room].role !== 'combat' || roomAt(L, p.x, p.z) !== L.rooms[p.room] || wallHit(L, p.x, p.z, p.r) || lineDist(L, p.x, p.z) < p.r + POOLS.lineGap - 1e-6 || L.pools.some(o => o !== p && Math.hypot(o.x - p.x, o.z - p.z) < o.r + p.r)) q.poolBad++;
+      }
+      q.w = [...q.w].map(v => +v.toFixed(1)).join('/'); q.area = +q.area.toFixed(1); q.pools = +q.pools.toFixed(1); q.poolRooms = +q.poolRooms.toFixed(1);
+    }
+    console.log('  level layouts:', JSON.stringify(lay));
+    check(Object.values(lay).every(q => q.doors.offGap + q.doors.unrecorded + q.doors.wrongTo + q.doors.unpaired === 0 && q.unreach === 0), `levels: every level's layouts (100 each) are sound with its own tuning: doors on real gaps leading where they say, every floor cell reachable`);
+    check(lay[2].w === String(GEN.cell) && lay[1].w === String(GEN.cell * 2) && lay[1].area > lay[2].area, `levels: Crypt Halls has open rooms (combat rooms ${lay[1].area} cells on average, Ossuary ${lay[2].area}); the Ossuary's corridors are one tile wide (doorways ${lay[2].w} units, Crypt Halls ${lay[1].w})`);
+    check(lay[1].pools === 0 && lay[2].pools === 0 && lay[3].pools >= 6 && lay[3].poolBad === 0, `levels: only Flooded Tombs has poison pools (${lay[3].pools} a level in ${lay[3].poolRooms} rooms), each in a combat room, clear of walls, the corridor lines and each other (${lay[3].poolBad} misplaced)`);
+
+    const { page, errors } = await open('/');
+    const r = await page.evaluate(() => {
+      const D = window.__dbg, P = D.P, S = D.S, G = D.G, ctl = D.ctl, out = { lv: {} };
+      D.start(true);
+      // Each tier in play: its layout, banner, packs from its mix, its guardian behind the fog gate.
+      for (const t of [1, 2, 3]) {
+        const Lv = D.LEVELS[t - 1]; D.newMap(t); const L = G.layout, o = out.lv[t] = {};
+        o.banner = document.getElementById('bT').textContent === Lv.name.toUpperCase();
+        o.doorW = L.rooms[0].doors[0].w; o.pools = G.pools.length;
+        const ok = new Set(G.packs.flatMap(p => p.mem));
+        o.types = [...ok].sort().join(); o.rares = [...new Set(G.packs.filter(p => p.rare && !p.elite).map(p => p.rare))].sort().join();
+        o.guardian = G.bossSpec.id;
+        // Into the arena: the guardian wakes, its name on the boss bar, the gate seals; it dies, the gate opens.
+        G.packs = []; G.enemies.forEach(e => { e.deathT = 1; e.gone = true; }); D.sim(1);
+        const g = G.gate, d = g.door, n = g.n; P.x = d.x - n[0] * 3; P.z = d.z - n[1] * 3;
+        for (let k = 0; k < 150 && !g.shut; k++) { P.life = 1e6; D.sim(1); }
+        const b = G.bossSpec.e; o.gid = b && b.gid; o.bar = document.getElementById('bossName').textContent; o.sealed = g.shut && !!b && b.awake;
+        D.kill(b); D.sim(2); o.opened = !g.shut && g.done && !!G.portal; o.falls = document.getElementById('bT').textContent;
+      }
+      // Poison pools (Flooded Tombs): standing in one hurts (poison, through a raised shield); a step out stops it.
+      D.newMap(3); G.packs = []; G.enemies.forEach(e => { e.deathT = 1; e.gone = true; }); D.sim(1);
+      const pl = G.pools[0]; P.x = pl.x; P.z = pl.z; Object.assign(P, { life: S.maxLife, invuln: 0 }); P.takenBy = {}; ctl.guard = true; D.sim(61); ctl.guard = false;
+      out.poolHurt = Math.round(S.maxLife - P.life); out.poolType = P.lastHurt && P.lastHurt.type; out.poolSrc = Object.keys(P.takenBy).join();
+      P.x = pl.x + pl.r + 2; P.z = pl.z; P.life = S.maxLife; D.sim(61); out.dry = P.life === S.maxLife;
+      // ... and resisted by poison resistance.
+      const res = S.res.poison; S.res.poison = .5; P.x = pl.x; P.z = pl.z; P.life = S.maxLife; D.sim(61); out.poolResisted = Math.round(S.maxLife - P.life); S.res.poison = res;
+      // Avoidable: walking past a pool the way the autopilot steers, it goes round; standing in one with its target outside, it steps out.
+      G.layout = null; G.obst = []; const fake = { x: 0, z: 0, r: 2.2, tick: 0, top: { material: {} }, rim: { material: {} }, ph: 0 }; G.pools = [fake];
+      P.x = -7; P.z = .3; let inside = 0, minD = 1e9;
+      for (let k = 0; k < 400 && Math.hypot(P.x - 9, P.z) > .5; k++) { const [dx, dz] = D.steer(P, 9, 0); P.x += dx * .1; P.z += dz * .1; const dd = Math.hypot(P.x, P.z); minD = Math.min(minD, dd); if (dd < fake.r) inside++; }
+      out.walkRound = { inside, minD: +minD.toFixed(2), reached: Math.hypot(P.x - 9, P.z) <= .5 };
+      P.x = .5; P.z = 0; const z = D.spawnEnemy('zombie', 2.4, 0, null, 0); z.awake = true; z.spd = 0; z.atkT = 99;
+      const dir = D.autopilot(.033); out.stepOut = dir[0] > .3; // out of the pool, toward the zombie's side
+      z.x = 1; const dir2 = D.autopilot(.033); out.stayIn = Math.hypot(dir2[0], dir2[1]) < .01; // its target stands in the pool: it fights there
+      G.pools = [];
+      return out;
+    });
+    console.log('  levels:', JSON.stringify(r));
+    const L1 = r.lv[1], L2 = r.lv[2], L3 = r.lv[3];
+    check(L1.banner && L2.banner && L3.banner, 'levels: entering a map shows its level\'s name (Crypt Halls, Ossuary, Flooded Tombs)');
+    check(L1.types === 'runner,zombie' && L1.rares.replace(/zombie,?/g, '') === '' && L2.types.includes('archer') && !L2.types.includes('bloater') && L3.types.includes('bloater'), `levels: packs come from the level's mix (tier 1: ${L1.types}, rares ${L1.rares}; tier 2: ${L2.types}; tier 3: ${L3.types})`);
+    check(L2.doorW < L1.doorW && L1.pools === 0 && L2.pools === 0 && L3.pools > 0, `levels: the live Ossuary has narrow doorways (${L2.doorW} vs ${L1.doorW}) and only Flooded Tombs has pools (${L3.pools})`);
+    check(['knight', 'captain', 'plague'].every((g, i) => r.lv[i + 1].guardian === g && r.lv[i + 1].gid === g) && /KNIGHT/.test(L1.bar) && /CAPTAIN/.test(L2.bar) && /BLOAT/.test(L3.bar), `levels: each level's own guardian waits in the arena (${[L1, L2, L3].map(o => o.bar).join(', ')})`);
+    check([L1, L2, L3].every(o => o.sealed && o.opened && / FALLS/.test(o.falls)), `levels: every new guardian seals the fog gate when it wakes, and its death opens it (and the portal)`);
+    check(r.poolHurt > 0 && r.poolType === 'poison' && r.poolSrc === 'pool' && r.dry && r.poolResisted < r.poolHurt * .7, `pools: standing in a pool for 2 s hurts ${r.poolHurt} poison through a raised shield, ${r.poolResisted} with 50% poison resistance; out of it, nothing`);
+    check(r.walkRound.inside === 0 && r.walkRound.reached && r.stepOut && r.stayIn, `pools: the autopilot's steering walks round a pool in its way (closest ${r.walkRound.minD} from the centre of a 2.2 pool), steps out of one when its target is outside, and fights in one when its target stands in it`);
+    check(errors.length === 0, `levels: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
+  }
+
+  // ---------- The new guardians (step 9 part A): every threat telegraphed by how you answer it; each staggers and dies ----------
+  {
+    const { page, errors } = await open('/');
+    const r = await page.evaluate(() => {
+      const D = window.__dbg, P = D.P, S = D.S, G = D.G, ctl = D.ctl, TELL = D.TELL, out = {};
+      D.start(true); ctl.aim = null; ctl.mx = ctl.mz = 0; D.setAutoAtk(false);
+      const hex = c => '#' + c.toString(16).padStart(6, '0');
+      const reset = () => { G.eproj.forEach(p => D.scene.remove(p.g)); G.eproj = []; G.queue = []; Object.assign(P, { invuln: 0, life: S.maxLife, posture: 0, broken: 0, blocking: false, parryT: 0, parryCd: 0, riposteT: 0, rollT: 0, apPause: 0, lastThreat: null, lastHurt: null, x: G.start.x, z: G.start.z, face: 0 }); P.cd.evade.ch = 2; P.cd.evade.cd = 0; ctl.guard = false; ctl.tap = {}; };
+      const want = A => A.kind === 'area' ? (A.tell === 'unblockable' ? 'unblockable' : 'heavy') : A.kind === 'volley' ? 'hit' : 'unblockable'; // the kind of hit each ability is
+      const tellOf = A => A.kind === 'area' ? A.tell : A.kind === 'volley' ? 'parry' : 'unblockable'; // its telegraph colour ('!' over the hero)
+      for (const gid of ['knight', 'captain', 'plague']) {
+        D.newMap(1); G.packs = []; G.enemies.forEach(e => { e.deathT = 1; e.gone = true; }); G.bossSpec = null; reset();
+        const gd = D.GUARDIANS[gid], o = out[gid] = { kinds: {}, tells: {}, answered: {} };
+        const spawn = () => { G.enemies.forEach(e => { if (!e.deathT) { e.deathT = 1; e.gone = true; } }); const b = D.spawnEnemy('boss', P.x, P.z + 2.4, null, 0, { guard: gid }); b.awake = true; b.rise = 0; b.abilT = 99; b.atkT = 99; b.spd = 0; P.face = 0; D.sim(1); b.atkT = 99; return b; };
+        let b = spawn(); o.gid = b.gid; o.stagBar = b.stagMax === 1;
+        // Every ability and channel effect: what kind of hit it is, the colour of its '!', and that its answer works.
+        const abil = { ...gd.abil, ...Object.fromEntries(gd.channel.effects.filter(k => k !== 'mend').map(k => [k, gd.channel[k]])) };
+        for (const [key, A] of Object.entries(abil)) {
+          if (A.kind === 'summon' || A.kind === 'combo') continue;
+          // Unanswered: the hit lands, of the right kind.
+          reset(); b = spawn(); G.floats = []; D.bossDo(b, key); const f = G.floats.filter(x => x.txt === '!').pop(); o.tells[key] = f && f.col === hex(TELL[tellOf(A)]);
+          for (let k = 0; k < 150 && !P.lastThreat; k++) D.sim(1); o.kinds[key] = P.lastThreat && P.lastThreat.kind === want(A) ? 'ok' : (P.lastThreat ? P.lastThreat.kind : 'none');
+          // Answered: heavies and volleys blocked (held shield), unblockables rolled (none of it lands).
+          reset(); b = spawn(); const ans = want(A) === 'unblockable' ? 'roll' : 'block'; if (ans === 'block') { ctl.guard = true; D.sim(12); }
+          const l0 = P.life; D.bossDo(b, key); const raw = b.dmg * A.dmg;
+          for (let k = 0; k < 150; k++) { if (ans === 'roll' && b.cast && b.cast.t <= .15 && !(P.rollT > 0)) ctl.tap.evade = true; D.sim(1); if (!b.cast && !b.charging && !G.eproj.length && !G.queue.length && k > 5) break; }
+          const took = l0 - P.life; ctl.guard = false;
+          o.answered[key] = ans === 'roll' ? took === 0 : (P.lastHurt && P.lastHurt.result === 'block' && took < raw * (A.kind === 'volley' ? A.n * .5 : .7));
+        }
+        // Summons: its kind of monster appears, awake.
+        reset(); b = spawn(); const sk = Object.keys(gd.abil).find(k => gd.abil[k].kind === 'summon'), n0 = G.enemies.filter(e => !e.deathT && e.type === gd.abil[sk].type).length; D.bossDo(b, sk); D.sim(30);
+        o.summon = G.enemies.filter(e => !e.deathT && e.awake && e.type === gd.abil[sk].type).length - n0;
+        // Its swings (the knight's combo too) are parryable (yellow), and parries fill its stagger bar; two break it, the first hit is a finisher.
+        reset(); b = spawn(); if (gd.abil.combo) { D.bossDo(b, 'combo'); b.atkT = .1; } else b.atkT = .1;
+        let parries = 0; G.floats = []; o.swingTell = false;
+        for (let k = 0; k < 300 && !(b.stun > 0); k++) { if (b.windup > 0 && b.windup <= .15 && P.parryCd <= 0) ctl.tap.guard = true; const seq = P.castSeq; D.sim(1); if (P.castSeq !== seq && P.lastCast === 'parry') parries++; if (G.floats.some(x => x.txt === '!' && x.col === hex(TELL.parry))) o.swingTell = true; }
+        o.parries = parries; o.staggered = b.stun > 0 && b.finisher;
+        const h0 = b.hp; for (let i = 0; i < 3 && b.finisher; i++) { P.aimAt = [b.x, b.z]; D.strike('sword'); P.aimAt = null; D.sim(10); } o.finisher = !b.finisher && b.hp < h0; if (!o.finisher) o.finDbg = [h0, b.hp, b.finisher, b.stun, Math.hypot(b.x - P.x, b.z - P.z), P.dead, P.broken, P.castT, G.enemies.filter(e => !e.deathT).length].join(',');
+        if (gd.abil.combo) { reset(); b = spawn(); D.bossDo(b, 'combo'); b.atkT = .05; let lands = 0; for (let k = 0; k < 200 && (b.combo > 0 || b.inCombo || b.windup > 0); k++) { D.sim(1); if (P.lastThreat && P.lastThreat.kind === 'hit') { lands++; P.lastThreat = null; P.life = S.maxLife; } } o.comboSwings = lands; }
+        // Phase 2: below half life it enrages, opens with a channel (blue) and breaks like the Warden's; the plague bloat bursts into bloaters.
+        reset(); b = spawn(); const nb = G.enemies.filter(e => !e.deathT && e.type === 'bloater').length; b.hp = b.maxHp * .45; b.abilT = 0; G.floats = []; D.sim(2);
+        o.phase2 = b.phase2 && !!b.channel; o.chanTell = G.floats.some(x => x.txt === '!' && x.col === hex(TELL.channel));
+        o.burst = G.enemies.filter(e => !e.deathT && e.type === 'bloater').length - nb;
+        // It dies: its banner, its gem and items.
+        const items0 = G.ground.length; D.kill(b); D.sim(60); o.died = b.deathT > 0 && / FALLS/.test(document.getElementById('bT').textContent) && G.ground.length > items0;
+      }
+      return out;
+    });
+    console.log('  guardians:', JSON.stringify(r));
+    for (const [gid, o] of Object.entries(r)) {
+      const bad = k => Object.entries(o[k]).filter(([, v]) => v !== true && v !== 'ok').map(([a, v]) => `${a}: ${v}`).join(', ');
+      check(o.gid === gid && Object.keys(o.kinds).length >= 3 && !bad('kinds') && !bad('tells'), `guardian ${gid}: every threat is the right kind of hit with the matching telegraph colour (${Object.keys(o.kinds).join(', ')})${bad('kinds') || bad('tells') ? ' · wrong: ' + bad('kinds') + ' ' + bad('tells') : ''}`);
+      check(!bad('answered'), `guardian ${gid}: each threat is answered as designed: heavies and volleys blocked by the shield, unblockables rolled${bad('answered') ? ' · failed: ' + bad('answered') : ''}`);
+      check(o.swingTell && o.parries >= 2 && o.staggered && o.finisher, `guardian ${gid}: its swings are parryable (yellow); ${o.parries} parries break its stagger bar, and the first hit is a finisher`);
+      check(o.summon >= 2 && o.phase2 && o.chanTell && (gid !== 'plague' || o.burst >= 2) && o.died, `guardian ${gid}: summons (${o.summon}), enrages below half life with a channel (blue)${gid === 'plague' ? `, bursts into ${o.burst} bloaters` : ''}, and dies with its banner and loot`);
+      if (o.comboSwings !== undefined) check(o.comboSwings === 3, `guardian ${gid}: its combo is three quick parryable swings (${o.comboSwings})`);
+    }
+    check(errors.length === 0, `guardians: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   }
 
   // ---------- Room roles in play (game/rooms.js, game/gate.js, game/route.js): rest, treasure, elite, signs ----------
@@ -1162,7 +1300,7 @@ try {
       out.rollAway = Math.hypot(z.x - P.x, z.z - P.z) > d0 + 2.5 && !D.blocked(P.x, P.z, P.r);
       // Stagger: parrying the guardian fills its bar; full, it's stunned (its ability cancelled) and takes more damage.
       clear(); const b = D.spawnEnemy('boss', P.x, P.z + 2.2, null, 0); b.awake = true; b.abilT = 99; b.atkT = 99; b.spd = 0;
-      b.cast = { kind: 'slam', t: 5, x: P.x, z: P.z, r: 2 }; const st = [];
+      b.cast = { kind: 'area', key: 'slam', a: D.GUARDIANS.warden.abil.slam, t: 5, x: P.x, z: P.z, r: 2 }; const st = [];
       for (let i = 0; i < 6 && !(b.stun > 0); i++) { P.parryCd = 0; ctl.tap.guard = true; D.sim(1); D.hurtP(10, 'boss', { from: b, by: b }); st.push(Math.round(b.stag * 100) / 100); }
       out.stagSteps = st.join(','); out.stunned = b.stun > 0 && !b.cast;
       // The first swing on a staggered guardian is a finisher (about STAGGER.finisher × a stunned swing); the rest of the stun
@@ -1175,16 +1313,16 @@ try {
       // A hit the guardian lands (not blocked or parried) steadies it: its stagger bar drops.
       b.stag = .8; P.invuln = 0; P.rollT = 0; ctl.guard = false; P.blocking = false; P.parryT = 0; D.sim(1); D.hurtP(5, 'boss', { from: b, by: b }); out.recover = b.stag < .8 - D.STAGGER.recover * .9;
       b.stag = 0;
-      // Channels (BOSS.channel, phase 2): it roots and channels; filling its stagger first cancels it and staggers it (finisher ready).
-      const C = D.BOSS.channel, chanAt = () => { b.stun = 0; b.stag = 0; b.channel = null; b.cast = null; b.phase2 = true; b.hp = b.maxHp * .3; b.rot = 0; b.abilT = 0; b.atkT = 99; Object.assign(P, { invuln: 0, rollT: 0, blocking: false, parryT: 0, parryCd: 0, life: S.maxLife }); ctl.guard = false; D.sim(1); b.atkT = 99; };
+      // Channels (GUARDIANS[..].channel, phase 2; the Pale Warden's): it roots and channels; filling its stagger first cancels it and staggers it (finisher ready).
+      const C = D.GUARDIANS.warden.channel, chanAt = () => { b.stun = 0; b.stag = 0; b.channel = null; b.cast = null; b.phase2 = true; b.hp = b.maxHp * .3; b.rot = 0; b.abilT = 0; b.atkT = 99; Object.assign(P, { invuln: 0, rollT: 0, blocking: false, parryT: 0, parryCd: 0, life: S.maxLife }); ctl.guard = false; D.sim(1); b.atkT = 99; };
       b.chanN = 0; chanAt(); out.chanUp = !!b.channel && b.channel.fx === C.effects[0];
       const br0 = P.chanBroken; for (let i = 0; i < 4 && b.channel; i++) { P.parryCd = 0; ctl.tap.guard = true; D.sim(1); D.hurtP(10, 'boss', { from: b, by: b }); }
       out.chanBroken = !b.channel && b.stun > 0 && b.finisher && P.chanBroken === br0 + 1;
       // A channel left alone completes: the first is an unblockable burst you have to roll, the next mends and summons.
-      b.chanN = 0; chanAt(); const lb = P.life; D.sim(Math.ceil(C.t / .033) + 2); out.burstUp = b.cast && b.cast.kind === 'burst' && !b.channel;
+      b.chanN = 0; chanAt(); const lb = P.life; D.sim(Math.ceil(C.t / .033) + 2); out.burstUp = b.cast && b.cast.key === 'burst' && !b.channel;
       D.sim(Math.ceil(C.burst.t / .033) + 2); out.burstHit = Math.round(lb - P.life); out.burst = out.burstUp && lb - P.life > b.dmg * C.burst.dmg * (1 - S.dr) * .8;
-      chanAt(); const h0 = b.hp, runners0 = G.enemies.filter(e => e.type === D.BOSS.summonType && !e.deathT).length; D.sim(Math.ceil(C.t / .033) + 2);
-      out.mend = !b.channel && b.hp > h0 + b.maxHp * C.mend.heal * .9 && G.enemies.filter(e => e.type === D.BOSS.summonType && !e.deathT).length >= runners0 + C.mend.summon - 1;
+      chanAt(); const h0 = b.hp, runners0 = G.enemies.filter(e => e.type === C.mend.type && !e.deathT).length; D.sim(Math.ceil(C.t / .033) + 2);
+      out.mend = !b.channel && b.hp > h0 + b.maxHp * C.mend.heal * .9 && G.enemies.filter(e => e.type === C.mend.type && !e.deathT).length >= runners0 + C.mend.summon - 1;
       G.enemies.forEach(e => { if (e !== b) { e.deathT = 1; e.gone = true; } });
       // Surge fills stagger faster during a channel: the same swing fills more surging, and more in a channel than out of one.
       Math.random = () => .5; S.crit = 0;
@@ -1266,8 +1404,8 @@ try {
       out.bType = h && h.type; out.bOk = !!h && h.src === 'blast' && h.type === 'poison' && Math.abs(h.taken - h.raw * .6) < 1e-6;
       // The guardian's nova bolts are poison; its slam physical.
       clear(); const g = foe('boss', 0, 4); g.abilT = 99; g.atkT = 99; P.face = 0; D.sim(1);
-      g.cast = { kind: 'nova', t: 0 }; h = wait(80); out.nType = h && h.type;
-      clear(); const g2 = foe('boss', 0, 2); g2.abilT = 99; g2.atkT = 99; g2.cast = { kind: 'slam', t: 0, x: P.x, z: P.z, r: 3 }; h = wait(5); out.sType = h && h.type;
+      g.cast = { kind: 'volley', key: 'nova', a: D.GUARDIANS.warden.abil.nova, t: 0 }; h = wait(80); out.nType = h && h.type;
+      clear(); const g2 = foe('boss', 0, 2); g2.abilT = 99; g2.atkT = 99; g2.cast = { kind: 'area', key: 'slam', a: D.GUARDIANS.warden.abil.slam, t: 0, x: P.x, z: P.z, r: 3 }; h = wait(5); out.sType = h && h.type;
       out.hud = getComputedStyle(document.getElementById('vign')).boxShadow;
       D.openInv(true); out.sheet = document.getElementById('defSheet').textContent; D.openInv(false);
       return out;
