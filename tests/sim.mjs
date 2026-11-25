@@ -1039,6 +1039,7 @@ try {
       const dup = D.addGem('arc', 3), t0 = tot(bar) , give = tot(dup), cnt = P.gems.length;
       const f1 = D.feedGem(dup.id, bar.id);
       out.feedDup = !!f1 && f1.share === 1 && !f1.last && P.gems.length === cnt - 1 && Math.abs(f1.gain - give) < 2 && bar.lvl >= 2;
+      P.gems = P.gems.filter(g => g.gem !== 'meteor' || Object.values(P.bar).includes(g.id)); // (the guardian's random gem above may have been a Meteor)
       const met = D.addGem('meteor', 3), f0 = P.gems.find(g => g.id === P.bar.main), before = f0.lvl * 1e5 + f0.xp;
       const f2 = D.feedGem(met.id, f0.id);
       out.feedLast = !!f2 && f2.last && f2.share === .5 && P.gems.includes(met) && met.lvl === 1 && met.xp === 0 && f0.lvl * 1e5 + f0.xp > before;
