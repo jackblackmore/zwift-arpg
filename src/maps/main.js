@@ -5,7 +5,8 @@ import './maps.css';
 import { generateLevel, junctionRooms } from '../world/gen.js';
 import { seeded } from '../core/rng.js';
 import { HERO } from '../data/balance.js';
-import { GATE, ROLES } from '../data/dungeon.js';
+import { GATE, ROLES, LEVELS } from '../data/dungeon.js';
+import { GUARDIANS } from '../data/monsters.js';
 
 const $ = id => document.getElementById(id);
 const cv = $('view'), ctx = cv.getContext('2d');
@@ -13,10 +14,12 @@ const cv = $('view'), ctx = cv.getContext('2d');
 const gated = r => GATE.rooms.includes(r.kind) || GATE.rooms.includes(r.role);
 // Set-piece pieces (room.set props) by kind.
 const SETCOL = { pillar: '#b8aa98', pillarD: '#d8c8b0', brazier: '#ff8a30', post: '#c8c0b0', grave: '#8a8a90', coffin: '#7a5a3a', bench: '#a89a88', plinth: '#ffd23f', candles: '#ffb060', coins: '#ffd23f' };
-const st = { seed: 1, grid: false, cells: [] };
-try { const q = new URLSearchParams(location.search).get('seed'); if (q) st.seed = Math.max(1, parseInt(q, 10) || 1); } catch (e) {}
+const st = { seed: 1, grid: false, cells: [], tier: 1 };
+try { const q = new URLSearchParams(location.search); if (q.get('seed')) st.seed = Math.max(1, parseInt(q.get('seed'), 10) || 1); if (q.get('level')) st.tier = Math.max(1, Math.min(LEVELS.length, parseInt(q.get('level'), 10) || 1)); } catch (e) {}
 
-const level = seed => generateLevel({}, seeded(seed));
+// Each level of the Crypt (data/dungeon.js LEVELS) has its own layout tuning and, on Flooded Tombs, poison pools.
+const Lv = () => LEVELS[st.tier - 1];
+const level = seed => generateLevel({ ...Lv().gen, pools: !!Lv().pools }, seeded(seed));
 const junctions = junctionRooms;
 
 // Draws layout L into the box (x, y, s × s). big: labels and the route.
@@ -43,6 +46,8 @@ function drawLevel(L, x, y, s, big) {
     ctx.strokeStyle = gate ? '#eef2ff' : '#e8c878'; ctx.lineWidth = Math.max(gate ? 3 : 1.5, k * (gate ? .55 : .3)); ctx.beginPath(); ctx.moveTo(x0, z0); ctx.lineTo(x1, z1); ctx.stroke(); doors++;
   }
   if (big) { st.doors = doors; st.gates = gates; }
+  // Poison pools (Flooded Tombs): green circles at true size.
+  for (const p of L.pools) { const [px, pz] = W(p.x, p.z), u = k / L.cell; ctx.fillStyle = '#6ad04088'; ctx.strokeStyle = '#b8ff60'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(px, pz, Math.max(2, p.r * u), 0, 7); ctx.fill(); if (big) ctx.stroke(); }
   // Set pieces (room.set, world/gen.js setPieces): their pieces at true size (each collider), the dais as a square, and the spot
   // the room is built round (the guardian's, the chest on its plinth, the rest flame, the elite) as a ring. Vault partitions are
   // ordinary wall cells, drawn with the grid.
@@ -101,17 +106,20 @@ function layout() {
       ctx.font = '700 11px JetBrains Mono, monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillStyle = seed === st.seed ? '#ffd23f' : '#8a7f6a'; ctx.fillText('seed ' + seed, cx, cy + sz + 3);
       st.cells.push({ x: cx, y: cy, s: sz, seed });
     }
-    $('panel').innerHTML = `<h4>${st.cells.length} LAYOUTS</h4><div class="hint">Seeds ${st.seed}–${st.seed + st.cells.length - 1}. Tap one to open it. ◀ ▶ page through.</div>${legend()}`;
+    $('panel').innerHTML = `<h4>${Lv().name.toUpperCase()} · ${st.cells.length} LAYOUTS</h4><div class="hint">Seeds ${st.seed}–${st.seed + st.cells.length - 1}. Tap one to open it. ◀ ▶ page through.</div>${legend()}`;
     return;
   }
   const s = Math.min(aw, ah); drawLevel(level(st.seed), 10 + (aw - s) / 2, top, s, true);
   panel(level(st.seed));
 }
 
-const legend = () => `<div class="legend">${Object.values(ROLES).map(R => `<span><i style="background:${R.col}"></i>${R.icon} ${R.name}</span>`).join('')}<span><i style="background:transparent;border:2px solid #6a8aff"></i>Side room</span><span><i style="background:#4a3a2a"></i>Corridor</span><span><i style="background:#e8c878"></i>Door</span><span><i style="background:#eef2ff"></i>Fog gate</span><span><i style="background:#d8c8b0;border-radius:50%"></i>Set-piece pillar</span><span><i style="background:#ff8a30;border-radius:50%"></i>Brazier</span><span><i style="background:transparent;border:2px solid #ffd23f;border-radius:50%"></i>Chest, flame or elite</span></div>`;
+const legend = () => `<div class="legend">${Object.values(ROLES).map(R => `<span><i style="background:${R.col}"></i>${R.icon} ${R.name}</span>`).join('')}<span><i style="background:transparent;border:2px solid #6a8aff"></i>Side room</span><span><i style="background:#4a3a2a"></i>Corridor</span><span><i style="background:#e8c878"></i>Door</span><span><i style="background:#eef2ff"></i>Fog gate</span><span><i style="background:#d8c8b0;border-radius:50%"></i>Set-piece pillar</span><span><i style="background:#6ad040;border-radius:50%"></i>Poison pool</span><span><i style="background:#ff8a30;border-radius:50%"></i>Brazier</span><span><i style="background:transparent;border:2px solid #ffd23f;border-radius:50%"></i>Chest, flame or elite</span></div>`;
 function panel(L) {
   const side = L.rooms.filter(r => r.kind === 'side').length, route = L.route.length, floor = L.grid.reduce((n, c) => n + c, 0);
-  const rows = [
+  const lv = Lv(), rows = [
+    ['Level', `${st.tier} · ${lv.name}: ${lv.rule}`],
+    ['Guardian', GUARDIANS[lv.guardian].name],
+    ...(L.pools.length ? [['Poison pools', `${L.pools.length} in ${new Set(L.pools.map(p => p.room)).size} rooms`]] : []),
     ['Rooms', `${L.rooms.length} (${route} on the route, ${side} side)`],
     ['Route length', `${Math.round(L.routeLen)} units`],
     ['Walk, entrance to guardian', `${Math.round(L.routeLen / HERO.ms)} s at base speed`],
@@ -122,17 +130,18 @@ function panel(L) {
     ['Set pieces', L.rooms.filter(r => r.set).map(r => `${ROLES[r.role].icon} ${r.set.name}${r.set.ante ? ' (antechamber)' : ''}`).join(' · ') || 'none'],
     ['Floor', `${floor} cells (${Math.round(floor * L.cell * L.cell)} units²)`],
   ];
-  $('panel').innerHTML = `<h4>SEED ${st.seed}</h4><table>${rows.map(([a, b]) => `<tr><td>${a}</td><td>${b}</td></tr>`).join('')}</table>${legend()}
+  $('panel').innerHTML = `<h4>${lv.name.toUpperCase()} · SEED ${st.seed}</h4><table>${rows.map(([a, b]) => `<tr><td>${a}</td><td>${b}</td></tr>`).join('')}</table>${legend()}
     <div class="hint">Rooms are coloured by role, with its icon (the icon its door sign shows); the number under it is the route order, S a side room (blue outline). ◆ = the autopilot stops there to let you choose a way. The gold line is the main route. Doors are the short bars across gaps in the walls; the white ones are fog gates, which seal you in with the guardian or an elite until it dies. Special rooms are set pieces: the guardian's arena (dais, pillars, braziers), a vault (the chest on a plinth, sometimes behind a partition wall with an antechamber), a rest chapel (the flame with benches round it) and an elite hall (a colonnade to the elite at the far end). Their pieces are drawn at true size; the ring marks the chest, flame or elite.</div>
-    <a class="play" href="../?seed=${st.seed}">PLAY THIS MAP ▸</a><div class="hint">Opens the game on this layout for map 1 (packs are still placed at random). Without ?seed the game makes a new layout every time.</div>`;
+    ${st.seed - st.tier + 1 >= 1 ? `<a class="play" href="../?seed=${st.seed - st.tier + 1}">PLAY THIS MAP ▸</a><div class="hint">Opens the game with map ${st.tier} on this layout${st.tier > 1 ? ` (map 1 on seed ${st.seed - st.tier + 1}, and so on: the game plays seed N + map − 1)` : ''}; packs are still placed at random. Without ?seed the game makes a new layout every time.</div>` : `<div class="hint">Seeds under ${st.tier} can't be played as map ${st.tier} (the game plays seed N + map − 1).</div>`}`;
 }
 
-function go(seed) { st.seed = Math.max(1, seed | 0); $('seed').value = st.seed; try { history.replaceState(null, '', '?seed=' + st.seed); } catch (e) {} layout(); }
+function go(seed) { st.seed = Math.max(1, seed | 0); $('seed').value = st.seed; $('lvl').textContent = 'L' + st.tier + ' ' + Lv().name; try { history.replaceState(null, '', '?seed=' + st.seed + (st.tier > 1 ? '&level=' + st.tier : '')); } catch (e) {} layout(); }
 const page = () => st.grid ? Math.max(1, st.cells.length) : 1;
 $('prev').onclick = () => go(st.seed - page());
 $('next').onclick = () => go(st.seed + page());
 $('rnd').onclick = () => go(1 + Math.floor(Math.random() * 99999));
 $('mode').onclick = () => { st.grid = !st.grid; $('mode').textContent = st.grid ? 'ONE' : 'GRID'; $('mode').classList.toggle('on', st.grid); layout(); };
+$('lvl').onclick = () => { st.tier = st.tier % LEVELS.length + 1; go(st.seed); };
 $('seed').onchange = () => go(parseInt($('seed').value, 10) || 1);
 cv.addEventListener('click', e => { if (!st.grid) return; const c = st.cells.find(c => e.clientX >= c.x && e.clientX <= c.x + c.s && e.clientY >= c.y && e.clientY <= c.y + c.s); if (c) { st.grid = false; $('mode').textContent = 'GRID'; $('mode').classList.remove('on'); go(c.seed); } });
 addEventListener('keydown', e => { if (e.target.tagName === 'INPUT') return; if (e.key === 'ArrowLeft') $('prev').click(); if (e.key === 'ArrowRight') $('next').click(); });

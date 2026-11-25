@@ -2,7 +2,8 @@
 // Imports only data, so the game, `npm run balance` (Node) and the arena all share one set of formulas.
 import { TREE, TREE_START, TREE_CAP } from '../data/tree.js';
 import { HERO, RARITY, START_WEAPON, GEAR_PROFILES, XP_CURVE, ITEM_SCALE, ESTIMATE, DEFENCE, PAR_MAIN, PAR_GEAR, parLevel, parGem, parSock, parTree } from '../data/balance.js';
-import { MT, TIER, PACK, LEAN, DMG_TYPES, RARE, BLAST, BOSS, ELITE } from '../data/monsters.js';
+import { MT, TIER, PACK, PACKS, LEAN, DMG_TYPES, RARE, BLAST, GUARDIANS, MIX, ELITE } from '../data/monsters.js';
+import { LEVELS } from '../data/dungeon.js';
 import { SLOTS, BASE, BASES, IMPL_FIXED, AFF, AFFBY, EXTRA } from '../data/items.js';
 import { GEMS, GEM, SUPPORTS, supFits, FEED } from '../data/gems.js';
 import { SURGE, SK } from '../data/skills.js';
@@ -106,9 +107,17 @@ export function gemDps(st, id) {
 export const tierHp = t => t <= TIER.hp.length ? TIER.hp[t - 1] : TIER.hp[TIER.hp.length - 1] + TIER.hpAfter * (t - TIER.hp.length);
 export const tierDmg = t => t <= TIER.dmg.length ? TIER.dmg[t - 1] : TIER.dmg[TIER.dmg.length - 1] + TIER.dmgAfter * (t - TIER.dmg.length);
 
+// The level a map tier plays (data/dungeon.js LEVELS: its name, guardian, pack mix, layout), its pack templates and rare types
+// (data/monsters.js MIX, else every Crypt pack), and its guardian (data/monsters.js GUARDIANS) with its MT entry (on top of MT.boss).
+export const levelOf = t => LEVELS[Math.max(0, Math.min(LEVELS.length, t) - 1)];
+export const packMix = t => { const m = MIX[levelOf(t).mix]; return m ? m : { packs: PACKS, rareTypes: PACK.rareTypes }; };
+export const guardianId = t => levelOf(t).guardian || 'warden';
+export const guardianMt = id => ({ ...MT.boss, ...(GUARDIANS[id] || GUARDIANS.warden).mt });
+
 // Monster stats at a map tier and rarity (0 normal, 1 magic, 2 rare; affixes handled by the spawner). dt: its attacks' damage type.
+// 'boss' is that tier's guardian.
 export function monsterStats(type, tier, rar = 0) {
-  const b = MT[type], R = rar === 2 ? RARITY.rare : rar === 1 ? RARITY.magic : { hp: 1, dmg: 1, spd: 1 };
+  const b = type === 'boss' ? guardianMt(guardianId(tier)) : MT[type], R = rar === 2 ? RARITY.rare : rar === 1 ? RARITY.magic : { hp: 1, dmg: 1, spd: 1 };
   return { hp: b.hp * tierHp(tier) * R.hp, dmg: b.dmg * tierDmg(tier) * R.dmg, spd: b.spd * (R.spd || 1), dt: dmgType(b.dt, tier) };
 }
 
@@ -169,7 +178,8 @@ export function gearProfile(kind, il = 1) {
 // resistance only counts for the share of damage of its type, and armour counts more against small hits than big ones.
 // atk: which attack of the monster (none: its normal hit; heavy: a rare's heavy swing; slam, nova: the guardian's; blast: a bloater's
 // death blast; burning: a burning rare's pulse).
-const ATK = { heavy: [() => RARE.heavy.dmg, null], slam: [() => BOSS.slamDmg, () => BOSS.dt.slam], nova: [() => BOSS.novaDmg, () => BOSS.dt.nova], blast: [() => BLAST.bloater.dmg, () => BLAST.bloater.dt] };
+const WA = GUARDIANS.warden.abil; // the guardian's hits in the threat mix are the Pale Warden's (the others' match it)
+const ATK = { heavy: [() => RARE.heavy.dmg, null], slam: [() => WA.slam.dmg, () => WA.slam.dt], nova: [() => WA.nova.dmg, () => WA.nova.dt], blast: [() => BLAST.bloater.dmg, () => BLAST.bloater.dt] };
 export function threatMix(t = 1) {
   return ESTIMATE.threat.map(T => {
     if (T.atk === 'burning') return { d: RARE.burning.dmg * tierDmg(t), dt: dmgType(RARE.burning.dt, t), w: T.w };

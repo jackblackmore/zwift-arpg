@@ -14,6 +14,7 @@ import { save } from './save.js';
 import { autopilot } from './autopilot.js';
 import { updGate } from './gate.js';
 import { updRooms } from './rooms.js';
+import { updPools } from './pools.js';
 import { updGuard, blockStats } from './sk/guard.js';
 import { stepRoll } from './sk/roll.js';
 import { RIDE } from '../data/ride.js';
@@ -77,7 +78,7 @@ function updPlayer(dt) {
 export function update(dt) {
   G.gt += dt;
   if (P.dead > 0) { P.dead -= dt; if (P.dead <= 0) respawn(); } else updPlayer(dt);
-  updGate(dt); updRooms(dt);
+  updGate(dt); updRooms(dt); updPools(dt);
   materialize(); buildHash();
   for (const e of G.enemies) updEnemy(e, dt);
   separate();

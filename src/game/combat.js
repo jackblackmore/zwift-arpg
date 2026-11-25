@@ -15,7 +15,7 @@ import { makePortal } from './maps.js';
 import * as skel from './sk/skeletons.js';
 import { HERO, RARITY, COMBAT } from '../data/balance.js';
 import { DROP, EXTRA } from '../data/items.js';
-import { BLAST, RARE, STAGGER, ANIM, BOSS, ELITE } from '../data/monsters.js';
+import { BLAST, RARE, STAGGER, ANIM, ELITE } from '../data/monsters.js';
 import { TELL, DMG_COL, DMG_ICON } from '../data/graphics.js';
 import { shieldHit } from './sk/guard.js';
 import { SUPPORTS } from '../data/gems.js';
@@ -37,7 +37,7 @@ export function hit(e, mult, elem, src = {}) {
     d *= 1 + STAGGER.taken;
     if (e.finisher && !src.dot && src.by !== 'minion') { e.finisher = false; d *= STAGGER.finisher * (S.fight ? S.fight.finisher : 1); finisherFx(e); if (S.finBlast) G.queue.push({ k: 'finblast', x: e.x, z: e.z, d: d * EXTRA.finBlast.share, src: e }); } // Headsman's Seal (a unique) // the tree's finisher nodes
   }
-  else if (e.stagMax && !src.dot) { const C = e.channel && BOSS.channel; stagger(e, d / e.maxHp * STAGGER.dmg * (src.stag || 1) * stagMul() * (C ? C.hits * (1 + C.surge * (P.surgeK || 0)) : 1 + STAGGER.surge * (P.surgeK || 0))); } // a channel is easier to break, more so surging
+  else if (e.stagMax && !src.dot) { const C = e.channel && e.gd.channel; stagger(e, d / e.maxHp * STAGGER.dmg * (src.stag || 1) * stagMul() * (C ? C.hits * (1 + C.surge * (P.surgeK || 0)) : 1 + STAGGER.surge * (P.surgeK || 0))); } // a channel is easier to break, more so surging
   e.hp -= d; e.flash = .07; e.lastElem = elem; e.lastGem = src.by || gem; e.lastHit = Math.max(e.lastHit || 0, d);
   if (!src.dot) {
     floatT(e.x, e.h + .3, e.z, Math.round(d), crit ? '#ffe060' : ECOL[elem] || '#fff', crit ? 17 : 12);
@@ -68,15 +68,15 @@ function finisherFx(e) {
   shake(.6); stop(.2); SFX.finisher();
 }
 function stun(e, t) {
-  if (e.channel) { e.channel = null; P.chanBroken++; floatT(e.x, e.h + 1.4, e.z, 'CHANNEL BROKEN', '#' + TELL.channel.toString(16).padStart(6, '0'), 16, 1.4); } // stagger breaks a channel (BOSS.channel)
-  e.stun = t; e.windup = 0; e.cast = null; e.charging = null; e.fuse = 0;
+  if (e.channel) { e.channel = null; P.chanBroken++; floatT(e.x, e.h + 1.4, e.z, 'CHANNEL BROKEN', '#' + TELL.channel.toString(16).padStart(6, '0'), 16, 1.4); } // stagger breaks a channel (GUARDIANS[..].channel)
+  e.stun = t; e.windup = 0; e.cast = null; e.charging = null; e.fuse = 0; e.combo = 0; e.inCombo = null; e.heavy = false;
   if (e.model.rigged) { const [n, sp] = ANIM.stun, d = e.model.play(n, { once: true, speed: sp * 3 / Math.max(1, t), fade: .05 }); e.lock = d / (sp * 3 / Math.max(1, t)); }
 }
 // You parried monster e (game/sk/guard.js): stagger a guardian or rare, stun anything else for a moment. k < 1: a share of a
 // parry's stagger and no stun (the Bulwark keystone's blocks).
 export function parried(e, k = 1) {
   if (e.deathT) return;
-  if (e.stagMax) stagger(e, (e.type === 'boss' ? STAGGER.parry : STAGGER.parryRare) * (e.channel ? BOSS.channel.parry : 1) * stagMul() * k);
+  if (e.stagMax) stagger(e, (e.type === 'boss' ? STAGGER.parry : STAGGER.parryRare) * (e.channel ? e.gd.channel.parry : 1) * stagMul() * k);
   else if (k >= 1) stun(e, STAGGER.minorStun);
 }
 
@@ -84,7 +84,7 @@ export function kill(e) {
   if (e.deathT) return;
   e.deathT = .001; G.mapKills++; P.kills++;
   SFX.kill();
-  const col = e.freeze > 0 ? 0xbff0ff : e.type === 'bloater' ? 0x9ad060 : e.type === 'boss' ? 0xff4fd8 : 0x9a2a1a;
+  const col = e.freeze > 0 ? 0xbff0ff : e.type === 'bloater' ? 0x9ad060 : e.type === 'boss' ? e.gd.col : 0x9a2a1a;
   burst(e.x, 1, e.z, col, e.type === 'boss' ? 120 : e.rar === 2 ? 40 : 12, e.type === 'boss' ? 9 : 4);
   if (e.aura) e.aura.visible = false; if (e.fireAura) e.fireAura.visible = false;
   gainXp(e.xp * (e.rar === 2 ? RARITY.rare.xp * (e.elite ? ELITE.xp : 1) : e.rar === 1 ? RARITY.magic.xp : 1) * (1 + TIER.xp * (G.tier - 1)));
@@ -101,14 +101,14 @@ export function kill(e) {
   if ((e.type === 'bloater' && e.fused) || e.aff.includes('volatile')) { const B = e.type === 'bloater' ? BLAST.bloater : BLAST.volatile; G.queue.push({ k: 'bloat', x: e.x, z: e.z, t: B.delay, dmg: e.dmg * B.dmg, r: B.r, kind: B.kind, type: dmgType(B.dt, G.tier) }); }
   if (e.aff.includes('splitting')) for (let i = 0; i < RARE.splitting.n; i++) { const r = spawnEnemy(RARE.splitting.type, e.x + rand(-1, 1), e.z + rand(-1, 1), null, 1); r.awake = true; G.mapTotal++; }
   if (e.type === 'boss') {
-    banner('THE WARDEN FALLS', '#ff4fd8', 'A portal opens · step through for a harder map'); shake(1); stop(.3); $('bossbar').style.display = 'none';
+    banner(e.gd.short + ' FALLS', '#' + e.gd.col.toString(16).padStart(6, '0'), 'A portal opens · step through for a harder map'); shake(1); stop(.3); $('bossbar').style.display = 'none';
     for (let i = 0; i < DROP.boss.n; i++) G.queue.push({ k: 'later', t: i * DROP.boss.gap, fn: () => dropItem(e.x, e.z, i === 0 ? DROP.boss.first : DROP.boss.rest) });
     dropGem(e.x, e.z); // guardians always drop a gem
     makePortal(e.x - 2, e.z + 2);
   }
 }
 
-// src: what hit you (a monster type, 'slam', 'nova', 'arrow', 'blast', 'aura', 'charge', 'burst'), tallied after shields in P.takenBy for the arena.
+// src: what hit you (a monster type, a guardian's ability key ('slam', 'nova', 'bash', 'shot', 'burst'...), 'arrow', 'blast', 'aura', 'charge', 'pool'), tallied after shields in P.takenBy for the arena.
 // o: { from: {x, z} where it comes from, kind: 'hit' (parry or block) | 'heavy' (block for less, or roll) | 'unblockable' (roll),
 // by: the monster, for a parry's stagger, type: its damage type (data/monsters.js DMG_TYPES, or a mix; default physical) }.
 // Order (design notes "Defence"): untouchable (rolling, dead) → the shield (game/sk/guard.js: parry, block or broken guard; posture
@@ -116,6 +116,7 @@ export function kill(e) {
 // full hit) → less damage taken (S.dr) → Magic Shield's barrier → life. Returns what happened:
 // 'miss' (dead or untouchable, e.g. rolling), 'parry', 'block', 'broken' or 'hit'.
 export function hurtP(d, src = '?', o = {}) {
+  P.lastThreat = { src, kind: o.kind || 'hit', t: G.gt }; // (tests: what came at you and how it's answered, even if you rolled it)
   if (P.dead > 0 || P.invuln > 0) return 'miss';
   const raw = d, type = o.type || 'phys'; o.elem = isElem(type);
   d = shieldHit(d, o); if (o.result === 'parry') return 'parry';
@@ -123,7 +124,7 @@ export function hurtP(d, src = '?', o = {}) {
   if (raw > 0) d *= defended(S, raw, type) / raw; // armour and resistances: the same share of whatever the shield let through
   d *= 1 - S.dr;
   const main = mainType(type), col = DMG_COL[main] || DMG_COL.phys;
-  P.lastHurt = { raw, type, src, taken: d, result: o.result || 'hit' }; // (tests: what the last hit did)
+  P.lastHurt = { raw, type, src, kind: o.kind || 'hit', taken: d, result: o.result || 'hit' }; // (tests: what the last hit did)
   if (P.shield > 0) { // Magic Shield's parry barrier (game/sk/arts.js)
     const a = Math.min(P.shield, d); P.shield -= a; d -= a; floatT(P.x, 2.4, P.z, Math.round(a), '#9fc8ff', 12); if (d <= 0) return o.result || 'hit'; }
   P.life -= d; P.taken = (P.taken || 0) + d; if (P.takenBy) P.takenBy[src] = (P.takenBy[src] || 0) + d;

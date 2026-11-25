@@ -19,7 +19,9 @@
 //   set             per room, its set piece (data/dungeon.js SET) or none: { kind: arena|vault|chapel|hall, name, spot: {x, z} (the
 //                   guardian's, chest's, flame's or elite's place) or null, face (rotation toward the way in), props: [{ k, x, z, rot,
 //                   c: [[x, z, r]] }] (pieces and their circle colliders, world units), wall: [[i, j]] (partition cells made wall) }
-import { GEN, RHYTHM, SET } from '../data/dungeon.js';
+//   pools           poison pools on the floor (opts.pools: a level with pools, data/dungeon.js LEVELS and POOLS): [{ x, z, r, room }]
+// opts: overrides of GEN (each level's `gen`, data/dungeon.js LEVELS) and `pools`.
+import { GEN, RHYTHM, SET, POOLS } from '../data/dungeon.js';
 
 const NB = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
@@ -124,6 +126,7 @@ export function generateLevel(opts = {}, rng = Math.random) {
   assignRoles(rooms, routeIds.length, rng);
   const L = { n, cell, half, grid, rooms, route: routeIds, edges, path, routeLen, zones: Z };
   setPieces(L, rng); // after the roles (a seed's layout and roles are the same as before set pieces); vault partitions change the grid
+  L.pools = g.pools ? layPools(L, rng) : []; // last, so a seed's layout is the same with or without them
   const start = { x: rooms[0].x, z: rooms[0].z }, boss = { x: rooms[routeIds[routeIds.length - 1]].x, z: rooms[routeIds[routeIds.length - 1]].z };
   return Object.assign(L, { start, boss });
 }
@@ -141,6 +144,20 @@ function assignRoles(rooms, nRoute, rng) {
     const pool = b.side === 2 ? side : b.side && side.length ? side : main;
     if (pool.length) pool[Math.floor(rng() * pool.length)].role = b.role;
   }
+}
+// ---- Poison pools (data/dungeon.js POOLS; Flooded Tombs): in combat rooms, clear of walls, the corridor lines and each other ----
+function layPools(L, rng) {
+  const P = POOLS, X = k => -L.half + k * L.cell, out = [];
+  for (const r of L.rooms) {
+    if (r.role !== 'combat' || rng() >= P.rooms) continue;
+    const want = P.per[0] + Math.floor(rng() * (P.per[1] - P.per[0] + 1));
+    for (let t = 0, got = 0; t < 40 && got < want; t++) {
+      const rad = P.r[0] + rng() * (P.r[1] - P.r[0]), x = X(r.i0 + rng() * r.w), z = X(r.j0 + rng() * r.h);
+      if (roomAt(L, x, z) !== r || wallHit(L, x, z, rad + P.wallGap) || lineDist(L, x, z) < rad + P.lineGap || out.some(p => Math.hypot(p.x - x, p.z - z) < p.r + rad + P.apart)) continue;
+      out.push({ x, z, r: rad, room: r.id }); got++;
+    }
+  }
+  return out;
 }
 // ---- Set pieces (data/dungeon.js SET): authored dressing for the guardian arena, treasure vaults, rest chapels and elite halls ----
 // Each piece is a circle collider or none; a piece goes in only where it fits (in its room, clear of walls by SET.wallGap and of
