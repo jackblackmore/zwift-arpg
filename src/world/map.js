@@ -1,7 +1,7 @@
 // The map: an open crypt floor with obstacles (circle colliders), braziers and bones.
 // With the KayKit dungeon models loaded it's built by world/dungeon.js; otherwise from primitive rocks here.
 import * as T from 'three';
-import { scene } from '../render/scene.js';
+import { scene, hemi, moon } from '../render/scene.js';
 import { groundTex, GB, GS, GCY, GROCK, glowSprite, decal } from '../render/assets.js';
 import { G } from '../core/state.js';
 import { rand, clamp, dist } from '../core/util.js';
@@ -9,6 +9,7 @@ import { dun, buildDungeon } from './dungeon.js';
 import { GEN, OBSTACLE_DENSITY, SET } from '../data/dungeon.js';
 import { seeded } from '../core/rng.js';
 import { generateLevel, walkField, cellOf, lineDist, solid, wallHit, roomAt } from './gen.js';
+import { levelOf } from '../game/formulas.js';
 
 export const HALF = GEN.zones * GEN.zoneCells * GEN.cell / 2; // map spans -HALF..HALF on x and z
 
@@ -121,7 +122,10 @@ function rock(x, z, r, solid) {
 export function buildMap() {
   scene.remove(G.world); G.world = new T.Group(); scene.add(G.world); G.obst = []; G.torches = [];
   // Dev: with ?seed=N (G.devSeed, set in main.js) map tier t gets layout N + t − 1, the one the map viewer (/maps/) shows.
-  const L = G.layout = generateLevel({}, G.devSeed ? seeded(G.devSeed + G.tier - 1) : Math.random); L.seen = new Uint8Array(L.n * L.n);
+  // Each tier is a level (data/dungeon.js LEVELS): its own layout tuning, poison pools and a light tint.
+  const Lv = levelOf(G.tier), look = Lv.look || {};
+  const L = G.layout = generateLevel({ ...Lv.gen, pools: !!Lv.pools }, G.devSeed ? seeded(G.devSeed + G.tier - 1) : Math.random); L.seen = new Uint8Array(L.n * L.n); L.clutter = Lv.clutter || 1;
+  hemi.color.setHex(look.hemi ?? 0x9a8fc0); moon.color.setHex(look.moon ?? 0x9fb0ff);
   G.start = { x: L.start.x, z: L.start.z }; G.bossSpot = { x: L.boss.x, z: L.boss.z };
   G.dressed = dun.ready; ground.visible = !dun.ready; // the dressed level draws its own floor, only where there is floor
   for (const r of L.rooms) if (r.set) for (const p of r.set.props) for (const [x, z, cr] of p.c) G.obst.push({ x, z, r: cr }); // set pieces' colliders (world/gen.js)
@@ -176,7 +180,7 @@ function primitiveMap(L) {
       rock(x, z, r, true); got++; if (Math.random() < .7) rock(x + rand(-r, r), z + rand(-r, r), r * rand(.3, .5), false);
     }
   }
-  for (let k = 0; k < 70; k++) {
+  for (let k = 0; k < 70 * L.clutter; k++) {
     const x = rand(-HALF, HALF), z = rand(-HALF, HALF); if (blocked(x, z, .3)) continue;
     const g = new T.Group();
     for (let j = 0; j < 3; j++) { const b = new T.Mesh(GB, boneMat); b.scale.set(.34, .05, .06); b.position.set(rand(-.3, .3), .03, rand(-.3, .3)); b.rotation.y = rand(0, 3); g.add(b); }

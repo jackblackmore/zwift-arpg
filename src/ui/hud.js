@@ -1,7 +1,7 @@
 // Life and Surge orbs, skill bar, XP, map info, boss bar, minimap, vignette, banner timer.
 import { G, P, S } from '../core/state.js';
 import { SK } from '../data/skills.js';
-import { BOSS } from '../data/monsters.js';
+import { levelOf } from '../game/formulas.js';
 import { RCSS } from '../data/items.js';
 import { DMG_COL } from '../data/graphics.js';
 import { ROLES } from '../data/dungeon.js';
@@ -28,14 +28,14 @@ export function hud(dt) {
   $('orbR').classList.toggle('surging', P.surgeK > 0); $('orbR').classList.toggle('spent', P.spent);
   { const el = $('sSu'); el.classList.toggle('on', P.surgeK > 0); el.querySelector('.n').textContent = P.spent ? '…' : Math.ceil(P.surge); el.querySelector('.cd').style.height = (100 - P.surge / S.surgeMax * 100) + '%'; }
   $('xpF').style.width = (P.xp / xpNeed(P.lvl) * 100) + '%';
-  $('iMap').textContent = 'MAP ' + G.tier + (G.devSeed ? ' · seed ' + (G.devSeed + G.tier - 1) : ''); $('iLvl').textContent = 'Level ' + P.lvl; $('iKill').textContent = `${G.mapKills}/${G.mapTotal} slain`;
+  $('iMap').textContent = 'MAP ' + G.tier + ' · ' + levelOf(G.tier).name + (G.devSeed ? ' · seed ' + (G.devSeed + G.tier - 1) : ''); $('iLvl').textContent = 'Level ' + P.lvl; $('iKill').textContent = `${G.mapKills}/${G.mapTotal} slain`;
   for (const s of BAR) skillSlot(s);
   $('sFl').querySelector('.n').textContent = Math.floor(P.flask); $('sFl').querySelector('.cd').style.height = P.flask < SK.flask.max ? (100 - (P.flask % 1) * 100) + '%' : '0%';
   const ib = $('invBadge'); ib.style.display = P.newItems ? 'block' : 'none'; ib.textContent = P.newItems;
   $('bGems').classList.toggle('glow', P.newGems > 0 || (BAR.some(s => unlocked(s) && !barGem(s)) && P.gems.some(g => !BAR.some(s => P.bar[s] === g.id))));
   const tp = treeLeft(), pb = $('passBadge'); pb.style.display = tp > 0 ? 'block' : 'none'; pb.textContent = tp; $('bPass').classList.toggle('glow', tp > 0); // passive tree points to spend
   const boss = G.bossSpec && G.bossSpec.e;
-  if (boss && !boss.deathT) { $('bossHp').style.width = (boss.hp / boss.maxHp * 100) + '%'; $('bossStag').style.width = ((boss.stun > 0 ? 1 : boss.stag || 0) * 100) + '%'; $('bossStag').classList.toggle('stun', boss.stun > 0); $('bossChan').parentNode.classList.toggle('on', !!boss.channel); $('bossChan').style.width = (boss.channel ? Math.min(1, boss.channel.t / BOSS.channel.t) * 100 : 0) + '%'; }
+  if (boss && !boss.deathT) { $('bossHp').style.width = (boss.hp / boss.maxHp * 100) + '%'; $('bossStag').style.width = ((boss.stun > 0 ? 1 : boss.stag || 0) * 100) + '%'; $('bossStag').classList.toggle('stun', boss.stun > 0); $('bossChan').parentNode.classList.toggle('on', !!boss.channel); $('bossChan').style.width = (boss.channel ? Math.min(1, boss.channel.t / boss.gd.channel.t) * 100 : 0) + '%'; }
   rideHud(slotLook);
   T.mm -= .07; if (T.mm > 0 || !G.mmBase) return; T.mm = .2;
   minimap();
@@ -68,7 +68,7 @@ function minimap() {
   for (const p of G.packs) if (!p.spawned && seen(p.x, p.z)) { mmc.fillStyle = '#7a2020'; mmc.fillRect(X(p.x) - 3, X(p.z) - 3, 6, 6); }
   for (const e of G.enemies) {
     if (e.deathT || !seen(e.x, e.z)) continue;
-    mmc.fillStyle = e.type === 'boss' ? '#ff4fd8' : e.rar === 2 ? '#ffd23f' : e.rar === 1 ? '#7a7aff' : '#d03030';
+    mmc.fillStyle = e.type === 'boss' ? '#' + e.gd.col.toString(16).padStart(6, '0') : e.rar === 2 ? '#ffd23f' : e.rar === 1 ? '#7a7aff' : '#d03030';
     const s = e.type === 'boss' ? 12 : e.rar === 2 ? 7 : 4; mmc.fillRect(X(e.x) - s / 2, X(e.z) - s / 2, s, s);
   }
   if (G.bossSpec && !G.bossSpec.spawned && seen(G.bossSpot.x, G.bossSpot.z)) { mmc.fillStyle = '#ff4fd8'; mmc.beginPath(); mmc.arc(X(G.bossSpot.x), X(G.bossSpot.z), 7, 0, 7); mmc.fill(); }

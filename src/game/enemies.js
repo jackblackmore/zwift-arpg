@@ -1,7 +1,8 @@
 // Monster packs, spawning, AI (melee, ranged, bomber, boss) and crowd separation.
 import * as T from 'three';
 import { G, P, shake, stop } from '../core/state.js';
-import { MT, TIER, PACKS, PACK, RAREAFF, RN1, RN2, BOSS, RISE, ANIM, STATUS, FIGHT, BLAST, RARE, STAGGER, ELITE } from '../data/monsters.js';
+import { MT, TIER, PACK, RAREAFF, RN1, RN2, BOSS, GUARDIANS, RISE, ANIM, STATUS, FIGHT, BLAST, RARE, STAGGER, ELITE } from '../data/monsters.js';
+import { POOLS } from '../data/dungeon.js';
 import { TELL } from '../data/graphics.js';
 import { rand, pick, dist, $ } from '../core/util.js';
 import { SFX } from '../core/audio.js';
@@ -9,28 +10,29 @@ import { scene } from '../render/scene.js';
 import { GB, eyeMat, glowSprite, decal, aura } from '../render/assets.js';
 import { buildModel } from '../render/models.js';
 import { chars, makeChar } from '../render/characters.js';
-import { sparks, glows, emit, burst, ringFx, flashFx, telegraph, banner, floatT } from '../render/fx.js';
+import { sparks, glows, emit, burst, ringFx, flashFx, telegraph, banner, floatT, addFx } from '../render/fx.js';
 import { pushOut, blocked, los, pathStep } from '../world/map.js';
 import { hurtP, kill, stagger } from './combat.js';
 import { RIDE } from '../data/ride.js';
 import { RARITY } from '../data/balance.js';
-import { tierHp, tierDmg, dmgType } from './formulas.js';
+import { tierHp, tierDmg, dmgType, mainType, packMix, guardianMt } from './formulas.js';
 // An attack's damage type on this map: its own (data/monsters.js), or physical with the region's lean (LEAN).
 const dtype = base => dmgType(base, G.tier);
 
 // o.elite: an elite room's pack (data/monsters.js ELITE): its minions and one elite, which spawnEnemy makes stronger.
+// Packs come from the level's mix (data/monsters.js MIX, data/dungeon.js LEVELS).
 export function makePack(x, z, o = {}) {
-  const sz = 1 + TIER.packSize * (G.tier - 1), mem = [];
-  for (const [t, n] of o.elite ? ELITE.minions : pick(PACKS)) for (let i = 0; i < Math.round(n * sz * rand(.85, 1.2)); i++) mem.push(t);
+  const sz = 1 + TIER.packSize * (G.tier - 1), mem = [], mix = packMix(G.tier);
+  for (const [t, n] of o.elite ? ELITE.minions : pick(mix.packs)) for (let i = 0; i < Math.round(n * sz * rand(.85, 1.2)); i++) mem.push(t);
   const p = o.elite ? { x, z, mem, magic: Math.random() < ELITE.magic, rare: pick(ELITE.types), elite: true, spawned: false, awake: false, list: [] }
-    : { x, z, mem, magic: Math.random() < PACK.magicChance, rare: Math.random() < PACK.rareChance ? pick(PACK.rareTypes) : null, spawned: false, awake: false, list: [] };
+    : { x, z, mem, magic: Math.random() < PACK.magicChance, rare: Math.random() < PACK.rareChance ? pick(mix.rareTypes) : null, spawned: false, awake: false, list: [] };
   G.mapTotal += mem.length + (p.rare ? 1 : 0);
   return p;
 }
 
-// rar: 0 normal, 1 magic, 2 rare
-export function spawnEnemy(type, x, z, pack, rar = 0) {
-  const b = MT[type], mt = tierHp(G.tier), md = tierDmg(G.tier);
+// rar: 0 normal, 1 magic, 2 rare. o.guard: a guardian's id (data/monsters.js GUARDIANS; type 'boss', default the Pale Warden).
+export function spawnEnemy(type, x, z, pack, rar = 0, o = {}) {
+  const gid = type === 'boss' ? (GUARDIANS[o.guard] ? o.guard : 'warden') : null, b = gid ? guardianMt(gid) : MT[type], mt = tierHp(G.tier), md = tierDmg(G.tier);
   const e = { type, ...b, x, z, vx: 0, vz: 0, pack, rar, aff: [], hp: 0, atkT: rand(.2, 1.2), windup: 0, awake: false, freeze: 0, chill: 0, shock: 0, burnT: 0, burnDps: 0, burnTick: 0, flash: 0, deathT: 0, walk: rand(0, 6), shootT: rand(.5, 2), face: rand(0, 6), fuse: 0, sx: x, sz: z };
   let hpm = mt, sc = b.scale || 1;
   if (rar === 1) { const R = RARITY.magic; hpm *= R.hp; e.dmg *= R.dmg; e.spd *= R.spd; }
@@ -46,6 +48,7 @@ export function spawnEnemy(type, x, z, pack, rar = 0) {
     }
   }
   e.hp = e.maxHp = b.hp * hpm; e.dmg *= md;
+  if (gid) { e.gid = gid; e.gd = GUARDIANS[gid]; e.spd0 = e.spd; e.abilT = 3; e.rot = 0; e.combo = 0; }
   if (type === 'boss' || rar === 2) { e.stagMax = 1; e.stag = 0; } // a stagger bar (data/monsters.js STAGGER)
   e.h = b.h * sc / (b.scale || 1);
   const L = b.look, rigged = chars.ready && L;
@@ -69,7 +72,7 @@ export function materialize() {
   }
   const bs = G.bossSpec;
   if (bs && !bs.spawned && dist(G.bossSpot.x, G.bossSpot.z, P.x, P.z) < PACK.spawnRange) {
-    bs.spawned = true; const b = spawnEnemy('boss', G.bossSpot.x, G.bossSpot.z, null, 0); b.abilT = 3; b.rot = 0; bs.e = b;
+    bs.spawned = true; bs.e = spawnEnemy('boss', G.bossSpot.x, G.bossSpot.z, null, 0, { guard: bs.id }); // the level's guardian (data/dungeon.js LEVELS)
   }
 }
 
@@ -86,7 +89,7 @@ export function wake(e) {
     e.pack.list.forEach(rouse);
   }
   rouse(e);
-  if (e.type === 'boss') { banner('THE PALE WARDEN', '#ff4fd8', 'Parry its swings · block or roll the slams'); SFX.roar(); $('bossbar').style.display = 'block'; }
+  if (e.type === 'boss') { const gd = e.gd; banner(gd.name.toUpperCase(), hex(gd.col), gd.hint); SFX.roar(); $('bossName').textContent = gd.name.toUpperCase(); $('bossName').style.color = hex(gd.col); $('bossbar').style.display = 'block'; }
 }
 
 // ---- spatial hash for neighbour and area queries ----
@@ -101,11 +104,13 @@ export function near(x, z, r, cb) {
   for (let i = x0; i <= x1; i++) for (let j = z0; j <= z1; j++) { const a = hash.get(i * 1000 + j); if (a) for (const e of a) if (!e.deathT && (e.x - x) ** 2 + (e.z - z) ** 2 <= (r + e.r) ** 2) cb(e); }
 }
 
-// Steer toward a target, round walls (path finding) and bending around rocks ahead.
+// Steer toward a target, round walls (path finding) and bending around rocks ahead. The hero (the autopilot) also bends round
+// poison pools (game/pools.js), unless where it's going is in or right by that pool (a fight there).
 export function steer(e, tx, tz) {
   const w = pathStep(e.x, e.z, tx, tz, e.r); if (w) { tx = w[0]; tz = w[1]; }
   let dx = tx - e.x, dz = tz - e.z; const d = Math.hypot(dx, dz) || 1; dx /= d; dz /= d;
-  for (const o of G.obst) {
+  const avoid = e === P && G.pools.length ? G.pools.filter(p => Math.hypot(p.x - tx, p.z - tz) > p.r + 3).map(p => ({ x: p.x, z: p.z, r: p.r + POOLS.avoid })) : [];
+  for (const o of avoid.length ? G.obst.concat(avoid) : G.obst) {
     const ox = o.x - e.x, oz = o.z - e.z, along = ox * dx + oz * dz; if (along < 0 || along > 3.5) continue;
     const perp = ox * dz - oz * dx, m = o.r + e.r + .25;
     if (Math.abs(perp) < m) { const s = perp > 0 ? 1 : -1, w = (m - Math.abs(perp)) / m * 1.6, px = -dz * s, pz = dx * s; dx += px * w; dz += pz * w; }
@@ -113,12 +118,13 @@ export function steer(e, tx, tz) {
   const l = Math.hypot(dx, dz) || 1; return [dx / l, dz / l];
 }
 function moveE(e, tx, tz, spd, dt) { const [dx, dz] = steer(e, tx, tz); e.x += dx * spd * dt; e.z += dz * spd * dt; e.face = Math.atan2(dx, dz); e.walk += dt * spd * 2.6; e.moving = true; }
-function eShoot(e, ang, spd, dmg, col, size) {
+// A shot at you: an arrow (col 'arrow') or a glowing bolt. dt: its damage type (default the shooter's). src: what hurt you (P.takenBy).
+function eShoot(e, ang, spd, dmg, col, size, dt = e.dt, src) {
   const g = new T.Group();
   if (col === 'arrow') { const m = new T.Mesh(GB, eyeMat(0xd8c890)); m.scale.set(.05, .05, .55); g.add(m); g.rotation.y = ang; }
   else g.add(glowSprite(col, size));
   g.position.set(e.x, 1.2, e.z); scene.add(g);
-  G.eproj.push({ x: e.x, z: e.z, vx: Math.sin(ang) * spd, vz: Math.cos(ang) * spd, dmg, life: FIGHT.projLife, g, r: col === 'arrow' ? .3 : .45, src: col === 'arrow' ? 'arrow' : 'nova', by: e, type: dtype(col === 'arrow' ? e.dt : BOSS.dt.nova) });
+  G.eproj.push({ x: e.x, z: e.z, vx: Math.sin(ang) * spd, vz: Math.cos(ang) * spd, dmg, life: FIGHT.projLife, g, r: col === 'arrow' ? .3 : .45, src: src || (col === 'arrow' ? 'arrow' : 'nova'), by: e, type: dtype(dt) });
 }
 export function updEnemyProjectiles(dt) {
   for (const p of G.eproj) {
@@ -185,10 +191,10 @@ export function updEnemy(e, dt) {
     if (e.windup > 0) {
       e.windup -= dt; e.face = Math.atan2(tg.x - e.x, tg.z - e.z);
       if (e.windup <= 0) {
-        e.swing = 1; const hv = e.heavy, dmg = e.dmg * (hv ? RARE.heavy.dmg : 1); e.heavy = false;
+        e.swing = 1; const hv = e.heavy, cb = e.inCombo, dmg = e.dmg * (hv ? RARE.heavy.dmg : 1) * (cb ? cb.dmg : 1); e.heavy = false; e.inCombo = null;
         if (td < e.range + e.r + tg.r + FIGHT.reach) { if (tg === P) hurtP(dmg, hv ? 'heavy' : e.type, { from: e, by: e, kind: hv ? 'heavy' : 'hit', type: dtype(e.dt) }); else tg.hurt(dmg * (e.type === 'boss' ? BOSS.vsMinion : 1)); if (e.type === 'boss' || hv) { shake(hv ? .4 : .3); SFX.slam(); hurtMinions(e.x, e.z, e.range + e.r + FIGHT.reach, dmg * BOSS.vsMinion, tg); } }
         if (hv) { ringFx(e.x, e.z, e.range + e.r + FIGHT.reach, TELL.heavy, .3, .3); burst(e.x + Math.sin(e.face) * e.range, .5, e.z + Math.cos(e.face) * e.range, TELL.heavy, 18, 5); }
-        e.atkT = (e.channel ? BOSS.channel.swingCd : e.cd) * cdm;
+        e.atkT = (e.combo > 0 ? e.comboA.gap : e.channel ? e.gd.channel.swingCd : e.cd) * cdm; // a combo's next swing comes quickly
       }
     } else if (td < e.range + e.r + tg.r) { e.face = Math.atan2(tg.x - e.x, tg.z - e.z); e.atkT -= dt; if (e.atkT <= 0) startSwing(e, tg); }
     else if (!e.channel) moveE(e, P.x, P.z, spd, dt); // channelling: rooted, but it still swings at you
@@ -212,7 +218,8 @@ function startSwing(e, tg) {
   if (rare && e.heavyIn === undefined) e.heavyIn = Math.round(rand(H.every[0], H.every[1]));
   e.heavy = rare && tg === P && e.heavyIn <= 0;
   if (e.heavy) e.heavyIn = Math.round(rand(H.every[0], H.every[1])); else if (rare && tg === P) e.heavyIn--;
-  e.windup = e.heavy ? H.windup : e.type === 'boss' ? FIGHT.windup.boss : FIGHT.windup.melee; e.atkSeq = (e.atkSeq || 0) + 1;
+  if (e.combo > 0 && tg === P) { e.inCombo = e.comboA; e.combo--; } // a guardian's combo (GUARDIANS[..].abil, kind combo)
+  e.windup = e.heavy ? H.windup : e.inCombo ? e.inCombo.windup : e.type === 'boss' ? FIGHT.windup.boss : FIGHT.windup.melee; e.atkSeq = (e.atkSeq || 0) + 1;
   if (e.heavy) { cue('heavy'); flashFx(e.x, e.h * .8, e.z, TELL.heavy, e.r * 4, e.windup); telegraph(e.x, e.z, e.range + e.r + FIGHT.reach, e.windup, TELL.heavy); }
   else if ((e.type === 'boss' || rare) && tg === P) { cue('parry'); flashFx(e.x, e.h * .8, e.z, TELL.parry, e.r * 3, e.windup); }
 }
@@ -231,75 +238,117 @@ function hurtMinions(x, z, r, d, skip) { for (const m of G.minions) if (m !== sk
 // A telegraph aimed at you: a coloured '!' over the hero and a sound per kind (data/graphics.js TELL), so it reads off-screen too.
 function cue(kind) { if (P.dead > 0) return; floatT(P.x, 2.9, P.z, '!', '#' + TELL[kind].toString(16).padStart(6, '0'), 26, .7); SFX.cue(kind); }
 
-// Returns true while the boss is busy with an ability (so it doesn't also walk or swing).
+const hex = c => '#' + c.toString(16).padStart(6, '0');
+
+// The guardian's brain (data/monsters.js GUARDIANS: its abilities, rotation, channel). Returns true while it's busy with an
+// ability (so it doesn't also walk or swing). Every threat is telegraphed by how you answer it (data/graphics.js TELL).
 function bossAI(e, dt) {
-  if (!e.phase2 && e.hp < e.maxHp * BOSS.enrage) { e.phase2 = true; e.rot = 0; e.spd *= BOSS.enrageSpd; banner('THE WARDEN IS ENRAGED', '#ff4fd8', 'Purple: roll · blue: break it before the bar fills'); SFX.roar(); }
-  if (e.channel) { // the channel (blue, BOSS.channel): rooted, still swinging; break its stagger before the bar fills
-    const C = BOSS.channel, ch = e.channel; ch.t += dt; e.face = Math.atan2(P.x - e.x, P.z - e.z);
+  const gd = e.gd;
+  if (!e.phase2 && e.hp < e.maxHp * BOSS.enrage) { // phase 2
+    e.phase2 = true; e.rot = 0; e.spd *= gd.enrageSpd; banner(gd.enraged || gd.short + ' IS ENRAGED', hex(gd.col), gd.hint2); SFX.roar();
+    if (gd.phase2 && gd.phase2.summon) { const [ty, n] = gd.phase2.summon; summon(e, n, ty); burst(e.x, e.h * .5, e.z, gd.col, 60, 7); SFX.boom(); shake(.5); } // the plague bloat bursts
+  }
+  if (e.channel) { // the channel (blue): rooted, still swinging; break its stagger before the bar fills
+    const C = gd.channel, ch = e.channel; ch.t += dt; e.face = Math.atan2(P.x - e.x, P.z - e.z);
     if (Math.random() < dt * 24) { const a = rand(0, 6.3), r = rand(.6, 1.6) * e.r; emit(glows, e.x + Math.cos(a) * r, rand(.3, e.h * .8), e.z + Math.sin(a) * r, -Math.cos(a) * .8, rand(1, 2.5), -Math.sin(a) * .8, .6, TELL.channel); }
     if (P.eff && P.eff.spike > 0) stagger(e, RIDE.spike.fill * P.eff.spike * dt); // RIDE: a short effort spike (stagger can end the channel here)
     if (e.channel && ch.t >= C.t) { e.channel = null; channelDone(e, ch.fx); return true; }
     return false;
   }
   if (e.charging) { // the charge (unblockable): rush along a line, hitting you once if you're in the way
-    const c = e.charging, step = Math.min(c.left, BOSS.charge.speed * dt); c.left -= step;
+    const c = e.charging, A = c.a, step = Math.min(c.left, A.speed * dt); c.left -= step;
     const nx = e.x + c.dx * step, nz = e.z + c.dz * step;
     if (!blocked(nx, nz, e.r * .6)) { e.x = nx; e.z = nz; } else c.left = 0;
     e.face = Math.atan2(c.dx, c.dz); e.moving = true; e.walk += dt * 12;
     if (Math.random() < .6) emit(sparks, e.x, .4, e.z, -c.dx * 3, rand(.5, 2), -c.dz * 3, .35, TELL.unblockable, 0, 2);
-    if (!c.hit && dist(e.x, e.z, P.x, P.z) < e.r + P.r + BOSS.charge.hitR) { c.hit = true; const r = hurtP(e.dmg * BOSS.charge.dmg, 'charge', { from: e, kind: 'unblockable', by: e, type: dtype(BOSS.dt.charge) }); if (r !== 'miss') { shake(.5); SFX.slam(); } }
+    if (!c.hit && dist(e.x, e.z, P.x, P.z) < e.r + P.r + A.hitR) { c.hit = true; const r = hurtP(e.dmg * A.dmg, 'charge', { from: e, kind: 'unblockable', by: e, type: dtype(A.dt) }); if (r !== 'miss') { shake(.5); SFX.slam(); } }
     if (c.left <= 0) e.charging = null;
     return true;
   }
   if (e.cast) {
     const c = e.cast; c.t -= dt; e.face = Math.atan2(P.x - e.x, P.z - e.z);
+    if (c.kind === 'shot' && c.t > c.a.lock) { c.ax = P.x; c.az = P.z; } // the aimed shot tracks you, then locks
     if (c.t > 0) return true;
-    e.cast = null; e.swing = 1;
-    if (c.kind === 'slam') {
-      ringFx(c.x, c.z, c.r, 0xff3030, .4, .5); burst(c.x, .4, c.z, 0xff4fd8, 50, 7); flashFx(c.x, .5, c.z, 0xff2bd6, c.r * 2.4, .3); SFX.slam(); shake(.7); stop(.08);
-      if (dist(P.x, P.z, c.x, c.z) < c.r + P.r) hurtP(e.dmg * BOSS.slamDmg, 'slam', { from: e, kind: 'heavy', by: e, type: dtype(BOSS.dt.slam) });
-      hurtMinions(c.x, c.z, c.r, e.dmg * BOSS.slamDmg * BOSS.vsMinion);
-    }
-    // A fan of bolts aimed at you: block them with the shield or roll through (a second fan in phase 2, re-aimed).
-    if (c.kind === 'nova') for (let k = 0; k < (e.phase2 ? 2 : 1); k++) G.queue.push({ k: 'later', t: k * BOSS.novaGap, fn: () => { if (e.deathT || e.gone || e.stun > 0) return; const a0 = Math.atan2(P.x - e.x, P.z - e.z), n = BOSS.novaBolts; for (let i = 0; i < n; i++) eShoot(e, a0 + (i / (n - 1) - .5) * BOSS.novaSpread, BOSS.novaSpeed, e.dmg * BOSS.novaDmg, 0xff2bd6, 1.1); SFX.arc(); } }); // game time, so it pauses and replays the same
-    if (c.kind === 'charge') { const dx = c.x - e.x, dz = c.z - e.z, l = Math.hypot(dx, dz) || 1; e.charging = { dx: dx / l, dz: dz / l, left: BOSS.charge.range, hit: false }; SFX.roar(); }
-    if (c.kind === 'summon') summon(e, e.phase2 ? BOSS.summon2 : BOSS.summon);
-    if (c.kind === 'burst') { // a completed channel's burst (unblockable): roll it
-      const B = BOSS.channel.burst; ringFx(e.x, e.z, B.r, TELL.unblockable, .5, .2); burst(e.x, 1, e.z, TELL.channel, 70, 9); burst(e.x, 1, e.z, TELL.unblockable, 50, 7); flashFx(e.x, 1, e.z, TELL.channel, B.r * 2, .35); SFX.boom(); SFX.slam(); shake(.8); stop(.1);
-      if (dist(P.x, P.z, e.x, e.z) < B.r + P.r) hurtP(e.dmg * B.dmg, 'burst', { from: e, kind: 'unblockable', by: e, type: dtype(BOSS.dt.burst) });
-      hurtMinions(e.x, e.z, B.r, e.dmg * B.dmg * BOSS.vsMinion);
-    }
+    e.cast = null; e.swing = 1; landCast(e, c);
     return true;
   }
+  if (e.combo > 0 || e.inCombo) return false; // finish the combo first
   e.abilT -= dt;
   if (e.abilT <= 0) {
-    const rot = e.phase2 ? BOSS.rotation2 : BOSS.rotation, k = rot[e.rot++ % rot.length]; e.abilT = e.phase2 ? BOSS.abilGap2 : BOSS.abilGap;
-    if (k === 'slam') { e.cast = { kind: k, t: e.phase2 ? BOSS.slamT2 : BOSS.slamT, x: P.x, z: P.z, r: BOSS.slamR }; telegraph(P.x, P.z, BOSS.slamR, e.cast.t, TELL.heavy); cue('heavy'); }
-    else if (k === 'nova') { e.cast = { kind: k, t: BOSS.novaT }; flashFx(e.x, 3, e.z, 0xff2bd6, 5, BOSS.novaT); cue('parry'); }
-    else if (k === 'charge') { const C = BOSS.charge; e.cast = { kind: k, t: C.t, x: P.x, z: P.z }; telegraph(P.x, P.z, 1.4, C.t, TELL.unblockable); flashFx(e.x, e.h * .7, e.z, TELL.unblockable, e.r * 5, C.t); cue('unblockable'); }
-    else if (k === 'channel') {
-      const C = BOSS.channel; e.chanN = (e.chanN || 0) + 1; e.channel = { t: 0, fx: C.effects[(e.chanN - 1) % C.effects.length] };
+    const rot = e.phase2 ? gd.rotation2 : gd.rotation, k = rot[e.rot++ % rot.length]; e.abilT = e.phase2 ? gd.abilGap2 : gd.abilGap;
+    if (k === 'channel') {
+      const C = gd.channel; e.chanN = (e.chanN || 0) + 1; e.channel = { t: 0, fx: C.effects[(e.chanN - 1) % C.effects.length] };
       e.atkT = Math.min(e.atkT, C.firstSwing); P.chans++;
-      telegraph(e.x, e.z, e.r * 2.2, C.t, TELL.channel); flashFx(e.x, e.h * .7, e.z, TELL.channel, e.r * 5, .5); floatT(e.x, e.h + 1, e.z, 'CHANNELLING', '#' + TELL.channel.toString(16).padStart(6, '0'), 16, 1.2); cue('channel');
+      telegraph(e.x, e.z, e.r * 2.2, C.t, TELL.channel); flashFx(e.x, e.h * .7, e.z, TELL.channel, e.r * 5, .5); floatT(e.x, e.h + 1, e.z, 'CHANNELLING', hex(TELL.channel), 16, 1.2); cue('channel');
       return false; // it swings while it channels
     }
-    else { e.cast = { kind: k, t: .7 }; ringFx(e.x, e.z, 3, 0xff4fd8, .7, .2); }
-    return true;
+    return startAbility(e, k, gd.abil[k]);
   }
   return false;
 }
-// A channel that completed (BOSS.channel.effects): an unblockable burst after a purple wind-up, or it mends and summons.
-function channelDone(e, fx) {
-  const C = BOSS.channel;
-  if (fx === 'burst') { e.cast = { kind: 'burst', t: C.burst.t }; telegraph(e.x, e.z, C.burst.r, C.burst.t, TELL.unblockable); flashFx(e.x, e.h * .7, e.z, TELL.unblockable, e.r * 6, C.burst.t); cue('unblockable'); return; }
-  const h = e.maxHp * C.mend.heal; e.hp = Math.min(e.maxHp, e.hp + h);
-  floatT(e.x, e.h + 1, e.z, '+' + Math.round(h), '#5ad890', 18, 1.4); burst(e.x, e.h * .6, e.z, 0x5ad890, 40, 5); burst(e.x, e.h * .6, e.z, TELL.channel, 30, 4); SFX.flask(); SFX.roar();
-  summon(e, C.mend.summon);
+// An ability begins (data/monsters.js GUARDIANS[..].abil, or a completed channel's effect): its telegraph and cue. Returns true
+// while it's busy (a cast or a charge), false when it goes on fighting (a combo).
+export function startAbility(e, key, A) {
+  const gd = e.gd;
+  if (A.kind === 'combo') { e.combo = A.n; e.comboA = A; e.atkT = Math.min(e.atkT, .15); return false; }
+  if (A.kind === 'area') {
+    const t = e.phase2 && A.t2 ? A.t2 : A.t, d = dist(e.x, e.z, P.x, P.z) || 1, f = e.r + A.r * .5;
+    const [x, z] = A.at === 'self' ? [e.x, e.z] : A.at === 'front' ? [e.x + (P.x - e.x) / d * f, e.z + (P.z - e.z) / d * f] : [P.x, P.z];
+    e.cast = { kind: 'area', key, a: A, t, x, z, r: A.r };
+    const col = TELL[A.tell]; telegraph(x, z, A.r, t, col); flashFx(e.x, e.h * .7, e.z, col, e.r * (A.at === 'self' ? 6 : 4), t); cue(A.tell);
+    return true;
+  }
+  if (A.kind === 'volley') { e.cast = { kind: 'volley', key, a: A, t: A.t }; flashFx(e.x, e.h * .55, e.z, A.col || TELL.parry, 5, A.t); cue('parry'); return true; }
+  if (A.kind === 'shot') { const c = e.cast = { kind: 'shot', key, a: A, t: A.t, ax: P.x, az: P.z }; aimLine(e, c); flashFx(e.x, e.h * .7, e.z, TELL.unblockable, e.r * 4, A.t); cue('unblockable'); return true; }
+  if (A.kind === 'charge') { e.cast = { kind: 'charge', key, a: A, t: A.t, x: P.x, z: P.z }; telegraph(P.x, P.z, 1.4, A.t, TELL.unblockable); flashFx(e.x, e.h * .7, e.z, TELL.unblockable, e.r * 5, A.t); cue('unblockable'); return true; }
+  if (A.kind === 'summon') { e.cast = { kind: 'summon', key, a: A, t: .7 }; ringFx(e.x, e.z, 3, gd.col, .7, .2); return true; }
+  return false;
 }
-function summon(e, n) {
+// The cast lands.
+function landCast(e, c) {
+  const A = c.a, gd = e.gd;
+  if (c.kind === 'area') {
+    const unb = A.tell === 'unblockable', col = TELL[A.tell], tc = mainType(dtype(A.dt)) === 'poison' ? 0x8ee04a : mainType(dtype(A.dt)) === 'cold' ? TELL.channel : gd.col;
+    if (A.jump && !blocked(c.x, c.z, e.r * .8)) { e.x = c.x; e.z = c.z; } // a leap: it lands there
+    ringFx(c.x, c.z, c.r, col, .4, .5); burst(c.x, .5, c.z, tc, A.at === 'self' ? 70 : 50, A.at === 'self' ? 9 : 7); flashFx(c.x, .6, c.z, tc, c.r * 2.4, .3); SFX.slam(); if (A.at === 'self') SFX.boom(); shake(A.at === 'self' ? .8 : .7); stop(A.at === 'self' ? .1 : .08);
+    if (dist(P.x, P.z, c.x, c.z) < c.r + P.r) hurtP(e.dmg * A.dmg, c.key, { from: e, kind: unb ? 'unblockable' : 'heavy', by: e, type: dtype(A.dt) });
+    hurtMinions(c.x, c.z, c.r, e.dmg * A.dmg * BOSS.vsMinion);
+  }
+  // A fan of shots aimed at you: block them with the shield or roll through (more fans in phase 2, each re-aimed).
+  if (c.kind === 'volley') for (let k = 0; k < (e.phase2 ? A.waves2 || 1 : 1); k++) G.queue.push({ k: 'later', t: k * A.gap, fn: () => { if (e.deathT || e.gone || e.stun > 0) return; const a0 = Math.atan2(P.x - e.x, P.z - e.z), n = A.n; for (let i = 0; i < n; i++) eShoot(e, a0 + (i / (n - 1) - .5) * A.spread, A.speed, e.dmg * A.dmg, A.look === 'arrow' ? 'arrow' : A.col, 1.1, A.dt, c.key); A.look === 'arrow' ? SFX.cue('parry') : SFX.arc(); } }); // game time, so it pauses and replays the same
+  if (c.kind === 'shot') { // the aimed shot (unblockable): everything along the line, now
+    const dx = c.ax - e.x, dz = c.az - e.z, l = Math.hypot(dx, dz) || 1, ux = dx / l, uz = dz / l, along = (P.x - e.x) * ux + (P.z - e.z) * uz, off = Math.abs((P.x - e.x) * uz - (P.z - e.z) * ux);
+    c.fired = true; SFX.slam(); shake(.4);
+    for (let k = 1; k < 14; k++) emit(sparks, e.x + ux * k * 1.5, 1.2, e.z + uz * k * 1.5, ux * 4, rand(0, 1), uz * 4, .4, TELL.unblockable, 0, 2);
+    if (along > 0 && along < A.range && off < A.w + P.r) hurtP(e.dmg * A.dmg, 'shot', { from: e, kind: 'unblockable', by: e, type: dtype(A.dt) });
+  }
+  if (c.kind === 'charge') { const dx = c.x - e.x, dz = c.z - e.z, l = Math.hypot(dx, dz) || 1; e.charging = { a: A, dx: dx / l, dz: dz / l, left: A.range, hit: false }; SFX.roar(); }
+  if (c.kind === 'summon') summon(e, e.phase2 ? A.n2 : A.n, A.type);
+}
+// The aimed shot's line: a purple stripe on the floor from the guardian to you, brightening as it locks, flashing as it fires.
+function aimLine(e, c) {
+  const m = new T.Mesh(new T.PlaneGeometry(1, 1), new T.MeshBasicMaterial({ color: TELL.unblockable, transparent: true, opacity: .3, depthWrite: false, side: T.DoubleSide, blending: T.AdditiveBlending }));
+  m.rotation.x = -Math.PI / 2;
+  addFx(m, c.t + .3, () => {
+    if (!c.fired && e.cast !== c) { m.visible = false; return; } // cancelled (staggered)
+    const dx = c.ax - e.x, dz = c.az - e.z, l = Math.hypot(dx, dz) || 1, len = c.fired ? c.a.range : l;
+    m.position.set(e.x + dx / l * len / 2, .09, e.z + dz / l * len / 2); m.rotation.z = Math.atan2(dx, dz); m.scale.set(c.a.w * (c.fired ? 2.4 : c.t <= c.a.lock ? 1.6 : .9), len, 1);
+    m.material.opacity = c.fired ? .9 : c.t <= c.a.lock ? .75 : .3 + .15 * Math.sin(G.gt * 20);
+  });
+}
+// A channel that completed (GUARDIANS[..].channel.effects): an ability (a burst you roll, an arrow rain you block or roll), or it mends and summons.
+function channelDone(e, fx) {
+  const C = e.gd.channel;
+  if (fx !== 'mend') { startAbility(e, fx, C[fx]); return; }
+  const M = C.mend, h = e.maxHp * M.heal; e.hp = Math.min(e.maxHp, e.hp + h);
+  floatT(e.x, e.h + 1, e.z, '+' + Math.round(h), '#5ad890', 18, 1.4); burst(e.x, e.h * .6, e.z, 0x5ad890, 40, 5); burst(e.x, e.h * .6, e.z, TELL.channel, 30, 4); SFX.flask(); SFX.roar();
+  summon(e, M.summon, M.type);
+}
+function summon(e, n, type) {
+  if (e.gd.summonCap) n = Math.min(n, e.gd.summonCap - G.enemies.filter(m => !m.deathT && m.summoner === e).length); // GUARDIANS[..].summonCap: at most this many of its summons alive
   for (let i = 0; i < n; i++) {
     const a = i * 1.26, x = e.x + Math.cos(a) * 2.5, z = e.z + Math.sin(a) * 2.5;
-    if (!blocked(x, z, .3)) { const r = spawnEnemy(BOSS.summonType, x, z, null, 0); r.awake = true; G.mapTotal++; burst(x, .5, z, 0xff4fd8, 10, 3); }
+    if (!blocked(x, z, .3)) { const r = spawnEnemy(type, x, z, null, 0); r.awake = true; r.summoner = e; G.mapTotal++; burst(x, .5, z, e.gd.col, 10, 3); }
   }
 }
 
@@ -308,7 +357,7 @@ export function animE(e, dt) { // (also animates minions, game/sk/skeletons.js)
   const dr = ((e.face - M.g.rotation.y + Math.PI * 3) % (Math.PI * 2)) - Math.PI; M.g.rotation.y += dr * Math.min(1, dt * 10);
   if (e.freeze > 0) return;
   if (M.rigged) return animRig(e, M, dt);
-  if (M.body) { const s = 1 + Math.sin(G.gt * 6 + e.sx) * .06 + (e.fuse > 0 ? Math.sin(G.gt * 40) * .12 : 0); M.body.scale.set(.62 * s, .55 / s, .62 * s); M.g.position.y = e.moving ? Math.abs(Math.sin(e.walk)) * .1 : 0; return; }
+  if (M.body) { const s = 1 + Math.sin(G.gt * 6 + e.sx) * .06 + (e.fuse > 0 ? Math.sin(G.gt * 40) * .12 : 0) + (e.windup > 0 || (e.cast && e.cast.t > 0) ? .1 : 0) + (e.channel ? Math.sin(G.gt * 18) * .05 : 0); /* a guardian blob swells as it winds up */ M.body.scale.set(.62 * s, .55 / s, .62 * s); M.g.position.y = e.moving ? Math.abs(Math.sin(e.walk)) * .1 : 0; return; }
   const w = e.moving ? Math.sin(e.walk) : 0;
   M.legL.rotation.x = w * .7; M.legR.rotation.x = -w * .7;
   if (e.swing > 0) e.swing = Math.max(0, e.swing - dt * 4);
@@ -331,7 +380,7 @@ function animRig(e, M, dt) {
     if (pose) { if (M.cur !== R.pose) M.play(R.pose, { once: true, fade: 0 }); } else M.play(L.idle || 'Idle');
   }
   else if (e.riseAnim) { const R = e.riseAnim; e.riseAnim = null; once([R.clip, R.speed], .05); }
-  else if (e.cast && e.castAnim !== e.cast) { e.castAnim = e.cast; once(ANIM.bossCast[e.cast.kind]); }
+  else if (e.cast && e.castAnim !== e.cast) { e.castAnim = e.cast; const an = (e.gd && e.gd.anim && e.gd.anim[e.cast.key]) || ANIM.bossCast[e.cast.key] || ANIM.bossCast[e.cast.kind]; if (an) once(an); }
   else if (e.windup > 0 && e.swingAnim !== e.atkSeq && L.attacks) { e.swingAnim = e.atkSeq; const [n, sp] = pick(L.attacks); once([n, e.heavy ? sp * FIGHT.windup.melee / RARE.heavy.windup : sp]); } // a heavy swing plays slower
   else if (big && e.lock <= 0 && e.windup <= 0 && e.type !== 'boss') once([pick(ANIM.hits), ANIM.hitSpeed], .05);
   else if (e.lock <= 0) {

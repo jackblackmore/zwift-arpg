@@ -109,3 +109,26 @@ export const SET = {
   chapel: { role: 'rest', name: 'Rest chapel', off: 3.2, bench: 2.5, benchLen: 2.2 },
   hall: { role: 'elite', name: 'Elite hall', side: 4.3, step: 4.4, end: 2.6, flank: 2.6 },
 };
+
+// ---- The Crypt's levels (build order step 9; design notes "The Crypt in detail") ----
+// One per map tier (index 0 = tier 1; deeper tiers use the last until their region is built). Each is a distinct place:
+//   name and rule: shown on entry (the map banner) and in the map viewer. guardian: data/monsters.js GUARDIANS id. mix: its pack
+//   mix (data/monsters.js MIX; none = every Crypt pack, PACKS). gen: overrides of GEN for its layout. choke: share of its packs
+//   placed at chokepoints (corridor midpoints; default 1/6). pools: poison pools on the floor (POOLS below). look: a light tint
+//   (hemi: the sky colour of the hemisphere light, moon: the moon light's colour) and clutter: × the loose bones and candles (CLUTTER).
+// Step 9 part B (Bone Gardens' necromancer and high necromancer, Throne Approach's bone knights and the lieutenant) isn't built yet:
+// tiers 4–5 keep the full mix and the Pale Warden for now.
+export const LEVELS = [
+  { name: 'Crypt Halls', rule: 'Open halls · skeleton warriors and runners', guardian: 'knight', mix: 'halls', gen: { room: [5, 7], notchChance: .15 }, look: { hemi: 0x9a8fc0, moon: 0x9fb0ff } },
+  { name: 'Ossuary', rule: 'Narrow corridors · archers hold the chokepoints', guardian: 'captain', mix: 'ossuary', gen: { corridor: 1, room: [4, 6] }, choke: 1 / 3, look: { hemi: 0xb8ac94, moon: 0xc8c0a8 }, clutter: 2.2 },
+  { name: 'Flooded Tombs', rule: 'Poison pools · bloaters', guardian: 'plague', mix: 'tombs', pools: true, look: { hemi: 0x84b49a, moon: 0x90d0b0 } },
+  { name: 'Bone Gardens', rule: 'Everything the Crypt has', guardian: 'warden', look: { hemi: 0x9a8fc0, moon: 0x9fb0ff } },
+  { name: 'Throne Approach', rule: 'Everything the Crypt has', guardian: 'warden', look: { hemi: 0xa890b8, moon: 0xb0a0ff } },
+];
+// Poison pools (Flooded Tombs; world/gen.js lays them out, game/pools.js runs them): green pools on the floor of combat rooms that
+// hurt you while you stand in them, `dps` poison damage a second (× the tier's damage growth, data/monsters.js TIER), in ticks
+// of `tick` s; the shield doesn't stop it (it's the floor), poison resistance does. `rooms`: share of combat rooms with pools, `per`
+// [min, max] pools in such a room, `r` [min, max] radius (units); each keeps `wallGap` from walls and its radius plus `lineGap`
+// from the corridor centre lines (so the way through a room stays dry), and `apart` from other pools. The autopilot walks round
+// them (`avoid`: extra margin) unless what it's fighting stands in one, and steps out of one when what it's fighting doesn't.
+export const POOLS = { rooms: .7, per: [1, 2], r: [1.5, 2.4], wallGap: .6, lineGap: 1.2, apart: 1.2, dps: 6, tick: .5, dt: 'poison', avoid: .5 };

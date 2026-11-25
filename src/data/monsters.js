@@ -1,7 +1,7 @@
 // Monster types. look: which KayKit character and weapon to use (render/characters.js) and its clips; bloaters stay procedural.
 //   walk/idle: looping clips; attacks: [clip, speed] picked at random per swing; rise: how it wakes (RISE below).
 // Monster types. hp/dmg are tier-1 values; maps scale them per tier (TIER below). dt: the damage type of its attacks (DMG_TYPES;
-//   default phys); attacks with their own type are in BOSS.dt, BLAST and RARE.burning.
+//   default phys); attacks with their own type are in GUARDIANS (each ability's dt), BLAST and RARE.burning.
 export const MT = {
   zombie: { hp: 48, dmg: 8, spd: 2.5, r: .38, cd: 1.4, range: .75, ai: 'melee', xp: 4, col: 0x5f6f4a, head: 0x8a9a6a, eye: 0xff3020, h: 1.8, look: { kind: 'warrior', weapon: 'blade', walk: 'Skeletons_Walking', idle: 'Skeletons_Idle', rise: 'floor', attacks: [['Melee_1H_Attack_Chop', 1.7], ['Melee_1H_Attack_Slice_Diagonal', 1.6], ['Melee_1H_Attack_Slice_Horizontal', 2.1]] } },
   runner: { hp: 24, dmg: 5.5, spd: 4.0, r: .3, cd: .8, range: .6, ai: 'melee', xp: 3, col: 0x7a2a24, head: 0x9a3a2a, eye: 0xffd000, h: 1.35, scale: .75, look: { kind: 'minion', walk: 'Running_A', idle: 'Skeletons_Idle', rise: 'standing', attacks: [['Melee_Unarmed_Attack_Punch_A', 2.2], ['Melee_Unarmed_Attack_Kick', 1.8]] } },
@@ -19,9 +19,9 @@ export const RISE = {
 // Other clips: deaths (picked at random), hit reactions (when a hit takes at least `minHit` of max life), boss casts, stagger.
 export const ANIM = {
   deaths: ['Death_A', 'Death_B', 'Skeletons_Death'], hits: ['Hit_A', 'Hit_B'], hitSpeed: 1.6, minHit: .12,
-  bossCast: { slam: ['Melee_2H_Attack_Spin', 1], nova: ['Ranged_Magic_Shoot', .8], summon: ['Ranged_Magic_Summon', 1.8], charge: ['Skeletons_Taunt', 1.2], burst: ['Ranged_Magic_Raise', 1.4] },
+  bossCast: { area: ['Melee_2H_Attack_Spin', 1], volley: ['Ranged_Magic_Shoot', .8], shot: ['Ranged_2H_Shoot', .6], summon: ['Ranged_Magic_Summon', 1.8], charge: ['Skeletons_Taunt', 1.2], burst: ['Ranged_Magic_Raise', 1.4] }, // guardian casts by kind (GUARDIANS[..].anim overrides by ability),
   stun: ['Hit_B', .5], // staggered (STAGGER)
-  channel: 'Ranged_Magic_Spellcasting', // the guardian's stance while it channels (BOSS.channel), between swings
+  channel: 'Ranged_Magic_Spellcasting', // the guardian's stance while it channels (GUARDIANS[..].channel), between swings
 };
 
 // Per-tier scaling. hp: monster life multiplier per map tier (index 0 = tier 1), then +hpAfter per tier.
@@ -59,25 +59,99 @@ export const RAREAFF = { hasted: 'Hasted', fortified: 'Fortified', burning: 'Bur
 export const RN1 = ['Gut', 'Rot', 'Grim', 'Bile', 'Ash', 'Hollow', 'Mire', 'Dread', 'Blight', 'Cinder', 'Gloom', 'Wretch'];
 export const RN2 = ['maw', 'tooth', 'spine', 'gnaw', 'husk', 'grip', 'fang', 'skull', 'hide', 'bone'];
 
-// Boss ability rotation and timings. vsMinion: damage multiplier on its swings and slams against minions (Raise Skeletons).
-//   aggro: wake range. enrage: below this share of life it enters phase 2 (enrageSpd × speed, abilGap2 between abilities, double nova, summon2 runners).
-//   slam (heavy): `slamDmg` × its damage in slamR around where you stood, telegraphed slamT (slamT2 in phase 2) seconds.
-//   nova: after novaT s, a fan of novaBolts bolts `novaSpread` radians wide aimed at you, at novaSpeed, for novaDmg × its damage
-//   each (blockable from the front; phase 2: a second fan novaGap s later). Phase 2 uses rotation2, which adds the charge
-//   (unblockable): a `t` s purple wind-up, then it rushes `range` at `speed` through where you stood for `dmg` × its damage.
-//   Phase 2 starts its rotation from the top, so its first ability is the channel.
-// dt: each ability's damage type (its swings are MT.boss.dt): slam and charge physical, the nova's bolts poison, the channel's burst cold.
+// Guardians (design notes "Fight mechanics" and "The Crypt in detail"): one per level (data/dungeon.js LEVELS names which). BOSS is
+// what they share; GUARDIANS holds each one. Every guardian has a stagger bar, parryable swings (🟡), a phase 2 below `enrage` of its
+// life and a channel (🔵) in phase 2; its abilities are data (`abil`), each answered by a button:
+//   vsMinion: damage multiplier on its swings and area hits against minions (Raise Skeletons). aggro: wake range. enrage: phase 2
+//   below this share of life (then × enrageSpd speed, abilGap2 between abilities, rotation2 from its top: the first is a channel).
+// A guardian: name, short (its banners), col (its colour: banners, minimap, cast flashes), hint/hint2 (banner lines on waking and in
+//   phase 2), mt (its MT entry on top of MT.boss: life, damage, size, look), rotation/rotation2 (ability keys in turn), abilGap/abilGap2
+//   (seconds between abilities), enrageSpd, phase2 (on entering phase 2: `summon` [type, n] at once), abil, channel, anim (cast clips
+//   by ability key, else ANIM.bossCast by kind), summonCap (at most this many of its summons alive at once; none: no cap).
+// Ability kinds (abil[key].kind), each with its telegraph (data/graphics.js TELL) and its answer:
+//   area: after `t` s (t2 in phase 2) a hit within `r` for `dmg` × its damage. at: 'you' (where you stood when it began), 'front'
+//     (in front of it, toward you) or 'self' (round it). tell: 'heavy' (🔴 red ground: block for less, or roll) or 'unblockable'
+//     (🟣 purple: roll). jump: it lands there (a leap).
+//   volley: after `t` s a fan of `n` shots `spread` radians wide aimed at you at `speed`, `dmg` × its damage each, `waves2` fans in
+//     phase 2 (`gap` s apart); look: 'arrow' or a glow of `col`. Blockable from the front (🟡 cue, like the parry: raise the shield).
+//   shot: an aimed shot (🟣 unblockable): a purple line tracks you for `t` s, locks `lock` s before it fires, then hits anything
+//     within `w` of the line (to `range`) for `dmg` × its damage. Roll it.
+//   charge: a `t` s purple wind-up (🟣), then a rush `range` at `speed` through where you stood, `dmg` × its damage within hitR.
+//   combo: its next `n` swings come `gap` s apart with a `windup` s wind-up, `dmg` × its damage each, every one parryable (🟡).
+//   summon: `n` (n2 in phase 2) of `type`, awake, round it.
+// dt: each ability's damage type (its swings are mt.dt, physical by default).
 // channel (🔵, phase 2): it stands still and a blue bar fills over `t` s. It keeps swinging while it channels (`swingCd` s between
 //   swings instead of its cooldown, the first `firstSwing` s in), so there are parries to make. Breaking its stagger bar before the
 //   bar fills cancels the channel and staggers it (so the finisher applies). While it channels, parries fill × `parry` and hits
 //   × `hits` the usual stagger, and Surge adds × (1 + `surge` × how hard) on hits (instead of STAGGER.surge); in RIDE mode a short
-//   effort spike fills it too (data/ride.js RIDE.spike). A channel that completes does the next of `effects` in turn:
-//   burst: after a `t` s purple wind-up, an unblockable blast within `r` for `dmg` × its damage (roll it);
-//   mend: it heals `heal` of its max life and summons `summon` of BOSS.summonType.
-export const BOSS = { vsMinion: 1.4, aggro: 13, dt: { slam: 'phys', charge: 'phys', nova: 'poison', burst: 'cold' }, rotation: ['slam', 'nova', 'slam', 'summon'], rotation2: ['channel', 'slam', 'charge', 'nova', 'slam', 'channel', 'summon', 'charge'], abilGap: 3.8, abilGap2: 2.2, enrage: .5, enrageSpd: 1.3,
-  slamR: 2.9, slamDmg: 4.5, slamT: 1.2, slamT2: .95, novaBolts: 7, novaSpread: .9, novaDmg: .8, novaSpeed: 7, novaGap: .45, novaT: .7, summon: 3, summon2: 5, summonType: 'runner',
-  charge: { t: 1.1, dmg: 4.5, speed: 16, range: 9, hitR: .5 },
-  channel: { t: 3, swingCd: .8, firstSwing: .2, parry: 1.25, hits: 3, surge: 6, effects: ['burst', 'mend'], burst: { t: .7, dmg: 5, r: 8 }, mend: { heal: .15, summon: 4 } } };
+//   effort spike fills it too (data/ride.js RIDE.spike). A channel that completes does the next of `effects` in turn: an ability
+//   spec in the channel (burst, rain: an `area`), or mend: it heals `heal` of its max life and summons `summon` of `type`.
+export const BOSS = { vsMinion: 1.4, aggro: 13, enrage: .5 };
+const CH = { t: 3, swingCd: .8, firstSwing: .2, parry: 1.25, hits: 3, surge: 6 }; // every guardian's channel timing and how it breaks
+export const GUARDIANS = {
+  // The Pale Warden: the first guardian built. Tiers 4–5 until Bone Gardens' high necromancer and the lieutenant (step 9 part B).
+  warden: { name: 'The Pale Warden', short: 'THE WARDEN', col: 0xff4fd8, hint: 'Parry its swings · block or roll the slams', hint2: 'Purple: roll · blue: break it before the bar fills',
+    mt: {}, rotation: ['slam', 'nova', 'slam', 'summon'], rotation2: ['channel', 'slam', 'charge', 'nova', 'slam', 'channel', 'summon', 'charge'], abilGap: 3.8, abilGap2: 2.2, enrageSpd: 1.3,
+    abil: {
+      slam: { kind: 'area', at: 'you', tell: 'heavy', r: 2.9, dmg: 4.5, t: 1.2, t2: .95, dt: 'phys' },
+      nova: { kind: 'volley', n: 7, spread: .9, dmg: .8, speed: 7, gap: .45, t: .7, waves2: 2, col: 0xff2bd6, dt: 'poison' },
+      summon: { kind: 'summon', type: 'runner', n: 3, n2: 5 },
+      charge: { kind: 'charge', t: 1.1, dmg: 4.5, speed: 16, range: 9, hitR: .5, dt: 'phys' },
+    },
+    channel: { ...CH, effects: ['burst', 'mend'], burst: { kind: 'area', at: 'self', tell: 'unblockable', t: .7, dmg: 5, r: 8, dt: 'cold' }, mend: { heal: .15, summon: 4, type: 'runner' } } },
+  // Crypt Halls: the skeleton knight. Sword and shield: a three-swing combo you parry, a shield bash (heavy), a lunge (phase 2,
+  // unblockable), and it calls skeleton warriors. Its channel rallies: a shockwave (roll) or a mend that calls more.
+  knight: { name: 'The Skeleton Knight', short: 'THE KNIGHT', col: 0x7ab8ff, hint: 'Parry the sword combo · block or roll the shield bash', hint2: 'It lunges (purple: roll) · blue: break its rally',
+    mt: { hp: 1250, dmg: 10.5, spd: 2.6, r: 1, cd: 1.6, range: 1.7, h: 4.9, scale: 2.3, horns: 0, col: 0x3a4250, head: 0xb8c4d0, eye: 0x60c0ff,
+      look: { kind: 'warrior', weapon: 'blade', offhand: 'shield', walk: 'Walking_A', idle: 'Melee_2H_Idle', rise: 'taunt', tint: 0xb8c8e0, attacks: [['Melee_1H_Attack_Chop', 1.4], ['Melee_1H_Attack_Slice_Diagonal', 1.3], ['Melee_1H_Attack_Slice_Horizontal', 1.6]] } },
+    rotation: ['combo', 'bash', 'combo', 'summon'], rotation2: ['channel', 'bash', 'lunge', 'combo', 'bash', 'channel', 'summon', 'lunge'], abilGap: 3.3, abilGap2: 2.2, enrageSpd: 1.25,
+    abil: {
+      combo: { kind: 'combo', n: 3, gap: .3, windup: .55, dmg: 1 },
+      bash: { kind: 'area', at: 'front', tell: 'heavy', r: 2.4, dmg: 4.5, t: 1.05, t2: .85, dt: 'phys' },
+      lunge: { kind: 'charge', t: 1, dmg: 4.5, speed: 15, range: 8, hitR: .5, dt: 'phys' },
+      summon: { kind: 'summon', type: 'zombie', n: 3, n2: 4 },
+    },
+    anim: { bash: ['Melee_Block_Attack', 1], lunge: ['Melee_1H_Attack_Stab', .8], summon: ['Skeletons_Taunt', 1.4] },
+    channel: { ...CH, effects: ['burst', 'mend'], burst: { kind: 'area', at: 'self', tell: 'unblockable', t: .7, dmg: 5, r: 7.5, dt: 'phys' }, mend: { heal: .15, summon: 3, type: 'zombie' } } },
+  // Ossuary: the bone archer captain. Volleys of arrows you block from the front, an aimed shot you roll (unblockable), a kick you
+  // parry when you're close, and it calls archers. Its channel is a rain of arrows (heavy, on you) or a mend that calls more.
+  captain: { name: 'The Bone Archer Captain', short: 'THE CAPTAIN', col: 0xffc860, hint: 'Block the volleys · roll the aimed shot · parry its kicks', hint2: 'Blue: break the arrow rain before the bar fills',
+    mt: { hp: 1100, dmg: 10.5, spd: 2.5, r: 1, cd: 1.7, range: 1.6, h: 4.7, scale: 2.2, horns: 0, col: 0x5a4a32, head: 0xe6dcc0, eye: 0xffc040, bow: 1,
+      look: { kind: 'rogue', weapon: 'crossbow', walk: 'Walking_A', idle: 'Skeletons_Idle', rise: 'taunt', tint: 0xe8d8b0, attacks: [['Melee_Unarmed_Attack_Kick', 1.3], ['Melee_Unarmed_Attack_Punch_A', 1.5]] } },
+    rotation: ['volley', 'shot', 'volley', 'summon'], rotation2: ['channel', 'shot', 'volley', 'shot', 'channel', 'summon', 'volley'], abilGap: 3.6, abilGap2: 2.3, enrageSpd: 1.2, summonCap: 3,
+    abil: {
+      volley: { kind: 'volley', n: 5, spread: .7, dmg: .7, speed: 13, gap: .5, t: .8, waves2: 2, look: 'arrow', dt: 'phys' },
+      shot: { kind: 'shot', t: 1.1, lock: .25, dmg: 4.2, w: .8, range: 30, dt: 'phys' },
+      summon: { kind: 'summon', type: 'archer', n: 1, n2: 2 },
+    },
+    anim: { volley: ['Ranged_2H_Shoot', .9], shot: ['Ranged_2H_Shoot', .55], summon: ['Skeletons_Taunt', 1.4] },
+    channel: { ...CH, effects: ['rain', 'mend'], rain: { kind: 'area', at: 'you', tell: 'heavy', t: .8, dmg: 5, r: 3.4, dt: 'phys' }, mend: { heal: .15, summon: 2, type: 'archer' } } },
+  // Flooded Tombs: the plague bloat (procedural, like the bloaters). A heavy belly slam, poison spew you block, pustules that burst
+  // into bloaters; in phase 2 it bursts (bloaters at once) and leaps on you (unblockable). Its channel gorges: a poison burst (roll)
+  // or a mend that spawns bloaters.
+  plague: { name: 'The Plague Bloat', short: 'THE PLAGUE BLOAT', col: 0x8ee04a, hint: 'Block or roll the belly slam · block the spew · kill the bloaters', hint2: 'It bursts! Purple leap: roll · blue: break its gorging',
+    mt: { hp: 1100, dmg: 10.5, spd: 1.9, r: 1.4, cd: 1.8, range: 1.5, h: 3.8, scale: 3.4, horns: 0, blob: 1, col: 0x5a8a30, head: 0xa8d860, eye: 0xffff60, look: null },
+    rotation: ['slam', 'spew', 'slam', 'summon'], rotation2: ['channel', 'slam', 'leap', 'spew', 'slam', 'channel', 'summon', 'leap'], abilGap: 3.8, abilGap2: 2.3, enrageSpd: 1.25,
+    phase2: { summon: ['bloater', 3] },
+    abil: {
+      slam: { kind: 'area', at: 'you', tell: 'heavy', r: 3.1, dmg: 4.5, t: 1.25, t2: 1, dt: 'phys' },
+      spew: { kind: 'volley', n: 6, spread: .85, dmg: .8, speed: 7, gap: .5, t: .8, waves2: 2, col: 0x8ee04a, dt: 'poison' },
+      leap: { kind: 'area', at: 'you', tell: 'unblockable', jump: true, r: 2.6, dmg: 4.5, t: 1.15, dt: 'phys' },
+      summon: { kind: 'summon', type: 'bloater', n: 2, n2: 3 },
+    },
+    channel: { ...CH, effects: ['burst', 'mend'], burst: { kind: 'area', at: 'self', tell: 'unblockable', t: .7, dmg: 5, r: 7.5, dt: 'poison' }, mend: { heal: .15, summon: 3, type: 'bloater' } } },
+};
+
+// Each level's pack mix (data/dungeon.js LEVELS: `mix` names one): pack templates ([type, count] pairs, counts grown per tier) and
+// the types a pack's rare can be. Levels without one use PACKS and PACK.rareTypes.
+export const MIX = {
+  // Crypt Halls: skeleton warriors and runners only, in packs of 3–5.
+  halls: { packs: [[['zombie', 4]], [['zombie', 3], ['runner', 2]], [['runner', 5]], [['zombie', 2], ['runner', 3]], [['zombie', 5]]], rareTypes: ['zombie'] },
+  // Ossuary: archers arrive (4–6 a pack); most packs have one or two.
+  ossuary: { packs: [[['zombie', 3], ['archer', 2]], [['archer', 3], ['zombie', 2]], [['zombie', 4], ['archer', 1]], [['runner', 3], ['archer', 2]], [['zombie', 4]], [['zombie', 2], ['runner', 3]]], rareTypes: ['zombie', 'archer', 'zombie'] },
+  // Flooded Tombs: bloaters (5–7 a pack with growth); everything so far.
+  tombs: { packs: [[['bloater', 2], ['zombie', 3]], [['runner', 3], ['archer', 1], ['bloater', 1]], [['zombie', 3], ['bloater', 1], ['archer', 1]], [['bloater', 2], ['runner', 3]], [['zombie', 4], ['archer', 1]], [['zombie', 2], ['runner', 3]]], rareTypes: ['zombie', 'bloater', 'archer', 'zombie'] },
+};
 
 // Stagger (design notes "Fight mechanics"): guardians and rares have a stagger bar (0..1). A parry adds `parry` (`parryRare` on a
 // rare), a hit adds `dmg` × the share of max life it took, more while you surge (× 1 + `surge` × how hard). Full: stunned for

@@ -1,7 +1,7 @@
 // Balance arena: one fight with the real game code and a scripted player, no level run needed.
 // Used by `npm run arena` (tests/arena.mjs) and `__dbg.arena(spec)` in the browser console.
 //   spec: { tier, lvl, gear: 'start' | 'magic' | 'rare', fight: [[type, count], ...], rar: 0 | 1 | 2 (for the whole group),
-//           rare: type (adds one rare), guardian: true, maxT: seconds, bot: 'smart' (default) | 'perfect' | 'careless',
+//           rare: type (adds one rare), guardian: true (the tier's guardian) or a data/monsters.js GUARDIANS id, maxT: seconds, bot: 'smart' (default) | 'perfect' | 'careless',
 //           bar: { slot: [gemId, level] } (default: parBar(tier) in data/balance.js), main: gemId (swap the Main gem, same level),
 //           sock: { slot: [supportId, ...] } (default: parSock(tier, Main gem); {} for none), surge: false (never surge),
 //           guard: gemId (swap the Guard gem, same level, e.g. a shield art),
@@ -27,7 +27,7 @@ import { ELITE, TIER } from '../data/monsters.js';
 import { makeUnique } from './items.js';
 import { BAR } from '../data/gems.js';
 import { addGem, barGem, readySlots, socketGem, meleeReach } from './gems.js';
-import { gearProfile } from './formulas.js';
+import { gearProfile, guardianId } from './formulas.js';
 import { recalc } from './stats.js';
 import { clearMap } from './maps.js';
 import { spawnEnemy, wake } from './enemies.js';
@@ -67,7 +67,7 @@ export function arena(spec) {
     for (const [t, c] of ELITE.minions) for (let k = 0; k < Math.round(c * sz); k++, i++) foes.push(spawnEnemy(t, Math.cos(i * 1.3) * 1.8, Math.sin(i * 1.3) * 1.8, ep, mag));
     foes.push(spawnEnemy(spec.elite, 1, 0, ep, 2));
   }
-  if (spec.guardian) { const b = spawnEnemy('boss', 2, 0, null, 0); b.abilT = 3; b.rot = 0; foes.push(b); }
+  if (spec.guardian) foes.push(spawnEnemy('boss', 2, 0, null, 0, { guard: spec.guardian === true ? guardianId(tier) : spec.guardian })); // the tier's guardian (data/dungeon.js LEVELS), or the one named
   foes.forEach(wake);
   const maxT = spec.maxT || 180;
   const melee = mainD && mainD.melee;

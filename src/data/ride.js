@@ -8,7 +8,7 @@ export const RIDE = {
   power: { endurance: .65, low: .4, slowest: .5 },
   // Surge (data/skills.js SURGE): riding above `from` %FTP surges, partly at first and fully from `full`. Easing off lets the gauge refill.
   surge: { from: .8, full: 1.05 },
-  // A short effort spike while the guardian channels (data/monsters.js BOSS.channel) fills its stagger bar: from `from` %FTP, fully
+  // A short effort spike while the guardian channels (data/monsters.js GUARDIANS[..].channel) fills its stagger bar: from `from` %FTP, fully
   // at `full`, `fill` of the bar per second. Optional: parrying alone still breaks a channel.
   spike: { from: 1.2, full: 1.6, fill: .25 },
   // Cast speed bonus per rpm above `from`, capped.

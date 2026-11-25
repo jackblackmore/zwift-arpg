@@ -3,7 +3,8 @@
 // stops and lets you pick with the D-pad (game/route.js); otherwise it clears everything along the route (`steer` finds the way
 // round walls), then the boss / portal.
 // A melee hero: it walks into the fight and stays in swing reach (the Main gem auto-attacks), so the rider pedals and times the
-// Guard, Evade, Flex and Surge buttons. No kiting.
+// Guard, Evade, Flex and Surge buttons. No kiting. It walks round poison pools (game/enemies.js steer) and out of one it's standing
+// in when what it's fighting isn't in it.
 import { G, P } from '../core/state.js';
 import { RIDE } from '../data/ride.js';
 import { dist } from '../core/util.js';
@@ -13,6 +14,7 @@ import { barGem, meleeReach } from './gems.js';
 import { GEMS } from '../data/gems.js';
 import { routeTarget } from './route.js';
 import { gateFoe } from './gate.js';
+import { poolAt } from './pools.js';
 
 // Stuck detection: if we've been trying to move but haven't got anywhere, sidestep for a moment.
 const ST = { x: 0, z: 0, t: 0, side: 0, sideT: 0, n: 0, at: -9 }; // n: sidesteps in a row (within 3 s of the last)
@@ -46,6 +48,8 @@ function pick(dt) {
     const g = barGem('main'), reach = g && GEMS[g.gem].melee ? meleeReach(g.gem) * A.reach : A.keep;
     for (const e of G.enemies) if (!e.deathT && e.awake && (e.type === 'boss' || e.rar === 2) && dist(e.x, e.z, P.x, P.z) < A.focus) { best = e; bd = dist(e.x, e.z, P.x, P.z); break; }
     if (bd > reach + best.r || !los(P.x, P.z, best.x, best.z)) return toward(best.x, best.z);
+    // Standing in a poison pool (game/pools.js) with the fight outside it: shuffle out of it, toward the fight's side.
+    const pool = poolAt(P.x, P.z); if (pool && Math.hypot(best.x - pool.x, best.z - pool.z) > pool.r) { const ox = P.x - pool.x, oz = P.z - pool.z, ol = Math.hypot(ox, oz) || 1, tx = best.x - P.x, tz = best.z - P.z, tl = Math.hypot(tx, tz) || 1, dx = ox / ol + tx / tl, dz = oz / ol + tz / tl, l = Math.hypot(dx, dz) || 1; return [dx / l, dz / l]; }
     return [0, 0];
   }
   let loot = null, ld = A.loot;

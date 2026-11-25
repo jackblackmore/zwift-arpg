@@ -181,7 +181,7 @@ export function buildDungeon(L) {
   }
 
   // Clutter on the floor. (Chests are only in treasure rooms now, and open: game/rooms.js.)
-  for (const [name, count] of CLUTTER) for (let q = 0; q < count; q++) { const p = spot(.3); if (p) floor.add(name, p[0], p[1], rand(0, 6), s); }
+  for (const [name, count] of CLUTTER) for (let q = 0; q < Math.round(count * (L.clutter || 1)); q++) { const p = spot(.3); if (p) floor.add(name, p[0], p[1], rand(0, 6), s); }
 
   floor.flush(G.world, { cast: false, tint: DUNGEON.floor }); solidB.flush(G.world);
 }

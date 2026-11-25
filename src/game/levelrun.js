@@ -69,7 +69,8 @@ export function levelRun(spec = {}) {
   return {
     result: boss() && boss().deathT ? 'clear' : stuck ? 'stuck' : 'timeout', stuck, tier, lvl, endLvl: P.lvl, seed: spec.seed || 0, min: m(t + b.hitstop), split: Object.fromEntries(Object.entries(b).map(([k, v]) => [k, m(v)])),
     deaths, junctions, packs, packsLeft: left, rooms: Lay.rooms.length, routeLen: Math.round(Lay.routeLen), walked: Math.round(walked), kills: P.kills,
-    taken: Math.round(P.taken), lowest: Math.round(lowest * 100) / 100, flasks: bot.flasks, parries: n.parry, blocks: n.blockhit, rolls: n.roll, breaks: n.broken,
+    taken: Math.round(P.taken), pool: Math.round(P.takenBy.pool || 0), // pool: of it, from poison pools (game/pools.js)
+ lowest: Math.round(lowest * 100) / 100, flasks: bot.flasks, parries: n.parry, blocks: n.blockhit, rolls: n.roll, breaks: n.broken,
     surged: m(surged), items: P.inv.length, leftAt: leftP.map(p => ({ x: Math.round(p.x), z: Math.round(p.z), rank: p.rank, room: p.room, spawned: p.spawned, bossD: Math.round(dist(p.x, p.z, G.bossSpot.x, G.bossSpot.z)) })),
   };
 }

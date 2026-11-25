@@ -7,7 +7,7 @@
 import { G, P, S } from '../core/state.js';
 import { ctl } from '../input/input.js';
 import { SK } from '../data/skills.js';
-import { FIGHT, BLAST, RARE, BOSS } from '../data/monsters.js';
+import { FIGHT, BLAST, RARE } from '../data/monsters.js';
 import { GEMS, BAR } from '../data/gems.js';
 import { barGem } from './gems.js';
 import { blockStats } from './sk/guard.js';
@@ -37,7 +37,7 @@ const dd = e => Math.hypot(e.x - P.x, e.z - P.z);
 const within = (alive, r) => alive.reduce((n, e) => n + (dd(e) < r ? 1 : 0), 0);
 
 // Does it want to surge? Against a rare or guardian, or when four or more monsters are close. Against a guardian it keeps SAVE s
-// of the gauge for its channels, and surges through every channel to break it (BOSS.channel).
+// of the gauge for its channels, and surges through every channel to break it (GUARDIANS[..].channel).
 export function wantSurge(alive) {
   const chan = alive.some(e => e.channel), boss0 = alive.some(e => e.type === 'boss');
   return chan || ((alive.some(e => e.rar === 2) || boss0 || within(alive, 9) >= 4) && !(boss0 && P.surge < SAVE));
@@ -64,7 +64,8 @@ export function botDefend(bot, alive, t) {
   let nd = 1e9; for (const e of alive) nd = Math.min(nd, dd(e));
   const boss = alive.find(e => e.type === 'boss'), bc = boss && boss.cast;
   const swingAt = alive.filter(e => e.windup > 0 && e.ai !== 'ranged' && dd(e) < e.range + e.r + P.r + FIGHT.reach + .3);
-  const inSlam = bc && bc.kind === 'slam' && Math.hypot(P.x - bc.x, P.z - bc.z) < bc.r + P.r;
+  // A guardian's area hit coming down on it (GUARDIANS[..].abil kind area: a slam, a bash, a leap, a channel's burst or rain).
+  const inArea = bc && bc.kind === 'area' && Math.hypot(P.x - bc.x, P.z - bc.z) < bc.r + P.r, inSlam = inArea && bc.a.tell === 'heavy';
   if (bot.shieldGuard) {
     let hold = false, tap = false, roll = false;
     const B = SK.block, rollIn = SK.roll.invuln * .6;
@@ -75,8 +76,9 @@ export function botDefend(bot, alive, t) {
     // Swings: parry just before they land, else hold the block (or eat it). A rare's heavy swing is a heavy.
     for (const e of swingAt) { if (e.heavy) { heavy(e, 'swing' + e.atkSeq, e.windup); continue; } const r = react(e, 'swing' + e.atkSeq, pParry); if (r === 'ok') { if (e.windup <= B.parry * .7) tap = true; else hold = hold || (skill.brace && e.windup < B.parry * 2); } else if (r === 'block') hold = true; }
     if (inSlam) heavy(bc, 'slam', bc.t);
+    if (inArea && bc.a.tell === 'unblockable' && react(bc, 'burst', skill.roll) === 'ok' && bc.t <= rollIn) roll = true; // a burst or a leap: roll
     if (bc && bc.kind === 'charge') { const r = react(bc, 'charge', skill.roll); if (r === 'ok' && bc.t <= .12) roll = true; }
-    if (bc && bc.kind === 'burst' && Math.hypot(P.x - boss.x, P.z - boss.z) < BOSS.channel.burst.r + P.r && react(bc, 'burst', skill.roll) === 'ok' && bc.t <= rollIn) roll = true;
+    if (bc && bc.kind === 'shot' && react(bc, 'shot', skill.roll) === 'ok' && bc.t <= rollIn) roll = true; // the aimed shot (unblockable): roll
     for (const e of alive) {
       if (e.fuse > 0 && dd(e) < BLAST.bloater.r + P.r) heavy(e, 'fuse', e.fuse);
       if (e.fireAura && dd(e) < RARE.burning.r + P.r && e.auraT < RARE.burning.windup) heavy(e, 'pulse' + Math.floor(t / RARE.burning.every), e.auraT);
