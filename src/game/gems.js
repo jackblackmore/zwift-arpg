@@ -26,10 +26,14 @@ export const slotOf = g => BAR.find(s => P.bar[s] === g.id) || null;
 export const ownsGem = gem => P.gems.some(g => g.gem === gem);
 // { gemId: level } for the gems on unlocked slots: what computeStats needs.
 export function barLevels() { const o = {}; for (const s of BAR) { const g = barGem(s); if (g) o[g.gem] = Math.max(o[g.gem] || 0, g.lvl); } return o; }
+// { slot: gemId } for the unlocked slots: which gem gear's +gem levels go to (computeStats).
+export function barSlots() { const o = {}; for (const s of BAR) { const g = barGem(s); if (g) o[s] = g.gem; } return o; }
 
 // ---- support sockets: they live on the skill bar slot (P.sock[slot] = [gem id or null, ...]), not on the gem ----
 // Sockets a slot has at the character's level (data/gems.js SLOT_DEFS sock); 0 while the slot is locked.
-export function sockCount(slot, lvl = P.lvl) { if (lvl < SLOT_DEFS[slot].unlock) return 0; let n = 0; for (const [l, c] of SLOT_DEFS[slot].sock) if (lvl >= l) n = c; return n; }
+// Gear can add one: "+1 support socket on your Main skill" (data/items.js sockMain, rare weapons).
+export function sockCount(slot, lvl = P.lvl) { if (lvl < SLOT_DEFS[slot].unlock) return 0; let n = 0; for (const [l, c] of SLOT_DEFS[slot].sock) if (lvl >= l) n = c; return n + (slot === 'main' ? gearSum('sockMain') : 0); }
+const gearSum = st => { let n = 0; for (const k in P.gear || {}) { const it = P.gear[k]; if (it) for (const [s, v] of it.mods) if (s === st) n += v; } return n; };
 // The next socket a slot gains, as [level, count], or null.
 export const nextSock = slot => SLOT_DEFS[slot].sock.find(([l]) => l > P.lvl) || null;
 const sockArr = slot => P.sock[slot] || (P.sock[slot] = []);

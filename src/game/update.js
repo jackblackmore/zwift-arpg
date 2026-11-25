@@ -39,7 +39,7 @@ export function effortMods(E) {
 export function updSurge(want, dt) {
   if (P.spent && P.surge >= S.surgeMax * SURGE.restart) P.spent = false;
   if (want > 0 && !P.spent && P.surge > 0) {
-    P.surgeK = want; P.surge = Math.max(0, P.surge - want * dt); P.surgeWait = SURGE.delay;
+    P.surgeK = want; P.surge = Math.max(0, P.surge - want * dt * (S.surgeSave ? 1 - EXTRA.surgeSave.save : 1)); P.surgeWait = SURGE.delay; // Breakaway Treads (a unique) drains slower
     if (P.surge <= 0) { P.spent = true; ctl.surge = false; } // a tapped-on (touch) or held Surge has to be pressed again
   } else {
     P.surgeK = 0; P.surgeWait -= dt;

@@ -6,7 +6,7 @@ import { clearHeld } from '../input/input.js';
 import { $ } from '../core/util.js';
 import { SFX } from '../core/audio.js';
 import { computeStats, recalc, estimate } from '../game/stats.js';
-import { modText } from '../game/items.js';
+import { modText, baseKind } from '../game/items.js';
 import { save } from '../game/save.js';
 import { GEMS, SUPPORTS, SLOT_DEFS, BAR, GEM, supFits, gemDef } from '../data/gems.js';
 import { SK } from '../data/skills.js';
@@ -14,7 +14,7 @@ import { gemById, barGem, unlocked, fits, slotOf, ownsGem, placeGem, clearSlot, 
 import { toast } from '../render/fx.js';
 import { xpNeedFor, monsterStats, armourCut } from '../game/formulas.js';
 import { DMG_COL, DMG_ICON } from '../data/graphics.js';
-import { DEFENCE } from '../data/balance.js';
+import { DEFENCE, ESTIMATE } from '../data/balance.js';
 
 const isOpen = id => $(id).classList.contains('show');
 export function syncPause() { G.paused = !G.started || ['mInv', 'mTree', 'mMenu', 'mShrine', 'mGems'].some(isOpen); clearHeld(); }
@@ -22,19 +22,19 @@ export function syncPause() { G.paused = !G.started || ['mInv', 'mTree', 'mMenu'
 // ================= INVENTORY =================
 const ui = { sel: null };
 function itemHTML(it) {
-  let h = `<div class="nm r${it.rar}">${it.name}</div><div class="base">${it.rar >= 2 ? it.base + ' · ' : ''}${it.slot} · item level ${it.il}</div>`;
+  let h = `<div class="nm r${it.rar}">${it.name}</div><div class="base">${it.rar >= 2 ? it.base + ' · ' : ''}${baseKind(it) ? baseKind(it) + ' ' : ''}${it.slot} · item level ${it.il}</div>`;
   it.mods.forEach(([st, v], i) => { h += `<div class="${i < (it.impl || 0) ? 'impl' + (i === it.impl - 1 ? ' last' : '') : 'mod' + (it.rar === 3 ? ' u' : '')}">${modText(st, v)}</div>`; });
   if (it.fl) h += `<div class="fl">${it.fl}</div>`;
   return h;
 }
 function cmpHTML(it) {
-  const cur = estimate(S), nx = estimate(computeStats({ ...P.gear, [it.slot]: it }));
+  const st = computeStats({ ...P.gear, [it.slot]: it }), cur = estimate(S), nx = estimate(st, S);
   const line = (n, a, b, f = v => Math.round(v)) => {
     const d = b - a; if (Math.abs(d) < .05) return '';
     const p = a ? Math.round(d / a * 100) : 0;
     return `<div>${n}: ${f(a)} → <span class="${d >= 0 ? 'up' : 'dn'}">${f(b)} (${d >= 0 ? '+' : ''}${p}%)</span></div>`;
   };
-  return `<div class="cmp"><div style="color:var(--dim)">If equipped${P.gear[it.slot] ? ' (replaces ' + P.gear[it.slot].name + ')' : ''}:</div>${line(cur.gem + ' DPS', cur.dps, nx.dps)}${line('Max life', cur.life, nx.life)}${line('Move speed', cur.ms, nx.ms, v => v.toFixed(1))}${line('Armour', cur.armour, nx.armour)}${Object.keys(RES_N).map(k => line(RES_N[k] + ' resistance', cur.res[k] * 100, nx.res[k] * 100, v => Math.round(v) + '%')).join('')}</div>`;
+  return `<div class="cmp"><div style="color:var(--dim)">If equipped${P.gear[it.slot] ? ' (replaces ' + P.gear[it.slot].name + ')' : ''}:</div>${nx.value > ESTIMATE.value.upgrade ? '<div class="up">▲ An upgrade overall</div>' : nx.value < 1 / ESTIMATE.value.upgrade ? '<div class="dn">▼ Worse overall</div>' : ''}${line(cur.gem + ' DPS', cur.dps, nx.dps)}${line('Max life', cur.life, nx.life)}${line('Effective life (after armour and resistances)', cur.ehp, nx.ehp)}${line('Move speed', cur.ms, nx.ms, v => v.toFixed(1))}${line('Armour', cur.armour, nx.armour)}${Object.keys(RES_N).map(k => line(RES_N[k] + ' resistance', cur.res[k] * 100, nx.res[k] * 100, v => Math.round(v) + '%')).join('')}</div>`;
 }
 // The character sheet's defence line (design notes "Defence"): life, armour (and what it takes off a typical hit on this map), and
 // each resistance in its damage type's colour (capped ones say so).
@@ -44,7 +44,8 @@ function defHTML() {
   const res = Object.keys(RES_N).map(k => `<span style="color:${DMG_COL[k]}">${DMG_ICON[k]} ${RES_N[k]} ${Math.round(S.res[k] * 100)}%${S.resRaw[k] > DEFENCE.resCap ? ' (max)' : ''}</span>`).join(' · ');
   return `<div>♥ Life ${S.maxLife} · <span style="color:#c8ccd4">⛊ Armour ${S.armour}</span>${S.armour ? ` <span style="color:var(--dim)">(−${cut}% of a ${Math.round(z.dmg)} hit; less off bigger ones)</span>` : ''}</div><div>${res}</div>`;
 }
-const isUpgrade = it => { const cur = estimate(S), nx = estimate(computeStats({ ...P.gear, [it.slot]: it })); return nx.dps > cur.dps * 1.02 || (nx.life > cur.life + 5 && nx.dps >= cur.dps * .98); };
+// An upgrade: damage and effective life together are better (formulas.js gearValue; armour and resistances count through the real maths).
+export const isUpgrade = it => estimate(computeStats({ ...P.gear, [it.slot]: it }), S).value > ESTIMATE.value.upgrade;
 
 export function renderInv() {
   const sel = ui.sel;

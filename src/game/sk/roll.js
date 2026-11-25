@@ -31,7 +31,7 @@ function cast() {
     if (blocked(P.x + ux * K.range * .6, P.z + uz * K.range * .6, P.r)) { const s = blocked(P.x - uz * K.range * .6, P.z + ux * K.range * .6, P.r) ? -1 : 1; dx = -uz * s; dz = ux * s; }
   }
   const l = Math.hypot(dx, dz) || 1, sp = K.range / K.dur;
-  P.rollVx = dx / l * sp; P.rollVz = dz / l * sp; P.rollT = K.dur; P.invuln = Math.max(P.invuln, K.invuln * S.fight.evadeInv); // the tree's Evade nodes
+  P.rollVx = dx / l * sp; P.rollVz = dz / l * sp; P.rollT = K.dur; if (!S.rollBlock) P.invuln = Math.max(P.invuln, K.invuln * S.fight.evadeInv); // the tree's Evade nodes; Aegis of the Long Ride (a unique) blocks instead (game/sk/guard.js shieldHit)
   cancelSwing(); P.blocking = false; P.parryT = 0;
   // Which way relative to where you face picks the clip (render/draw.js).
   const rel = wrap(Math.atan2(dx, dz) - P.face);

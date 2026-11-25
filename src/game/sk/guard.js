@@ -17,7 +17,9 @@ import { SFX } from '../../core/audio.js';
 import { flashFx, ringFx, floatT, burst } from '../../render/fx.js';
 import { barGem } from '../gems.js';
 import { cancelSwing } from './strike.js';
-import { parried } from '../combat.js';
+import { parried, hit } from '../combat.js';
+import { near } from '../enemies.js';
+import { EXTRA } from '../../data/items.js';
 import { ART } from './arts.js';
 import { counter } from './strike.js';
 import { TREE_CAP } from '../../data/tree.js';
@@ -37,7 +39,7 @@ export function blockStats() {
   B.posture *= (1 - F.posture) * (K.riposte ? 1 + K.riposte.posture : 1) * (K.bulwark ? 1 - K.bulwark.posture : 1);
   B.drain *= F.drain; B.parry *= F.parry * (K.duelist ? 1 + K.duelist.parry : 1); B.riposte *= F.riposte;
   if (K.bulwark) { B.move = 1; B.noParry = true; }
-  if (K.duelist) B.noBlock = true;
+  if (K.duelist || S.surgeSave) B.noBlock = true; // Duelist; Breakaway Treads (a unique: data/items.js EXTRA.surgeSave)
   return B;
 }
 
@@ -72,6 +74,7 @@ function threat() {
 export function shieldHit(d, o) {
   const B = blockStats(), kind = o.kind || 'hit', art = ART[guardArt()];
   if (P.broken > 0) { o.result = 'broken'; return d * B.brokenMul; }
+  if (S.rollBlock && P.rollT > 0) return blocked(d, o, B, kind === 'unblockable' ? 'heavy' : kind, art); // Aegis of the Long Ride: a roll keeps the shield up, all round
   if (!P.blocking || !o.from) return d;
   const dd = dist(o.from.x, o.from.z, P.x, P.z), off = Math.abs(wrap(Math.atan2(o.from.x - P.x, o.from.z - P.z) - P.face));
   if (dd > .2 && off > B.arc / 2 * Math.PI / 180) return d; // from the side or behind
@@ -87,14 +90,28 @@ export function shieldHit(d, o) {
     if (o.by) parried(o.by);
     if (art) art.parry(o.by);
     if (S.ks && S.ks.riposte && o.by) { const g = barGem('main'); if (g && counter(g.gem, o.by, B.riposte)) P.riposteT = 0; } // Riposte keystone: the riposte lands now (game/sk/strike.js counter)
+    if (S.parryNova) parryNova();
     return 0;
   }
+  return blocked(d, o, B, kind, art);
+}
+// A blocked hit: posture from the full hit (a full bar breaks your guard), then the block's share off.
+function blocked(d, o, B, kind, art) {
+  const cost = d / S.maxLife * B.posture;
   P.posture += cost; P.postWait = B.drainDelay;
   if (P.posture >= 1) { breakGuard(); o.result = 'broken'; return d; }
   P.castSeq++; P.lastCast = 'blockhit'; o.result = 'block'; SFX.block();
   if (S.ks && S.ks.bulwark && o.by) parried(o.by, S.ks.bulwark.bash); // Bulwark: a block pushes back
   ringFx(P.x + Math.sin(P.face) * .6, P.z + Math.cos(P.face) * .6, .7, art ? art.col : 0xe8d8a8, .2, .3);
   return d * (1 - (kind === 'heavy' ? B.heavy : o.elem ? B.elem : B.block)); // a heavy is a heavy whatever its type
+}
+
+// The Answering Bell (a unique, data/items.js EXTRA.parryNova): a parry also sends out a shockwave of the Main gem's hit.
+function parryNova() {
+  const X = EXTRA.parryNova, g = barGem('main'); if (!g) return;
+  const D = GEMS[g.gem];
+  near(P.x, P.z, X.r, e => { const d = Math.hypot(e.x - P.x, e.z - P.z) || 1; hit(e, X.mult, D.elem, { gem: g.gem, kx: (e.x - P.x) / d, kz: (e.z - P.z) / d }); });
+  ringFx(P.x, P.z, X.r, 0xffe8a0, .35, .25); burst(P.x, 1, P.z, 0xffe8a0, 20, 6);
 }
 
 export function breakGuard() {

@@ -16,7 +16,10 @@ import { GEMS, SUPPORTS } from '../src/data/gems.js';
 import { SK } from '../src/data/skills.js';
 import { TREE, TREE_START, TREE_UNIT } from '../src/data/tree.js';
 import { TREE_PRESETS, PAR_TREE, parTree } from '../src/data/balance.js';
-import { computeStats, treeCanTake, treeConnected, TREE_ADJ, armourCut, defended, hitTaken, dmgType, gearProfile, monsterStats, tierDmg } from '../src/game/formulas.js';
+import { computeStats, treeCanTake, treeConnected, TREE_ADJ, armourCut, defended, hitTaken, dmgType, gearProfile, monsterStats, tierDmg, ehp, gearValue, gemBase, implMods } from '../src/game/formulas.js';
+import { AFF, AFFBY, BASE, BASES, EXTRA, UNIQ, SLOTS } from '../src/data/items.js';
+import { ESTIMATE, parLevel, parGem, parSock } from '../src/data/balance.js';
+import { GEM } from '../src/data/gems.js';
 import { DEFENCE } from '../src/data/balance.js';
 import { MT, BOSS, BLAST, RARE, LEAN } from '../src/data/monsters.js';
 import { readFileSync } from 'node:fs';
@@ -174,6 +177,47 @@ try {
     // The balance report's face-tank uses the game's own formula.
     const bal = readFileSync(new URL('../scripts/balance.mjs', import.meta.url), 'utf8');
     check(/hitTaken\(st, d, dt\)/.test(bal) && /pack\.taken\(st\)/.test(bal), 'defence: npm run balance\'s face-tank goes through formulas.js hitTaken');
+  }
+
+  // ---------- Gear (step 6): bases, affixes, uniques' text, +gem levels, the upgrade check, tier gear (data/items.js, formulas.js) ----------
+  {
+    const near = (a, b) => Math.abs(a - b) < 1e-6;
+    // Every slot has bases of different weights, each with its own implicits; every unique's base exists in its slot.
+    const kinds = SLOTS.map(sl => new Set(BASES[sl].map(b => BASE[b].impl.map(m => m.join(':')).join()))).map(x => x.size);
+    check(SLOTS.every((sl, i) => BASES[sl].length >= 3 && kinds[i] === BASES[sl].length) && ['helm', 'chest', 'boots'].every(sl => BASES[sl].some(b => BASE[b].w === 'heavy') && BASES[sl].some(b => BASE[b].w === 'light'))
+      && UNIQ.every(u => BASE[u.base] && BASE[u.base].slot === u.slot) && SLOTS.every(sl => UNIQ.some(u => u.slot === sl)),
+      `gear: every slot has ${Math.min(...kinds)}+ bases with their own implicits, heavy and light armour pieces; every unique sits on a real base of its slot`);
+    const heavy = computeStats({ chest: { mods: implMods('Plate Cuirass') } }), light = computeStats({ chest: { mods: implMods('Ritual Wrap') } });
+    check(heavy.armour > light.armour * 3 && light.maxLife > heavy.maxLife && heavy.ms < light.ms, `gear: a heavy chest trades life and move speed for armour (Plate ${heavy.armour} armour ${heavy.maxLife} life, Ritual Wrap ${light.armour} armour ${light.maxLife} life)`);
+    // Ownership: the affixes the tree and gems own are gone; the new defence and gem affixes are in.
+    check(!AFFBY.chains && !AFFBY.freeze && ['armour', 'resFire', 'resCold', 'resLight', 'resPoison', 'lifeF', 'gemMain', 'gemFlex', 'sockMain'].every(k => AFFBY[k]) && AFFBY.sockMain.minRar === 2,
+      'gear: affixes have armour, each resistance, life, +gem levels and a rare-only support socket; chains and freeze (gem behaviour) are gone');
+    // Uniques bend a rule: each carries one rule mod (EXTRA flag), and every number of a rule is in its text (as a share, a count or seconds).
+    const fmt = v => [String(v), Math.round(v * 100) + '%', v + 's'];
+    const uBad = Object.entries(EXTRA).filter(([, X]) => Object.entries(X).some(([k, v]) => k !== 'flag' && typeof v === 'number' && !fmt(v).some(t => X.t.includes(t)))).map(([k]) => k);
+    const rules = UNIQ.map(u => u.mods.filter(([st]) => EXTRA[st] && EXTRA[st].flag).length);
+    check(!uBad.length && UNIQ.length >= 5 && UNIQ.length <= 8 && rules.every(n => n === 1) && new Set(UNIQ.flatMap(u => u.mods.filter(([st]) => EXTRA[st]).map(([st]) => st))).size === UNIQ.length,
+      `gear: ${UNIQ.length} uniques, each with its own rule; every rule's numbers are in its text${uBad.length ? ' · out of step: ' + uBad.join(', ') : ''}`);
+    // Armour and resistance affixes cut damage taken through the real formulas.
+    const st0 = computeStats({}, [], 5), stA = computeStats({ helm: { mods: [['armour', 20]] }, ring: { mods: [['resFire', .2]] } }, [], 5);
+    check(hitTaken(stA, 20) < hitTaken(st0, 20) && near(hitTaken(stA, 20, 'fire'), 16) && near(hitTaken(stA, 20, 'poison'), 20) && ehp(stA, 3) > ehp(st0, 3),
+      `gear: an armour affix cuts physical hits (${hitTaken(stA, 20).toFixed(1)} of 20), a fire resistance affix fire hits only; effective life ${Math.round(ehp(st0, 3))} → ${Math.round(ehp(stA, 3))}`);
+    // +gem levels: the Main gem only (Flex for gemFlex), past the cap, and they count for milestones.
+    const g = { sword: 4, nova: 3 }, sl = { main: 'sword', flexA: 'nova' };
+    const gm = computeStats({ weapon: { mods: [['gemMain', 1]] } }, [], 5, g, {}, sl), gf = computeStats({ helm: { mods: [['gemFlex', 1]] } }, [], 5, g, {}, sl);
+    const cap = computeStats({ weapon: { mods: [['gemMain', 1]] } }, [], 10, { sword: GEM.cap }, {}, { main: 'sword' });
+    check(near(gm.gems.sword, gemBase(5)) && near(gm.gems.nova, gemBase(3)) && gm.mile.sword && !computeStats({}, [], 5, g, {}, sl).mile.sword && near(gf.gems.nova, gemBase(4)) && near(gf.gems.sword, gemBase(4))
+      && cap.gems.sword > gemBase(GEM.cap) * 1.05 && cap.gemPlus.sword === 1,
+      `gear: +1 Main gem level raises only the Main gem (base ${gemBase(4).toFixed(2)} → ${gm.gems.sword.toFixed(2)}, its level 5 milestone on), +1 Flex only Flex gems, and it goes past the cap`);
+    // The upgrade check weighs defence: on par tier 3 gear with no resistance on the helm, a helm with armour and poison resistance
+    // and life instead of its damage affix is an upgrade; a helm that just loses its damage affix isn't, nor one with life alone.
+    const T = 3, lv = parLevel(T), gems = { sword: parGem(T) }, socks = { sword: parSock(T).main || [] }, at = gear => computeStats(gear, [], lv, gems, socks, { main: 'sword' });
+    const par = gearProfile('magic', T), cur = at(par), helm = m => ({ ...par, helm: { ...par.helm, mods: [...implMods('Iron Hat', T), ...m] } });
+    const def = gearValue(at(helm([['armour', 20], ['resPoison', .2], ['lifeF', 20]])), cur, 'sword', T), bare = gearValue(at(helm([])), cur, 'sword', T), lifeOnly = gearValue(at(helm([['lifeF', 20]])), cur, 'sword', T), more = gearValue(at(helm([['dmg', .25]])), cur, 'sword', T);
+    check(def > ESTIMATE.value.upgrade && bare < 1 && lifeOnly < 1 && more > ESTIMATE.value.upgrade, `gear: the upgrade check prefers a defensive helm over a damage one when it should (armour + poison + life ${def.toFixed(3)}, life only ${lifeOnly.toFixed(3)}, nothing ${bare.toFixed(3)}, more damage ${more.toFixed(3)}; upgrade above ${ESTIMATE.value.upgrade})`);
+    // Tier gear: each tier's par kit is an upgrade on the one from the tier before (the sawtooth); a rare kit beats a magic one.
+    const tierV = [2, 3, 4, 5].map(t => { const l = parLevel(t), gg = { sword: parGem(t) }, k = (kind, il) => computeStats(gearProfile(kind, il), [], l, gg, {}, { main: 'sword' }); return [gearValue(k('magic', t), k('magic', t - 1), 'sword', t), gearValue(k('rare', t), k('magic', t), 'sword', t)]; });
+    check(tierV.every(([a, b]) => a > 1.05 && b > 1.3), `gear: a new tier's magic kit beats the last tier's (value ${tierV.map(v => v[0].toFixed(2)).join(', ')} on tiers 2–5), a rare kit a magic one (${tierV.map(v => v[1].toFixed(2)).join(', ')})`);
   }
 
   // ---------- ARPG ----------
@@ -1202,6 +1246,62 @@ try {
     check(r.bOk && r.nType === 'poison' && r.sType === 'phys', `defence: a bloater's blast (${r.bType}) and the guardian's bolts (${r.nType}) are poison, cut by poison resistance; its slam is ${r.sType}`);
     check(/Armour 60/.test(r.sheet) && /Poison 40%/.test(r.sheet), `defence: the character sheet shows armour and resistances (${r.sheet})`);
     check(errors.length === 0, `defence: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
+  }
+
+  // ---------- Gear in play (step 6): rolled affixes, the support socket, +gem levels on the bar, and each unique's rule ----------
+  {
+    const { page, errors } = await open('/');
+    const r = await page.evaluate(() => {
+      const D = window.__dbg, P = D.P, S = D.S, G = D.G, ctl = D.ctl, out = {};
+      D.start(true); ctl.aim = null; ctl.mx = ctl.mz = 0; D.setAutoAtk(false); document.getElementById('mShrine').classList.remove('show');
+      // Rolls: 3000 tier 5 items. Every affix turns up; the socket only on rare weapons; bases carry their implicits.
+      const seen = {}, bad = []; let sockBad = 0;
+      for (let i = 0; i < 3000; i++) { const it = D.rollItem(5, .3); if (it.rar === 3) continue; for (const [st] of it.mods.slice(it.impl)) seen[st] = (seen[st] || 0) + 1; if (it.mods.some(m => m[0] === 'sockMain') && (it.rar < 2 || it.slot !== 'weapon')) sockBad++; }
+      out.seen = seen; out.sockBad = sockBad;
+      // A rare weapon with +1 socket: the Main slot holds two supports; take it off and the second stops counting.
+      D.placeGem(D.addGem('cleave', 4).id, 'main');
+      const w0 = P.gear.weapon, sw = { slot: 'weapon', rar: 2, base: 'Rusted Sword', name: 'test', il: 1, impl: 1, mods: [['spell', 5], ['sockMain', 1], ['gemMain', 1]] };
+      P.gear.weapon = sw; D.recalc(); out.socks = D.sockCount('main');
+      const a = D.addGem('ignite'), b = D.addGem('sweep'); out.sock1 = D.socketGem(a.id, 'main'); out.sock2 = D.socketGem(b.id, 'main');
+      out.sweepOn = !!S.sk.cleave.sweep && !!S.sk.cleave.ignite; out.plus = S.gemPlus.cleave; out.lv = S.gemLv.cleave;
+      P.gear.weapon = w0; D.recalc(); out.socksOff = D.sockCount('main'); out.sweepOff = !S.sk.cleave.sweep && !!S.sk.cleave.ignite && !S.gemPlus.cleave;
+      const U = id => { const u = D.UNIQ.find(x => x.id === id); return { slot: u.slot, rar: 3, base: u.base, name: u.name, il: 1, impl: 0, mods: u.mods.map(m => [...m]) }; };
+      const wear = id => { const it = U(id); P.gear[it.slot] = it; D.recalc(); return it; };
+      const clear = () => { G.enemies.forEach(e => { e.deathT = 1; e.gone = true; }); G.eproj = []; G.queue = []; G.patches = []; Object.assign(P, { invuln: 0, life: S.maxLife, posture: 0, broken: 0, blocking: false, parryT: 0, parryCd: 0, rollT: 0, shield: 0, lastHurt: null }); ctl.guard = false; ctl.tap = {}; P.x = G.start.x; P.z = G.start.z; D.sim(1); };
+      const foe = (type, dx, dz, hp = 1e6) => { const e = D.spawnEnemy(type, P.x + dx, P.z + dz, null, 0); e.awake = true; e.rise = 0; e.hp = e.maxHp = hp; e.spd = 0; e.atkT = 99; return e; };
+      const strip = () => { P.gear = { weapon: P.gear.weapon }; D.recalc(); };
+      // The Answering Bell: a parry also hits monsters around you.
+      clear(); wear('bell'); let z = foe('zombie', 0, 1.1), z2 = foe('zombie', 1.5, -1); P.face = 0; ctl.tap = { guard: true }; D.sim(1); ctl.tap = {};
+      out.bellParry = D.hurtP(10, 'zombie', { from: z, kind: 'hit', by: z }); out.bellHit = z2.hp < z2.maxHp; strip();
+      clear(); z = foe('zombie', 0, 1.1); z2 = foe('zombie', 1.5, -1); P.face = 0; ctl.tap = { guard: true }; D.sim(1); ctl.tap = {}; D.hurtP(10, 'zombie', { from: z, kind: 'hit', by: z }); out.plainParryHit = z2.hp < z2.maxHp;
+      // Breakaway Treads: Surge drains slower; holding Guard doesn't block (a parry press still parries).
+      const drain = () => { P.surge = S.surgeMax; P.spent = false; ctl.surge = true; D.sim(150); ctl.surge = false; return S.surgeMax - P.surge; };
+      clear(); out.drain0 = drain(); wear('treads'); out.drain1 = drain();
+      clear(); z = foe('zombie', 0, 1.1); P.face = 0; ctl.guard = true; D.sim(10); out.treadsBlock = D.hurtP(10, 'zombie', { from: z, kind: 'hit', by: z }); ctl.guard = false;
+      clear(); z = foe('zombie', 0, 1.1); P.face = 0; ctl.tap = { guard: true }; D.sim(1); ctl.tap = {}; out.treadsParry = D.hurtP(10, 'zombie', { from: z, kind: 'hit', by: z }); strip();
+      // Headsman's Seal: a finisher blasts the monsters around it.
+      const fin = () => { clear(); const r = foe('zombie', 0, 1.5), o = foe('zombie', 1.5, 1.5); r.stagMax = 1; r.stun = 2; r.finisher = true; D.hit(r, 3, 'phys', { gem: 'cleave' }); for (let i = 0; i < 3; i++) D.sim(1); return o.maxHp - o.hp; };
+      out.fin0 = fin(); wear('seal'); out.fin1 = fin(); strip();
+      // Aegis of the Long Ride: a roll isn't untouchable, but a hit mid-roll is blocked from any side, an unblockable one as a heavy.
+      clear(); D.cast('roll'); out.rollPlain = D.hurtP(10, 'zombie', { from: { x: P.x, z: P.z - 2 }, kind: 'hit' });
+      clear(); wear('aegis'); D.cast('roll'); const l0 = P.life; out.rollAegis = D.hurtP(40, 'slam', { from: { x: P.x - 2, z: P.z }, kind: 'unblockable' }); out.aegisTaken = l0 - P.life; strip();
+      // Wattbringer, Frostbound Loop, Heart of the Storm: their old rules still work.
+      clear(); wear('watt'); z = foe('zombie', 0, 1); P.face = 0; ctl.main = true; D.sim(40); ctl.main = false; out.wattPatch = G.patches.length > 0; strip();
+      clear(); wear('frost'); z = foe('zombie', 1.5, 0); P.autoNovaT = .1; D.sim(5); out.frostNova = z.hp < z.maxHp; strip();
+      clear(); wear('storm'); out.storm = S.storm && !S.autoNova; strip();
+      return out;
+    });
+    console.log('  gear:', JSON.stringify(r));
+    const want = ['armour', 'resFire', 'resCold', 'resLight', 'resPoison', 'resElem', 'lifeF', 'gemMain', 'gemFlex', 'sockMain'];
+    check(want.every(k => r.seen[k] > 0) && !r.seen.chains && !r.seen.freeze && r.sockBad === 0, `gear: the new affixes roll (${want.map(k => k + ' ' + (r.seen[k] || 0)).join(', ')}), the socket only on rare weapons`);
+    check(r.socks === 2 && r.sock1 && r.sock2 && r.sweepOn && r.socksOff === 1 && r.sweepOff, `gear: "+1 support socket" gives the Main slot a second socket that works, and only while worn (${r.socks} → ${r.socksOff})`);
+    check(r.plus === 1 && r.lv === 5, `gear: "+1 Main gem level" on the bar: Ember Cleave L4 counts as level ${r.lv}`);
+    check(r.bellParry === 'parry' && r.bellHit && !r.plainParryHit, 'unique: The Answering Bell\'s parries hit the monsters around you');
+    check(r.drain1 < r.drain0 * .7 && r.treadsBlock === 'hit' && r.treadsParry === 'parry', `unique: Breakaway Treads: Surge drains slower (${r.drain0.toFixed(1)} → ${r.drain1.toFixed(1)} s in 5 s), holding Guard doesn't block, parries still work`);
+    check(r.fin0 === 0 && r.fin1 > 0, `unique: Headsman's Seal: a finisher blasts the monster next to it (${Math.round(r.fin1)})`);
+    check(r.rollPlain === 'miss' && r.rollAegis === 'block' && r.aegisTaken > 0 && r.aegisTaken < 40, `unique: Aegis of the Long Ride: rolls block hits from any side (an unblockable slam: ${r.rollAegis}, ${Math.round(r.aegisTaken)} of 40) instead of dodging`);
+    check(r.wattPatch && r.frostNova && r.storm, 'unique: Wattbringer leaves burning ground, Frostbound Loop casts Frost Nova, Heart of the Storm switches on');
+    check(errors.length === 0, `gear: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   }
 
   // ---------- Flame Totem and Meteor (Flex gems): damage, milestone, cleanup on map clear ----------

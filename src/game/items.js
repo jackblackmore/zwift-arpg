@@ -1,7 +1,7 @@
 // Item generation, ground drops and pickup.
 import * as T from 'three';
 import { G, P } from '../core/state.js';
-import { SLOTS, BASES, AFF, AFFBY, EXTRA, UNIQ, RAREN1, RAREN2, RCOL, DROP } from '../data/items.js';
+import { SLOTS, BASE, BASES, AFF, AFFBY, EXTRA, UNIQ, RAREN1, RAREN2, RCOL, DROP } from '../data/items.js';
 import { rand, randi, pick } from '../core/util.js';
 import { scene } from '../render/scene.js';
 import { GB, GCY, decal } from '../render/assets.js';
@@ -18,29 +18,35 @@ function rollVal(a, il) {
   const v = rand(a.a, a.b) * (a.pct ? pctScale(il) : flatScale(il));
   return a.int ? Math.max(1, Math.round(a.a === a.b ? a.a : v)) : a.pct ? Math.round(v * 100) / 100 : a.dec ? Math.round(v * 10) / 10 : Math.round(v);
 }
+// A unique's plain mod at an item level: flat values (damage, life, armour) grow like an affix's; percents, flags and whole numbers don't.
+const uniqVal = (st, v, il) => { const a = AFFBY[st]; return a && !a.pct && !a.int && !a.dec ? Math.round(v * flatScale(il)) : v; };
 export function rollItem(il, boost = 0) {
   const r = Math.random(), uni = il >= DROP.uniqueFrom ? DROP.uniqueBase + boost * DROP.uniqueBoost : 0;
   const rb = uni + DROP.rareBase + boost;
   let rar = r < uni ? 3 : r < rb ? 2 : r < rb + DROP.magicBase + boost ? 1 : 0;
   const slot = pick(SLOTS);
   if (rar === 3) {
-    const u = pick(UNIQ.filter(u => u.slot === slot));
-    return { id: G.itemId++, slot, rar: 3, name: u.name, base: u.base, uid: u.id, il, fl: u.fl, mods: u.mods.map(([st, v]) => [st, (st === 'spell' || st === 'lifeF') ? Math.round(v * flatScale(il)) : v]) };
+    const u = pick(UNIQ.filter(u => u.slot === slot)), mods = implMods(u.base, il);
+    return { id: G.itemId++, slot, rar: 3, name: u.name, base: u.base, uid: u.id, il, fl: u.fl, impl: mods.length, mods: [...mods, ...u.mods.map(([st, v]) => [st, uniqVal(st, v, il)])] };
   }
-  const mods = implMods(slot, il), impl = mods.length; // impl: how many of mods are the base's implicits (shown first)
-  const it = { id: G.itemId++, slot, rar, base: pick(BASES[slot]), il, mods, impl };
-  const pool = AFF.filter(a => !a.slots || a.slots.includes(slot)).sort(() => Math.random() - .5);
+  const base = pick(BASES[slot]), mods = implMods(base, il), impl = mods.length; // impl: how many of mods are the base's implicits (shown first)
+  const it = { id: G.itemId++, slot, rar, base, il, mods, impl };
+  const pool = AFF.filter(a => (!a.slots || a.slots.includes(slot)) && (!a.minRar || rar >= a.minRar)).sort(() => Math.random() - .5);
   const A = DROP.affixes[rar === 1 ? 'magic' : 'rare'], n = rar ? randi(A[0], A[1]) : 0, skip = DROP.rareAffixSkip[rar === 1 ? 'magic' : 'rare'];
   for (const a of pool) { if (it.mods.length - impl >= n) break; if (a.rare && Math.random() < skip) continue; it.mods.push([a.st, rollVal(a, il)]); }
   it.name = rar === 2 ? pick(RAREN1) + ' ' + pick(RAREN2) : rar === 1 ? `${AFFBY[it.mods[impl][0]].mp} ${it.base}` : it.base;
   return it;
 }
+// A mod's line of text. Negative values use the affix's `tn` text where it has one ("5% reduced movement speed").
 export function modText(st, v) {
   const a = AFFBY[st] || EXTRA[st]; if (!a) return st;
   if (a.flag) return a.t;
-  const val = a.pct ? (a.sign && v > 0 ? '+' : '') + Math.round(v * 100) : a.dec ? v.toFixed(1) : v;
-  return a.t.replace('#', val);
+  const neg = v < 0 && a.tn, x = neg ? -v : v;
+  const val = a.pct ? (a.sign && x > 0 ? '+' : '') + Math.round(x * 100) : a.dec ? x.toFixed(1) : x;
+  return (neg ? a.tn : a.t).replace('#', val);
 }
+// A base's weight class for the item text ('heavy', 'light'), or ''.
+export const baseKind = it => (BASE[it.base] && BASE[it.base].w) || '';
 export function dropItem(x, z, boost) {
   const it = rollItem(G.tier, boost), g = new T.Group();
   const m = new T.Mesh(GB, new T.MeshLambertMaterial({ color: RCOL[it.rar], emissive: RCOL[it.rar], emissiveIntensity: .35 })); m.scale.set(.32, .14, .42); g.add(m);

@@ -42,16 +42,18 @@ export function hud(dt) {
 }
 
 // One skill bar button: the gem's icon, cooldown (or charges) and gem level; a padlock until the slot unlocks.
+// Gem levels gear adds to a bar gem (formulas.js computeStats st.gemPlus).
+const plus = g => (S.gemPlus && S.gemPlus[g.gem]) || 0;
 const slotLook = s => { const g = barGem(s); return g ? GEMS[g.gem] : null; };
 function skillSlot(s) {
   const el = $('sk-' + s), g = barGem(s), D = g && GEMS[g.gem], K = D && SK[D.sk], st = P.cd[s] || {};
-  const lock = !unlocked(s), key = lock ? 'lock' : D ? g.gem + g.lvl : 'empty';
+  const lock = !unlocked(s), key = lock ? 'lock' : D ? g.gem + g.lvl + '+' + plus(g) : 'empty';
   if (el.dataset.key !== key) {
     el.dataset.key = key; el.classList.toggle('locked', lock); el.classList.toggle('empty', !lock && !D);
     el.style.color = D ? D.col : '';
     el.querySelector('.ic').textContent = lock ? '🔒' : D ? D.icon : '+';
-    el.querySelector('.lv').textContent = lock ? 'Lv ' + SLOT_DEFS[s].unlock : D ? 'L' + g.lvl : '';
-    el.title = lock ? `${SLOT_DEFS[s].n}: unlocks at level ${SLOT_DEFS[s].unlock}` : D ? `${D.n} · gem level ${g.lvl}` : `${SLOT_DEFS[s].n}: empty · press G for gems`;
+    el.querySelector('.lv').textContent = lock ? 'Lv ' + SLOT_DEFS[s].unlock : D ? 'L' + g.lvl + (plus(g) ? '+' + plus(g) : '') : '';
+    el.title = lock ? `${SLOT_DEFS[s].n}: unlocks at level ${SLOT_DEFS[s].unlock}` : D ? `${D.n} · gem level ${g.lvl}${plus(g) ? ` (+${plus(g)} from gear)` : ''}` : `${SLOT_DEFS[s].n}: empty · press G for gems`;
   }
   if (!D) { el.querySelector('.n').textContent = ''; el.querySelector('.cd').style.height = '0%'; el.classList.remove('act'); return; }
   el.classList.toggle('act', !!ctl[s]);

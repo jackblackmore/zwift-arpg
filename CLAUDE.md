@@ -9,7 +9,7 @@
   - `gems.js`: gems, slots, sockets, milestone numbers (`mile`), support gems and their numbers (`SUPPORTS`), gem drops, feeding.
   - `tree.js` (`TREE`, `TREE_CAP`, `RESPEC`): the passive tree: its nodes and their numbers, keystones, caps on summed tree stats, the respec rule. Node text sits next to its numbers (`npm test` checks); the tools' tree presets are in `balance.js` (`TREE_PRESETS`).
   - `monsters.js`: monster stats, tiers, packs, rare affixes (`RARE`), status effects (`STATUS`), how monsters fight (`FIGHT`), death blasts (`BLAST`), the guardian (`BOSS`), damage types (`DMG_TYPES`, each attack's `dt`, region leans `LEAN`).
-  - `items.js`: bases and their implicits (`IMPL`, armour), affixes, uniques and their effect numbers (`EXTRA`), drop chances (`DROP`).
+  - `items.js`: bases and their implicits (`BASE`, armour, weights), affixes, uniques and their rule numbers (`EXTRA`; `npm test` checks the text), drop chances (`DROP`).
   - `balance.js`: hero growth, rarity multipliers, hit spread and death penalty (`COMBAT`), armour and resistance maths (`DEFENCE`), XP curve, item scaling, par levels, par gear and supports, targets.
   - `graphics.js`: look tuning, including the LOOK styles.
   - Support and milestone text shown to players sits next to its numbers; `npm test` fails if they drift apart.

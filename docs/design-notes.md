@@ -319,7 +319,7 @@ Example: a fire knight through the Crypt (illustrative numbers):
 
 ### Stats
 
-- **Today** (`src/game/formulas.js`, tuning in `src/data/balance.js`): one flat pool. Level gives base life (there is no mana); base damage comes from the skill gem (gems v1, below); gear and passives all add into it; skill behaviour (projectiles, chains, pierce) sits in the same pool; defence is life, armour and resistances (step 5, "Defence" below) plus a little "less damage taken" on one unique; no attributes.
+- **Today** (`src/game/formulas.js`, tuning in `src/data/balance.js`): one flat pool. Level gives base life (there is no mana); base damage comes from the skill gem (gems v1, below); gear and passives all add into it; skill behaviour (projectiles, chains, pierce) sits in the same pool; defence is life, armour and resistances (step 5, "Defence" below), mostly from gear (step 6, "Gear" below); no attributes.
 - **Leaning:** one stat sheet fed by the three systems, each owning different parts:
 
 | | Gems | Passive tree | Gear |
@@ -342,7 +342,7 @@ Example: a fire knight through the Crypt (illustrative numbers):
 - **Armour** cuts a physical hit of d by A / (A + 10·d), at most 90% (Path of Exile's armour): the same armour takes a lot off chip damage and little off a heavy. At par on tier 5 (48 armour): 19% off a zombie swing, 15% off the Warden's swing, 5% off a rare's heavy, 4% off the slam. So armour softens packs; the big telegraphed hits still need a button.
 - **Resistances** cut fire, cold, lightning and poison hits by their value, capped at 75% (they can go negative later, for heat or curses). Poison has its own resistance; "elemental" (fire, cold, lightning) affixes don't touch it.
 - **A mixed hit** is cut part by part: armour on its physical part (judged on that part's size), resistances on the rest.
-- **Order of operations** (`hurtP`, `src/game/combat.js`): 1. untouchable (rolling, dead) → miss; 2. the shield: parry (nothing), block (takes off its share; heavies `heavy`, other fire, cold or lightning hits `elem`) or a broken guard (×1.5), posture from the full hit; 3. armour and resistances on what the shield let through, with armour judged on the full hit (blocking a big hit doesn't make armour better against it); 4. "less damage taken" (`dr`, the Aegis unique); 5. Magic Shield's barrier soaks; 6. life. Steps 2–4 multiply, so the order only matters for armour's size rule and for the barrier, which soaks what's left.
+- **Order of operations** (`hurtP`, `src/game/combat.js`): 1. untouchable (rolling, dead) → miss; 2. the shield: parry (nothing), block (takes off its share; heavies `heavy`, other fire, cold or lightning hits `elem`) or a broken guard (×1.5), posture from the full hit; 3. armour and resistances on what the shield let through, with armour judged on the full hit (blocking a big hit doesn't make armour better against it); 4. "less damage taken" (`dr`; no source since the gear rework); 5. Magic Shield's barrier soaks; 6. life. Steps 2–4 multiply, so the order only matters for armour's size rule and for the barrier, which soaks what's left.
 
 **Sources (minimal until the gear rework, step 6).** Item implicits (`IMPL` in `src/data/items.js`, now a list per slot): helms +7 armour, body armour +14, boots +5 (on top of their old implicits; grows with item level like other flat values). Two resistance affixes: "+6–12% to fire, cold and lightning resistance" (`resElem`) and "+10–20% to poison resistance" (`resPoison`), on helms, chests, boots, rings and amulets. Three tree nodes past Iron Body: **Plated** (+15% armour), **Tempered** (notable: +25% armour, +8% to all resistances), **Purity** (+12% poison resistance), a dead end of 3 points; no preset takes them, so par power is unchanged.
 
@@ -353,6 +353,34 @@ Example: a fire knight through the Crypt (illustrative numbers):
 - **`npm run arena`** (seeds 1–6 full table, guardians also 7–12; means, before → after): good rider guardians win 239/240 → 239/240 (one tier 1 "never surging" loss on seed 7 both times), taking 114 → 132 a fight on average (seed noise is about ±10%; the extra is the big hits, now ×1.2 against 4–5% armour, so missed slams and heavies cost a bit more), times 64 → 64 s; perfect bot 31 → 30 taken, 50 → 48 s, 30, 22, 15, 16, 16% faster than the good rider on tiers 1–5 over 12 seeds (target 15%); careless loses every guardian (0/60 both), packs about the same (183 → 177 taken; one careless magic-pack death in 90); good-rider packs 16 → 16 taken. **Under-geared is harsher:** the starter sword against tier 2–5 guardians wins 39/48 → 20/48 (no armour against monsters that hit 20% harder): behind on gear now means more deaths, as "Stats" intends.
 - **`npm run level -- 5 10`:** 6.8, 6.6, 7.1, 7.6, 8.5 → 7.1, 6.8, 7.0, 7.6, 8.1 min; all 50 cleared, 2 deaths in 50 (was 4).
 - **Open:** (1) the under-geared starter-sword guardian is much harder now; if that's too harsh, give the hero a little base armour per level (`HERO`) and raise `TIER.dmg` for tier 1 to match. (2) Big hits net about 10–15% more for a hero at par; lower `BOSS.slamDmg` / `RARE.heavy.dmg` a touch if missed heavies feel too punishing. (3) Region leans are guesses.
+
+### Gear (built Nov 2026, build order step 6)
+
+**Ownership** as in "Stats": gear owns flat damage and most defence (armour, resistances, flat life), the tree % and survival, gems behaviour. Data in `src/data/items.js`, maths in `src/game/formulas.js`.
+
+**Bases** (`BASE`): every base has its own implicits and a weight, so the base is a choice. Helm, body armour and boots come light, medium or heavy: heavy trades life or move speed for armour (Plate Cuirass 30 armour, 18 life, 5% reduced movement speed; Scale Vest 14 and 28; Ritual Wrap 4 and 42; Iron Greaves 11 armour and 2% movement speed; Wool Shoes 1 and 10%). Weapons trade flat damage against speed or crit (Bone Axe 7 damage and 6% reduced attack speed; Knight's Blade 4 and +3% crit; Ember Mace 5 and 10% fire). Rings and amulets have a different implicit each (life, poison or elemental resistance; damage, life or crit). Flat implicits grow with item level; percent ones don't. The item text says "heavy chest" or "light helm".
+
+**Affixes** (`AFF`): added armour (+8–20 on helm, chest, boots), a resistance for each of fire, cold, lightning and poison (10–20%; the all-elemental one stays, rarer and smaller), +1 to the level of your Main gem (weapon, amulet; rare), +1 to the level of your Flex gems (helm, ring, amulet; rare), and "+1 support socket on your Main skill" (rare weapons only, `minRar`). Life, regeneration, life per kill, damage, elements, speed, crit and area stay. Gone: Arc chains (a support gem now, Forked Sky) and freeze duration (gem behaviour). **+gem levels** go to the gem in that bar slot and can pass the gem level cap (gear levels add on top of a level 10 gem); they count for milestones; the skill bar shows "L4+1". The extra socket appears in the gem panel and goes away with the item (the support in it stops counting).
+
+**Uniques** (`UNIQ`, rule numbers in `EXTRA`, `npm test` checks every number is in its text): each bends a rule, with its base's implicits and one or two plain mods. Still only from tier 6 (`DROP.uniqueFrom`), so none in the Crypt.
+
+| Unique | Slot (base) | Rule |
+|---|---|---|
+| Wattbringer | weapon (Ember Mace) | Melee hits set the ground burning |
+| The Answering Bell | helm (Great Helm) | Parries release a shockwave of 80% of your Main attack within 3 units |
+| Aegis of the Long Ride | chest (Plate Cuirass) | You keep your shield up while rolling: hits mid-roll are blocked from any side, unblockable ones as heavies, but rolls aren't untouchable |
+| Breakaway Treads | boots (Wool Shoes) | Surge drains 40% slower, but you can't block (parries still work) |
+| Frostbound Loop | ring (Coral Ring) | A free Frost Nova every 5 s |
+| Headsman's Seal | ring (Iron Ring) | Finishers explode for 50% of their damage within 3.5 units |
+| Heart of the Storm | amulet (Onyx Amulet) | Every 4th melee attack also casts Arc |
+
+Dropped: The Glass Crown (+60% damage, −35% life: only numbers), Emberstride (move speed and Magic Shield numbers). The Aegis lost its "less damage taken" (`dr` stays in the maths, with no source).
+
+**The upgrade check** (`estimate` in `src/game/stats.js`, `gearValue` in formulas.js): pack DPS of the Main gem × **effective life** × move speed^0.3, with the item against what you wear; above 1.02 the bag outlines it green and the compare says "an upgrade overall". Effective life (`ehp`) is max life over the share of a typical map's hits that armour and resistances let through (`ESTIMATE.threat` in `src/data/balance.js`: normal swings, archers, rare heavies, bloater blasts, the guardian's slam and poison bolts, burning pulses, weighted by what reaches your life; their types follow the region's lean). So poison resistance counts in the Crypt, fire resistance barely, and armour more against small hits. Example (tier 3 par): swapping a helm's 10% damage for +20 armour, +20% poison resistance and +20 life is an upgrade (1.08); for +20 life alone it isn't (0.97).
+
+**Item level and tier** (the sawtooth in "Balance"; `npm run balance` prints it): each tier's par magic kit against the one from the tier before is DPS ×1.22, 1.04, 1.16, 1.13 and effective life ×1.10, 1.08, 1.08, 1.07 on tiers 2–5 (value 1.32, 1.11, 1.24, 1.19), so a new tier's drops are an upgrade; tier 3 is the smallest step because small flat rolls round to the same whole number (a 3-damage affix is 4 on both tiers 2 and 3). A rare kit beats a magic one by DPS ×1.31–1.36 and effective life ×1.36–1.38. Drop chances and rarity rolls are unchanged.
+
+**Balance:** the par gear (`GEAR_PROFILES`, now an explicit affix list per slot on the medium bases) is the same kit as before, so `npm run balance` is unchanged (zombie hits 5.1, 4.2, 4.2, 4.2, 4.4; every par number in target). Arena (seeds 1–12, guardian rows): good rider wins every fight, 74, 62, 53, 63, 56 s; perfect 55, 47, 49, 48, 46 s; careless loses all 60. `npm run level -- 5 10`: 7.1, 6.5, 6.9, 7.4, 8.2 min, all 50 cleared, 3 deaths in 50. The starter sword against tier 2–5 guardians wins 19 of 48 (20 before): with no armour and a third of par damage it should lose more than par, and does. **Open:** the perfect bot's lead on tier 3 is 7–10% on these runs (target 15%; it was 13% on the same seeds before this step, so it's seed noise on an unchanged fight; step 7). Uniques have no arena rows yet (they don't drop in the Crypt).
 
 ### Skill variety
 
@@ -665,7 +693,7 @@ Ideas: deeper levels use more intense versions of the template; beats could be w
 
 ## Loot and crafting
 
-- **Open:** affixes that change how you play rather than plain +x%; uniques that define builds (as now); target farming via boss-specific unique drops.
+- **Built (step 6):** uniques bend rules ("Gear" above); affixes stay plain numbers plus +gem levels and a socket. **Open:** target farming via boss-specific unique drops.
 - **Open:** Last Epoch-style deterministic crafting (forging potential) using materials from levels.
 - **Open:** auto-salvage or a loot filter, since nobody manages a bag on a bike.
 
