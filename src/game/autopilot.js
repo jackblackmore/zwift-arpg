@@ -44,9 +44,11 @@ function pick(dt) {
   let best = null, bd = A.engage;
   for (const e of G.enemies) { if (e.deathT) continue; const d = dist(e.x, e.z, P.x, P.z); if (d < bd && (e.awake || los(P.x, P.z, e.x, e.z))) { bd = d; best = e; } } // not sleepers behind walls
   if (best) {
-    // Fight the guardian or a rare in reach before the nearest; walk in until it's inside the Main gem's reach, then stand.
+    // Fight the guardian, a necromancer (kill order: it raises the fallen) or a rare in reach before the nearest, in that order; walk
+    // in until it's inside the Main gem's reach, then stand.
     const g = barGem('main'), reach = g && GEMS[g.gem].melee ? meleeReach(g.gem) * A.reach : A.keep;
-    for (const e of G.enemies) if (!e.deathT && e.awake && (e.type === 'boss' || e.rar === 2) && dist(e.x, e.z, P.x, P.z) < A.focus) { best = e; bd = dist(e.x, e.z, P.x, P.z); break; }
+    let fs = 0;
+    for (const e of G.enemies) { if (e.deathT || !e.awake) continue; const s = e.type === 'boss' ? 3 : e.ai === 'necro' ? 2 : e.rar === 2 ? 1 : 0, de = dist(e.x, e.z, P.x, P.z); if (s > fs && de < A.focus) { fs = s; best = e; bd = de; } }
     if (bd > reach + best.r || !los(P.x, P.z, best.x, best.z)) return toward(best.x, best.z);
     // Standing in a poison pool (game/pools.js) with the fight outside it: shuffle out of it, toward the fight's side.
     const pool = poolAt(P.x, P.z); if (pool && Math.hypot(best.x - pool.x, best.z - pool.z) > pool.r) { const ox = P.x - pool.x, oz = P.z - pool.z, ol = Math.hypot(ox, oz) || 1, tx = best.x - P.x, tz = best.z - P.z, tl = Math.hypot(tx, tz) || 1, dx = ox / ol + tx / tl, dz = oz / ol + tz / tl, l = Math.hypot(dx, dz) || 1; return [dx / l, dz / l]; }

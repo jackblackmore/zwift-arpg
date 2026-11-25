@@ -1,7 +1,8 @@
 // Monster packs, spawning, AI (melee, ranged, bomber, boss) and crowd separation.
 import * as T from 'three';
 import { G, P, shake, stop } from '../core/state.js';
-import { MT, TIER, PACK, RAREAFF, RN1, RN2, BOSS, GUARDIANS, RISE, ANIM, STATUS, FIGHT, BLAST, RARE, STAGGER, ELITE } from '../data/monsters.js';
+import { MT, TIER, PACK, RAREAFF, RN1, RN2, BOSS, GUARDIANS, RISE, ANIM, STATUS, FIGHT, BLAST, RARE, STAGGER, ELITE, RAISE, BKNIGHT } from '../data/monsters.js';
+import { corpsesNear, markCorpse, raiseCorpse } from './raise.js';
 import { POOLS } from '../data/dungeon.js';
 import { TELL } from '../data/graphics.js';
 import { rand, pick, dist, $ } from '../core/util.js';
@@ -24,8 +25,8 @@ const dtype = base => dmgType(base, G.tier);
 export function makePack(x, z, o = {}) {
   const sz = 1 + TIER.packSize * (G.tier - 1), mem = [], mix = packMix(G.tier);
   for (const [t, n] of o.elite ? ELITE.minions : pick(mix.packs)) for (let i = 0; i < Math.round(n * sz * rand(.85, 1.2)); i++) mem.push(t);
-  const p = o.elite ? { x, z, mem, magic: Math.random() < ELITE.magic, rare: pick(ELITE.types), elite: true, spawned: false, awake: false, list: [] }
-    : { x, z, mem, magic: Math.random() < PACK.magicChance, rare: Math.random() < PACK.rareChance ? pick(mix.rareTypes) : null, spawned: false, awake: false, list: [] };
+  const p = o.elite ? { x, z, mem, magic: Math.random() < ELITE.magic, rare: pick(mix.eliteTypes || ELITE.types), elite: true, spawned: false, awake: false, list: [] } // a level can have its own (MIX[..].eliteTypes, rareChance, magicChance)
+    : { x, z, mem, magic: Math.random() < (mix.magicChance ?? PACK.magicChance), rare: Math.random() < (mix.rareChance ?? PACK.rareChance) ? pick(mix.rareTypes) : null, spawned: false, awake: false, list: [] };
   G.mapTotal += mem.length + (p.rare ? 1 : 0);
   return p;
 }
@@ -52,7 +53,7 @@ export function spawnEnemy(type, x, z, pack, rar = 0, o = {}) {
   if (type === 'boss' || rar === 2) { e.stagMax = 1; e.stag = 0; } // a stagger bar (data/monsters.js STAGGER)
   e.h = b.h * sc / (b.scale || 1);
   const L = b.look, rigged = chars.ready && L;
-  e.model = rigged ? makeChar(L.kind, e.h, { weapon: L.weapon, offhand: L.offhand, tint: L.tint }) : buildModel({ ...b, scale: sc });
+  e.model = rigged ? makeChar(L.kind, e.h, { weapon: L.weapon, offhand: L.offhand, tint: L.tint }) : buildModel({ ...b, scale: sc }, b.prim); // prim: the primitive's staff, sword, shield
   if (rar === 2) e.model.mats.forEach(m => m.emissive.setHex(0x221a00));
   e.model.g.position.set(x, 0, z); e.model.g.rotation.y = e.face; scene.add(e.model.g);
   const inv = rigged ? 1 : 1 / sc; // primitive models scale the whole group; rigged ones scale an inner node
@@ -169,6 +170,7 @@ export function updEnemy(e, dt) {
     }
   } else e.burnDps = 0;
   if (e.chill > 0) e.chill -= dt;
+  if (e.open > 0) { e.open -= dt; if (e.open <= 0) e.guardHits = 0; } // a bone knight's opened guard closes again (BKNIGHT)
   if (e.stagMax && e.stun <= 0) { e.stagWait -= dt; if (e.stagWait <= 0) e.stag = Math.max(0, e.stag - STAGGER.drain * dt); }
   const frozen = e.freeze > 0; if (frozen) e.freeze -= dt;
   for (const m of M.mats) {
@@ -191,9 +193,11 @@ export function updEnemy(e, dt) {
     if (e.windup > 0) {
       e.windup -= dt; e.face = Math.atan2(tg.x - e.x, tg.z - e.z);
       if (e.windup <= 0) {
-        e.swing = 1; const hv = e.heavy, cb = e.inCombo, dmg = e.dmg * (hv ? RARE.heavy.dmg : 1) * (cb ? cb.dmg : 1); e.heavy = false; e.inCombo = null;
-        if (td < e.range + e.r + tg.r + FIGHT.reach) { if (tg === P) hurtP(dmg, hv ? 'heavy' : e.type, { from: e, by: e, kind: hv ? 'heavy' : 'hit', type: dtype(e.dt) }); else tg.hurt(dmg * (e.type === 'boss' ? BOSS.vsMinion : 1)); if (e.type === 'boss' || hv) { shake(hv ? .4 : .3); SFX.slam(); hurtMinions(e.x, e.z, e.range + e.r + FIGHT.reach, dmg * BOSS.vsMinion, tg); } }
-        if (hv) { ringFx(e.x, e.z, e.range + e.r + FIGHT.reach, TELL.heavy, .3, .3); burst(e.x + Math.sin(e.face) * e.range, .5, e.z + Math.cos(e.face) * e.range, TELL.heavy, 18, 5); }
+        // A heavy (a rare's, or a mixed combo's) or an unblockable swing (a mixed combo's: GUARDIANS[..].abil combo seq) hits harder.
+        e.swing = 1; const hv = e.heavy, ub = e.unblk, cb = e.inCombo, dmg = e.dmg * (hv ? (cb && cb.heavy ? cb.heavy.dmg : RARE.heavy.dmg) : ub ? cb.unblockable.dmg : cb ? cb.dmg : 1); e.heavy = false; e.unblk = false; e.inCombo = null;
+        const kind = hv ? 'heavy' : ub ? 'unblockable' : 'hit';
+        if (td < e.range + e.r + tg.r + FIGHT.reach) { if (tg === P) hurtP(dmg, hv || ub ? kind : e.type, { from: e, by: e, kind, type: dtype(e.dt) }); else tg.hurt(dmg * (e.type === 'boss' ? BOSS.vsMinion : 1)); if (e.type === 'boss' || hv) { shake(hv || ub ? .4 : .3); SFX.slam(); hurtMinions(e.x, e.z, e.range + e.r + FIGHT.reach, dmg * BOSS.vsMinion, tg); } }
+        if (hv || ub) { const c = TELL[kind]; ringFx(e.x, e.z, e.range + e.r + FIGHT.reach, c, .3, .3); burst(e.x + Math.sin(e.face) * e.range, .5, e.z + Math.cos(e.face) * e.range, c, 18, 5); }
         e.atkT = (e.combo > 0 ? e.comboA.gap : e.channel ? e.gd.channel.swingCd : e.cd) * cdm; // a combo's next swing comes quickly
       }
     } else if (td < e.range + e.r + tg.r) { e.face = Math.atan2(tg.x - e.x, tg.z - e.z); e.atkT -= dt; if (e.atkT <= 0) startSwing(e, tg); }
@@ -203,7 +207,8 @@ export function updEnemy(e, dt) {
     else if (d < FIGHT.flee) { const [dx, dz] = steer(e, e.x - (P.x - e.x), e.z - (P.z - e.z)); e.x += dx * spd * dt; e.z += dz * spd * dt; e.walk += dt * spd * 2.6; e.moving = true; e.face = Math.atan2(P.x - e.x, P.z - e.z); }
     else if (d > FIGHT.chase || !los(e.x, e.z, P.x, P.z)) moveE(e, P.x, P.z, spd, dt);
     else { e.face = Math.atan2(P.x - e.x, P.z - e.z); e.shootT -= dt; if (e.shootT <= 0) { e.windup = FIGHT.windup.ranged; e.atkSeq = (e.atkSeq || 0) + 1; } }
-  } else if (e.ai === 'bomb') {
+  } else if (e.ai === 'necro') necroAI(e, d, spd, cdm, dt);
+  else if (e.ai === 'bomb') {
     if (e.fuse > 0) { e.fuse -= dt; if (e.fuse <= 0) { e.fused = true; kill(e); } } // only a fuse that runs out blows up (data/monsters.js BLAST)
     else if (d < FIGHT.bomb.trigger) { e.fuse = FIGHT.bomb.fuse; telegraph(e.x, e.z, BLAST.bloater.r, FIGHT.bomb.fuse, TELL.heavy); cue('heavy'); }
     else moveE(e, P.x, P.z, spd, dt);
@@ -218,10 +223,13 @@ function startSwing(e, tg) {
   if (rare && e.heavyIn === undefined) e.heavyIn = Math.round(rand(H.every[0], H.every[1]));
   e.heavy = rare && tg === P && e.heavyIn <= 0;
   if (e.heavy) e.heavyIn = Math.round(rand(H.every[0], H.every[1])); else if (rare && tg === P) e.heavyIn--;
-  if (e.combo > 0 && tg === P) { e.inCombo = e.comboA; e.combo--; } // a guardian's combo (GUARDIANS[..].abil, kind combo)
-  e.windup = e.heavy ? H.windup : e.inCombo ? e.inCombo.windup : e.type === 'boss' ? FIGHT.windup.boss : FIGHT.windup.melee; e.atkSeq = (e.atkSeq || 0) + 1;
-  if (e.heavy) { cue('heavy'); flashFx(e.x, e.h * .8, e.z, TELL.heavy, e.r * 4, e.windup); telegraph(e.x, e.z, e.range + e.r + FIGHT.reach, e.windup, TELL.heavy); }
-  else if ((e.type === 'boss' || rare) && tg === P) { cue('parry'); flashFx(e.x, e.h * .8, e.z, TELL.parry, e.r * 3, e.windup); }
+  let sk = null; // a mixed combo's swing kind (GUARDIANS[..].abil combo seq): 'hit', 'heavy' or 'unblockable'
+  if (e.combo > 0 && tg === P) { const A = e.comboA, seq = (e.phase2 && A.seq2) || A.seq; e.inCombo = A; sk = seq ? seq[A.n - e.combo] : null; e.combo--; } // a guardian's combo (GUARDIANS[..].abil, kind combo)
+  if (sk === 'heavy') e.heavy = true; e.unblk = sk === 'unblockable';
+  const C = e.inCombo;
+  e.windup = e.heavy ? (sk ? C.heavy.windup : H.windup) : e.unblk ? C.unblockable.windup : C ? C.windup : e.type === 'boss' ? FIGHT.windup.boss : FIGHT.windup.melee; e.atkSeq = (e.atkSeq || 0) + 1;
+  if (e.heavy || e.unblk) { const k = e.heavy ? 'heavy' : 'unblockable'; cue(k); flashFx(e.x, e.h * .8, e.z, TELL[k], e.r * 4, e.windup); telegraph(e.x, e.z, e.range + e.r + FIGHT.reach, e.windup, TELL[k]); }
+  else if ((e.type === 'boss' || rare || e.shield) && tg === P) { cue('parry'); flashFx(e.x, e.h * .8, e.z, TELL.parry, e.r * 3, e.windup); } // a bone knight's swings flash too: parrying them opens its guard
 }
 
 // Minions (G.minions, e.g. Raise Skeletons) draw melee aggro: a monster swings at one that's in its reach and closer than
@@ -235,10 +243,53 @@ function meleeTarget(e, d) {
 // The guardian's swings cleave and its slams crush minions too (skip: already hit).
 function hurtMinions(x, z, r, d, skip) { for (const m of G.minions) if (m !== skip && !m.deathT && dist(m.x, m.z, x, z) < r + m.r) m.hurt(d); }
 
+// ---- the necromancer (MT.necro, Bone Gardens): keeps its distance, shoots slow bolts, raises the fallen (RAISE, game/raise.js) ----
+function necroAI(e, d, spd, cdm, dt) {
+  if (e.raising) { // channelling: rooted, a green ring under it and on each corpse; any hit stops it (interrupt)
+    const c = e.raising; c.t -= dt; e.face = Math.atan2(P.x - e.x, P.z - e.z);
+    if (Math.random() < dt * 20) emit(glows, e.x + rand(-.4, .4), rand(.6, e.h), e.z + rand(-.4, .4), 0, rand(1, 2), 0, .5, TELL.raise);
+    if (c.t <= 0) { e.raising = null; e.raiseT = rand(RAISE.every[0], RAISE.every[1]); let n = 0; for (const k of c.list) if (k.claim === c && raiseCorpse(k, e)) n++; if (n) { SFX.roar(); floatT(e.x, e.h + .6, e.z, 'THE DEAD RISE', hex(TELL.raise), 14, 1.2); } }
+    return;
+  }
+  e.raiseT = (e.raiseT ?? RAISE.first) - dt;
+  if (e.raiseT <= 0 && e.windup <= 0) {
+    const list = corpsesNear(e.x, e.z, RAISE.r, RAISE.n * (e.rar === 2 ? 2 : 1));
+    if (!list.length) e.raiseT = 1; else {
+      const c = e.raising = { t: RAISE.t, list }; list.forEach(k => markCorpse(k, e, c, RAISE.t));
+      const m = new T.Mesh(GRING_, new T.MeshBasicMaterial({ color: TELL.raise, transparent: true, depthWrite: false, blending: T.AdditiveBlending })); m.rotation.x = -Math.PI / 2;
+      addFx(m, RAISE.t, k => { if (e.raising !== c || e.deathT) { m.visible = false; return; } m.position.set(e.x, .08, e.z); const s = 1.3 * (1 - k) + .2; m.scale.set(s, s, 1); m.material.opacity = .8; });
+      flashFx(e.x, e.h * .7, e.z, TELL.raise, 3, .5); floatT(e.x, e.h + .6, e.z, 'RAISING', hex(TELL.raise), 14, 1.2); if (d < 16) cue('raise');
+      return;
+    }
+  }
+  if (e.windup > 0) { e.windup -= dt; e.face = Math.atan2(P.x - e.x, P.z - e.z); if (e.windup <= 0) { e.swing = 1; eShoot(e, e.face + rand(-FIGHT.arrowJitter, FIGHT.arrowJitter), e.bolt.speed, e.dmg, e.bolt.col, .9, e.dt, 'bolt'); SFX.arc(); e.shootT = e.cd * cdm * rand(FIGHT.shotJitter[0], FIGHT.shotJitter[1]); } }
+  else if (d < (e.flee || FIGHT.flee)) { const [dx, dz] = steer(e, e.x - (P.x - e.x), e.z - (P.z - e.z)); e.x += dx * spd * dt; e.z += dz * spd * dt; e.walk += dt * spd * 2.6; e.moving = true; e.face = Math.atan2(P.x - e.x, P.z - e.z); }
+  else if (d > FIGHT.chase || !los(e.x, e.z, P.x, P.z)) moveE(e, P.x, P.z, spd, dt);
+  else { e.face = Math.atan2(P.x - e.x, P.z - e.z); e.shootT -= dt; if (e.shootT <= 0) { e.windup = FIGHT.windup.ranged; e.atkSeq = (e.atkSeq || 0) + 1; } }
+}
+// A hit (or a stun) stops a necromancer's raise: its corpses stay down, and it starts again a little later.
+export function interruptRaise(e) {
+  if (!e.raising) return; e.raising = null; e.raiseT = RAISE.every[0]; P.raiseStops = (P.raiseStops || 0) + 1;
+  floatT(e.x, e.h + .6, e.z, 'INTERRUPTED', hex(TELL.raise), 13, 1); burst(e.x, e.h * .7, e.z, TELL.raise, 12, 3);
+}
+
+// ---- the bone knight's shield (MT.bknight, BKNIGHT; Throne Approach) ----
+// Its guard is up unless it's swinging, stunned, frozen, getting up or opened (e.open).
+export const guardUp = e => !!e.shield && !e.deathT && e.awake && !(e.open > 0) && !(e.windup > 0) && !(e.stun > 0) && !(e.freeze > 0) && !(e.rise > 0);
+// Is (x, z) in front of it, inside the shield's arc?
+export const shieldFaces = (e, x, z) => Math.abs(((Math.atan2(x - e.x, z - e.z) - e.face + Math.PI * 3) % (Math.PI * 2)) - Math.PI) <= BKNIGHT.arc / 2 * Math.PI / 180;
+// Its guard opens for t s: a parry, a heavy hit, or enough blocked hits. Shield lowered, a yellow "GUARD OPEN".
+export function openGuard(e, t = BKNIGHT.open) {
+  if (!e.shield || e.deathT) return;
+  const was = e.open > 0; e.open = Math.max(e.open || 0, t); e.guardHits = 0;
+  if (!was) { floatT(e.x, e.h + .5, e.z, 'GUARD OPEN', hex(TELL.parry), 14, 1); flashFx(e.x + Math.sin(e.face) * .5, e.h * .55, e.z + Math.cos(e.face) * .5, TELL.parry, 2.4, .25); burst(e.x, e.h * .6, e.z, TELL.guard, 14, 4); SFX.thud(); P.guardOpens = (P.guardOpens || 0) + 1; }
+}
+
 // A telegraph aimed at you: a coloured '!' over the hero and a sound per kind (data/graphics.js TELL), so it reads off-screen too.
 function cue(kind) { if (P.dead > 0) return; floatT(P.x, 2.9, P.z, '!', '#' + TELL[kind].toString(16).padStart(6, '0'), 26, .7); SFX.cue(kind); }
 
 const hex = c => '#' + c.toString(16).padStart(6, '0');
+const GRING_ = new T.RingGeometry(.86, 1, 40);
 
 // The guardian's brain (data/monsters.js GUARDIANS: its abilities, rotation, channel). Returns true while it's busy with an
 // ability (so it doesn't also walk or swing). Every threat is telegraphed by how you answer it (data/graphics.js TELL).
@@ -252,7 +303,7 @@ function bossAI(e, dt) {
     const C = gd.channel, ch = e.channel; ch.t += dt; e.face = Math.atan2(P.x - e.x, P.z - e.z);
     if (Math.random() < dt * 24) { const a = rand(0, 6.3), r = rand(.6, 1.6) * e.r; emit(glows, e.x + Math.cos(a) * r, rand(.3, e.h * .8), e.z + Math.sin(a) * r, -Math.cos(a) * .8, rand(1, 2.5), -Math.sin(a) * .8, .6, TELL.channel); }
     if (P.eff && P.eff.spike > 0) stagger(e, RIDE.spike.fill * P.eff.spike * dt); // RIDE: a short effort spike (stagger can end the channel here)
-    if (e.channel && ch.t >= C.t) { e.channel = null; channelDone(e, ch.fx); return true; }
+    if (e.channel && ch.t >= C.t) { e.channel = null; e.lastChan = ch; channelDone(e, ch.fx); return true; }
     return false;
   }
   if (e.charging) { // the charge (unblockable): rush along a line, hitting you once if you're in the way
@@ -280,6 +331,7 @@ function bossAI(e, dt) {
       const C = gd.channel; e.chanN = (e.chanN || 0) + 1; e.channel = { t: 0, fx: C.effects[(e.chanN - 1) % C.effects.length] };
       e.atkT = Math.min(e.atkT, C.firstSwing); P.chans++;
       telegraph(e.x, e.z, e.r * 2.2, C.t, TELL.channel); flashFx(e.x, e.h * .7, e.z, TELL.channel, e.r * 5, .5); floatT(e.x, e.h + 1, e.z, 'CHANNELLING', hex(TELL.channel), 16, 1.2); cue('channel');
+      const R = C[e.channel.fx]; if (R && R.kind === 'revive') { const ch = e.channel; ch.tok = ch; corpsesNear(e.x, e.z, R.r, R.n).forEach(c => markCorpse(c, e, ch, C.t)); } // the dead it will raise glow green
       return false; // it swings while it channels
     }
     return startAbility(e, k, gd.abil[k]);
@@ -302,6 +354,11 @@ export function startAbility(e, key, A) {
   if (A.kind === 'shot') { const c = e.cast = { kind: 'shot', key, a: A, t: A.t, ax: P.x, az: P.z }; aimLine(e, c); flashFx(e.x, e.h * .7, e.z, TELL.unblockable, e.r * 4, A.t); cue('unblockable'); return true; }
   if (A.kind === 'charge') { e.cast = { kind: 'charge', key, a: A, t: A.t, x: P.x, z: P.z }; telegraph(P.x, P.z, 1.4, A.t, TELL.unblockable); flashFx(e.x, e.h * .7, e.z, TELL.unblockable, e.r * 5, A.t); cue('unblockable'); return true; }
   if (A.kind === 'summon') { e.cast = { kind: 'summon', key, a: A, t: .7 }; ringFx(e.x, e.z, 3, gd.col, .7, .2); return true; }
+  if (A.kind === 'revive') { // the high necromancer's channel completed: the corpses round it rise, topped up from the ground
+    const list = corpsesNear(e.x, e.z, A.r, A.n, e.lastChan); list.forEach(c => raiseCorpse(c, e)); summon(e, Math.max(0, A.min - list.length), A.type);
+    floatT(e.x, e.h + 1, e.z, 'THE DEAD RISE', hex(TELL.raise), 18, 1.4); ringFx(e.x, e.z, A.r, TELL.raise, .6, .1); burst(e.x, e.h * .6, e.z, TELL.raise, 50, 6); SFX.roar(); shake(.4);
+    return false;
+  }
   return false;
 }
 // The cast lands.
@@ -363,7 +420,7 @@ export function animE(e, dt) { // (also animates minions, game/sk/skeletons.js)
   if (e.swing > 0) e.swing = Math.max(0, e.swing - dt * 4);
   const up = e.windup > 0 || (e.cast && e.cast.t > 0);
   M.armR.rotation.x = up ? -2.6 : e.swing > 0 ? -2.6 + (1 - e.swing) * 3.2 : (e.type === 'zombie' && e.awake ? -1.3 : w * .5);
-  M.armL.rotation.x = up && e.type === 'boss' ? -2.6 : e.type === 'zombie' && e.awake ? -1.3 : e.type === 'archer' && e.awake ? -1.5 : -w * .5;
+  M.armL.rotation.x = up && e.type === 'boss' ? -2.6 : e.type === 'zombie' && e.awake ? -1.3 : (e.type === 'archer' || e.raising) && e.awake ? -1.5 : guardUp(e) ? -1.45 : -w * .5; // a bone knight's shield up, a necromancer's hands raised
   M.g.position.y = e.moving ? Math.abs(Math.cos(e.walk)) * .06 : 0;
 }
 
@@ -385,7 +442,7 @@ function animRig(e, M, dt) {
   else if (big && e.lock <= 0 && e.windup <= 0 && e.type !== 'boss') once([pick(ANIM.hits), ANIM.hitSpeed], .05);
   else if (e.lock <= 0) {
     if (e.moving) { const run = L.walk === 'Running_A'; M.play(L.walk, { speed: Math.min(1.8, Math.max(.6, e.spd * (e.chill > 0 ? .5 : 1) / (run ? 3.6 : 1.7))) }); }
-    else M.play(e.channel && chars.clips[ANIM.channel] ? ANIM.channel : L.idle || 'Idle');
+    else M.play(e.channel && chars.clips[ANIM.channel] ? ANIM.channel : (e.raising && chars.clips[ANIM.channel]) ? ANIM.channel : guardUp(e) && L.guard && chars.clips[L.guard] ? L.guard : L.idle || 'Idle'); // a bone knight with its shield up
   }
   M.mixer.update(dt);
 }

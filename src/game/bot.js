@@ -63,7 +63,7 @@ export function botDefend(bot, alive, t) {
   const { skill, react, guardSlot, evadeSlot, ready } = bot;
   let nd = 1e9; for (const e of alive) nd = Math.min(nd, dd(e));
   const boss = alive.find(e => e.type === 'boss'), bc = boss && boss.cast;
-  const swingAt = alive.filter(e => e.windup > 0 && e.ai !== 'ranged' && dd(e) < e.range + e.r + P.r + FIGHT.reach + .3);
+  const swingAt = alive.filter(e => e.windup > 0 && e.ai !== 'ranged' && e.ai !== 'necro' && dd(e) < e.range + e.r + P.r + FIGHT.reach + .3);
   // A guardian's area hit coming down on it (GUARDIANS[..].abil kind area: a slam, a bash, a leap, a channel's burst or rain).
   const inArea = bc && bc.kind === 'area' && Math.hypot(P.x - bc.x, P.z - bc.z) < bc.r + P.r, inSlam = inArea && bc.a.tell === 'heavy';
   if (bot.shieldGuard) {
@@ -73,8 +73,9 @@ export function botDefend(bot, alive, t) {
     const pParry = 1 - (1 - skill.parry) * B.parry / blockStats().parry;
     // Heavies: roll as they land, else block.
     const heavy = (o, key, left) => { const r = react(o, key, skill.roll); if (r === 'ok') { if (left <= rollIn) roll = true; } else if (r === 'block') hold = true; };
-    // Swings: parry just before they land, else hold the block (or eat it). A rare's heavy swing is a heavy.
-    for (const e of swingAt) { if (e.heavy) { heavy(e, 'swing' + e.atkSeq, e.windup); continue; } const r = react(e, 'swing' + e.atkSeq, pParry); if (r === 'ok') { if (e.windup <= B.parry * .7) tap = true; else hold = hold || (skill.brace && e.windup < B.parry * 2); } else if (r === 'block') hold = true; }
+    // Swings: parry just before they land, else hold the block (or eat it). A rare's heavy swing is a heavy; a mixed combo's heavy or
+    // unblockable swing too (roll it).
+    for (const e of swingAt) { if (e.heavy || e.unblk) { heavy(e, 'swing' + e.atkSeq, e.windup); continue; } const r = react(e, 'swing' + e.atkSeq, pParry); if (r === 'ok') { if (e.windup <= B.parry * .7) tap = true; else hold = hold || (skill.brace && e.windup < B.parry * 2); } else if (r === 'block') hold = true; }
     if (inSlam) heavy(bc, 'slam', bc.t);
     if (inArea && bc.a.tell === 'unblockable' && react(bc, 'burst', skill.roll) === 'ok' && bc.t <= rollIn) roll = true; // a burst or a leap: roll
     if (bc && bc.kind === 'charge') { const r = react(bc, 'charge', skill.roll); if (r === 'ok' && bc.t <= .12) roll = true; }

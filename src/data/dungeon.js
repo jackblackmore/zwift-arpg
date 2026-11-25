@@ -116,14 +116,14 @@ export const SET = {
 //   mix (data/monsters.js MIX; none = every Crypt pack, PACKS). gen: overrides of GEN for its layout. choke: share of its packs
 //   placed at chokepoints (corridor midpoints; default 1/6). pools: poison pools on the floor (POOLS below). look: a light tint
 //   (hemi: the sky colour of the hemisphere light, moon: the moon light's colour) and clutter: × the loose bones and candles (CLUTTER).
-// Step 9 part B (Bone Gardens' necromancer and high necromancer, Throne Approach's bone knights and the lieutenant) isn't built yet:
-// tiers 4–5 keep the full mix and the Pale Warden for now.
+//   alt: a rare stand-in guardian: on `chance` of maps its arena holds `guardian` instead (the Pale Warden, the first guardian built,
+//   still walks the deep Crypt).
 export const LEVELS = [
   { name: 'Crypt Halls', rule: 'Open halls · skeleton warriors and runners', guardian: 'knight', mix: 'halls', gen: { room: [5, 7], notchChance: .15 }, look: { hemi: 0x9a8fc0, moon: 0x9fb0ff } },
   { name: 'Ossuary', rule: 'Narrow corridors · archers hold the chokepoints', guardian: 'captain', mix: 'ossuary', gen: { corridor: 1, room: [4, 6] }, choke: 1 / 3, look: { hemi: 0xb8ac94, moon: 0xc8c0a8 }, clutter: 2.2 },
   { name: 'Flooded Tombs', rule: 'Poison pools · bloaters', guardian: 'plague', mix: 'tombs', pools: true, look: { hemi: 0x84b49a, moon: 0x90d0b0 } },
-  { name: 'Bone Gardens', rule: 'Everything the Crypt has', guardian: 'warden', look: { hemi: 0x9a8fc0, moon: 0x9fb0ff } },
-  { name: 'Throne Approach', rule: 'Everything the Crypt has', guardian: 'warden', look: { hemi: 0xa890b8, moon: 0xb0a0ff } },
+  { name: 'Bone Gardens', rule: 'Necromancers raise the fallen · kill them first', guardian: 'lich', mix: 'gardens', gen: { notchChance: .55 }, alt: { guardian: 'warden', chance: .15 }, look: { hemi: 0x8aa890, moon: 0xa0d0b0 }, clutter: 2.6 },
+  { name: 'Throne Approach', rule: 'Bone knights hold their shields · parry to open them', guardian: 'lieutenant', mix: 'throne', gen: { room: [5, 7] }, alt: { guardian: 'warden', chance: .15 }, look: { hemi: 0xb09878, moon: 0xd0b090 } },
 ];
 // Poison pools (Flooded Tombs; world/gen.js lays them out, game/pools.js runs them): green pools on the floor of combat rooms that
 // hurt you while you stand in them, `dps` poison damage a second (× the tier's damage growth, data/monsters.js TIER), in ticks

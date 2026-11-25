@@ -24,8 +24,9 @@ export const DUNGEON = { scale: .8, bright: .72, floor: .55, torch: 1.3 };
 
 // Telegraph colours by how you answer them (design notes "Fight mechanics"): parry (a yellow flash on the swing), heavy (red
 // ground: block or roll), unblockable (purple: roll only), channel (blue: break its stagger before the bar fills). The same colour
-// marks the '!' over the hero. stagger: the stagger bar.
-export const TELL = { parry: 0xffd23f, heavy: 0xff3030, unblockable: 0xb040ff, channel: 0x3a9cff, stagger: 0xffb040 };
+// marks the '!' over the hero. stagger: the stagger bar. raise: a necromancer raising the dead (green rings on it and the corpses:
+// hit it to stop it). guard: a bone knight's shield blocking your hit (steel blue; parry or a heavy hit opens it).
+export const TELL = { parry: 0xffd23f, heavy: 0xff3030, unblockable: 0xb040ff, channel: 0x3a9cff, stagger: 0xffb040, raise: 0x50ff90, guard: 0x9fc8ff };
 
 // Damage types (data/monsters.js DMG_TYPES): the colour of the number when a hit lands on you and of the red flash round the screen
 // (game/combat.js hurtP, ui/hud.js), a glyph after the number for the non-physical ones, and the character sheet (ui/panels.js).

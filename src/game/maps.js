@@ -68,7 +68,8 @@ function placePacks(n) {
 export function newMap(t) {
   G.tier = t; clearMap(); buildMap(); G.mapKills = 0; G.mapTotal = 0; G.packs = []; resetRoute();
   initRooms(); initPools(); placePacks(packCount(t)); initGate();
-  G.bossSpec = { spawned: false, id: levelOf(t).guardian }; G.mapTotal++;
+  const A = levelOf(t).alt; // now and then a stand-in guardian (data/dungeon.js LEVELS alt: the Pale Warden on Bone Gardens and Throne Approach)
+  G.bossSpec = { spawned: false, id: A && Math.random() < A.chance ? A.guardian : levelOf(t).guardian }; G.mapTotal++;
   P.x = G.start.x; P.z = G.start.z; P.dead = 0; P.life = S.maxLife; P.surge = S.surgeMax; P.spent = false; P.flask = SK.flask.max; readySlots();
   refreshShrine();
   const Lv = levelOf(t); // each tier is a level of the Crypt (data/dungeon.js LEVELS)

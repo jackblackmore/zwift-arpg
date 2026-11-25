@@ -7,6 +7,14 @@ export const MT = {
   runner: { hp: 24, dmg: 5.5, spd: 4.0, r: .3, cd: .8, range: .6, ai: 'melee', xp: 3, col: 0x7a2a24, head: 0x9a3a2a, eye: 0xffd000, h: 1.35, scale: .75, look: { kind: 'minion', walk: 'Running_A', idle: 'Skeletons_Idle', rise: 'standing', attacks: [['Melee_Unarmed_Attack_Punch_A', 2.2], ['Melee_Unarmed_Attack_Kick', 1.8]] } },
   archer: { hp: 32, dmg: 10, spd: 2.3, r: .34, cd: 1.8, range: 8, ai: 'ranged', xp: 4, col: 0xb8ae96, head: 0xe6dfcc, eye: 0xff3020, h: 1.8, bow: 1, look: { kind: 'rogue', weapon: 'crossbow', walk: 'Running_A', idle: 'Skeletons_Idle', rise: 'standing', attacks: [['Ranged_2H_Shoot', 1.3]] } },
   bloater: { hp: 55, dmg: 22, spd: 1.6, r: .6, cd: 0, ai: 'bomb', dt: 'poison', xp: 5, col: 0x6aa040, head: 0x9ad060, eye: 0xffff60, h: 1.6, blob: 1 },
+  // Bone Gardens: the necromancer (the mage skeleton with a staff) keeps its distance, spits slow poison bolts you block, and
+  // raises the fallen (RAISE below): kill it first. Throne Approach: the bone knight (sword and the large shield) blocks what you
+  // hit it with from the front until a parry, a heavy hit or enough blows open its guard (BKNIGHT below). prim: the primitive
+  // model's extras (render/models.js) when the KayKit models aren't loaded. flee: it backs off inside this (else FIGHT.flee).
+  necro: { hp: 40, dmg: 8, spd: 2.3, r: .36, cd: 2.6, range: 8, ai: 'necro', dt: 'poison', xp: 7, col: 0x3a4a3a, head: 0xc8d8b8, eye: 0x60ff90, h: 1.85, flee: 3.5, bolt: { speed: 7, col: 0x60ff90 }, prim: { staff: 1, hood: 1 },
+    look: { kind: 'mage', weapon: 'staff', walk: 'Walking_A', idle: 'Skeletons_Idle', rise: 'standing', tint: 0xa8d0a8, attacks: [['Ranged_Magic_Shoot', 1.3]] } },
+  bknight: { hp: 72, dmg: 9, spd: 2.1, r: .42, cd: 1.7, range: .8, ai: 'melee', xp: 7, col: 0x4a5260, head: 0xb8c4d0, eye: 0x60c0ff, h: 1.95, shield: true, prim: { sword: 1, shield: 1 },
+    look: { kind: 'warrior', weapon: 'blade', offhand: 'shield', walk: 'Skeletons_Walking', idle: 'Skeletons_Idle', guard: 'Melee_Blocking', rise: 'floor', tint: 0xa8b8d0, attacks: [['Melee_1H_Attack_Chop', 1.5], ['Melee_1H_Attack_Slice_Diagonal', 1.4], ['Melee_Block_Attack', 1.3]] } },
   boss: { hp: 1100, dmg: 10.5, spd: 2.4, r: 1.1, cd: 1.7, range: 1.8, ai: 'boss', xp: 160, col: 0x2a2236, head: 0x5a4a70, eye: 0xff2bd6, h: 5.6, scale: 2.6, horns: 1, look: { kind: 'warrior', weapon: 'axe', offhand: 'shield', walk: 'Walking_A', idle: 'Melee_2H_Idle', rise: 'taunt', tint: 0xb090d0, attacks: [['Melee_2H_Attack_Chop', 1.6], ['Melee_2H_Attack_Slice', 1.1]] } },
 };
 
@@ -86,6 +94,10 @@ export const RN2 = ['maw', 'tooth', 'spine', 'gnaw', 'husk', 'grip', 'fang', 'sk
 //   × `hits` the usual stagger, and Surge adds × (1 + `surge` × how hard) on hits (instead of STAGGER.surge); in RIDE mode a short
 //   effort spike fills it too (data/ride.js RIDE.spike). A channel that completes does the next of `effects` in turn: an ability
 //   spec in the channel (burst, rain: an `area`), or mend: it heals `heal` of its max life and summons `summon` of `type`.
+//   revive (the high necromancer): `n` of the corpses within `r` of it rise again (RAISE), and if fewer than `min` lie there it
+//     raises fresh `type` from the ground to make up `min`. A channel effect; its corpses glow green while it channels.
+//   combo `seq` (`seq2` in phase 2): the kind of each swing in turn: 'hit' (🟡 parry), 'heavy' (🔴 block for less or roll; its
+//     `heavy` { windup, dmg }) or 'unblockable' (🟣 roll; `unblockable` { windup, dmg }). A mixed combo (the lieutenant).
 export const BOSS = { vsMinion: 1.4, aggro: 13, enrage: .5 };
 const CH = { t: 3, swingCd: .8, firstSwing: .2, parry: 1.25, hits: 3, surge: 6 }; // every guardian's channel timing and how it breaks
 export const GUARDIANS = {
@@ -102,7 +114,7 @@ export const GUARDIANS = {
   // Crypt Halls: the skeleton knight. Sword and shield: a three-swing combo you parry, a shield bash (heavy), a lunge (phase 2,
   // unblockable), and it calls skeleton warriors. Its channel rallies: a shockwave (roll) or a mend that calls more.
   knight: { name: 'The Skeleton Knight', short: 'THE KNIGHT', col: 0x7ab8ff, hint: 'Parry the sword combo · block or roll the shield bash', hint2: 'It lunges (purple: roll) · blue: break its rally',
-    mt: { hp: 1250, dmg: 10.5, spd: 2.6, r: 1, cd: 1.6, range: 1.7, h: 4.9, scale: 2.3, horns: 0, col: 0x3a4250, head: 0xb8c4d0, eye: 0x60c0ff,
+    mt: { hp: 1150, dmg: 10.5, spd: 2.6, r: 1, cd: 1.6, range: 1.7, h: 4.9, scale: 2.3, horns: 0, col: 0x3a4250, head: 0xb8c4d0, eye: 0x60c0ff,
       look: { kind: 'warrior', weapon: 'blade', offhand: 'shield', walk: 'Walking_A', idle: 'Melee_2H_Idle', rise: 'taunt', tint: 0xb8c8e0, attacks: [['Melee_1H_Attack_Chop', 1.4], ['Melee_1H_Attack_Slice_Diagonal', 1.3], ['Melee_1H_Attack_Slice_Horizontal', 1.6]] } },
     rotation: ['combo', 'bash', 'combo', 'summon'], rotation2: ['channel', 'bash', 'lunge', 'combo', 'bash', 'channel', 'summon', 'lunge'], abilGap: 3.3, abilGap2: 2.2, enrageSpd: 1.25,
     abil: {
@@ -118,7 +130,7 @@ export const GUARDIANS = {
   captain: { name: 'The Bone Archer Captain', short: 'THE CAPTAIN', col: 0xffc860, hint: 'Block the volleys · roll the aimed shot · parry its kicks', hint2: 'Blue: break the arrow rain before the bar fills',
     mt: { hp: 1100, dmg: 10.5, spd: 2.5, r: 1, cd: 1.7, range: 1.6, h: 4.7, scale: 2.2, horns: 0, col: 0x5a4a32, head: 0xe6dcc0, eye: 0xffc040, bow: 1,
       look: { kind: 'rogue', weapon: 'crossbow', walk: 'Walking_A', idle: 'Skeletons_Idle', rise: 'taunt', tint: 0xe8d8b0, attacks: [['Melee_Unarmed_Attack_Kick', 1.3], ['Melee_Unarmed_Attack_Punch_A', 1.5]] } },
-    rotation: ['volley', 'shot', 'volley', 'summon'], rotation2: ['channel', 'shot', 'volley', 'shot', 'channel', 'summon', 'volley'], abilGap: 3.6, abilGap2: 2.3, enrageSpd: 1.2, summonCap: 3,
+    rotation: ['volley', 'shot', 'volley', 'summon'], rotation2: ['channel', 'shot', 'volley', 'shot', 'channel', 'summon', 'volley'], abilGap: 3.6, abilGap2: 2.3, enrageSpd: 1.2, summonCap: 2,
     abil: {
       volley: { kind: 'volley', n: 5, spread: .7, dmg: .7, speed: 13, gap: .5, t: .8, waves2: 2, look: 'arrow', dt: 'phys' },
       shot: { kind: 'shot', t: 1.1, lock: .25, dmg: 4.2, w: .8, range: 30, dt: 'phys' },
@@ -132,15 +144,63 @@ export const GUARDIANS = {
   plague: { name: 'The Plague Bloat', short: 'THE PLAGUE BLOAT', col: 0x8ee04a, hint: 'Block or roll the belly slam · block the spew · kill the bloaters', hint2: 'It bursts! Purple leap: roll · blue: break its gorging',
     mt: { hp: 1100, dmg: 10.5, spd: 1.9, r: 1.4, cd: 1.8, range: 1.5, h: 3.8, scale: 3.4, horns: 0, blob: 1, col: 0x5a8a30, head: 0xa8d860, eye: 0xffff60, look: null },
     rotation: ['slam', 'spew', 'slam', 'summon'], rotation2: ['channel', 'slam', 'leap', 'spew', 'slam', 'channel', 'summon', 'leap'], abilGap: 3.8, abilGap2: 2.3, enrageSpd: 1.25,
-    phase2: { summon: ['bloater', 3] },
+    phase2: { summon: ['bloater', 2] },
     abil: {
       slam: { kind: 'area', at: 'you', tell: 'heavy', r: 3.1, dmg: 4.5, t: 1.25, t2: 1, dt: 'phys' },
       spew: { kind: 'volley', n: 6, spread: .85, dmg: .8, speed: 7, gap: .5, t: .8, waves2: 2, col: 0x8ee04a, dt: 'poison' },
       leap: { kind: 'area', at: 'you', tell: 'unblockable', jump: true, r: 2.6, dmg: 4.5, t: 1.15, dt: 'phys' },
-      summon: { kind: 'summon', type: 'bloater', n: 2, n2: 3 },
+      summon: { kind: 'summon', type: 'bloater', n: 1, n2: 2 },
     },
-    channel: { ...CH, effects: ['burst', 'mend'], burst: { kind: 'area', at: 'self', tell: 'unblockable', t: .7, dmg: 5, r: 7.5, dt: 'poison' }, mend: { heal: .15, summon: 3, type: 'bloater' } } },
+    channel: { ...CH, effects: ['burst', 'mend'], burst: { kind: 'area', at: 'self', tell: 'unblockable', t: .7, dmg: 5, r: 7.5, dt: 'poison' }, mend: { heal: .15, summon: 2, type: 'bloater' } } },
+  // Bone Gardens: the high necromancer (the mage skeleton with a staff, grown and robed). A staff strike you parry, bone hands
+  // from the floor under you (heavy), a curse it aims at you (unblockable: roll), poison skulls you block; it raises skeleton
+  // warriors in waves, and its channel raises every corpse round it at once (break it!) or ends in a soul burst (roll).
+  lich: { name: 'The High Necromancer', short: 'THE HIGH NECROMANCER', col: 0x60ff90, hint: 'Parry the staff · block or roll the bone hands · roll the curse', hint2: 'Blue: break it before the dead rise · purple: roll',
+    mt: { hp: 1150, dmg: 10.5, spd: 2.3, r: 1, cd: 1.8, range: 1.7, h: 4.9, scale: 2.4, horns: 0, col: 0x2a3a2a, head: 0xd0e0c0, eye: 0x60ff90, prim: { staff: 1, hood: 1 },
+      look: { kind: 'mage', weapon: 'staff', walk: 'Walking_A', idle: 'Skeletons_Idle', rise: 'taunt', tint: 0x9ac8a0, attacks: [['Melee_2H_Attack_Chop', 1.4], ['Melee_1H_Attack_Chop', 1.3], ['Melee_2H_Attack_Slice', 1.2]] } },
+    rotation: ['skulls', 'grasp', 'raise', 'curse'], rotation2: ['channel', 'grasp', 'curse', 'skulls', 'grasp', 'channel', 'raise', 'curse'], abilGap: 3.6, abilGap2: 2.3, enrageSpd: 1.2, summonCap: 5,
+    phase2: { summon: ['zombie', 3] },
+    abil: {
+      grasp: { kind: 'area', at: 'you', tell: 'heavy', r: 2.6, dmg: 4.5, t: 1.15, t2: .95, dt: 'phys' },
+      curse: { kind: 'shot', t: 1.1, lock: .25, dmg: 4.2, w: .8, range: 30, dt: 'poison' },
+      skulls: { kind: 'volley', n: 5, spread: .8, dmg: .75, speed: 7.5, gap: .5, t: .75, waves2: 2, col: 0x60ff90, dt: 'poison' },
+      raise: { kind: 'summon', type: 'zombie', n: 2, n2: 3 },
+    },
+    anim: { grasp: ['Ranged_Magic_Raise', 1.2], curse: ['Ranged_Magic_Shoot', .7], skulls: ['Ranged_Magic_Shoot', .9], raise: ['Ranged_Magic_Summon', 1.6] },
+    channel: { ...CH, effects: ['revive', 'burst'], revive: { kind: 'revive', n: 8, r: 14, min: 3, type: 'zombie' }, burst: { kind: 'area', at: 'self', tell: 'unblockable', t: .7, dmg: 5, r: 7.5, dt: 'poison' } } },
+  // Throne Approach: the King's lieutenant, the Ashen King's sword arm (step 11). Sword and shield, the toughest guardian: a four-swing
+  // combo that mixes parries with a heavy (phase 2 also an unblockable), a cleaving heavy in front of it, an ashen brand under you
+  // (unblockable: roll) and a lunge in phase 2; it calls bone knights. Its channel ends in an ash nova (roll) or a mend that calls more.
+  lieutenant: { name: "The King's Lieutenant", short: 'THE LIEUTENANT', col: 0xffa040, hint: 'Parry the yellow swings · block or roll the red · roll the purple', hint2: 'The combo turns deadly · blue: break it before the bar fills',
+    mt: { hp: 1300, dmg: 11, spd: 2.6, r: 1.05, cd: 1.6, range: 1.8, h: 5.2, scale: 2.5, horns: 1, col: 0x3a2a22, head: 0xc8b090, eye: 0xffa040,
+      look: { kind: 'warrior', weapon: 'axe', offhand: 'shield', walk: 'Walking_A', idle: 'Melee_2H_Idle', rise: 'taunt', tint: 0xd8b890, attacks: [['Melee_1H_Attack_Chop', 1.4], ['Melee_1H_Attack_Slice_Diagonal', 1.3], ['Melee_1H_Attack_Slice_Horizontal', 1.6]] } },
+    rotation: ['combo', 'cleave', 'brand', 'combo', 'summon'], rotation2: ['channel', 'combo', 'lunge', 'brand', 'cleave', 'channel', 'combo', 'summon', 'lunge'], abilGap: 3.3, abilGap2: 2.2, enrageSpd: 1.25, summonCap: 2,
+    phase2: { summon: ['bknight', 1] },
+    abil: {
+      combo: { kind: 'combo', n: 4, gap: .3, windup: .5, dmg: 1, seq: ['hit', 'hit', 'heavy', 'hit'], seq2: ['hit', 'heavy', 'hit', 'unblockable'], heavy: { windup: .95, dmg: 3 }, unblockable: { windup: .9, dmg: 3.2 } },
+      cleave: { kind: 'area', at: 'front', tell: 'heavy', r: 2.8, dmg: 4.5, t: 1, t2: .85, dt: 'phys' },
+      brand: { kind: 'area', at: 'you', tell: 'unblockable', r: 2.2, dmg: 4.2, t: 1.15, t2: 1, dt: 'fire' },
+      lunge: { kind: 'charge', t: 1, dmg: 4.5, speed: 16, range: 9, hitR: .5, dt: 'phys' },
+      summon: { kind: 'summon', type: 'bknight', n: 1, n2: 1 },
+    },
+    anim: { cleave: ['Melee_2H_Attack_Spin', 1.1], brand: ['Ranged_Magic_Raise', 1.2], lunge: ['Melee_1H_Attack_Stab', .8], summon: ['Skeletons_Taunt', 1.4] },
+    channel: { ...CH, effects: ['burst', 'mend'], burst: { kind: 'area', at: 'self', tell: 'unblockable', t: .7, dmg: 5, r: 8, dt: 'fire' }, mend: { heal: .15, summon: 2, type: 'bknight' } } },
 };
+
+// Raising the dead (the necromancer, MT.necro; the high necromancer's revive). Normal monsters of `types` leave a corpse where they
+// fall (a dark mark on the floor) for `keep` s; a raised monster leaves none and gives no XP or loot. A necromancer within `r` of
+// corpses starts raising after `every` [min, max] s (`first` s after it wakes): it stands still and channels for `t` s, a green
+// ring under it and on each corpse it reaches (data/graphics.js TELL.raise, its own cue sound), then up to `n` of them rise with
+// `hp` of their life, getting up for `rise` s. Any hit you land on it interrupts the raise; killing it ends them. On a rare
+// necromancer the raise reaches twice as many corpses.
+export const RAISE = { types: ['zombie', 'runner', 'archer', 'bknight'], keep: 40, r: 9, every: [5, 7], first: 2.5, t: 2.2, n: 3, hp: .6, rise: .9 };
+// The bone knight's shield (MT.bknight). While its guard is up (not swinging, stunned or frozen) it blocks hits from in front of it
+// (within `arc` degrees: it always turns to face you, so in practice every hit): it takes `taken` of the damage and a hit fills
+// `stag` of a normal hit's knockback; a steel-blue flash and "BLOCKED" with a clang (data/graphics.js TELL.guard). Its guard opens
+// for `open` s (a yellow "GUARD OPEN", shield lowered) when you parry its swing, land a heavy hit on it (the Sword's heavy cut, a
+// riposte, a finisher) or after `hits` blocked hits in a row; while open it takes full damage. Burns and other damage over time
+// go round the shield. Its swings flash yellow like a rare's: parry them.
+export const BKNIGHT = { arc: 140, taken: .2, open: 2.6, hits: 4 };
 
 // Each level's pack mix (data/dungeon.js LEVELS: `mix` names one): pack templates ([type, count] pairs, counts grown per tier) and
 // the types a pack's rare can be. Levels without one use PACKS and PACK.rareTypes.
@@ -151,6 +211,12 @@ export const MIX = {
   ossuary: { packs: [[['zombie', 3], ['archer', 2]], [['archer', 3], ['zombie', 2]], [['zombie', 4], ['archer', 1]], [['runner', 3], ['archer', 2]], [['zombie', 4]], [['zombie', 2], ['runner', 3]]], rareTypes: ['zombie', 'archer', 'zombie'] },
   // Flooded Tombs: bloaters (5–7 a pack with growth); everything so far.
   tombs: { packs: [[['bloater', 2], ['zombie', 3]], [['runner', 3], ['archer', 1], ['bloater', 1]], [['zombie', 3], ['bloater', 1], ['archer', 1]], [['bloater', 2], ['runner', 3]], [['zombie', 4], ['archer', 1]], [['zombie', 2], ['runner', 3]]], rareTypes: ['zombie', 'bloater', 'archer', 'zombie'] },
+  // Bone Gardens: a necromancer in most packs, behind skeleton warriors (5–8 a pack with growth): kill it first or the pack gets up again.
+  gardens: { packs: [[['zombie', 3], ['necro', 1]], [['runner', 2], ['zombie', 2], ['necro', 1]], [['zombie', 2], ['archer', 1], ['necro', 1]], [['zombie', 3], ['archer', 1]], [['bloater', 1], ['zombie', 2], ['necro', 1]], [['zombie', 2], ['runner', 2]]], rareTypes: ['zombie', 'necro', 'archer', 'zombie'] },
+  // Throne Approach: bone knights in every pack but one, with everything else the Crypt has (6–8 a pack), and more rares and elites:
+  // rareChance and magicChance replace PACK's; eliteTypes replaces ELITE.types.
+  throne: { packs: [[['bknight', 1], ['zombie', 3]], [['bknight', 1], ['archer', 1], ['zombie', 2]], [['bknight', 2], ['runner', 2]], [['necro', 1], ['zombie', 2], ['bknight', 1]], [['runner', 2], ['bknight', 1], ['archer', 1]], [['bloater', 1], ['bknight', 1], ['zombie', 2]], [['zombie', 3], ['archer', 1]]],
+    rareTypes: ['bknight', 'zombie', 'archer', 'bknight'], rareChance: .25, magicChance: .3, eliteTypes: ['bknight', 'zombie', 'bknight', 'archer'] },
 };
 
 // Stagger (design notes "Fight mechanics"): guardians and rares have a stagger bar (0..1). A parry adds `parry` (`parryRare` on a
