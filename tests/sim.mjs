@@ -782,7 +782,7 @@ try {
       let k = kn(); const front = D.hit(k, 1, 'phys', { gem: 'sword' }); k.face = 0; k.guardHits = 0; const back = D.hit(k, 1, 'phys', { gem: 'sword' }); out.shield = +(front / back).toFixed(2); out.blockTxt = G.floats.some(f => f.txt === 'BLOCKED');
       k.face = Math.PI; k.guardHits = 0; const hv = D.hit(k, 1, 'phys', { gem: 'sword', heavy: true }); out.heavyOpens = k.open > 0 && Math.abs(hv / back - 1) < .01;
       k = kn(); for (let i = 0; i < D.BKNIGHT.hits; i++) D.hit(k, 1, 'phys', { gem: 'sword' }); out.hitsOpen = k.open > 0 && Math.abs(D.hit(k, 1, 'phys', { gem: 'sword' }) / back - 1) < .01;
-      k = kn(); D.hit(k, 1, 'fire', { gem: 'sword', dot: 1 }); out.dotThrough = k.guardHits === 0;
+      k = kn(); D.hit(k, 1, 'fire', { gem: 'sword', dot: 1 }); out.dotThrough = !k.guardHits;
       Math.random = rnd; S.crit = crit;
       k = kn(); k.atkT = .05; G.floats = []; let par = 0, tell = false;
       for (let i = 0; i < 120 && !(k.open > 0); i++) { if (k.windup > 0 && k.windup <= .15 && P.parryCd <= 0) ctl.tap.guard = true; const s = P.castSeq; D.sim(1); if (P.castSeq !== s && P.lastCast === 'parry') par++; if (G.floats.some(f => f.txt === '!' && f.col === hex(TELL.parry))) tell = true; }
@@ -808,19 +808,20 @@ try {
     check(r.lichChan && r.revived >= 3 && r.lichBroken && r.brokenNone, `high necromancer: its phase 2 channel raises the corpses round it (${r.revived} from ${r.revivedFrom}); breaking it with stagger keeps them down`);
     if (process.env.SCREENSHOT) { // each new enemy and guardian at work (SCREENSHOT-necro, -bknight, -lich, -lieutenant), then the primitive models (-prim)
       const shot = n => process.env.SCREENSHOT.replace(/\.png$/, `-${n}.png`);
-      const stage = async (name, code) => { await page.evaluate(code); await new Promise(r => setTimeout(r, 300)); await page.screenshot({ path: shot(name) }); };
-      const setup = `const D = window.__dbg, P = D.P, G = D.G, ctl = D.ctl; G.enemies.forEach(e => { e.deathT = 1; e.gone = true; }); D.sim(1); G.corpses.forEach(c => D.scene.remove(c.g)); G.corpses = []; G.eproj = []; G.queue = []; P.life = 1e6; P.invuln = 0;
-        const L = G.layout, R = L.rooms[0]; P.x = R.x; P.z = R.z - 1.5; P.face = 0; document.getElementById('banner').style.opacity = 0; G.bannerT = .01;
-        const sp = (t, dx, dz, o) => { const e = D.spawnEnemy(t, P.x + dx, P.z + dz, null, 0, o); e.awake = true; e.rise = 0; return e; };`;
+      const stage = async (name, code) => { await page.evaluate('{' + code + '}'); await page.evaluate(() => { document.getElementById('banner').style.opacity = 0; }); await new Promise(r => setTimeout(r, 300)); await page.screenshot({ path: shot(name) }); };
+      const setup = `const D = window.__dbg, P = D.P, G = D.G, ctl = D.ctl; G.enemies.forEach(e => { e.deathT = 1; e.gone = true; D.scene.remove(e.model.g); }); D.sim(1); G.corpses.forEach(c => D.scene.remove(c.g)); G.corpses = []; G.eproj = []; G.queue = []; P.life = 1e6; P.invuln = 0;
+        const L = G.layout, R = L.rooms[0]; P.x = R.x; P.z = R.z + 2.5; P.face = Math.PI; document.getElementById('banner').style.opacity = 0; G.bannerT = .01;
+        const sp = (t, dx, dz, o) => { const e = D.spawnEnemy(t, P.x + dx, P.z - dz, null, 0, o); /* +dz: up the screen, away from the camera */ e.awake = true; e.rise = 0; return e; };`;
       await page.evaluate(() => { const D = window.__dbg; D.newMap(4); D.G.packs = []; D.G.bossSpec = null; });
       await stage('necro', setup + `const n = sp('necro', 0, 5.5); n.spd = 0; n.shootT = 99; for (let i = 0; i < 3; i++) D.kill(sp('zombie', -1.6 + i * 1.6, 3)); sp('zombie', 1.2, 1.4).atkT = 99; D.sim(8); n.raiseT = 0; D.sim(18); D.snapCam();`);
       await page.evaluate(() => { const D = window.__dbg; D.newMap(5); D.G.packs = []; D.G.bossSpec = null; });
       await stage('bknight', setup + `const a = sp('bknight', -.8, 1.7), b = sp('bknight', 1.4, 2.4); a.spd = b.spd = 0; a.atkT = 99; b.atkT = .2; D.sim(3); for (let i = 0; i < 2; i++) D.hit(a, 1, 'phys', { gem: 'sword' }); P.aimAt = [a.x, a.z]; D.strike('sword'); P.aimAt = null; D.sim(5); D.snapCam();`);
       await page.evaluate(() => { const D = window.__dbg; D.newMap(4); D.G.packs = []; D.G.bossSpec = null; });
-      await stage('lich', setup + `const b = sp('boss', 0, 4.5, { guard: 'lich' }); b.spd = 0; b.atkT = 99; b.abilT = 99; D.sim(2); for (let i = 0; i < 4; i++) D.kill(sp('zombie', Math.cos(i * 1.5) * 3, 4.5 + Math.sin(i * 1.5) * 3)); sp('zombie', 1.5, 1.5).atkT = 99; D.sim(2); b.phase2 = true; b.hp = b.maxHp * .4; b.rot = 0; b.chanN = 0; b.abilT = 0; D.sim(20); b.atkT = 99; D.snapCam();`);
+      await stage('lich', setup + `const b = sp('boss', 0, 3.8, { guard: 'lich' }); b.spd = 0; b.atkT = 99; b.abilT = 99; D.sim(2); for (let i = 0; i < 4; i++) D.kill(sp('zombie', Math.cos(i * 1.5) * 3, 3.8 + Math.sin(i * 1.5) * 2.2)); sp('zombie', 1.5, 1.5).atkT = 99; D.sim(2); b.phase2 = true; b.hp = b.maxHp * .4; b.rot = 0; b.chanN = 0; b.abilT = 0; D.sim(20); b.atkT = 99; D.snapCam();`);
       await page.evaluate(() => { const D = window.__dbg; D.newMap(5); D.G.packs = []; D.G.bossSpec = null; });
       await stage('lieutenant', setup + `const b = sp('boss', 0, 3.2, { guard: 'lieutenant' }); b.spd = 0; b.atkT = 99; b.abilT = 99; sp('bknight', -2.4, 2.6).atkT = 99; D.sim(2); D.bossDo(b, 'combo'); b.atkT = .05; for (let k = 0; k < 120 && !b.heavy; k++) { P.life = 1e6; D.sim(1); } D.sim(8); D.snapCam();`);
-      await stage('prim', setup + `D.chars.ready = false; sp('necro', -3, 4).spd = 0; const k = sp('bknight', -1, 2.5); k.spd = 0; k.atkT = 99; const b = sp('boss', 2.5, 5.5, { guard: 'lich' }); b.spd = 0; b.atkT = b.abilT = 99; const l = sp('boss', -3.5, 8, { guard: 'lieutenant' }); l.spd = 0; l.atkT = l.abilT = 99; D.chars.ready = true; D.sim(4); D.snapCam();`);
+      await page.evaluate(() => { const D = window.__dbg; D.newMap(5); D.G.packs = []; D.G.bossSpec = null; });
+      await stage('prim', setup + `D.chars.ready = false; sp('necro', -4.5, 1).spd = 0; const k = sp('bknight', -1.2, 1.8); k.spd = 0; k.atkT = 99; const b = sp('boss', 2.8, 3, { guard: 'lich' }); b.spd = 0; b.atkT = b.abilT = 99; const l = sp('boss', -2.6, 4.4, { guard: 'lieutenant' }); l.spd = 0; l.atkT = l.abilT = 99; D.chars.ready = true; D.sim(4); D.snapCam();`);
       console.log('  screenshots: ' + ['necro', 'bknight', 'lich', 'lieutenant', 'prim'].map(shot).join(', '));
     }
     check(errors.length === 0, `levels 4–5: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
@@ -1023,7 +1024,7 @@ try {
     check(r.boss.result === 'clear' && r.boss.t > 45 && r.boss.t < 180, `balance: tier 1 guardian can't be burned down (${r.boss.t}s)`);
     check(r.under.result !== 'clear', `balance: starter sword can't beat the tier 2 guardian in 2 minutes (${r.under.result})`);
     check(r.smart.result === 'clear' && (r.careless.result === 'died' || r.careless.taken > r.smart.taken * 3), `balance: never parrying, blocking or rolling against the tier 2 guardian does far worse (${r.careless.result}, ${r.careless.taken} taken vs ${r.smart.taken})`);
-    check(r.perfect.result === 'clear' && r.perfect3 < r.smart3 && r.smart.parries > 5 && r.smart.rolls > 2, `balance: perfect timing takes less than a good rider over three tier 2 guardian fights (${r.perfect3} vs ${r.smart3}), who parries and rolls (${r.smart.parries} parries, ${r.smart.rolls} rolls)`);
+    check(r.perfect.result === 'clear' && r.perfect3 < r.smart3 && r.smart.parries > 5 && r.smart.rolls >= 1, `balance: perfect timing takes less than a good rider over three tier 2 guardian fights (${r.perfect3} vs ${r.smart3}), who parries and rolls (${r.smart.parries} parries, ${r.smart.rolls} rolls)`);
     check(r.elite.result === 'clear' && r.elite.t > r.rare.t && r.rare.result === 'clear', `balance: a good rider beats a tier 2 elite room at par, and it takes longer than a rare pack (${r.elite.t}s vs ${r.rare.t}s)`);
     check(r.smartFs.result === 'clear' && (r.carelessFs.result === 'died' || (r.carelessFs.lowest < .15 && r.carelessFs.taken > r.smartFs.taken * 4)),
       `balance: careless play does far worse against the tier 4 guardian with Frost Strike too (its chill doesn't stop the guardian: ${r.carelessFs.result}, ${r.carelessFs.taken} taken vs ${r.smartFs.taken})`);

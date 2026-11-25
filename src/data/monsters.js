@@ -156,15 +156,15 @@ export const GUARDIANS = {
   // from the floor under you (heavy), a curse it aims at you (unblockable: roll), poison skulls you block; it raises skeleton
   // warriors in waves, and its channel raises every corpse round it at once (break it!) or ends in a soul burst (roll).
   lich: { name: 'The High Necromancer', short: 'THE HIGH NECROMANCER', col: 0x60ff90, hint: 'Parry the staff · block or roll the bone hands · roll the curse', hint2: 'Blue: break it before the dead rise · purple: roll',
-    mt: { hp: 1150, dmg: 10.5, spd: 2.3, r: 1, cd: 1.8, range: 1.7, h: 4.9, scale: 2.4, horns: 0, col: 0x2a3a2a, head: 0xd0e0c0, eye: 0x60ff90, prim: { staff: 1, hood: 1 },
+    mt: { hp: 1250, dmg: 13, spd: 2.3, r: 1, cd: 1.8, range: 1.7, h: 4.9, scale: 2.4, horns: 0, col: 0x2a3a2a, head: 0xd0e0c0, eye: 0x60ff90, prim: { staff: 1, hood: 1 },
       look: { kind: 'mage', weapon: 'staff', walk: 'Walking_A', idle: 'Skeletons_Idle', rise: 'taunt', tint: 0x9ac8a0, attacks: [['Melee_2H_Attack_Chop', 1.4], ['Melee_1H_Attack_Chop', 1.3], ['Melee_2H_Attack_Slice', 1.2]] } },
     rotation: ['skulls', 'grasp', 'raise', 'curse'], rotation2: ['channel', 'grasp', 'curse', 'skulls', 'grasp', 'channel', 'raise', 'curse'], abilGap: 3.6, abilGap2: 2.3, enrageSpd: 1.2, summonCap: 5,
-    phase2: { summon: ['zombie', 3] },
+    phase2: { summon: ['zombie', 2] },
     abil: {
       grasp: { kind: 'area', at: 'you', tell: 'heavy', r: 2.6, dmg: 4.5, t: 1.15, t2: .95, dt: 'phys' },
       curse: { kind: 'shot', t: 1.1, lock: .25, dmg: 4.2, w: .8, range: 30, dt: 'poison' },
       skulls: { kind: 'volley', n: 5, spread: .8, dmg: .75, speed: 7.5, gap: .5, t: .75, waves2: 2, col: 0x60ff90, dt: 'poison' },
-      raise: { kind: 'summon', type: 'zombie', n: 2, n2: 3 },
+      raise: { kind: 'summon', type: 'zombie', n: 1, n2: 2 },
     },
     anim: { grasp: ['Ranged_Magic_Raise', 1.2], curse: ['Ranged_Magic_Shoot', .7], skulls: ['Ranged_Magic_Shoot', .9], raise: ['Ranged_Magic_Summon', 1.6] },
     channel: { ...CH, effects: ['revive', 'burst'], revive: { kind: 'revive', n: 8, r: 14, min: 3, type: 'zombie' }, burst: { kind: 'area', at: 'self', tell: 'unblockable', t: .7, dmg: 5, r: 7.5, dt: 'poison' } } },
@@ -217,7 +217,7 @@ export const MIX = {
   // Throne Approach: bone knights in every pack but one, with everything else the Crypt has (6–8 a pack), and more rares and elites:
   // rareChance and magicChance replace PACK's; eliteTypes replaces ELITE.types.
   throne: { packs: [[['bknight', 1], ['zombie', 2]], [['bknight', 1], ['archer', 1], ['zombie', 2]], [['bknight', 2], ['runner', 2]], [['necro', 1], ['zombie', 2], ['bknight', 1]], [['runner', 2], ['bknight', 1]], [['bloater', 1], ['bknight', 1], ['zombie', 2]], [['zombie', 3]]],
-    rareTypes: ['bknight', 'zombie', 'bknight', 'zombie'], rareChance: .22, magicChance: .3, eliteTypes: ['bknight', 'zombie', 'bknight', 'archer'] },
+    rareTypes: ['bknight', 'zombie', 'bknight', 'zombie'], rareChance: .22, magicChance: .3, eliteTypes: ['bknight', 'zombie', 'zombie', 'archer'] },
 };
 
 // Stagger (design notes "Fight mechanics"): guardians and rares have a stagger bar (0..1). A parry adds `parry` (`parryRare` on a

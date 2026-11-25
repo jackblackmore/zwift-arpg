@@ -58,6 +58,7 @@ export function spawnEnemy(type, x, z, pack, rar = 0, o = {}) {
   e.model.g.position.set(x, 0, z); e.model.g.rotation.y = e.face; scene.add(e.model.g);
   const inv = rigged ? 1 : 1 / sc; // primitive models scale the whole group; rigged ones scale an inner node
   if (rar) { e.aura = aura(rar === 2 ? 0xffd23f : 0x5a6aff, e.r * 5, .35); e.model.g.add(e.aura); e.aura.scale.multiplyScalar(inv); }
+  if (b.shield) { e.glint = glowSprite(TELL.guard, 1.5); e.glint.material = e.glint.material.clone(); e.glint.position.set(0, e.h * .45 * inv, .5 * inv); e.glint.scale.multiplyScalar(inv); e.model.g.add(e.glint); } // a bone knight's raised shield gleams (BKNIGHT)
   if (e.aff.includes('burning')) { e.fireAura = aura(0xd8400c, 5.5, .35); e.model.g.add(e.fireAura); e.fireAura.scale.multiplyScalar(inv); }
   G.enemies.push(e); if (pack) pack.list.push(e);
   return e;
@@ -142,6 +143,7 @@ export function updEnemyProjectiles(dt) {
 
 export function updEnemy(e, dt) {
   const M = e.model;
+  if (e.deathT && e.glint) e.glint.visible = false;
   if (e.deathT && M.rigged) {
     // Play a death clip, leave the body a moment, then sink it into the floor.
     if (!e.deathAnim) { e.deathAnim = 1; M.play(pick(ANIM.deaths), { once: true, fade: .08, speed: 1.3 }); }
@@ -174,6 +176,7 @@ export function updEnemy(e, dt) {
   } else e.burnDps = 0;
   if (e.chill > 0) e.chill -= dt;
   if (e.open > 0) { e.open -= dt; if (e.open <= 0) e.guardHits = 0; } // a bone knight's opened guard closes again (BKNIGHT)
+  if (e.glint) { const up = guardUp(e); e.glint.visible = up; if (up) e.glint.material.opacity = .75 + .2 * Math.sin(G.gt * 5 + e.sx); }
   if (e.stagMax && e.stun <= 0) { e.stagWait -= dt; if (e.stagWait <= 0) e.stag = Math.max(0, e.stag - STAGGER.drain * dt); }
   const frozen = e.freeze > 0; if (frozen) e.freeze -= dt;
   for (const m of M.mats) {
