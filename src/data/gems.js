@@ -62,7 +62,7 @@ export const SUPPORTS = {
   // Brittle: enemies hit take `taken` more damage from everything for `dur` s (the shock status).
   brittle: { n: 'Brittle', for: ['fstrike'], icon: '❖', col: '#9fe8ff', d: 'Enemies hit by Frost Strike take 20% more damage from everything for 3s', taken: .2, dur: 3, fn: s => s.brittle = 1 },
   // Aftershock: a second slam on the same spot `delay` s later, `mult` × the damage.
-  aftershock: { n: 'Aftershock', for: ['slam'], icon: '≋', col: '#c98bff', d: 'Thunder Slam hits the same spot again 0.4s later for 35% of the damage', delay: .4, mult: .35, fn: s => s.aftershock = 1 },
+  aftershock: { n: 'Aftershock', for: ['slam'], icon: '≋', col: '#c98bff', d: 'Thunder Slam hits the same spot again 0.4s later for 30% of the damage', delay: .4, mult: .3, fn: s => s.aftershock = 1 },
   // Raise Skeletons: a kill by the socketed skill has `chance` to rise as a skeleton that fights for you, up to `cap` at once.
   // The skeleton's own numbers (life, hits, speed) are SK.skeletons in data/skills.js; it scales with the socketed gem's level.
   raise: { n: 'Raise Skeletons', for: ['attack'], icon: '☠', col: '#9be8c0', d: 'Enemies killed by this skill have a 25% chance to rise as a skeleton that fights for you (up to 3)', chance: .25, cap: 3, fn: s => s.raise = 1 },

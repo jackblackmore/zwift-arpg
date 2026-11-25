@@ -120,7 +120,7 @@ export const SET = {
 //   still walks the deep Crypt).
 export const LEVELS = [
   { name: 'Crypt Halls', rule: 'Open halls · skeleton warriors and runners', guardian: 'knight', mix: 'halls', gen: { room: [5, 7], notchChance: .15 }, look: { hemi: 0x9a8fc0, moon: 0x9fb0ff } },
-  { name: 'Ossuary', rule: 'Narrow corridors · archers hold the chokepoints', guardian: 'captain', mix: 'ossuary', gen: { corridor: 1, room: [4, 6] }, choke: 1 / 3, look: { hemi: 0xb8ac94, moon: 0xc8c0a8 }, clutter: 2.2 },
+  { name: 'Ossuary', rule: 'Narrow corridors · archers hold the chokepoints', guardian: 'captain', mix: 'ossuary', gen: { corridor: 1, room: [4, 6] }, choke: 1 / 4, look: { hemi: 0xb8ac94, moon: 0xc8c0a8 }, clutter: 2.2 },
   { name: 'Flooded Tombs', rule: 'Poison pools · bloaters', guardian: 'plague', mix: 'tombs', pools: true, look: { hemi: 0x84b49a, moon: 0x90d0b0 } },
   { name: 'Bone Gardens', rule: 'Necromancers raise the fallen · kill them first', guardian: 'lich', mix: 'gardens', gen: { notchChance: .55 }, alt: { guardian: 'warden', chance: .15 }, look: { hemi: 0x8aa890, moon: 0xa0d0b0 }, clutter: 2.6 },
   { name: 'Throne Approach', rule: 'Bone knights hold their shields · parry to open them', guardian: 'lieutenant', mix: 'throne', gen: { room: [5, 7] }, alt: { guardian: 'warden', chance: .15 }, look: { hemi: 0xb09878, moon: 0xd0b090 } },

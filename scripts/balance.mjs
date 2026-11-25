@@ -54,7 +54,7 @@ for (let t = 1; t <= maxTier; t++) {
   const atStart = track.lv + track.xp / xpNeedFor(track.lv);
   const lvl = parLevel(t), gl = parGem(t), gems = { [MAIN]: gl }, socks = { [MAIN]: (parSock(t, MAIN).main || []) }, pack = avgPack(t), boss = monsterStats('boss', t);
   const z = monsterStats('zombie', t), rare = monsterStats('zombie', t, 2);
-  const xpMap = packCount(t) * pack.xp * (1 + TIER.xp * (t - 1)) * (1 + PACK.magicChance * (RARITY.magic.xp - 1)) + packCount(t) * PACK.rareChance * MT.zombie.xp * RARITY.rare.xp + MT.boss.xp;
+  const xpMap = packCount(t) * pack.xp * (1 + TIER.xp * (t - 1)) * (1 + (packMix(t).magicChance ?? PACK.magicChance) * (RARITY.magic.xp - 1)) + packCount(t) * (packMix(t).rareChance ?? PACK.rareChance) * MT.zombie.xp * RARITY.rare.xp + MT.boss.xp;
   let lv = lvl, xp = xpMap; while (xp >= xpNeedFor(lv)) { xp -= xpNeedFor(lv); lv++; }
   track.xp += xpMap; while (track.xp >= xpNeedFor(track.lv)) { track.xp -= xpNeedFor(track.lv); track.lv++; }
   console.log(`Tier ${t} (${levelOf(t).name}) · par level ${lvl} · ${GEMS[MAIN].n} gem ${gl}${socks[MAIN].length ? ' + ' + socks[MAIN].join(', ') : ''} · zombie ${fmt(z.hp, 0)} hp · pack ~${fmt(pack.n)} monsters ${fmt(pack.hp, 0)} hp · rare ${fmt(rare.hp, 0)} hp · guardian ${fmt(boss.hp, 0)} hp · map XP takes you to level ${fmt(lv + xp / xpNeedFor(lv))} · full clears from map 1 arrive at level ${fmt(atStart)}`);
@@ -67,7 +67,7 @@ for (let t = 1; t <= maxTier; t++) {
     const hits = z.hp / hit;
     const clear = hitTime(pack.hp / G.pack, G.rate, st), rk = hitTime(rare.hp / hit, G.rate, st), gk = hitTime(boss.hp / hit, G.rate, st), gs = hitTime(boss.hp / hit, G.rate, st, true);
     const tank = st.maxLife / pack.taken(st), gain = G.dps / startDps;
-    if (PAR_GEAR(t) === kind) levelEst[t] = { st, clear: hitTime(pack.hp * (1 + PACK.magicChance * (RARITY.magic.hp - 1)) / G.pack, G.rate, st), rk, gs };
+    if (PAR_GEAR(t) === kind) levelEst[t] = { st, clear: hitTime(pack.hp * (1 + (packMix(t).magicChance ?? PACK.magicChance) * (RARITY.magic.hp - 1)) / G.pack, G.rate, st), rk, gs };
     const par = PAR_GEAR(t) === kind, chk = (v, k) => { if (!par || (k === 'hitsNormal' && MAIN !== PAR_MAIN)) return ' '; const f = flag(v, TARGETS[k]); if (f !== ' ') warn++; return f; };
     console.log(`  ${(kind + (par ? '*' : ' ')).padEnd(7)}│ ${fmt(hit).padStart(4)} │ ${fmt(hits).padStart(9)} ${chk(hits, 'hitsNormal')} │ ${fmt(clear).padStart(8)}s${chk(clear, 'packClear')}│ ${fmt(rk).padStart(7)}s${chk(rk, 'rareKill')}│ ${fmt(gk, 0).padStart(6)}s${chk(gk, 'guardian')}│ ${fmt(gs, 0).padStart(6)}s ${chk(gs, 'guardianSurge')}│ ${fmt(tank).padStart(7)}s${chk(tank, 'faceTank')}│ ×${fmt(gain, 2)}${kind === 'magic' && t === 1 ? flag(gain, TARGETS.lootGain) : ''}`);
   }
@@ -154,7 +154,7 @@ console.log(warn ? `${warn} par numbers outside target (all tables).` : 'All par
   console.log('  tier │  walk │ packs │ rares │ guard │ junc  │ total │ measured │ target ' + E.target.join('–'));
   for (let t = 1; t <= maxTier; t++) {
     const e = levelEst[t]; if (!e) continue;
-    const walk = tour / (e.st.ms * rideMove(E.pace)) * E.walkSlack, packs = packCount(t) * e.clear * E.fightSlack, rares = packCount(t) * PACK.rareChance * e.rk * E.fightSlack;
+    const walk = tour / (e.st.ms * rideMove(E.pace)) * E.walkSlack, packs = packCount(t) * e.clear * E.fightSlack, rares = packCount(t) * (packMix(t).rareChance ?? PACK.rareChance) * e.rk * E.fightSlack;
     const guard = e.gs * E.fightSlack, junc = jn * RIDE.junction.wait, total = walk + packs + rares + guard + junc, f = flag(total / 60, E.target);
     const ms = E.measured[t - 1];
     console.log(`  ${String(t).padStart(4)} │ ${m(walk)} │ ${m(packs)} │ ${m(rares)} │ ${m(guard)} │ ${m(junc)} │ ${m(total)} ${f} │ ${ms ? fmt(ms).padStart(5) + ' ' + flag(ms, E.target) : '    –  '}  │`);

@@ -767,7 +767,7 @@ try {
       out.raising = !!n.raising; out.raiseTell = G.floats.some(f => f.txt === '!' && f.col === hex(TELL.raise)); out.raiseT = n.raising && n.raising.t;
       for (let k = 0; k < 100 && n.raising; k++) { P.life = 1e6; D.sim(1); }
       const up = G.enemies.filter(e => !e.deathT && e.raised);
-      out.raised = up.length; out.raisedHp = up.every(e => Math.abs(e.hp - e.maxHp * .6) < 1 && e.xp === 0 && e.type === 'zombie' && e.awake); out.corpsesLeft = G.corpses.length;
+      out.raised = up.length; out.raisedHp = up.every(e => Math.abs(e.hp - e.maxHp * D.RAISE.hp) < 1 && e.xp === 0 && e.type === 'zombie' && e.awake); out.corpsesLeft = G.corpses.length;
       up.forEach(e => D.kill(e)); D.sim(2); out.raisedNoCorpse = G.corpses.length === 0;
       // Killing it first: it dies mid-raise and nobody gets up.
       n = scene(); for (let k = 0; k < 100 && !n.raising; k++) { P.life = 1e6; D.sim(1); } out.killMid = !!n.raising; D.kill(n); D.sim(120);
@@ -801,7 +801,7 @@ try {
     const L4 = r.lv[4], L5 = r.lv[5];
     check(L4.banner && L5.banner && L4.types.includes('necro') && L5.types.includes('bknight') && L5.rares > L4.rares * .9, `levels 4–5: Bone Gardens and Throne Approach show their names; their packs bring necromancers (${L4.types}) and bone knights (${L5.types}); rares ${Math.round(L4.rares * 100)}%, ${Math.round(L5.rares * 100)}% of packs`);
     check(L4.ids.lich > 25 && L4.ids.warden >= 1 && L5.ids.lieutenant > 25 && L5.ids.warden >= 1, `levels 4–5: the level's own guardian waits in most arenas, the Pale Warden in a few (${JSON.stringify(L4.ids)}, ${JSON.stringify(L5.ids)} over 40 maps each)`);
-    check(r.corpses === 3 && r.raising && r.raiseTell && r.raised === 3 && r.raisedHp && r.corpsesLeft === 0 && r.raisedNoCorpse, `necromancer: fallen zombies leave ${r.corpses} corpses; it raises them after a green-cued channel (${r.raiseT} s): ${r.raised} get up at 60% life and no XP, and leave no corpse the second time`);
+    check(r.corpses === 3 && r.raising && r.raiseTell && r.raised === 3 && r.raisedHp && r.corpsesLeft === 0 && r.raisedNoCorpse, `necromancer: fallen zombies leave ${r.corpses} corpses; it raises them after a green-cued channel (${r.raiseT} s): ${r.raised} get up at half life and no XP, and leave no corpse the second time`);
     check(r.killMid && r.killedNone && r.interrupted && r.interruptedNone, `necromancer: killing it mid-raise keeps the dead down, and a hit interrupts the raise (kill order)`);
     check(r.shield > .1 && r.shield < .2 && r.blockTxt && r.heavyOpens && r.hitsOpen && r.dotThrough, `bone knight: its shield blocks a plain hit from in front (${r.shield} of the damage it takes from behind, "BLOCKED"); a heavy hit or ${'5'} blocked hits open it for full damage; burns go round it`);
     check(r.parryOpens && r.swingTell, `bone knight: its swings flash yellow and parrying one opens its guard`);
