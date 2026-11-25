@@ -1,9 +1,9 @@
 // Pure balance maths: hero stats, item roll scaling, monster scaling, expected damage.
 // Imports only data, so the game, `npm run balance` (Node) and the arena all share one set of formulas.
 import { TREE, TREE_START, TREE_CAP } from '../data/tree.js';
-import { HERO, RARITY, START_WEAPON, GEAR_PROFILES, AFFIX_PRIORITY, XP_CURVE, ITEM_SCALE, ESTIMATE, DEFENCE } from '../data/balance.js';
-import { MT, TIER, PACK, LEAN, DMG_TYPES } from '../data/monsters.js';
-import { SLOTS, BASES, IMPL, IMPL_FIXED, AFF } from '../data/items.js';
+import { HERO, RARITY, START_WEAPON, GEAR_PROFILES, XP_CURVE, ITEM_SCALE, ESTIMATE, DEFENCE } from '../data/balance.js';
+import { MT, TIER, PACK, LEAN, DMG_TYPES, RARE, BLAST, BOSS } from '../data/monsters.js';
+import { SLOTS, BASE, BASES, IMPL_FIXED, AFF, AFFBY, EXTRA } from '../data/items.js';
 import { GEMS, GEM, SUPPORTS, supFits, FEED } from '../data/gems.js';
 import { SURGE, SK } from '../data/skills.js';
 import { RIDE } from '../data/ride.js';
@@ -11,8 +11,8 @@ import { RIDE } from '../data/ride.js';
 // Item level scaling of rolled values (flat and percent affixes).
 export const flatScale = il => 1 + ITEM_SCALE.flat * (il - 1), pctScale = il => 1 + ITEM_SCALE.pct * (il - 1);
 
-// Base damage of a skill gem at a level (before flat spell damage from gear).
-export const gemBase = (lvl = 1) => GEM.base * Math.pow(GEM.grow, Math.min(GEM.cap, lvl) - 1);
+// Base damage of a skill gem at a level (before flat spell damage from gear). plus: levels from gear, which go past the cap.
+export const gemBase = (lvl = 1, plus = 0) => GEM.base * Math.pow(GEM.grow, Math.min(GEM.cap, lvl) + plus - 1);
 // Level 5 milestones (data/gems.js GEMS[id].mile): `add` goes into that gem's own copy of the raw stat sums; the skill's own
 // code reads the other fields when S.mile[gemId] is true (that gem is on the bar at its milestone level).
 const MILE_LVL = 5;
@@ -23,12 +23,17 @@ const MILE_LVL = 5;
 // st.sk[gemId] holds each skill's own behaviour stats (chains, flags from supports, `more` damage):
 // gear and the tree feed every skill, a milestone or support only its own gem. Every skill gem has an entry.
 // st.fight: the tree's shield and timing numbers (game/sk/guard.js, roll.js, combat.js); st.ks: keystones taken (id → its numbers).
-export function computeStats(gear, tree = [], lvl = 1, gems = {}, socks = {}) {
+// slots ({ slot: gemId }, the bar): which gem gets gear's +gem levels (gemMain, gemFlex); st.gemPlus[id] is what gear adds to a gem
+// (on top of its own level, past the cap too) and st.gemLv[id] the level it counts as (base damage and milestones).
+// Rule mods from uniques (data/items.js EXTRA flags) are true/false on st (st.storm, st.parryNova, ...).
+export function computeStats(gear, tree = [], lvl = 1, gems = {}, socks = {}, slots = {}) {
   const s = { lifeF: 0, lifePct: 0, lregen: 0, surge: 0, surgeRe: 0, dmg: 0, fire: 0, cold: 0, light: 0, cast: 0, ms: 0, crit: 0, aoe: 0, chains: 0, lok: 0, spell: 0, dashCh: 0, shieldPct: 0, freeze: 0, dr: 0, novaR: 0,
     ch: 0, dur: 0, more: 1, flask: 0, block: 0, heavy: 0, posture: 0, drain: 0, parry: 0, riposte: 0, stagger: 0, finisher: 0, evadeInv: 0, evadeCh: 0,
     armour: 0, armourPct: 0, resFire: 0, resCold: 0, resLight: 0, resPoison: 0, resElem: 0, resAll: 0 };
   for (const k in gear) { const it = gear[k]; if (it) for (const [st, v] of it.mods) s[st] = (s[st] || 0) + v; }
-  const ks = {};
+  const ks = {}, plus = {};
+  for (const [sl, id] of Object.entries(slots)) if (id && gems[id] !== undefined) plus[id] = Math.max(plus[id] || 0, sl === 'main' ? s.gemMain || 0 : sl === 'flexA' || sl === 'flexB' ? s.gemFlex || 0 : 0);
+  const gemLv = Object.fromEntries(Object.entries(gems).map(([id, g]) => [id, Math.min(GEM.cap, g) + (plus[id] || 0)]));
   for (const id of tree) { const N = TREE[id]; if (!N) continue; if (N.kind === 'key') ks[id] = N.v; else N.fn(s, N.v); }
   const H = HERO, l = lvl - 1, sk = {};
   // Defence: armour (flat from gear × increased from the tree) and a resistance per damage type (DEFENCE.resCap at most; resRaw uncapped).
@@ -36,7 +41,7 @@ export function computeStats(gear, tree = [], lvl = 1, gems = {}, socks = {}) {
   const res = Object.fromEntries(Object.entries(resRaw).map(([k, v]) => [k, Math.min(DEFENCE.resCap, v)]));
   for (const id in GEMS) {
     const t = { ...s };
-    const M = GEMS[id].mile; if (gems[id] >= MILE_LVL && M && M.add) for (const k in M.add) t[k] += M.add[k];
+    const M = GEMS[id].mile; if (gemLv[id] >= MILE_LVL && M && M.add) for (const k in M.add) t[k] += M.add[k];
     for (const sup of socks[id] || []) if (supFits(sup, id)) SUPPORTS[sup].fn(t, SUPPORTS[sup]);
     sk[id] = {
       chains: H.chains + t.chains, novaR: 1 + t.novaR, shieldMul: 1 + t.shieldPct, ch: t.ch + (id === 'dash' ? t.dashCh : 0) + (GEMS[id].kind === 'evade' ? t.evadeCh : 0),
@@ -47,10 +52,11 @@ export function computeStats(gear, tree = [], lvl = 1, gems = {}, socks = {}) {
   }
   return {
     maxLife: Math.max(20, Math.round((H.life + H.lifePer * l + s.lifeF) * (1 + s.lifePct))), surgeMax: SURGE.max * (1 + s.surge), surgeRe: SURGE.refill * (1 + s.surgeRe),
-    lregen: H.lregen + s.lregen, spell: H.spell + H.spellPer * l + s.spell, gems: Object.fromEntries(Object.entries(gems).map(([id, g]) => [id, gemBase(g)])), mile: Object.fromEntries(Object.entries(gems).filter(([, g]) => g >= MILE_LVL).map(([id]) => [id, true])), dmg: 1 + s.dmg, fire: s.fire, cold: s.cold, light: s.light,
+    lregen: H.lregen + s.lregen, spell: H.spell + H.spellPer * l + s.spell, gems: Object.fromEntries(Object.entries(gems).map(([id, g]) => [id, gemBase(g, plus[id] || 0)])), gemLv, gemPlus: plus, mile: Object.fromEntries(Object.entries(gemLv).filter(([, g]) => g >= MILE_LVL).map(([id]) => [id, true])), dmg: 1 + s.dmg, fire: s.fire, cold: s.cold, light: s.light,
     cast: 1 + s.cast, ms: H.ms * (1 + s.ms), crit: H.crit + s.crit, aoe: 1 + s.aoe, lok: s.lok, loh: H.lifeOnHit + (s.loh || 0), sk,
     armour: Math.round(s.armour * (1 + s.armourPct)), res, resRaw,
-    freeze: 1 + s.freeze, dr: Math.min(.6, s.dr), storm: !!s.storm, autoNova: !!s.autoNova, flask: 1 + s.flask, ks,
+    freeze: 1 + s.freeze, dr: Math.min(.6, s.dr), flask: 1 + s.flask, ks, sockMain: s.sockMain || 0,
+    ...Object.fromEntries(Object.keys(EXTRA).filter(k => EXTRA[k].flag).map(k => [k, !!s[k]])),
     fight: { block: s.block, heavy: s.heavy, posture: Math.min(TREE_CAP.posture, s.posture), drain: 1 + s.drain, parry: 1 + s.parry, riposte: 1 + s.riposte,
       stagger: 1 + s.stagger, finisher: 1 + s.finisher, evadeInv: 1 + s.evadeInv },
   };
@@ -131,26 +137,53 @@ export function defended(st, d, t = 'phys') {
 // Damage a hit of d (type t) does to your life when nothing blocks it and no barrier is up: armour and resistances, then less damage taken.
 export const hitTaken = (st, d, t = 'phys') => defended(st, d, t) * (1 - (st.dr || 0));
 
-// The implicit mods of a slot's base at an item level (data/items.js IMPL).
-export const implMods = (slot, il = 1) => IMPL[slot].map(([st, v]) => [st, IMPL_FIXED.includes(st) ? v : Math.round(v * flatScale(il))]);
+// The implicit mods of a base at an item level (data/items.js BASE). A slot name instead of a base gives that slot's first base.
+export const implMods = (base, il = 1) => (BASE[base] || BASE[BASES[base][0]]).impl.map(([st, v]) => [st, IMPL_FIXED.includes(st) ? v : Math.round(v * flatScale(il))]);
+// An affix's value at an item level: `at` 0 is its lowest roll, 1 its highest, .5 the average (the tools' par gear).
+export function affixValue(st, il = 1, at = .5) {
+  const a = AFFBY[st], v = (a.a + (a.b - a.a) * at) * (a.pct ? pctScale(il) : flatScale(il));
+  return a.int ? Math.max(1, Math.round(a.a === a.b ? a.a : v)) : a.pct ? Math.round(v * 100) / 100 : a.dec ? Math.round(v * 10) / 10 : Math.round(v);
+}
 
-// A deterministic kit for the balance tools: every slot with average rolls of the best affixes (data/balance.js).
+// A deterministic kit for the balance tools (data/balance.js GEAR_PROFILES): each slot is its profile's base with its implicits,
+// plus the profile's affixes at average rolls.
 export function gearProfile(kind, il = 1) {
   const P = GEAR_PROFILES[kind]; if (!P) throw new Error('unknown gear profile ' + kind);
-  if (!P.n) return { weapon: { ...START_WEAPON, mods: START_WEAPON.mods.map(m => [...m]) } };
+  if (!P.affixes) return { weapon: { ...START_WEAPON, mods: START_WEAPON.mods.map(m => [...m]) } };
   const gear = {};
-  const avg = (st, il) => { const a = AFF.find(x => x.st === st), v = (a.a + a.b) / 2 * (a.pct ? pctScale(il) : flatScale(il)); return [st, a.pct ? Math.round(v * 100) / 100 : a.dec ? Math.round(v * 10) / 10 : Math.round(v)]; };
   for (const slot of SLOTS) {
-    const mods = implMods(slot, il), impl = mods.length;
-    for (const st of AFFIX_PRIORITY) {
-      if (mods.length - impl >= P.n) break;
-      const a = AFF.find(x => x.st === st); if (!a || (a.slots && !a.slots.includes(slot))) continue;
-      mods.push(avg(st, il));
-    }
-    if (P.res && P.res[slot]) mods.push(avg(P.res[slot], il)); // a resistance on top (GEAR_PROFILES res)
-    gear[slot] = { slot, rar: P.rar, base: BASES[slot][0], name: `${kind} ${slot}`, il, impl, mods };
+    const base = (P.base && P.base[slot]) || BASES[slot][0], mods = implMods(base, il), impl = mods.length;
+    for (const st of P.affixes[slot] || []) mods.push([st, affixValue(st, il)]);
+    gear[slot] = { slot, rar: P.rar, base, name: `${kind} ${slot}`, il, impl, mods };
   }
   return gear;
+}
+
+// Effective life (the bag's upgrade check and the maths report): max life divided by the share of damage that gets through
+// armour and resistances, over a typical spread of the hits that reach your life on map tier t (ESTIMATE.threat in
+// data/balance.js: each entry a monster attack, its damage type at that tier and its weight in what you take). So a
+// resistance only counts for the share of damage of its type, and armour counts more against small hits than big ones.
+// atk: which attack of the monster (none: its normal hit; heavy: a rare's heavy swing; slam, nova: the guardian's; blast: a bloater's
+// death blast; burning: a burning rare's pulse).
+const ATK = { heavy: [() => RARE.heavy.dmg, null], slam: [() => BOSS.slamDmg, () => BOSS.dt.slam], nova: [() => BOSS.novaDmg, () => BOSS.dt.nova], blast: [() => BLAST.bloater.dmg, () => BLAST.bloater.dt] };
+export function threatMix(t = 1) {
+  return ESTIMATE.threat.map(T => {
+    if (T.atk === 'burning') return { d: RARE.burning.dmg * tierDmg(t), dt: dmgType(RARE.burning.dt, t), w: T.w };
+    const m = monsterStats(T.mon, t, T.rar || 0), A = ATK[T.atk];
+    return { d: m.dmg * (A ? A[0]() : 1), dt: A && A[1] ? dmgType(A[1](), t) : m.dt, w: T.w };
+  });
+}
+export function ehp(st, t = 1) {
+  let raw = 0, got = 0;
+  for (const h of threatMix(t)) { raw += h.w; got += h.w * hitTaken(st, h.d, h.dt) / h.d; }
+  return st.maxLife * raw / Math.max(1e-6, got);
+}
+// How much better stats st is than st0 for a hero on tier t, as one number (1 = the same): the Main gem's pack DPS and effective
+// life multiplied together, each to its weight (ESTIMATE.value), and move speed a little. The bag marks an item an upgrade above
+// ESTIMATE.value.upgrade. main: the Main gem's id.
+export function gearValue(st, st0, main, t = 1) {
+  const V = ESTIMATE.value, d = gemDps(st, main).packDps / gemDps(st0, main).packDps, e = ehp(st, t) / ehp(st0, t), m = st.ms / st0.ms;
+  return Math.pow(d, V.dps) * Math.pow(e, V.ehp) * Math.pow(m, V.ms);
 }
 
 // Experience needed to go from level l to l + 1, and packs placed on a map of tier t.

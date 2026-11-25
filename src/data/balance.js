@@ -29,9 +29,18 @@ export const DEFENCE = { armourK: 10, armourCap: .9, resCap: .75 };
 export const XP_CURVE = { base: 65, exp: 1.6 };
 // Item level scaling of rolled values: flat affixes +flat per item level above 1, percent affixes +pct per level.
 export const ITEM_SCALE = { flat: .22, pct: .07 };
-// The bag's "is this an upgrade?" estimate (game/stats.js estimate) and the maths report: extra damage per Arc chain, and how
-// many monsters a melee swing hits on average in a clumped pack (by gem; Sweep hits all round, Aftershock adds a half-strength slam).
-export const ESTIMATE = { perChain: .3, targets: { sword: 1.9, cleave: 2.4, fstrike: 1.5, slam: 1.8 }, sweep: 1.35 };
+// The bag's "is this an upgrade?" estimate (game/stats.js estimate, formulas.js gearValue) and the maths report: extra damage per Arc
+// chain, and how many monsters a melee swing hits on average in a clumped pack (by gem; Sweep hits all round, Aftershock adds a
+// half-strength slam).
+//   threat: the hits that reach your life on a map, for effective life (formulas.js ehp): a monster attack (mon, rar; atk: none for its
+//   normal hit, or heavy, slam, nova, blast, burning) and its weight in the damage you take. A good rider parries most normal swings,
+//   so heavies, blasts and the guardian's abilities weigh more than their share of hits. Its damage type comes from the game's data,
+//   so later regions' leans count.
+//   value: how the bag weighs a change: pack DPS ^ dps × effective life ^ ehp × move speed ^ ms; above `upgrade` it's marked an upgrade.
+export const ESTIMATE = { perChain: .3, targets: { sword: 1.9, cleave: 2.4, fstrike: 1.5, slam: 1.8 }, sweep: 1.35,
+  threat: [{ mon: 'zombie', w: .35 }, { mon: 'archer', w: .1 }, { mon: 'zombie', rar: 2, atk: 'heavy', w: .15 }, { mon: 'bloater', atk: 'blast', w: .15 },
+    { mon: 'boss', atk: 'slam', w: .1 }, { mon: 'boss', atk: 'nova', w: .1 }, { atk: 'burning', w: .05 }],
+  value: { dps: 1, ehp: .8, ms: .3, upgrade: 1.02 } };
 
 // Par character level for each map tier: the level you should be when you start that map.
 // Tiers 1–5 are the Crypt's five levels (the region boss comes after); later tiers add `PAR_AFTER` each.
@@ -80,12 +89,18 @@ export const TARGETS = {
   lootGain: [1.3, 3],     // DPS of a full magic kit over the starter sword at the same level
 };
 
-// Gear profiles used by both tools: every slot filled with average rolls of the best affixes for an Ember Cleave build.
-//   start: the starter sword only. magic: implicits + 1 good affix per slot (magic items roll 1–2). rare: implicits + 3 good affixes (rares roll 3–5).
-//   Implicits bring armour on the helm, chest and boots (data/items.js IMPL). res: one more affix on these slots, a resistance
-//   (a magic item's second affix; most players pick up a little resistance by the second map).
-export const GEAR_PROFILES = { start: { n: 0 }, magic: { rar: 1, n: 1, res: { boots: 'resPoison', ring: 'resElem' } }, rare: { rar: 2, n: 3, res: { boots: 'resPoison', ring: 'resElem' } } };
-export const AFFIX_PRIORITY = ['spell', 'fire', 'dmg', 'cast', 'lifeF', 'crit', 'ms', 'lregen'];
+// Gear profiles used by both tools (formulas.js gearProfile): each slot's base (data/items.js BASE; default the slot's first, the
+// medium one) with its implicits, plus these affixes at average rolls.
+//   start: the starter sword only.
+//   magic: the par kit. Magic items roll 1–2 affixes: one damage or life affix per slot, and a resistance on the boots and the ring
+//   (most players have picked up a little resistance by the second map). The bases' implicits bring armour on the helm, body armour
+//   and boots.
+//   rare: 3 affixes per slot, a mix of damage, life, armour and resistances (rares roll 3–5).
+export const GEAR_PROFILES = {
+  start: {},
+  magic: { rar: 1, affixes: { weapon: ['spell'], helm: ['dmg'], chest: ['lifeF'], boots: ['lifeF', 'resPoison'], ring: ['spell', 'resElem'], amulet: ['spell'] } },
+  rare: { rar: 2, affixes: { weapon: ['spell', 'dmg', 'cast'], helm: ['dmg', 'armour', 'lifeF'], chest: ['lifeF', 'armour', 'resPoison'], boots: ['lifeF', 'ms', 'resPoison'], ring: ['spell', 'resElem', 'lifeF'], amulet: ['spell', 'dmg', 'crit'] } },
+};
 // The gear a player is expected to have at par on each tier (targets are checked against this profile).
 export const PAR_GEAR = t => t === 1 ? 'start' : 'magic';
 

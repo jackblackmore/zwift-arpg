@@ -1,23 +1,25 @@
 // Derived stats from level, gear, the passive tree and the skill bar, plus experience and levelling.
-import { P, S } from '../core/state.js';
-import { computeStats as calcStats, gemDps, xpNeedFor } from './formulas.js';
+import { G, P, S } from '../core/state.js';
+import { computeStats as calcStats, gemDps, xpNeedFor, ehp, gearValue } from './formulas.js';
 import { PAR_MAIN } from '../data/balance.js';
 import { GEMS } from '../data/gems.js';
-import { barLevels, sockMap, barGem, gemXp, onLevelUp } from './gems.js';
+import { barLevels, barSlots, sockMap, barGem, gemXp, onLevelUp } from './gems.js';
 import { $, rand } from '../core/util.js';
 import { banner, emit, glows } from '../render/fx.js';
 import { SFX } from '../core/audio.js';
 
 // computeStats lives in formulas.js (pure, shared with the balance tools); this wraps it for the current hero, skill bar and sockets.
-export const computeStats = (gear, tree = P.tree, lvl = P.lvl) => calcStats(gear, tree, lvl, barLevels(), sockMap());
+export const computeStats = (gear, tree = P.tree, lvl = P.lvl) => calcStats(gear, tree, lvl, barLevels(), sockMap(), barSlots());
 export function recalc() {
   Object.assign(S, computeStats(P.gear));
   P.life = Math.min(P.life, S.maxLife); P.surge = Math.min(P.surge, S.surgeMax);
 }
-// Rough DPS of the Main gem against a pack (Ember Cleave if the slot is empty), used by the bag to compare items.
-export function estimate(st) {
-  const g = barGem('main'), id = g ? g.gem : PAR_MAIN;
-  return { dps: gemDps(st, id).packDps, life: st.maxLife, ms: st.ms, gem: GEMS[id].n, armour: st.armour, res: st.res };
+// The bag's numbers for a set of stats: the Main gem's DPS against a pack (the par Main gem if the slot is empty), life, effective
+// life against this map's typical hits (formulas.js ehp: armour and resistances through the real defence maths), move speed,
+// armour and resistances. vs: stats to compare with; then `value` is formulas.js gearValue (above ESTIMATE.value.upgrade: an upgrade).
+export function estimate(st, vs = null) {
+  const g = barGem('main'), id = g ? g.gem : PAR_MAIN, t = G.tier || 1;
+  return { dps: gemDps(st, id).packDps, life: st.maxLife, ehp: ehp(st, t), ms: st.ms, gem: GEMS[id].n, armour: st.armour, res: st.res, value: vs ? gearValue(st, vs, id, t) : 1 };
 }
 
 export const xpNeed = xpNeedFor;
