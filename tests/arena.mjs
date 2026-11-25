@@ -19,7 +19,7 @@ import { preview } from 'vite';
 import puppeteer from 'puppeteer-core';
 import { existsSync, writeFileSync } from 'node:fs';
 import { cpus } from 'node:os';
-import { ARENA_TARGETS as AT } from '../src/data/balance.js';
+import { ARENA_TARGETS as AT, PAR_SUPPORT_FROM } from '../src/data/balance.js';
 
 const ONLY = process.env.ONLY ? new RegExp(process.env.ONLY) : null;
 const maxTier = Number(process.argv[2]) || 5, SEED = Number(process.env.SEED) || 1234, MAIN = process.env.MAIN || undefined, TREE = process.env.TREE === 'none' ? false : process.env.TREE || undefined;
@@ -137,7 +137,8 @@ jobs.forEach(j => { const k = j.t + '|' + j.enc.name; if (!rows.has(k)) rows.set
 const mean = (a, f) => a.reduce((s, x) => s + f(x), 0) / a.length, r1 = v => Math.round(v * 10) / 10;
 function agg(runs) {
   const won = runs.filter(r => r.result === 'clear');
-  return { n: runs.length, won: won.length, t: r1(mean(runs, r => r.t)), tWon: won.length ? r1(mean(won, r => r.t)) : null, taken: Math.round(mean(runs, r => r.taken)), lowest: mean(runs, r => r.lowest),
+  const tm0 = mean(runs, r => r.t);
+  return { n: runs.length, won: won.length, t: r1(tm0), sd: r1(Math.sqrt(mean(runs, r => (r.t - tm0) ** 2))), tWon: won.length ? r1(mean(won, r => r.t)) : null, taken: Math.round(mean(runs, r => r.taken)), lowest: mean(runs, r => r.lowest),
     flasks: r1(mean(runs, r => r.flasks)), parries: r1(mean(runs, r => r.parries)), blocks: r1(mean(runs, r => r.blocks)), rolls: r1(mean(runs, r => r.rolls)), breaks: r1(mean(runs, r => r.breaks)),
     staggers: r1(mean(runs, r => r.staggers)), finishers: r1(mean(runs, r => r.finishers)), chans: runs.reduce((s, r) => s + r.chans, 0), chanBroken: runs.reduce((s, r) => s + r.chanBroken, 0), surged: r1(mean(runs, r => r.surged)),
     lvl: runs[0].lvl, gear: runs[0].gear, result: runs.length === 1 ? runs[0].result : `${won.length}/${runs.length}` };
@@ -159,7 +160,7 @@ console.log('\nSummary (good rider unless named) · ✗ misses a data/balance.js
 for (const t of Object.keys(A).map(Number)) {
   const R = A[t], g = R.guardian, out = [];
   if (g) {
-    const b = Object.entries(BUILDS).filter(([, n]) => R[`guardian · ${n}`]).map(([, n]) => { const x = R[`guardian · ${n}`], d = x.t / g.t - 1; return `${n} ${tm(x)} ${pc(d)}${mark(Math.abs(d) <= AT.buildSpread && x.won === x.n)} ${wins(x)}`; });
+    const b = Object.entries(BUILDS).filter(([, n]) => R[`guardian · ${n}`]).map(([, n]) => { const x = R[`guardian · ${n}`], d = x.t / g.t - 1; return `${n} ${tm(x)} ${pc(d)}${mark((t < PAR_SUPPORT_FROM || Math.abs(d) <= AT.buildSpread) && x.won === x.n)} ${wins(x)}`; });
     out.push(`guardian: Sword ${tm(g)} ${wins(g)}${mark(g.won === g.n)}${b.length ? ' · ' + b.join(' · ') : ''}`);
     const lead = [['Sword', R['guardian, perfect'], g], ...Object.values(BUILDS).map(n => [n, R[`guardian, perfect · ${n}`], R[`guardian · ${n}`]])].filter(([, p, s]) => p && s)
       .map(([n, p, s]) => { const v = 1 - p.t / s.t; return `${n} ${pc(v)}${mark(v >= AT.perfectLead)}`; });

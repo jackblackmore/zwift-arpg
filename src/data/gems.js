@@ -49,7 +49,7 @@ export const START_MAIN = 'sword', START_GUARD = 'block', START_EVADE = 'roll';
 // Gem levels. Base damage = base × grow^(level − 1), for every gem (skill `mult` in data/skills.js scales it per skill).
 // Gems earn the same XP as the character from kills (`offBar` share when not on the bar) and level on the character's curve.
 // Shrine gems for Flex slots start `flexStart` levels below your Main gem.
-export const GEM = { cap: 10, base: 4, grow: 1.1, offBar: .1, flexStart: 2 };
+export const GEM = { cap: 10, base: 4, grow: 1.18, offBar: .1, flexStart: 2 };
 
 // Support gems (step 3): socketed on a skill bar slot, they change only the skill gem in that slot.
 //   for: gem ids or gem kinds it works with. Every number a support uses is a field of its entry (keep the `d` text in step).

@@ -87,10 +87,14 @@ export const TARGETS = {
   guardianSurge: [35, 85], // the same, spending a full Surge gauge at the start
   faceTank: [4, 14],      // seconds a full pack in melee takes to kill you if you stand still and never Guard
   lootGain: [1.3, 3],     // DPS of a full magic kit over the starter sword at the same level
+  // Power per system (formulas.js powerSteps; power = pack DPS × effective life): what one step of each system adds at par, as a share.
+  // Each should matter: a magic drop over a plain item, the Main gem's last level, one tree point.
+  power: { drop: [.08, .35], gemLevel: [.04, .12], treePoint: [.02, .08] },
 };
 
 // What the arena's summary checks (tests/arena.mjs, good rider at par unless named):
-//   buildSpread: each Main gem build's guardian time is within this share of the Sword's (and it wins);
+//   buildSpread: each Main gem build's guardian time is within this share of the Sword's (and it wins), from PAR_SUPPORT_FROM (on tier 1
+//   the other Main gems have no support yet, and you can't own one before the first guardian);
 //   perfectLead: the perfect bot beats a guardian at least this much faster than the good rider, with every build;
 //   eliteVsRare: an elite room takes at least [0] × the time of a rare + pack, and costs more life (it's the bigger fight).
 // Also: the good rider wins every guardian with every build, careless wins none, and a hero behind par (starter sword, 2 levels

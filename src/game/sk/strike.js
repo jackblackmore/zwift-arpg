@@ -76,8 +76,8 @@ function land(id, a, n, mult, at) {
     const d = dist(e.x, e.z, P.x, P.z) || 1, dmg = hit(e, K.mult * mult * rip * (cut ? M.mult : 1), elem, { gem: id, kx: (e.x - P.x) / d, kz: (e.z - P.z) / d, kb: K.kb * (cut ? 2 : 1), stag: cut ? M.stagger / M.mult : 1 });
     if (e.deathT) continue;
     if (k.ignite) { const IG = SUPPORTS.ignite; e.burnT = IG.dur; e.burnDps = Math.max(e.burnDps, dmg * IG.share / IG.dur); }
-    if (K.chill) e.chill = Math.max(e.chill, K.chill);
-    if (freezeNow) { if (e.type === 'boss') e.chill = Math.max(e.chill, SK.nova.bossChill); else e.freeze = Math.max(e.freeze, M.freeze * S.freeze); }
+    if (K.chill) e.chill = Math.max(e.chill, e.type === 'boss' ? K.bossChill ?? K.chill : K.chill); // a guardian shrugs it off faster
+    if (freezeNow) { if (e.type === 'boss') e.chill = Math.max(e.chill, K.bossFreeze ?? SK.nova.bossChill); else e.freeze = Math.max(e.freeze, M.freeze * S.freeze); }
     if (k.brittle) shock(e, SUPPORTS.brittle.dur, SUPPORTS.brittle.taken);
     if (K.shockChance && Math.random() < K.shockChance) shock(e, SK.arc.shockT, SK.arc.shockMore);
   }
