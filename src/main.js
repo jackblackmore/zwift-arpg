@@ -27,13 +27,15 @@ import { STAGGER, BOSS, RARE } from './data/monsters.js';
 import { START_WEAPON, parLevel, parBar, PAR_GEAR } from './data/balance.js';
 import { arena } from './game/arena.js';
 import { levelRun } from './game/levelrun.js';
-import { kill, hurtP } from './game/combat.js';
+import { kill, hurtP, hit, processQueue } from './game/combat.js';
+import { UNIQ } from './data/items.js';
 import { castArc, castNova, castDash, aim } from './game/skills.js';
 import { frostRings } from './game/sk/arts.js';
 import { strike, targets } from './game/sk/strike.js';
 import { dropItem, dropGem, pickUp, rollItem } from './game/items.js';
 import * as skel from './game/sk/skeletons.js';
 import { hud } from './ui/hud.js';
+import { isUpgrade } from './ui/panels.js';
 import { initPanels, syncPause, openInv, openPass, toggleInv, togglePass, toggleGems, openGems, openShrine, closeAll, equip } from './ui/panels.js';
 import { CAST } from './game/casts.js';
 import { xpNeedFor, hitTaken } from './game/formulas.js';
@@ -115,6 +117,6 @@ window.__dbg = {
   sim: n => { for (let i = 0; i < n; i++) { update(.033); updFx(.033); } },
   enemies: () => G.enemies, packs: () => G.packs, items: () => G.ground,
   arena, levelRun, parLevel, parBar, parGear: PAR_GEAR, newMap, kill, dropItem, strike, targets, aim, autoTarget, meleeReach, setAutoAtk, castArc, castNova, castDash, openInv, openPass, openGems, openShrine, equip,
-  xpNeedFor, routeTarget, resetRoute, routeOptions, gateFoe, takeShrine, shrineDue, placeGem, addGem, socketGem, unsocket, feedGem, feedPreview, sockCount, dropGem, pickUp, TREE, tree: treeApi, blockStats, GEMS, SUPPORTS, recalc, save, load, begin, CAST, blocked, los, snapCam, spawnEnemy, hurtP, hitTaken, cast: id => CAST[id] ? CAST[id]() : false, frostRings,
+  xpNeedFor, routeTarget, resetRoute, routeOptions, gateFoe, takeShrine, shrineDue, placeGem, addGem, socketGem, unsocket, feedGem, feedPreview, sockCount, dropGem, pickUp, TREE, tree: treeApi, blockStats, GEMS, SUPPORTS, recalc, save, load, begin, CAST, blocked, los, snapCam, spawnEnemy, hurtP, hitTaken, cast: id => CAST[id] ? CAST[id]() : false, frostRings, UNIQ, isUpgrade, hit, processQueue,
   skel, minions: () => G.minions, // Raise Skeletons support: skel.raise(x, z, gem), skel.cap(), skel.living()
 };

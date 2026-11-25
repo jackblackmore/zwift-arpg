@@ -14,7 +14,7 @@ import { gainXp, xpNeed } from './stats.js';
 import { makePortal } from './maps.js';
 import * as skel from './sk/skeletons.js';
 import { HERO, RARITY, COMBAT } from '../data/balance.js';
-import { DROP } from '../data/items.js';
+import { DROP, EXTRA } from '../data/items.js';
 import { BLAST, RARE, STAGGER, ANIM, BOSS, ELITE } from '../data/monsters.js';
 import { TELL, DMG_COL, DMG_ICON } from '../data/graphics.js';
 import { shieldHit } from './sk/guard.js';
@@ -35,7 +35,7 @@ export function hit(e, mult, elem, src = {}) {
   if (e.shock > 0) d *= 1 + (e.shockMore || SK.arc.shockMore); // Conduit (Arc's support) marks the shocks it makes
   if (e.stun > 0 && e.stagMax) { // staggered: wide open, and the first hero hit is a finisher
     d *= 1 + STAGGER.taken;
-    if (e.finisher && !src.dot && src.by !== 'minion') { e.finisher = false; d *= STAGGER.finisher * (S.fight ? S.fight.finisher : 1); finisherFx(e); } // the tree's finisher nodes
+    if (e.finisher && !src.dot && src.by !== 'minion') { e.finisher = false; d *= STAGGER.finisher * (S.fight ? S.fight.finisher : 1); finisherFx(e); if (S.finBlast) G.queue.push({ k: 'finblast', x: e.x, z: e.z, d: d * EXTRA.finBlast.share, src: e }); } // Headsman's Seal (a unique) // the tree's finisher nodes
   }
   else if (e.stagMax && !src.dot) { const C = e.channel && BOSS.channel; stagger(e, d / e.maxHp * STAGGER.dmg * (src.stag || 1) * stagMul() * (C ? C.hits * (1 + C.surge * (P.surgeK || 0)) : 1 + STAGGER.surge * (P.surgeK || 0))); } // a channel is easier to break, more so surging
   e.hp -= d; e.flash = .07; e.lastElem = elem; e.lastGem = src.by || gem; e.lastHit = Math.max(e.lastHit || 0, d);
@@ -157,6 +157,11 @@ export function processQueue(dt) {
       const SH = SUPPORTS.shatter, r = SH.radius * S.aoe;
       near(q.x, q.z, r, e => { e.hp -= q.hp * SH.pct; floatT(e.x, e.h, e.z, Math.round(q.hp * SH.pct), '#bff0ff', 12); if (e.type !== 'boss') { e.freeze = Math.max(e.freeze, SH.freeze); e.shatter = true; } if (e.hp <= 0) kill(e); });
       ringFx(q.x, q.z, r, 0xbff0ff, .3, .3); burst(q.x, .8, q.z, 0xbff0ff, 24, 6);
+    }
+    if (q.k === 'finblast') { // Headsman's Seal: a finisher's blast hits every other monster near it
+      const r = EXTRA.finBlast.r;
+      near(q.x, q.z, r, e => { if (e === q.src || e.deathT) return; wake(e); e.hp -= q.d; e.flash = .07; floatT(e.x, e.h + .3, e.z, Math.round(q.d), '#fff0c0', 13); if (e.hp <= 0) kill(e); });
+      ringFx(q.x, q.z, r, 0xfff0c0, .35, .3); burst(q.x, 1, q.z, 0xfff0c0, 30, 7);
     }
     if (q.k === 'bloat') {
       const r = q.r, c = mainType(q.type) === 'fire' ? [0xff7a30, 0xc03a10] : [0x9ad060, 0x5a8a20]; // a volatile rare's fire, a bloater's poison

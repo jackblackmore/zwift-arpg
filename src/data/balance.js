@@ -40,7 +40,7 @@ export const ITEM_SCALE = { flat: .22, pct: .07 };
 export const ESTIMATE = { perChain: .3, targets: { sword: 1.9, cleave: 2.4, fstrike: 1.5, slam: 1.8 }, sweep: 1.35,
   threat: [{ mon: 'zombie', w: .35 }, { mon: 'archer', w: .1 }, { mon: 'zombie', rar: 2, atk: 'heavy', w: .15 }, { mon: 'bloater', atk: 'blast', w: .15 },
     { mon: 'boss', atk: 'slam', w: .1 }, { mon: 'boss', atk: 'nova', w: .1 }, { atk: 'burning', w: .05 }],
-  value: { dps: 1, ehp: .8, ms: .3, upgrade: 1.02 } };
+  value: { dps: 1, ehp: 1, ms: .3, upgrade: 1.02 } };
 
 // Par character level for each map tier: the level you should be when you start that map.
 // Tiers 1–5 are the Crypt's five levels (the region boss comes after); later tiers add `PAR_AFTER` each.

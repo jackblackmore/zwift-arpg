@@ -6,7 +6,7 @@
 // The passive tree: the par preset for the Main gem (data/balance.js PAR_TREE, parTree), one node per level after the first; TREE=none
 // leaves it empty, TREE=<preset> picks another. The fight nodes (posture, parry, riposte, stagger, finisher) don't show here: the arena plays them.
 // Melee hits ESTIMATE.targets monsters per swing in a pack (gemDps in formulas.js), one on a rare or the guardian.
-import { computeStats, gemDps, monsterStats, gearProfile, xpNeedFor, packCount, rideMove, hitTaken, armourCut, dmgType } from '../src/game/formulas.js';
+import { computeStats, gemDps, monsterStats, gearProfile, xpNeedFor, packCount, rideMove, hitTaken, armourCut, dmgType, ehp, gearValue } from '../src/game/formulas.js';
 import { TARGETS, RARITY, ESTIMATE, PAR_MAIN, parLevel, parGem, parSock, PAR_GEAR, GEAR_PROFILES, LEVEL_TIME, parTree, PAR_TREE } from '../src/data/balance.js';
 import { TREE } from '../src/data/tree.js';
 import { RIDE } from '../src/data/ride.js';
@@ -78,6 +78,20 @@ for (let t = 1; t <= maxTier; t++) {
   console.log('');
 }
 console.log(warn ? `${warn} par numbers outside target.` : 'All par numbers inside target.');
+
+// Item level and tier (the sawtooth in the design notes "Balance"): gear drops at the map's tier as its item level, so a new map's
+// drops should beat the kit you brought. For each tier at par (level, gems, tree): the par magic kit from the tier before against
+// this tier's, and a rare kit against a magic one. DPS is the Main gem's pack DPS; effective life is max life over the share of a
+// typical map's hits that armour and resistances let through (formulas.js ehp, ESTIMATE.threat); value is the bag's upgrade score.
+console.log('\nGear by item level, at each tier\'s par · DPS, effective life (ehp) and the bag\'s value (formulas.js gearValue, upgrade above ' + ESTIMATE.value.upgrade + ')');
+console.log('  tier │ ehp (magic) │ magic kit from tier t−1 → t: DPS · ehp · value │ rare kit over magic: DPS · ehp · value');
+for (let t = 1; t <= maxTier; t++) {
+  const lvl = parLevel(t), gems = { [MAIN]: parGem(t) }, socks = { [MAIN]: parSock(t, MAIN).main || [] }, tree = treeAt(lvl), sl = { main: MAIN };
+  const at = (kind, il) => computeStats(gearProfile(kind, il), tree, lvl, gems, socks, sl);
+  const m = at('magic', t), r = at('rare', t), p = t > 1 ? at('magic', t - 1) : null, x = (a, b) => '×' + fmt(a / b, 2);
+  const row = (a, b) => `${x(gemDps(a, MAIN).packDps, gemDps(b, MAIN).packDps)} · ${x(ehp(a, t), ehp(b, t))} · ${fmt(gearValue(a, b, MAIN, t), 2)}`;
+  console.log(`  ${String(t).padStart(4)} │ ${fmt(ehp(m, t), 0).padStart(5)} (${m.maxLife} life) │ ${(p ? row(m, p) : '–').padEnd(45)} │ ${row(r, m)}`);
+}
 
 // What the tree preset gives at par (on the par gear), against the same hero with no points spent. Power per point should be modest.
 console.log(`\nPassive tree at par · preset ${PRESET} · against no points spent`);
