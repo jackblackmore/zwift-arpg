@@ -23,7 +23,7 @@ import { save, load } from './game/save.js';
 try { G.devSeed = parseInt(new URLSearchParams(location.search).get('seed'), 10) || 0; } catch (e) {}
 import { TREE } from './data/tree.js';
 import { SK } from './data/skills.js';
-import { STAGGER, BOSS, GUARDIANS, RARE } from './data/monsters.js';
+import { STAGGER, BOSS, GUARDIANS, RARE, BKNIGHT, RAISE } from './data/monsters.js';
 import { LEVELS, POOLS } from './data/dungeon.js';
 import { poolAt } from './game/pools.js';
 import { steer, startAbility } from './game/enemies.js';
@@ -32,7 +32,7 @@ import { levelOf } from './game/formulas.js';
 import { START_WEAPON, parLevel, parBar, PAR_GEAR } from './data/balance.js';
 import { arena } from './game/arena.js';
 import { levelRun } from './game/levelrun.js';
-import { kill, hurtP, hit, processQueue } from './game/combat.js';
+import { kill, hurtP, hit, processQueue, stagger } from './game/combat.js';
 import { UNIQ } from './data/items.js';
 import { castArc, castNova, castDash, aim } from './game/skills.js';
 import { frostRings } from './game/sk/arts.js';
@@ -116,7 +116,7 @@ requestAnimationFrame(frame);
   $('build').textContent = `v${B.version}${B.commit ? ' · ' + B.commit : ''} · built ${d.toLocaleString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`; }
 
 window.__dbg = {
-  G, P, S, SK, STAGGER, BOSS, GUARDIANS, LEVELS, POOLS, levelOf, poolAt, steer, autopilot, bossDo: (e, key) => startAbility(e, key, e.gd.abil[key] || e.gd.channel[key]), RARE, TELL, rollItem, ctl, Q, chars, dun, ride, setRide, scene,
+  G, P, S, SK, STAGGER, BKNIGHT, RAISE, stagger, BOSS, GUARDIANS, LEVELS, POOLS, levelOf, poolAt, steer, autopilot, bossDo: (e, key) => startAbility(e, key, e.gd.abil[key] || e.gd.channel[key]), RARE, TELL, rollItem, ctl, Q, chars, dun, ride, setRide, scene,
   ready: () => (chars.ready || chars.failed) && G.loaded, cycleQuality, cycleStyle,
   start: fresh => begin(fresh !== false),
   sim: n => { for (let i = 0; i < n; i++) { update(.033); updFx(.033); } },

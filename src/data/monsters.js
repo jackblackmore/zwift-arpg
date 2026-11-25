@@ -196,11 +196,11 @@ export const GUARDIANS = {
 export const RAISE = { types: ['zombie', 'runner', 'archer', 'bknight'], keep: 40, r: 9, every: [5, 7], first: 2.5, t: 2.2, n: 3, hp: .6, rise: .9 };
 // The bone knight's shield (MT.bknight). While its guard is up (not swinging, stunned or frozen) it blocks hits from in front of it
 // (within `arc` degrees: it always turns to face you, so in practice every hit): it takes `taken` of the damage and a hit fills
-// `stag` of a normal hit's knockback; a steel-blue flash and "BLOCKED" with a clang (data/graphics.js TELL.guard). Its guard opens
+// a third of a normal hit's knockback; a steel-blue flash and "BLOCKED" with a clang (data/graphics.js TELL.guard). Its guard opens
 // for `open` s (a yellow "GUARD OPEN", shield lowered) when you parry its swing, land a heavy hit on it (the Sword's heavy cut, a
-// riposte, a finisher) or after `hits` blocked hits in a row; while open it takes full damage. Burns and other damage over time
-// go round the shield. Its swings flash yellow like a rare's: parry them.
-export const BKNIGHT = { arc: 140, taken: .2, open: 2.6, hits: 4 };
+// riposte, a finisher), or for `hitOpen` s after `hits` blocked hits; while open it takes full damage. Burns and other damage over
+// time go round the shield. Its swings flash yellow like a rare's: parry them.
+export const BKNIGHT = { arc: 140, taken: .15, open: 2.6, hits: 5, hitOpen: 1.6 };
 
 // Each level's pack mix (data/dungeon.js LEVELS: `mix` names one): pack templates ([type, count] pairs, counts grown per tier) and
 // the types a pack's rare can be. Levels without one use PACKS and PACK.rareTypes.

@@ -8,7 +8,8 @@
 //   JOBS=n: browsers to fight in at once (default: CPU count, at most 4). JSON=path: also write every result there.
 // Each row is one fight at the tier's par level, par gems and par gear (src/data/balance.js) unless the row says otherwise.
 // 'guardian' rows fight that tier's guardian (src/data/dungeon.js LEVELS: the skeleton knight, the bone archer captain, the plague
-// bloat, then the Pale Warden); 'guardian: Pale Warden' rows fight the Warden on tiers that have another guardian, to compare.
+// bloat, the high necromancer, the King's lieutenant); 'guardian: Pale Warden' rows fight the Warden (now a rare stand-in on
+// tiers 4–5) on the same tier, to compare.
 // The bot walks into swing reach and lets the Main gem auto-attack, novas when crowded, flasks at half life and surges on rares,
 // guardians and crowds. It never steps out of anything: it parries, blocks and rolls at a reaction skill (src/game/arena.js):
 // default a good rider (parries 70% of swings, rolls 90% of heavies in time), 'perfect' never misses, 'careless' never defends.
@@ -51,6 +52,16 @@ const encounters = (t, n) => [
   // The level's own pack templates (data/monsters.js MIX, data/dungeon.js LEVELS) that aren't among the Crypt's above.
   ...(MIX[levelOf(t).mix] ? MIX[levelOf(t).mix].packs.filter(p => !PACKS.some(q => JSON.stringify(q) === JSON.stringify(p))).map(p => ({ name: `${levelOf(t).name} pack: ${p.map(([ty, c]) => ty + ' ' + c).join(', ')}`, fight: p.map(([ty, c]) => [ty, n(c)]) })) : []),
   // Rares of every type a pack can have (PACK.rareTypes), and the elite room's elite (ELITE) with its minions.
+  // Step 9 part B's enemies, from the tiers they live on (Bone Gardens, Throne Approach): the necromancer killed first (the bot's
+  // kill order) and left for last (order: false), the bone knight's shield against a good rider and a careless one, and their rares.
+  { name: 'necromancers', fight: [['zombie', n(3)], ['necro', n(1)]], skip: t < 4 },
+  { name: 'necromancers, left for last', fight: [['zombie', n(3)], ['necro', n(1)]], order: false, skip: t < 4 },
+  { name: 'necromancers, careless', fight: [['zombie', n(3)], ['necro', n(1)]], bot: 'careless', skip: t < 4 },
+  { name: 'bone knights', fight: [['bknight', n(2)], ['zombie', n(1)]], skip: t < 4 },
+  { name: 'bone knights, careless', fight: [['bknight', n(2)], ['zombie', n(1)]], bot: 'careless', skip: t < 4 },
+  { name: 'rare necromancer + pack', fight: [['zombie', n(3)]], rare: 'necro', skip: t < 4 },
+  { name: 'rare bone knight + pack', fight: [['zombie', n(3)]], rare: 'bknight', skip: t < 4 },
+  { name: 'elite bone knight', elite: 'bknight', maxT: 180, skip: t < 5 },
   { name: 'rare + pack', fight: [['zombie', n(3)]], rare: 'zombie' },
   { name: 'rare archer + pack', fight: [['zombie', n(3)]], rare: 'archer' },
   { name: 'rare bloater + pack', fight: [['zombie', n(3)]], rare: 'bloater' },
@@ -154,6 +165,7 @@ function agg(runs) {
   const tm0 = mean(runs, r => r.t);
   return { n: runs.length, won: won.length, t: r1(tm0), sd: r1(Math.sqrt(mean(runs, r => (r.t - tm0) ** 2))), tWon: won.length ? r1(mean(won, r => r.t)) : null, taken: Math.round(mean(runs, r => r.taken)), lowest: mean(runs, r => r.lowest),
     flasks: r1(mean(runs, r => r.flasks)), parries: r1(mean(runs, r => r.parries)), blocks: r1(mean(runs, r => r.blocks)), rolls: r1(mean(runs, r => r.rolls)), breaks: r1(mean(runs, r => r.breaks)),
+    raised: r1(mean(runs, r => r.raised || 0)), raiseStops: r1(mean(runs, r => r.raiseStops || 0)), foeBlocks: r1(mean(runs, r => r.foeBlocks || 0)), guardOpens: r1(mean(runs, r => r.guardOpens || 0)),
     staggers: r1(mean(runs, r => r.staggers)), finishers: r1(mean(runs, r => r.finishers)), chans: runs.reduce((s, r) => s + r.chans, 0), chanBroken: runs.reduce((s, r) => s + r.chanBroken, 0), surged: r1(mean(runs, r => r.surged)),
     lvl: runs[0].lvl, gear: runs[0].gear, result: runs.length === 1 ? runs[0].result : `${won.length}/${runs.length}` };
 }
@@ -193,6 +205,9 @@ for (const t of Object.keys(A).map(Number)) {
   if (behind.length) out.push(`behind par (par guardian takes ${g.taken}): ${behind.join(' · ')}`);
   const wr = [['guardian (wrong resistances)', 'guardian'], ['bloaters (wrong resistances)', 'bloaters'], ['bloaters (wrong resistances), careless', 'bloaters, careless']].filter(([w, p]) => R[w] && R[p]).map(([w, p]) => `${p} taking ${R[w].taken} vs ${R[p].taken} ${wins(R[w])}`);
   if (wr.length) out.push(`wrong resistances: ${wr.join(' · ')}`);
+  const nc = R.necromancers, nl = R['necromancers, left for last'], ncc = R['necromancers, careless'], bk = R['bone knights'], bkc = R['bone knights, careless'];
+  if (nc && nl) out.push(`necromancers killed first ${tm(nc)} taking ${nc.taken}, ${nc.raised} raised, ${nc.raiseStops} raises interrupted ${wins(nc)} · left for last ${tm(nl)} taking ${nl.taken}, ${nl.raised} raised ${wins(nl)}${ncc ? ` · careless ${tm(ncc)} taking ${ncc.taken} ${wins(ncc)}` : ''}`);
+  if (bk) out.push(`bone knights ${tm(bk)} taking ${bk.taken}, ${bk.foeBlocks} of your hits blocked, guard opened ${bk.guardOpens}× ${wins(bk)}${bkc ? ` · careless ${tm(bkc)} taking ${bkc.taken}, ${bkc.foeBlocks} blocked ${wins(bkc)}` : ''}`);
   const un = Object.values(UNIQUES).filter(n => R[`guardian · ${n}`] && g).map(n => { const x = R[`guardian · ${n}`]; return `${n} ${tm(x)} ${pc(x.t / g.t - 1)} taking ${x.taken} ${wins(x)}`; });
   if (un.length) out.push(`uniques (guardian): ${un.join(' · ')}`);
   if (out.length) console.log(`  tier ${t}: ` + out.join('\n          '));

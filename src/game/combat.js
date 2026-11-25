@@ -38,7 +38,7 @@ export function hit(e, mult, elem, src = {}) {
   let shielded = false; // a bone knight's shield (BKNIGHT): blocks a plain hit from in front of it; a heavy hit or enough blows open it
   if (!src.dot && guardUp(e) && shieldFaces(e, P.x, P.z)) {
     if (src.heavy) openGuard(e);
-    else { shielded = true; d *= BKNIGHT.taken; e.guardHits = (e.guardHits || 0) + 1; P.foeBlocks = (P.foeBlocks || 0) + 1; floatT(e.x, e.h + .5, e.z, 'BLOCKED', '#9fc8ff', 11, .6); flashFx(e.x + Math.sin(e.face) * .5, e.h * .55, e.z + Math.cos(e.face) * .5, TELL.guard, 1.6, .15); SFX.clang(); if (e.guardHits >= BKNIGHT.hits) openGuard(e); }
+    else { shielded = true; d *= BKNIGHT.taken; e.guardHits = (e.guardHits || 0) + 1; P.foeBlocks = (P.foeBlocks || 0) + 1; floatT(e.x, e.h + .5, e.z, 'BLOCKED', '#9fc8ff', 11, .6); flashFx(e.x + Math.sin(e.face) * .5, e.h * .55, e.z + Math.cos(e.face) * .5, TELL.guard, 1.6, .15); SFX.clang(); if (e.guardHits >= BKNIGHT.hits) openGuard(e, BKNIGHT.hitOpen); }
   }
   if (e.stun > 0 && e.stagMax) { // staggered: wide open, and the first hero hit is a finisher
     d *= 1 + STAGGER.taken;

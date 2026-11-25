@@ -99,9 +99,12 @@ export function buildHash() {
   hash.clear();
   for (const e of G.enemies) { if (e.deathT) continue; const k = ((e.x + HASH0) / CELL | 0) * 1000 + ((e.z + HASH0) / CELL | 0); let a = hash.get(k); if (!a) hash.set(k, a = []); a.push(e); }
 }
-// Calls cb for every living enemy whose body overlaps the circle (x, z, r).
+// Calls cb for every living enemy whose body overlaps the circle (x, z, r). The cells searched reach BODY past the circle: an enemy
+// is hashed by its centre, so a big one (a guardian is about 1–1.9 across) whose centre sits just over a cell line was missed
+// (swings at a guardian from about 2.6 away whiffed whenever it stood just past a cell edge).
+const BODY = 2.2;
 export function near(x, z, r, cb) {
-  const x0 = (x - r + HASH0) / CELL | 0, x1 = (x + r + HASH0) / CELL | 0, z0 = (z - r + HASH0) / CELL | 0, z1 = (z + r + HASH0) / CELL | 0;
+  const R = r + BODY, x0 = (x - R + HASH0) / CELL | 0, x1 = (x + R + HASH0) / CELL | 0, z0 = (z - R + HASH0) / CELL | 0, z1 = (z + R + HASH0) / CELL | 0;
   for (let i = x0; i <= x1; i++) for (let j = z0; j <= z1; j++) { const a = hash.get(i * 1000 + j); if (a) for (const e of a) if (!e.deathT && (e.x - x) ** 2 + (e.z - z) ** 2 <= (r + e.r) ** 2) cb(e); }
 }
 
