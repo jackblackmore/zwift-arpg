@@ -7,7 +7,7 @@ export const MT = {
   runner: { hp: 24, dmg: 5.5, spd: 4.0, r: .3, cd: .8, range: .6, ai: 'melee', xp: 3, col: 0x7a2a24, head: 0x9a3a2a, eye: 0xffd000, h: 1.35, scale: .75, look: { kind: 'minion', walk: 'Running_A', idle: 'Skeletons_Idle', rise: 'standing', attacks: [['Melee_Unarmed_Attack_Punch_A', 2.2], ['Melee_Unarmed_Attack_Kick', 1.8]] } },
   archer: { hp: 32, dmg: 10, spd: 2.3, r: .34, cd: 1.8, range: 8, ai: 'ranged', xp: 4, col: 0xb8ae96, head: 0xe6dfcc, eye: 0xff3020, h: 1.8, bow: 1, look: { kind: 'rogue', weapon: 'crossbow', walk: 'Running_A', idle: 'Skeletons_Idle', rise: 'standing', attacks: [['Ranged_2H_Shoot', 1.3]] } },
   bloater: { hp: 55, dmg: 22, spd: 1.6, r: .6, cd: 0, ai: 'bomb', dt: 'poison', xp: 5, col: 0x6aa040, head: 0x9ad060, eye: 0xffff60, h: 1.6, blob: 1 },
-  boss: { hp: 1040, dmg: 10.5, spd: 2.4, r: 1.1, cd: 1.7, range: 1.8, ai: 'boss', xp: 160, col: 0x2a2236, head: 0x5a4a70, eye: 0xff2bd6, h: 5.6, scale: 2.6, horns: 1, look: { kind: 'warrior', weapon: 'axe', offhand: 'shield', walk: 'Walking_A', idle: 'Melee_2H_Idle', rise: 'taunt', tint: 0xb090d0, attacks: [['Melee_2H_Attack_Chop', 1.6], ['Melee_2H_Attack_Slice', 1.1]] } },
+  boss: { hp: 1100, dmg: 10.5, spd: 2.4, r: 1.1, cd: 1.7, range: 1.8, ai: 'boss', xp: 160, col: 0x2a2236, head: 0x5a4a70, eye: 0xff2bd6, h: 5.6, scale: 2.6, horns: 1, look: { kind: 'warrior', weapon: 'axe', offhand: 'shield', walk: 'Walking_A', idle: 'Melee_2H_Idle', rise: 'taunt', tint: 0xb090d0, attacks: [['Melee_2H_Attack_Chop', 1.6], ['Melee_2H_Attack_Slice', 1.1]] } },
 };
 
 // Waking up. Until a pack is woken, its skeletons hold `pose`; on waking they play `clip` and can't act for its length.
@@ -29,7 +29,7 @@ export const ANIM = {
 // dmg: monster damage multiplier per tier (the same way), then +dmgAfter per tier. It steps up at tier 2 for the same reason:
 //   by then your gear has armour and some resistance (step 5, design notes "Defence"), so what reaches your life stays where it was.
 // xp, packSize: fraction added per tier on top of tier 1.
-export const TIER = { hp: [1, 2.65, 3.2, 3.95, 4.9], hpAfter: .5, dmg: [1, 1.54, 1.87, 2.21, 2.54], dmgAfter: .34, xp: 1, packSize: .2 };
+export const TIER = { hp: [1, 2.79, 3.54, 4.59, 6.02], hpAfter: .6, dmg: [1, 1.54, 1.87, 2.21, 2.54], dmgAfter: .34, xp: 1, packSize: .2 };
 
 // Damage types (design notes "Defence"). Physical is cut by armour, the others by the matching resistance (data/balance.js DEFENCE).
 // Fire, cold and lightning are elemental (a block takes off SK.block.elem of them); poison isn't.
@@ -77,7 +77,7 @@ export const RN2 = ['maw', 'tooth', 'spine', 'gnaw', 'husk', 'grip', 'fang', 'sk
 export const BOSS = { vsMinion: 1.4, aggro: 13, dt: { slam: 'phys', charge: 'phys', nova: 'poison', burst: 'cold' }, rotation: ['slam', 'nova', 'slam', 'summon'], rotation2: ['channel', 'slam', 'charge', 'nova', 'slam', 'channel', 'summon', 'charge'], abilGap: 3.8, abilGap2: 2.2, enrage: .5, enrageSpd: 1.3,
   slamR: 2.9, slamDmg: 4.5, slamT: 1.2, slamT2: .95, novaBolts: 7, novaSpread: .9, novaDmg: .8, novaSpeed: 7, novaGap: .45, novaT: .7, summon: 3, summon2: 5, summonType: 'runner',
   charge: { t: 1.1, dmg: 4.5, speed: 16, range: 9, hitR: .5 },
-  channel: { t: 3, swingCd: .8, firstSwing: .2, parry: 1.25, hits: 4, surge: 6, effects: ['burst', 'mend'], burst: { t: .7, dmg: 5, r: 8 }, mend: { heal: .1, summon: 4 } } };
+  channel: { t: 3, swingCd: .8, firstSwing: .2, parry: 1.25, hits: 3, surge: 6, effects: ['burst', 'mend'], burst: { t: .7, dmg: 5, r: 8 }, mend: { heal: .15, summon: 4 } } };
 
 // Stagger (design notes "Fight mechanics"): guardians and rares have a stagger bar (0..1). A parry adds `parry` (`parryRare` on a
 // rare), a hit adds `dmg` × the share of max life it took, more while you surge (× 1 + `surge` × how hard). Full: stunned for
@@ -85,7 +85,7 @@ export const BOSS = { vsMinion: 1.4, aggro: 13, dt: { slam: 'phys', charge: 'phy
 // that. A hit it lands on you (not blocked or parried) knocks the bar back by `recover`: it steadies, so a broken guard
 // is earned by timing, not by trading hits. The bar drains `drain` per second once `delay` s pass without adding to it.
 // A parried normal monster is stunned for `minorStun` s.
-export const STAGGER = { parry: .5, parryRare: .5, dmg: .5, surge: 1, stunT: 3, taken: .15, finisher: 3, recover: .85, drain: .06, delay: 2.5, minorStun: .9 };
+export const STAGGER = { parry: .5, parryRare: .5, dmg: .5, surge: 1, stunT: 3, taken: .15, finisher: 4.2, recover: .85, drain: .06, delay: 2.5, minorStun: .9 };
 // Status effects on monsters. chill: speed × chillSpd, attack and shot cooldowns × chillCd. Burns tick every burnTick s.
 export const STATUS = { chillSpd: .5, chillCd: 1.6, burnTick: .5 };
 // How monsters fight. windup: seconds from starting a swing to the hit (melee, boss, ranged). reach: extra hit range on top of
@@ -108,6 +108,6 @@ export const RARE = { size: 1.4, radius: 1.35, affixes: 2, moreFrom: 3, more: 3,
 // is (weighted by repeats; melee ones swing heavies). minions: the pack around it ([type, count], grown per tier like any pack),
 // magic: chance the minions are magic. titles: its name is a rare's name plus one of these. Its items: DROP.elite (data/items.js);
 // it drops no gem (gem drops are the owner's call, design notes "Not decided yet").
-export const ELITE = { hp: 1.6, dmg: 1.1, size: 1.12, affixes: 1, xp: 1.5, types: ['zombie', 'zombie', 'zombie', 'archer'],
+export const ELITE = { hp: 2.2, dmg: 1.35, size: 1.12, affixes: 1, xp: 1.5, types: ['zombie', 'zombie', 'zombie', 'archer'],
   minions: [['zombie', 2], ['runner', 2]], magic: .5,
   titles: ['the Unburied', 'Crypt Lord', 'the Hollow King', 'Bonewarden', 'the Grave-Sworn', 'the Ashen'] };

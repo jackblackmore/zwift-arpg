@@ -6,14 +6,14 @@
 // The passive tree: the par preset for the Main gem (data/balance.js PAR_TREE, parTree), one node per level after the first; TREE=none
 // leaves it empty, TREE=<preset> picks another. The fight nodes (posture, parry, riposte, stagger, finisher) don't show here: the arena plays them.
 // Melee hits ESTIMATE.targets monsters per swing in a pack (gemDps in formulas.js), one on a rare or the guardian.
-import { computeStats, gemDps, monsterStats, gearProfile, xpNeedFor, packCount, rideMove, hitTaken, armourCut, dmgType, ehp, gearValue } from '../src/game/formulas.js';
-import { TARGETS, RARITY, ESTIMATE, PAR_MAIN, parLevel, parGem, parSock, PAR_GEAR, GEAR_PROFILES, LEVEL_TIME, parTree, PAR_TREE } from '../src/data/balance.js';
+import { computeStats, gemDps, monsterStats, gearProfile, xpNeedFor, packCount, rideMove, hitTaken, armourCut, dmgType, ehp, gearValue, parStats, power, powerSteps, eliteStats, eliteRoomHp } from '../src/game/formulas.js';
+import { TARGETS, RARITY, ESTIMATE, PAR_MAIN, parLevel, parGem, parSock, PAR_GEAR, GEAR_PROFILES, LEVEL_TIME, parTree, PAR_TREE, PAR_SUPPORT } from '../src/data/balance.js';
 import { TREE } from '../src/data/tree.js';
 import { RIDE } from '../src/data/ride.js';
 import { generateLevel, junctionRooms, tourLen } from '../src/world/gen.js';
 import { ROLES } from '../src/data/dungeon.js';
 import { seeded } from '../src/core/rng.js';
-import { MT, TIER, PACKS, PACK, BOSS, BLAST, RARE } from '../src/data/monsters.js';
+import { MT, TIER, PACKS, PACK, BOSS, BLAST, RARE, ELITE, DMG_TYPES } from '../src/data/monsters.js';
 import { GEMS } from '../src/data/gems.js';
 import { SURGE } from '../src/data/skills.js';
 
@@ -100,6 +100,46 @@ for (let t = 1; t <= maxTier; t++) {
   const r = treeRows[t]; if (!r) continue; const p = v => (v >= 0 ? '+' : '') + fmt(v * 100, 0) + '%';
   console.log(`  ${String(t).padStart(4)} │ ${String(r.lvl).padStart(3)} │ ${String(r.tree.length).padStart(3)} │ ×${fmt(r.dps, 2)} │ +${fmt(r.life, 0).padStart(3)} (${p(r.life / r.life0).padStart(4)}) │ ${p(r.surge).padStart(5)} │ ${p(r.f.parry - 1).padStart(12)} │ ${p(r.f.riposte - 1).padStart(7)} │ ${p(r.f.stagger - 1).padStart(7)} │ ${p(r.f.finisher - 1).padStart(8)} │ ${('-' + fmt(r.f.posture * 100, 0) + '%').padStart(7)} │ ${r.tree.map(id => TREE[id].n).join(', ')}`);
 }
+
+// Effective life against each damage type at par (formulas.js ehp and hitTaken; design notes "Defence"): max life over the share of
+// one hit of that type that reaches your life, for a zombie's swing and a rare's heavy (physical: armour cuts small hits more), and a
+// hit of each other type; 'map mix' is the bag's effective life (ESTIMATE.threat). The second line per tier is the wrong kit
+// (GEAR_PROFILES.wrong: fire resistance where the poison was).
+console.log('\nEffective life at par, by damage type (life ÷ share of a hit that gets through)');
+console.log('  tier │ gear  │ life │ armour │ phys: swing · heavy │ fire │ cold │ light │ poison │ map mix');
+for (let t = 1; t <= maxTier; t++) for (const kind of t > 1 ? [PAR_GEAR(t), 'wrong'] : [PAR_GEAR(t)]) {
+  const st = parStats(t, MAIN, { gear: kind, tree: treeAt(parLevel(t)) }), z = monsterStats('zombie', t), hv = monsterStats('zombie', t, 2).dmg * RARE.heavy.dmg;
+  const e = (d, dt) => fmt(st.maxLife * d / hitTaken(st, d, dt), 0).padStart(4);
+  console.log(`  ${String(t).padStart(4)} │ ${kind.padEnd(5)} │ ${String(st.maxLife).padStart(4)} │ ${String(st.armour).padStart(6)} │       ${e(z.dmg)} · ${e(hv)}  │ ${e(z.dmg, 'fire')} │ ${e(z.dmg, 'cold')} │  ${e(z.dmg, 'light')} │   ${e(z.dmg, 'poison')} │ ${fmt(ehp(st, t), 0).padStart(5)}`);
+}
+
+// Time to kill with each Main gem build at par (its par support, PAR_SUPPORT, and tree preset, PAR_TREE; never surging; the maths
+// floor, single target on rares, elites and the guardian, ESTIMATE.targets per swing in a pack). ± is against the Sword.
+// The elite is an elite room's elite (ELITE: a rare × hp); 'elite room' adds its minions. The arena plays these fights for real.
+const BUILDS = Object.keys(GEMS).filter(id => GEMS[id].melee && GEMS[id].kind === 'attack');
+console.log('\nTime to kill at par, each Main gem build (never surging; ± against the Sword)');
+console.log('  tier │ build        │ support    │ zombie hits │ pack clear │ rare kill │ elite      │ elite room │ guardian');
+for (let t = 1; t <= maxTier; t++) {
+  const z = monsterStats('zombie', t), pack = avgPack(t), rare = monsterStats('zombie', t, 2), el = eliteStats('zombie', t), boss = monsterStats('boss', t);
+  let base = null;
+  for (const id of BUILDS) {
+    const st = parStats(t, id), G = gemDps(st, id), sec = hp => hp / G.one / G.rate, packT = pack.hp / G.pack / G.rate, roomT = sec(el.hp) + eliteRoomHp(t) / G.pack / G.rate;
+    const v = { hits: z.hp / G.one, pack: packT, rare: sec(rare.hp), elite: sec(el.hp), room: roomT, boss: sec(boss.hp) }; if (!base) base = v;
+    const c = k => id === BUILDS[0] ? '     ' : ((v[k] / base[k] - 1 >= 0 ? '+' : '') + fmt((v[k] / base[k] - 1) * 100, 0) + '%').padStart(5);
+    console.log(`  ${String(t).padStart(4)} │ ${GEMS[id].n.padEnd(12)} │ ${(parSock(t, id).main || ['–']).join(', ').padEnd(10)} │ ${fmt(v.hits).padStart(5)} ${c('hits')} │ ${fmt(v.pack).padStart(4)}s ${c('pack')}│ ${fmt(v.rare).padStart(4)}s${c('rare')}│ ${fmt(v.elite).padStart(4)}s ${c('elite')}│ ${fmt(v.room).padStart(4)}s ${c('room')}│ ${fmt(v.boss, 0).padStart(4)}s ${c('boss')}`);
+  }
+}
+
+// Power per system (formulas.js powerSteps): how much stronger one drop, one gem level, one tree point or one character level makes
+// the par hero, as power = pack DPS × effective life. Each system should matter (TARGETS.power, checked on the Sword's row).
+console.log(`\nPower per system at par · power = pack DPS × effective life · ${GEMS[MAIN].n} · targets per step in src/data/balance.js TARGETS.power`);
+console.log('  tier │ magic drop (vs plain) │ new-tier drop │ gem level │ tree point │ char level (life) │ whole kit vs starter │ all gem levels │ whole tree');
+for (let t = 1; t <= maxTier; t++) {
+  const P = powerSteps(t, MAIN), pc = (v, k) => { const s = ('+' + fmt((v - 1) * 100, 1) + '%').padStart(6); if (!k || MAIN !== PAR_MAIN || (k !== 'drop' && t === 1)) return s + ' '; const f = flag(v - 1, TARGETS.power[k]); if (f !== ' ') warn++; return s + f; };
+  const st = parStats(t, MAIN), lvl = parLevel(t), kit = power(st, MAIN, t) / power(parStats(t, MAIN, { gear: 'start' }), MAIN, t), gems = power(st, MAIN, t) / power(parStats(t, MAIN, { gem: 1 }), MAIN, t), tree = power(st, MAIN, t) / power(parStats(t, MAIN, { tree: [] }), MAIN, t);
+  console.log(`  ${String(t).padStart(4)} │ ${pc(P.drop, 'drop').padStart(21)} │ ${pc(P.tierDrop).padStart(13)} │ ${pc(P.gemLevel, 'gemLevel').padStart(9)} │ ${pc(P.treePoint, 'treePoint').padStart(10)} │ ${pc(P.charLevel).padStart(17)} │ ${('×' + fmt(kit, 2)).padStart(20)} │ ${('×' + fmt(gems, 2)).padStart(14)} │ ${('×' + fmt(tree, 2)).padStart(10)}`);
+}
+console.log(warn ? `${warn} par numbers outside target (all tables).` : 'All par numbers inside target (all tables).');
 
 // Level time estimate: a full clear at par (data/balance.js LEVEL_TIME), from the layouts (200 seeds, the map viewer's 1–200) and
 // the maths above: the walk through every room / walking speed at the par pace, + packs × the average pack's clear time (magic packs

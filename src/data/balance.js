@@ -87,7 +87,21 @@ export const TARGETS = {
   guardianSurge: [35, 85], // the same, spending a full Surge gauge at the start
   faceTank: [4, 14],      // seconds a full pack in melee takes to kill you if you stand still and never Guard
   lootGain: [1.3, 3],     // DPS of a full magic kit over the starter sword at the same level
+  // Power per system (formulas.js powerSteps; power = pack DPS × effective life): what one step of each system adds at par, as a share.
+  // Each should matter: a magic drop over a plain item, the Main gem's last level, one tree point. The Sword's shield preset spends
+  // its early points on the parry window and posture, which power doesn't count, so its floor is lower than an elemental preset's.
+  power: { drop: [.08, .35], gemLevel: [.04, .12], treePoint: [.015, .08] },
 };
+
+// What the arena's summary checks (tests/arena.mjs, good rider at par unless named):
+//   buildSpread: each Main gem build's guardian time is within this share of the Sword's (and it wins), from PAR_SUPPORT_FROM (on tier 1
+//   the other Main gems have no support yet, and you can't own one before the first guardian);
+//   perfectLead: the perfect bot beats a guardian at least this much faster than the good rider with the par Sword (the other builds are
+//   shown too: a build that already brings the good rider near the fight's floor of about 42–45 s has less room);
+//   eliteVsRare: an elite room takes at least [0] × the time of a rare + pack, and costs more life (it's the bigger fight).
+// Also: the good rider wins every guardian with every build, careless wins none, and a hero behind par (starter sword, 2 levels
+// under) loses some guardians or takes more than par.
+export const ARENA_TARGETS = { buildSpread: .25, perfectLead: .15, eliteVsRare: [1.3] };
 
 // Gear profiles used by both tools (formulas.js gearProfile): each slot's base (data/items.js BASE; default the slot's first, the
 // medium one) with its implicits, plus these affixes at average rolls.
@@ -96,9 +110,11 @@ export const TARGETS = {
 //   (most players have picked up a little resistance by the second map). The bases' implicits bring armour on the helm, body armour
 //   and boots.
 //   rare: 3 affixes per slot, a mix of damage, life, armour and resistances (rares roll 3–5).
+//   wrong: the par kit with the wrong resistance: fire where the boots' poison resistance was (the arena's "wrong resistances" rows).
 export const GEAR_PROFILES = {
   start: {},
   magic: { rar: 1, affixes: { weapon: ['spell'], helm: ['dmg'], chest: ['lifeF'], boots: ['lifeF', 'resPoison'], ring: ['spell', 'resElem'], amulet: ['spell'] } },
+  wrong: { rar: 1, affixes: { weapon: ['spell'], helm: ['dmg'], chest: ['lifeF'], boots: ['lifeF', 'resFire'], ring: ['spell', 'resElem'], amulet: ['spell'] } },
   rare: { rar: 2, affixes: { weapon: ['spell', 'dmg', 'cast'], helm: ['dmg', 'armour', 'lifeF'], chest: ['lifeF', 'armour', 'resPoison'], boots: ['lifeF', 'ms', 'resPoison'], ring: ['spell', 'resElem', 'lifeF'], amulet: ['spell', 'dmg', 'crit'] } },
 };
 // The gear a player is expected to have at par on each tier (targets are checked against this profile).
@@ -111,4 +127,4 @@ export const PAR_GEAR = t => t === 1 ? 'start' : 'magic';
 // wind-ups and guard; `walkSlack` is how much longer than the room-to-room tour the autopilot really walks (steering, loot, packs).
 // fightSlack and walkSlack are 1 (not calibrated yet: build order step 10, build step 6 tunes them against the measured run).
 // measured: the last `npm run level` means per tier (10 seeds, Nov 2026), printed next to the estimate; update it when you re-measure.
-export const LEVEL_TIME = { target: [25, 35], pace: .75, cad: 88, surge: 1.05, spike: 1.4, fightSlack: 1, walkSlack: 1, measured: [7.1, 6.5, 6.9, 7.4, 8.2] };
+export const LEVEL_TIME = { target: [25, 35], pace: .75, cad: 88, surge: 1.05, spike: 1.4, fightSlack: 1, walkSlack: 1, measured: [6.7, 6.6, 6.9, 7.5, 8.2] };

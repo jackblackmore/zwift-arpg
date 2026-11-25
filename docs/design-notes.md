@@ -115,7 +115,7 @@ Example: a fire knight through the Crypt (illustrative numbers):
 - Skill bar: Main (L1), Flex A (L5), Evade (L8), Flex B (L12), Guard (L1). Keys: LMB Main, RMB Flex A, Q Flex B, Space Guard, E Evade (also 1–5). RIDE: A Main, B Flex A, Z Flex B, right shifter Guard, and Evade on the left controller's power-up button (key U in the simulator; check this once the real controllers are tested).
 - Held gems (Fireball, Arc) cast while the button is down and share one cast timer. Press gems (Frost Nova, Magic Shield, Flame Dash) cast once per press, and holding the button recasts whenever the gem is ready. Cooldowns and Flame Dash charges belong to the slot.
 - A new character gets Magic Shield in Guard and picks Main (Fireball, Arc or Frost Nova) from a shrine panel before the first fight. **Later shrines appear in the world at the next map's entrance** (a glowing stone; walk into it), as the design says, rather than popping up mid-fight. A toast on level-up says a shrine is waiting. Flex shrines offer the attack gems you don't own yet (so Flex B is a single choice until step 2 adds gems); Evade offers Flame Dash only. Flex shrine gems start at Main gem level − 2.
-- Gem levels: bar gems earn the character's kill XP on the character's curve; bag gems earn 10%. Cap 10. Base damage 4 × 1.1^(level − 1) for every gem, plus flat spell from gear; skills keep their own multipliers. One milestone at level 5 (Fireball pierces 1, Arc +2 chains, Frost Nova +25% radius, Magic Shield absorbs +25%, Flame Dash +1 charge).
+- Gem levels: bar gems earn the character's kill XP on the character's curve; bag gems earn 10%. Cap 10. Base damage 4 × 1.18^(level − 1) for every gem (1.1 until balance pass 2), plus flat spell from gear; skills keep their own multipliers. One milestone at level 5 (Fireball pierces 1, Arc +2 chains, Frost Nova +25% radius, Magic Shield absorbs +25%, Flame Dash +1 charge).
 - Passive notables that change one skill (Twin Flame, Searing Lance, Forked Sky, Warding, Ignite, Shatter, Conduit, Chain Reaction) are only offered once you own that gem; they move to support gems in step 3.
 - Old saves have no gems: they're treated as fresh for gems (Magic Shield, then the Main shrine on load; shrines for any other unlocked slots wait at the map entrance).
 - Gem panel (G or the GEMS button): tap a gem, then a slot. Moving a gem between slots swaps the two if each fits the other's slot.
@@ -479,10 +479,10 @@ Region themes and boss pairings are **open**; the shape (6 × 5 + Trial) is lean
 
 Four layers, fastest first. Levels are the final polish pass, not the only check.
 
-1. **`npm run balance`** (instant, no browser): maths from the game's own data and formulas (`src/game/formulas.js`). For each tier at par level and with each gear profile (starter sword, average magic kit, average rare kit) it prints hits to kill, pack clear time, rare and guardian kill time (without and with a full Surge gauge), how long you survive standing in a pack, XP per map and the gain from loot. Anything outside the targets is flagged. The Main gem only (`MAIN=<gem>`, default Ember Cleave), hitting `ESTIMATE.targets` monsters per swing in a pack, so it's a floor on real kill speed.
-2. **`npm run arena`** (about 30 s, needs `npm run build`): real game code fights one encounter at a time (packs, magic, rare, guardian, under-geared, under-levelled) with a scripted player. The bot walks into swing reach and lets the auto-attack work; it plays the timing game well (Guard before hits it can see coming, step out of or Evade the guardian's slam); "careless" rows never Guard, Evade or step out. Real play sits between them. Shows clear time, damage taken, lowest life, flasks, Guard and Evade casts and time spent surging (the bot surges on rares, guardians and crowds of four; a "never surging" guardian row shows what the gauge is worth). In the browser: `__dbg.arena({ tier: 2, fight: [['zombie', 4]], gear: 'magic' })`.
+1. **`npm run balance`** (instant, no browser): maths from the game's own data and formulas (`src/game/formulas.js`). For each tier at par level and with each gear profile (starter sword, average magic kit, average rare kit) it prints hits to kill, pack clear time, rare and guardian kill time (without and with a full Surge gauge), how long you survive standing in a pack, XP per map and the gain from loot. Anything outside the targets is flagged. The Main gem only (`MAIN=<gem>`, default the Sword), hitting `ESTIMATE.targets` monsters per swing in a pack, so it's a floor on real kill speed. Since balance pass 2 it also prints, at par: **effective life against each damage type** (and for the wrong-resistance kit), **time to kill with each Main gem build** (its par support and tree preset; packs, rares, the elite, the elite room and the guardian, ± against the Sword), and **power per system** (`powerSteps` in formulas.js: what one magic drop, one gem level, one tree point and one character level add to pack DPS × effective life, against `TARGETS.power`).
+2. **`npm run arena`** (about 2 minutes for one seed, needs `npm run build`): real game code fights one encounter at a time (packs, magic, rare, guardian, under-geared, under-levelled) with a scripted player. The bot walks into swing reach and lets the auto-attack work; it plays the timing game well (Guard before hits it can see coming, step out of or Evade the guardian's slam); "careless" rows never Guard, Evade or step out. Real play sits between them. Shows clear time, damage taken, lowest life, flasks, Guard and Evade casts and time spent surging (the bot surges on rares, guardians and crowds of four; a "never surging" guardian row shows what the gauge is worth). In the browser: `__dbg.arena({ tier: 2, fight: [['zombie', 4]], gear: 'magic' })`. Since balance pass 2: every Crypt pack template, rares of each type, the elite room (`ELITE`, zombie and archer elites with their minions), each Main gem build (pack, rare, elite, guardian good / perfect / careless), behind par (starter sword, 2 levels under, gems 2 under), the wrong-resistance kit, and three uniques on tier 5; every fight restarts the random stream from its seed and the pages warm up first, so a row plays the same whatever ran before it. `SEEDS=12` plays every row on seeds 1–12 and prints means (wins, time, taken...), `TIERS=3-5` and `ONLY=<regex>` pick rows, `JOBS=n` sets how many browsers fight at once (default 4), `JSON=path` saves the results. The table ends with a **summary per tier** checked against `ARENA_TARGETS` (`src/data/balance.js`): builds within 25% of the Sword, the perfect bot 15% ahead, careless losing, the elite against a rare pack, behind-par and wrong-resistance rows, uniques.
 3. **`npm run level`** (about a minute, needs `npm run build`): the RIDE autopilot plays whole levels at par with the arena bot's reaction skill and reports minutes per level, split into walking, fighting, the guardian, junction waits, loot and time dead (see "Level generation v2"). `npm run balance` prints a level-time estimate next to the last measured numbers. In the browser: `__dbg.levelRun({ tier: 2, seed: 7 })` (it replaces the current map and character).
-4. **`npm test`** includes balance guard rails: a tier 1 pack isn't one-shot, the tier 1 guardian can't be burned down, the starter sword can't beat the tier 2 guardian, and the careless bot does clearly worse than the smart one on the tier 2 guardian. A tier 1 level run (layout seed 3, three junctions) must clear with its time split into walking, fighting, the guardian and junction waits. These catch regressions on every push.
+4. **`npm test`** includes balance guard rails: a tier 1 pack isn't one-shot, the tier 1 guardian can't be burned down, the starter sword can't beat the tier 2 guardian, and the careless bot does clearly worse than the smart one on the tier 2 guardian. A tier 1 level run (layout seed 3, three junctions) must clear with its time split into walking, fighting, the guardian and junction waits. Balance pass 2 added: power per system inside `TARGETS.power` on tiers 2–5, the Sword's gem levels worth more than ×1.4 at tier 5, every Main gem build within 25% of the Sword on paper, the elite's life against a rare's, the wrong-resistance kit weaker against poison, a tier 2 elite room beaten at par and slower than a rare pack, careless play far worse with Frost Strike, and a unique row. These catch regressions on every push.
 
 Loop: change numbers in `src/data/` → `npm run balance` → `npm run arena` → play a level to feel it.
 
@@ -511,6 +511,89 @@ Loop: change numbers in `src/data/` → `npm run balance` → `npm run arena` �
   - **`npm run level -- 5 10`:** 6.9, 6.4, 6.9, 7.1, 7.5 → 6.9, 6.6, 7.1, 7.6, 8.6 min; all 50 levels cleared, 4 deaths in 50 (was 2; 3 of them on tier 5).
   - **Test harness:** the live tests and the arena now restart the seeded random stream once the page is ready (loading drew on it a varying number of times, so a seed didn't give the same run twice); `npm run arena` takes `ONLY=<regex>` to run just some rows (e.g. `ONLY='^guardian'`).
   - **Open:** if late guardians feel long, lower `TIER.hp` for tier 5 first (4.9 is what keeps the perfect bot 15% ahead there); if careless play should scrape through sometimes, `STAGGER.recover` back toward .6 is the gentlest knob.
+
+### Balance pass 2 (built Nov 2026, build order step 7)
+
+Every character system is in (gems and supports, fight mechanics, the tree, defence, gear), so the whole Crypt was checked on paper and in the arena with the full character: par gear with armour and resistances, par gem levels, the tree presets, the par supports and each Main gem build. Arena numbers are means over seeds (`SEEDS=24` for guardians, `SEEDS=12` for the rest); one guardian fight varies a lot (a standard deviation of 6–13 s), so a single seed says little and even 12 seeds move a percentage by ±5 points.
+
+**Findings before tuning.**
+- **Gem levels barely mattered.** A Main gem level added about 2% power at par (the gem's base was a quarter of the hit; flat damage from gear the rest), and the arena's "gems 2 under" rows fought as fast as par. "Stats" says damage comes from the gem.
+- **Thunder Slam and Frost Strike were far ahead of the Sword:** guardians 39–47% and 17–30% faster on tiers 2–5, and careless play beat the tier 3–5 guardian with them (Slam 10–12 of 12, Frost Strike 10–12 of 12). Slam's big hits get more from ripostes, finishers and its shock than the maths counted; Frost Strike's chill kept the guardian slowed for the whole fight.
+- **The perfect bot's lead** on Sword guardians was 13% on tier 3 and 10% on tier 5 (12 seeds): real, not noise.
+- **Elites** (`ELITE`, untuned since room roles) were barely bigger than a rare pack, and careless play beat them on tiers 3–5 (11–12 of 12).
+
+**Changes (all numbers in `src/data/`).**
+
+| What | Before → after | Why |
+|---|---|---|
+| `GEM.grow` (base damage per gem level) | 1.1 → 1.18 | gem levels own damage: a level is now +4–6% power (was +2%) |
+| `TIER.hp` tiers 1–5 (`hpAfter`) | 1, 2.65, 3.2, 3.95, 4.9 (.5) → 1, 2.79, 3.54, 4.59, 6.02 (.6) | pays for the stronger gems, so par kill times stay where they were |
+| `SK.cleave.mult` | .93 → .78 | Ember Cleave's guardians within 10% of the Sword |
+| `SK.fstrike.mult`; new `bossChill`, `bossFreeze` | .95 → .78; a guardian is chilled .15 s by a strike and .5 s by the milestone (was 2 s and 3 s) | the guardian isn't slowed all fight (one small code change in `sk/strike.js` reads the two numbers) |
+| `SK.slam.mult`, `shockChance` | 1.5 → .95, .35 → .25 | Thunder Slam within 10% of the Sword |
+| `STAGGER.finisher` | 3 → 4.2 | rewards breaking the bar: widens perfect over good rider |
+| `BOSS.channel.hits`, `mend.heal` | 4 → 3, .1 → .15 | channels are broken by parries more than by hits; failing one costs more |
+| `MT.boss.hp` | 1040 → 1100 | the bigger finisher shortened fights; tier 1 stays as hard |
+| `ELITE.hp`, `ELITE.dmg` | 1.6 → 2.2, 1.1 → 1.35 | an elite room is a real fight |
+
+The maths (`gemDps`) now counts Thunder Slam's shock and Ignite as one burn at a time (it counted every hit's burn). Gem drop rates, item drops and level length are unchanged.
+
+**Guardians, good rider at par, 24 seeds** (seconds, wins of 24; ± against the Sword; before: 12 seeds, same tiers):
+
+| Tier | Sword | Ember Cleave | Frost Strike | Thunder Slam | Before (Sword · Cleave · Strike · Slam) |
+|---|---|---|---|---|---|
+| 1 | 77 (23/24) | 102 (18/24) | 99 (22/24) | 99 (19/24) | 78 · 89 · 72 · 61 |
+| 2 | 53 | 54 +2% | 55 +4% | 49 −6% | 58 · 44 −23% · 41 −30% · 31 −46% |
+| 3 | 52 | 49 −5% | 47 −9% | 47 −10% | 53 · 46 −13% · 38 −28% · 30 −43% |
+| 4 | 53 | 49 −7% | 48 −8% | 48 −8% | 56 · 47 −16% · 39 −30% · 30 −47% |
+| 5 | 51 | 50 −2% | 49 −3% | 50 −2% | 51 · 45 −10% · 42 −17% · 31 −39% |
+
+Tiers 2–5 are won 24 of 24 by every build. Tier 1 isn't a build tier (the other Main gems have no support yet, and you can't own one before the first guardian), so it isn't checked; the Sword lost 1 of 24 there (the good rider could always die on tier 1). Never surging, the Sword takes 86, 70, 65, 65, 58 s.
+
+**Perfect vs good rider and careless** (24 seeds): the perfect bot is faster by Sword 27, 21, 14, 15, 15% (tiers 1–5; 14.5% on tier 5), Ember Cleave 21, 24, 11, 10, 5%, Frost Strike 26, 27, 24, 24, 20%, Thunder Slam 28, 15, 20, 21, 16%. **Careless play loses every guardian with every build: 0 of 24 on every tier** (before: Frost Strike won 34 of 48 on tiers 2–5, Thunder Slam 35 of 48). The Sword's lead on tiers 3–5 sits at 14–15%, on the target's edge; levers tried at 24 seeds (a bigger finisher, staggered monsters taking more, harder channels, a bigger riposte) moved it by about the noise. Ember Cleave's good rider is already near the fight's floor (the perfect bot needs about 42–45 s at par whatever the build), so its lead is small.
+
+**Elites and rares** (12 seeds; time / damage taken, good rider):
+
+| Tier | Rare + pack | Elite (zombie) | Elite archer | Elite, perfect | Elite, careless wins | Elite before (1.6×, 1.1×): time / taken, careless wins |
+|---|---|---|---|---|---|---|
+| 1 | 17 / 29 | 39 / 61 | 48 / 35 | 32 / 17 | 0/12 | 29 / 44, 2/12 |
+| 2 | 14 / 61 | 34 / 86 | 39 / 48 | 28 / 23 | 2/12 | 23 / 55, 5/12 |
+| 3 | 13 / 19 | 32 / 53 | 28 / 16 | 27 / 5 | 3/12 | 22 / 33, 11/12 |
+| 4 | 13 / 19 | 33 / 105 | 28 / 22 | 28 / 11 | 7/12 | 23 / 49, 11/12 |
+| 5 | 13 / 26 | 31 / 90 | 28 / 50 | 27 / 37 | 3/12 | 23 / 67, 12/12 |
+
+An elite room now takes about 2.4× a rare pack's time and costs 1.4–5.5× the life (on tier 1 about half the hero's life), the good rider wins every one, and careless play loses most. With each build the elite takes 29–35 s on tiers 2–5. Rare archers take about as long as zombie rares; rare bloaters die in about 5 s.
+
+**Packs** (12 seeds, good rider, tiers 1–5): every Crypt template clears in 4–12 s taking 0–40; magic packs 13–14 s; careless play takes 3–10× as much on packs and rare packs and still wins nearly all of them (it lost one tier 1 rare pack). On tiers 2–5 each build's mixed pack is within 25% of the Sword's.
+
+**Behind par** (12 seeds, tiers 2–5; par guardian takes 82, 103, 108, 114):
+- **Starter sword (under-geared):** guardians won 3, 8, 10, 8 of 12, in 144–163 s, taking 551–757; elites won but taking 169–286 (par 53–105).
+- **Two levels under (character and gems):** guardians won, 60–80 s, taking 147–205 (1.4–2.4× par); elites taking 79–163.
+- **Gems two under:** guardians 57–68 s (par 48–52), taking 147–201: behind on gems now means slower kills.
+
+**Wrong resistances** (the par kit with fire where the poison resistance was, `GEAR_PROFILES.wrong`): the guardian takes 5–10% more (87 vs 82 ... 126 vs 114), careless bloater packs 12–15% more; a good rider rolls the bloaters' blasts, so its bloater packs are about the same. In the Crypt poison is only the bloaters' blasts and the guardian's bolts, so resistance is a small lever here; it matters from the Forest on (`LEAN`).
+
+**Effective life by damage type** (`npm run balance`, par magic kit, tiers 2–5): life 265, 308, 400, 450; against a zombie swing 334, 384, 497, 556; against a rare's heavy 281, 326, 423, 475 (armour cuts big hits less); fire, cold, lightning 294, 342, 449, 511; poison 315, 371, 488, 556; the Crypt's mix 311, 360, 469, 528. The wrong kit: poison 265–450 (no resistance), fire 358–652.
+
+**Power per system** (`npm run balance`, power = pack DPS × effective life, the Sword at par; `TARGETS.power`):
+
+| Tier | A magic drop over a plain item | A new tier's item over last tier's | A gem level | A tree point (shield preset; elemental presets) | A character level's life |
+|---|---|---|---|---|---|
+| 1 | +23% | – | +4.0% | – | +5.7% |
+| 2 | +22% | +5.1% | +4.3% | +1.7% (4–7%) | +4.5% |
+| 3 | +19% | +2.0% | +5.2% | +1.9% (6–8%) | +3.9% |
+| 4 | +19% | +3.7% | +5.8% | +3.2% (6–7%) | +3.5% |
+| 5 | +18% | +2.9% | +6.4% | +2.9% (5–6%) | +2.9% |
+
+Whole systems at tier 5 against none: the kit ×4.8 against the starter sword (was ×6.1), all ten gem levels ×1.54 (was ×1.25), the tree ×1.29. A drop is the biggest single step, a gem level about a third of one, a tree point a sixth (the shield preset's early points buy parry window and posture, which power doesn't count). The tier sawtooth is about the same (a new tier's par kit is worth ×1.33, 1.12, 1.23, 1.18 on tiers 2–5; was 1.32, 1.11, 1.24, 1.19).
+
+**Uniques** (tier 5 guardian, 12 seeds, a look ahead: they drop from tier 6): The Answering Bell 59 s taking 175, Headsman's Seal 55 s taking 156, Heart of the Storm 57 s taking 153, against par 48 s taking 114. Each replaces a magic item's damage affix with a rule that doesn't make it up in a guardian fight, so as they stand they're sidegrades at best.
+
+**Keystones** (tiers 4/5 guardians, 12 seeds): Riposte 45/45 s taking 144/166; Duelist 57/57 s taking 322/360; Blood Rite 58/57 s taking 137/156; Bulwark 96/95 s taking 434/487 (no parries means no finishers, and the finisher got bigger).
+
+**Elsewhere:** `npm run balance`: every par number inside target, zombie hits 5.1, 4.2, 4.2, 4.2, 4.4, guardians never surging 82, 67, 67, 68, 68 s. `npm run level -- 5 10`: 6.7, 6.6, 6.9, 7.5, 8.2 min (was 7.1, 6.5, 6.9, 7.4, 8.2), all 50 cleared, 1 death in 50 (was 3).
+
+**Open (owner's calls):** (1) the Sword's perfect lead on tiers 3–5 is 14–15%, on the edge of the 15% target. (2) A dropped Main gem is 3 levels under par (`GEM_DROP.lvlUnder`), and with gem levels mattering more it's about 15% weaker than the Sword you've levelled until it catches up or is fed. (3) Uniques lose to a par magic item in a guardian fight; give them a second plain mod or a stronger rule before tier 6. (4) Bulwark is now clearly the weakest keystone (raise its `bash`). (5) Resistances barely matter in the Crypt; fine if the Forest is where they start to.
 
 ## Regions and levels
 

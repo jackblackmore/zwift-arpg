@@ -1,8 +1,8 @@
 // Pure balance maths: hero stats, item roll scaling, monster scaling, expected damage.
 // Imports only data, so the game, `npm run balance` (Node) and the arena all share one set of formulas.
 import { TREE, TREE_START, TREE_CAP } from '../data/tree.js';
-import { HERO, RARITY, START_WEAPON, GEAR_PROFILES, XP_CURVE, ITEM_SCALE, ESTIMATE, DEFENCE } from '../data/balance.js';
-import { MT, TIER, PACK, LEAN, DMG_TYPES, RARE, BLAST, BOSS } from '../data/monsters.js';
+import { HERO, RARITY, START_WEAPON, GEAR_PROFILES, XP_CURVE, ITEM_SCALE, ESTIMATE, DEFENCE, PAR_MAIN, PAR_GEAR, parLevel, parGem, parSock, parTree } from '../data/balance.js';
+import { MT, TIER, PACK, LEAN, DMG_TYPES, RARE, BLAST, BOSS, ELITE } from '../data/monsters.js';
 import { SLOTS, BASE, BASES, IMPL_FIXED, AFF, AFFBY, EXTRA } from '../data/items.js';
 import { GEMS, GEM, SUPPORTS, supFits, FEED } from '../data/gems.js';
 import { SURGE, SK } from '../data/skills.js';
@@ -83,7 +83,7 @@ export const hitBase = (st, gem) => (st.gems[gem] ?? gemBase(1)) + st.spell;
 export const avgHit = (st, mult, elem, gem = 'cleave') => hitBase(st, gem) * mult * (st.dmg + (st[elem] || 0)) * (1 + st.crit * (HERO.critMult - 1)) * ((st.sk && st.sk[gem] && st.sk[gem].more) || 1);
 
 // A gem's hits per second (cast speed only; effort and Surge on top) and damage per swing on one target and on a clumped pack.
-// Melee: ESTIMATE.targets monsters per swing (Sweep hits more); Aftershock adds its echo; Ignite adds its burn. Used by the bag
+// Melee: ESTIMATE.targets monsters per swing (Sweep hits more); Aftershock adds its echo, Thunder Slam its shock; Ignite adds its burn. Used by the bag
 // estimate (game/stats.js) and the maths report (scripts/balance.mjs).
 export function gemDps(st, id) {
   const D = GEMS[id], K = SK[D.sk], k = st.sk[id], rate = D.held ? st.cast / K.cast : 1 / K.cd;
@@ -93,8 +93,12 @@ export function gemDps(st, id) {
     if (k.aftershock) one *= 1 + SUPPORTS.aftershock.mult;
     if (k.brittle) one *= 1 + SUPPORTS.brittle.taken * .5; // about half its hits land on an already-brittle target
     const M = D.mile; if (st.mile && st.mile[id] && M.every && M.mult) one *= 1 + (M.mult - 1) / M.every; // the Sword's heavy cut
+    // Thunder Slam's shock (Arc's, SK.arc): the share of time a target hit every swing is shocked, × the extra damage it takes.
+    if (K.shockChance) one *= 1 + (1 - Math.pow(1 - K.shockChance, SK.arc.shockT * rate)) * SK.arc.shockMore;
   } else if (id === 'arc') n = 1 + k.chains * ESTIMATE.perChain;
-  if (k.ignite) one *= 1 + SUPPORTS.ignite.share;
+  // Ignite: a target burns from one hit at a time (a new burn only replaces a weaker one), so it adds its share × the swing time
+  // over the burn's length, at most its share.
+  if (k.ignite) one *= 1 + SUPPORTS.ignite.share * Math.min(1, 1 / rate / SUPPORTS.ignite.dur);
   return { rate, one, pack: one * n, dps: one * rate, packDps: one * n * rate };
 }
 
@@ -184,6 +188,40 @@ export function ehp(st, t = 1) {
 export function gearValue(st, st0, main, t = 1) {
   const V = ESTIMATE.value, d = gemDps(st, main).packDps / gemDps(st0, main).packDps, e = ehp(st, t) / ehp(st0, t), m = st.ms / st0.ms;
   return Math.pow(d, V.dps) * Math.pow(e, V.ehp) * Math.pow(m, V.ms);
+}
+
+// ---- The par hero and power per system (npm run balance, npm test; design notes "Balance") ----
+// Stats of the par hero on tier t with Main gem `main` (its par gem level, support and tree preset, data/balance.js), unless o says
+// otherwise: o.lvl (character level), o.gem (Main gem level), o.gear (a GEAR_PROFILES name or a gear object), o.tree (node list),
+// o.socks (false: no support).
+export function parStats(t, main = PAR_MAIN, o = {}) {
+  const lvl = o.lvl ?? parLevel(t), gear = typeof o.gear === 'object' ? o.gear : gearProfile(o.gear || PAR_GEAR(t), t);
+  return computeStats(gear, o.tree ?? parTree(lvl, main), lvl, { [main]: o.gem ?? parGem(t) }, { [main]: o.socks === false ? [] : parSock(t, main).main || [] }, { main });
+}
+// One number for how strong a hero is on tier t: the Main gem's pack DPS × effective life (ehp), each to its ESTIMATE.value weight.
+// Ratios of it (power(a) / power(b)) say how much a drop, a gem level or a tree point is worth.
+export const power = (st, main, t) => Math.pow(gemDps(st, main).packDps, ESTIMATE.value.dps) * Math.pow(ehp(st, t), ESTIMATE.value.ehp);
+// An elite (data/monsters.js ELITE) of `type` on tier t: a rare's stats × the elite's multipliers. Its fortified affix is left out
+// (like the report's rare); minions in eliteRoomHp.
+export function eliteStats(type, t) { const m = monsterStats(type, t, 2); return { ...m, hp: m.hp * ELITE.hp, dmg: m.dmg * ELITE.dmg }; }
+export function eliteRoomHp(t) { const sz = 1 + TIER.packSize * (t - 1); return ELITE.minions.reduce((a, [ty, c]) => a + Math.round(c * sz) * monsterStats(ty, t).hp * (1 + ELITE.magic * (RARITY.magic.hp - 1)), 0); }
+// What each system adds at tier t's par (Main gem `main`), as power ratios (1.05 = 5% stronger):
+//   drop: one magic item at this tier's item level in place of a plain one (implicits only), the mean over slots;
+//   tierDrop: one item from this tier's par kit in place of last tier's, the mean over slots (the sawtooth, one drop at a time);
+//   gemLevel: the Main gem's last level (par gem level against one less; level 2 against 1 on tier 1);
+//   treePoint: one point of the par preset (the mean per point of the preset's nodes at this level; 1 when there are none);
+//   charLevel: one character level's life alone (the tree point it brings is treePoint).
+export function powerSteps(t, main = PAR_MAIN) {
+  const st = parStats(t, main), p0 = power(st, main, t), lvl = parLevel(t), kit = gearProfile('magic', t), plain = gearProfile('magic', t), last = gearProfile('magic', Math.max(1, t - 1));
+  for (const sl in plain) plain[sl] = { ...plain[sl], mods: plain[sl].mods.slice(0, plain[sl].impl) };
+  const pk = g => power(parStats(t, main, { gear: g }), main, t), slots = Object.keys(kit), mk = (base, sl, it) => ({ ...base, [sl]: it });
+  const drop = slots.reduce((a, sl) => a + pk(mk(plain, sl, kit[sl])) / pk(plain), 0) / slots.length;
+  const tierDrop = t > 1 ? slots.reduce((a, sl) => a + pk(mk(last, sl, kit[sl])) / pk(last), 0) / slots.length : 1;
+  const g = Math.max(2, parGem(t)), gemLevel = power(parStats(t, main, { gem: g, gear: kit }), main, t) / power(parStats(t, main, { gem: g - 1, gear: kit }), main, t);
+  const tree = parTree(lvl, main), none = power(parStats(t, main, { tree: [], gear: kit }), main, t), full = power(parStats(t, main, { gear: kit }), main, t);
+  const treePoint = tree.length ? Math.pow(full / none, 1 / tree.length) : 1;
+  const charLevel = ehp(parStats(t, main, { gear: kit, lvl: lvl + 1, tree }), t) / ehp(parStats(t, main, { gear: kit, tree }), t);
+  return { p0, drop, tierDrop, gemLevel, treePoint, charLevel };
 }
 
 // Experience needed to go from level l to l + 1, and packs placed on a map of tier t.
