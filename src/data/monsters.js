@@ -102,7 +102,7 @@ export const GUARDIANS = {
   // Crypt Halls: the skeleton knight. Sword and shield: a three-swing combo you parry, a shield bash (heavy), a lunge (phase 2,
   // unblockable), and it calls skeleton warriors. Its channel rallies: a shockwave (roll) or a mend that calls more.
   knight: { name: 'The Skeleton Knight', short: 'THE KNIGHT', col: 0x7ab8ff, hint: 'Parry the sword combo · block or roll the shield bash', hint2: 'It lunges (purple: roll) · blue: break its rally',
-    mt: { hp: 1300, dmg: 10.5, spd: 2.6, r: 1, cd: 1.6, range: 1.7, h: 4.9, scale: 2.3, horns: 0, col: 0x3a4250, head: 0xb8c4d0, eye: 0x60c0ff,
+    mt: { hp: 1250, dmg: 10.5, spd: 2.6, r: 1, cd: 1.6, range: 1.7, h: 4.9, scale: 2.3, horns: 0, col: 0x3a4250, head: 0xb8c4d0, eye: 0x60c0ff,
       look: { kind: 'warrior', weapon: 'blade', offhand: 'shield', walk: 'Walking_A', idle: 'Melee_2H_Idle', rise: 'taunt', tint: 0xb8c8e0, attacks: [['Melee_1H_Attack_Chop', 1.4], ['Melee_1H_Attack_Slice_Diagonal', 1.3], ['Melee_1H_Attack_Slice_Horizontal', 1.6]] } },
     rotation: ['combo', 'bash', 'combo', 'summon'], rotation2: ['channel', 'bash', 'lunge', 'combo', 'bash', 'channel', 'summon', 'lunge'], abilGap: 3.3, abilGap2: 2.2, enrageSpd: 1.25,
     abil: {
