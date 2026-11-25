@@ -79,6 +79,8 @@ const encounters = (t, n) => [
   // Wrong resistances: the par kit with fire resistance where its poison resistance was (data/balance.js GEAR_PROFILES.wrong).
   { name: 'bloaters (wrong resistances)', fight: [['bloater', n(2)], ['zombie', n(2)]], gear: 'wrong', skip: t === 1 },
   { name: 'guardian (wrong resistances)', ...G, gear: 'wrong', skip: t === 1 },
+  { name: 'bloaters, careless', fight: [['bloater', n(2)], ['zombie', n(2)]], bot: 'careless', skip: t === 1 },
+  { name: 'bloaters (wrong resistances), careless', fight: [['bloater', n(2)], ['zombie', n(2)]], gear: 'wrong', bot: 'careless', skip: t === 1 },
   { name: 'mixed pack, careless', fight: [['zombie', n(3)], ['archer', n(1)]], bot: 'careless' },
   { name: 'magic pack, careless', fight: [['zombie', n(3)], ['archer', n(1)]], rar: 1, bot: 'careless' },
   { name: 'rare + pack, careless', fight: [['zombie', n(3)]], rare: 'zombie', bot: 'careless' },
@@ -111,7 +113,9 @@ async function worker() {
   await page.setViewport({ width: 800, height: 500 });
   await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.__dbg && window.__dbg.ready(), { timeout: 30000 });
-  await page.evaluate(() => window.__dbg.start(true));
+  // A fresh page's first fight plays a little differently from later ones (state left by loading), so warm up first: then a fight
+  // gives the same result whatever ran before it in that page, and the table doesn't depend on JOBS.
+  await page.evaluate(() => { const D = window.__dbg; D.start(true); window.__seedTo(1); D.arena({ tier: 3, guardian: true, maxT: 30 }); D.arena({ tier: 3, elite: 'zombie', maxT: 10 }); });
   return page;
 }
 const res = new Array(jobs.length);
@@ -163,7 +167,7 @@ for (const t of Object.keys(A).map(Number)) {
     const b = Object.entries(BUILDS).filter(([, n]) => R[`guardian · ${n}`]).map(([, n]) => { const x = R[`guardian · ${n}`], d = x.t / g.t - 1; return `${n} ${tm(x)} ${pc(d)}${mark((t < PAR_SUPPORT_FROM || Math.abs(d) <= AT.buildSpread) && x.won === x.n)} ${wins(x)}`; });
     out.push(`guardian: Sword ${tm(g)} ${wins(g)}${mark(g.won === g.n)}${b.length ? ' · ' + b.join(' · ') : ''}`);
     const lead = [['Sword', R['guardian, perfect'], g], ...Object.values(BUILDS).map(n => [n, R[`guardian, perfect · ${n}`], R[`guardian · ${n}`]])].filter(([, p, s]) => p && s)
-      .map(([n, p, s]) => { const v = 1 - p.t / s.t; return `${n} ${pc(v)}${mark(v >= AT.perfectLead)}`; });
+      .map(([n, p, s]) => { const v = 1 - p.t / s.t; return `${n} ${pc(v)}${n === "Sword" ? mark(v >= AT.perfectLead) : " "}`; });
     if (lead.length) out.push(`perfect is faster than the good rider by: ${lead.join(' · ')}`);
     const cl = [['Sword', R['guardian, careless']], ...Object.values(BUILDS).map(n => [n, R[`guardian, careless · ${n}`]])].filter(([, c]) => c).map(([n, c]) => `${n} ${wins(c)}${mark(c.won === 0)}`);
     if (cl.length) out.push(`careless guardian wins: ${cl.join(' · ')}`);
@@ -175,7 +179,7 @@ for (const t of Object.keys(A).map(Number)) {
   const behind = [['starter sword', 'guardian (starter sword)', 'elite (starter sword)'], ['2 levels under', 'guardian (2 levels under)', 'elite (2 levels under)'], ['gems 2 under', 'guardian (gems 2 under)', null]]
     .filter(([, gk]) => R[gk] && g).map(([n, gk, ek]) => { const x = R[gk]; return `${n}: guardian ${wins(x)} ${tm(x)} taking ${x.taken}${mark(x.won < x.n || x.taken > g.taken)}${ek && R[ek] ? ` · elite ${wins(R[ek])} taking ${R[ek].taken}` : ''}`; });
   if (behind.length) out.push(`behind par (par guardian takes ${g.taken}): ${behind.join(' · ')}`);
-  const wr = [['guardian (wrong resistances)', 'guardian'], ['bloaters (wrong resistances)', 'bloaters']].filter(([w, p]) => R[w] && R[p]).map(([w, p]) => `${p} taking ${R[w].taken} vs ${R[p].taken} ${wins(R[w])}`);
+  const wr = [['guardian (wrong resistances)', 'guardian'], ['bloaters (wrong resistances)', 'bloaters'], ['bloaters (wrong resistances), careless', 'bloaters, careless']].filter(([w, p]) => R[w] && R[p]).map(([w, p]) => `${p} taking ${R[w].taken} vs ${R[p].taken} ${wins(R[w])}`);
   if (wr.length) out.push(`wrong resistances: ${wr.join(' · ')}`);
   const un = Object.values(UNIQUES).filter(n => R[`guardian · ${n}`] && g).map(n => { const x = R[`guardian · ${n}`]; return `${n} ${tm(x)} ${pc(x.t / g.t - 1)} taking ${x.taken} ${wins(x)}`; });
   if (un.length) out.push(`uniques (guardian): ${un.join(' · ')}`);

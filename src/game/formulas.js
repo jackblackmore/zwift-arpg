@@ -83,7 +83,7 @@ export const hitBase = (st, gem) => (st.gems[gem] ?? gemBase(1)) + st.spell;
 export const avgHit = (st, mult, elem, gem = 'cleave') => hitBase(st, gem) * mult * (st.dmg + (st[elem] || 0)) * (1 + st.crit * (HERO.critMult - 1)) * ((st.sk && st.sk[gem] && st.sk[gem].more) || 1);
 
 // A gem's hits per second (cast speed only; effort and Surge on top) and damage per swing on one target and on a clumped pack.
-// Melee: ESTIMATE.targets monsters per swing (Sweep hits more); Aftershock adds its echo; Ignite adds its burn. Used by the bag
+// Melee: ESTIMATE.targets monsters per swing (Sweep hits more); Aftershock adds its echo, Thunder Slam its shock; Ignite adds its burn. Used by the bag
 // estimate (game/stats.js) and the maths report (scripts/balance.mjs).
 export function gemDps(st, id) {
   const D = GEMS[id], K = SK[D.sk], k = st.sk[id], rate = D.held ? st.cast / K.cast : 1 / K.cd;
@@ -93,8 +93,12 @@ export function gemDps(st, id) {
     if (k.aftershock) one *= 1 + SUPPORTS.aftershock.mult;
     if (k.brittle) one *= 1 + SUPPORTS.brittle.taken * .5; // about half its hits land on an already-brittle target
     const M = D.mile; if (st.mile && st.mile[id] && M.every && M.mult) one *= 1 + (M.mult - 1) / M.every; // the Sword's heavy cut
+    // Thunder Slam's shock (Arc's, SK.arc): the share of time a target hit every swing is shocked, × the extra damage it takes.
+    if (K.shockChance) one *= 1 + (1 - Math.pow(1 - K.shockChance, SK.arc.shockT * rate)) * SK.arc.shockMore;
   } else if (id === 'arc') n = 1 + k.chains * ESTIMATE.perChain;
-  if (k.ignite) one *= 1 + SUPPORTS.ignite.share;
+  // Ignite: a target burns from one hit at a time (a new burn only replaces a weaker one), so it adds its share × the swing time
+  // over the burn's length, at most its share.
+  if (k.ignite) one *= 1 + SUPPORTS.ignite.share * Math.min(1, 1 / rate / SUPPORTS.ignite.dur);
   return { rate, one, pack: one * n, dps: one * rate, packDps: one * n * rate };
 }
 

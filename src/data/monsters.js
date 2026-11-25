@@ -108,6 +108,6 @@ export const RARE = { size: 1.4, radius: 1.35, affixes: 2, moreFrom: 3, more: 3,
 // is (weighted by repeats; melee ones swing heavies). minions: the pack around it ([type, count], grown per tier like any pack),
 // magic: chance the minions are magic. titles: its name is a rare's name plus one of these. Its items: DROP.elite (data/items.js);
 // it drops no gem (gem drops are the owner's call, design notes "Not decided yet").
-export const ELITE = { hp: 1.6, dmg: 1.1, size: 1.12, affixes: 1, xp: 1.5, types: ['zombie', 'zombie', 'zombie', 'archer'],
+export const ELITE = { hp: 2.2, dmg: 1.35, size: 1.12, affixes: 1, xp: 1.5, types: ['zombie', 'zombie', 'zombie', 'archer'],
   minions: [['zombie', 2], ['runner', 2]], magic: .5,
   titles: ['the Unburied', 'Crypt Lord', 'the Hollow King', 'Bonewarden', 'the Grave-Sworn', 'the Ashen'] };

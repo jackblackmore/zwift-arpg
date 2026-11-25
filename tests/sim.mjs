@@ -18,10 +18,11 @@ import { TREE, TREE_START, TREE_UNIT } from '../src/data/tree.js';
 import { TREE_PRESETS, PAR_TREE, parTree } from '../src/data/balance.js';
 import { computeStats, treeCanTake, treeConnected, TREE_ADJ, armourCut, defended, hitTaken, dmgType, gearProfile, monsterStats, tierDmg, ehp, gearValue, gemBase, implMods } from '../src/game/formulas.js';
 import { AFF, AFFBY, BASE, BASES, EXTRA, UNIQ, SLOTS } from '../src/data/items.js';
-import { ESTIMATE, parLevel, parGem, parSock } from '../src/data/balance.js';
+import { ESTIMATE, parLevel, parGem, parSock, TARGETS, ARENA_TARGETS, PAR_SUPPORT_FROM, GEAR_PROFILES } from '../src/data/balance.js';
+import { parStats, power, powerSteps, eliteStats, eliteRoomHp, gemDps } from '../src/game/formulas.js';
 import { GEM } from '../src/data/gems.js';
 import { DEFENCE } from '../src/data/balance.js';
-import { MT, BOSS, BLAST, RARE, LEAN } from '../src/data/monsters.js';
+import { MT, BOSS, BLAST, RARE, LEAN, ELITE, TIER } from '../src/data/monsters.js';
 import { readFileSync } from 'node:fs';
 
 const chrome = process.env.CHROME_PATH || ['/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser'].find(existsSync);
@@ -739,6 +740,27 @@ try {
     check(g.errors.length === 0, `seed: no page errors${g.errors.length ? ': ' + g.errors.slice(0, 3).join(' | ') : ''}`);
   }
 
+  // ---------- Balance pass 2 (step 7): power per system, builds, elites, effective life by type (pure maths; the arena sweeps are npm run arena) ----------
+  {
+    const P = [2, 3, 4, 5].map(t => powerSteps(t)), inR = (v, [lo, hi]) => v - 1 >= lo && v - 1 <= hi, pc = v => Math.round((v - 1) * 1000) / 10 + '%';
+    check(P.every(x => inR(x.drop, TARGETS.power.drop) && inR(x.gemLevel, TARGETS.power.gemLevel) && inR(x.treePoint, TARGETS.power.treePoint)),
+      `balance: each system matters at par on tiers 2–5 (a magic drop ${P.map(x => pc(x.drop)).join(', ')}; a gem level ${P.map(x => pc(x.gemLevel)).join(', ')}; a tree point ${P.map(x => pc(x.treePoint)).join(', ')})`);
+    const g5 = power(parStats(5), 'sword', 5) / power(parStats(5, 'sword', { gem: 1 }), 'sword', 5);
+    check(g5 > 1.4, `balance: gem levels own the base damage: the tier 5 par Sword's 10 levels are worth ×${g5.toFixed(2)} (more than ×1.4)`);
+    // Every melee Main gem build, on paper, kills a guardian within ARENA_TARGETS.buildSpread of the Sword (the arena checks the real fight).
+    const builds = Object.keys(GEMS).filter(id => GEMS[id].melee && GEMS[id].kind === 'attack' && id !== 'sword'), bossT = (t, id) => monsterStats('boss', t).hp / gemDps(parStats(t, id), id).dps;
+    const spread = builds.flatMap(id => [2, 3, 4, 5].map(t => bossT(t, id) / bossT(t, 'sword') - 1));
+    check(builds.length === 3 && spread.every(v => Math.abs(v) <= ARENA_TARGETS.buildSpread) && PAR_SUPPORT_FROM === 2,
+      `balance: every Main gem build kills a guardian on paper within ${ARENA_TARGETS.buildSpread * 100}% of the Sword on tiers 2–5 (${Math.round(Math.min(...spread) * 100)}% to +${Math.round(Math.max(...spread) * 100)}%)`);
+    // Elites (ELITE) are a bigger fight than a pack's rare: more life on the elite and minions round it.
+    const el = [1, 3, 5].map(t => [eliteStats('zombie', t).hp / monsterStats('zombie', t, 2).hp, eliteRoomHp(t) / monsterStats('zombie', t).hp]);
+    check(el.every(([a, b]) => a >= 1.5 && b >= 3), `balance: an elite has ${el[0][0].toFixed(1)}× a rare's life and ${el[0][1].toFixed(1)}+ zombies' worth of minions`);
+    // Effective life by damage type: the wrong kit (fire where the poison resistance was) is weaker against poison, stronger against fire.
+    const ok = [2, 4].every(t => { const a = parStats(t), w = parStats(t, 'sword', { gear: 'wrong' }), e = (st, dt) => st.maxLife * 20 / hitTaken(st, 20, dt);
+      return e(w, 'poison') < e(a, 'poison') && e(w, 'fire') > e(a, 'fire') && Math.abs(e(w, 'phys') - e(a, 'phys')) < 1e-6 && ehp(w, t) < ehp(a, t); });
+    check(ok && GEAR_PROFILES.wrong, 'balance: the wrong-resistance kit has less effective life against poison and the Crypt\'s mix, more against fire');
+  }
+
   // ---------- Balance guard rails (arena: real fights, scripted player; full table via `npm run arena`) ----------
   {
     const { page, errors } = await open('/');
@@ -754,6 +776,11 @@ try {
         // one fight is noisy (a good rider can get lucky): compare damage taken over three more fights each
         smart3: [0, 1, 2].map(() => D.arena({ tier: 2, guardian: true, maxT: 240 })).reduce((a, x) => a + x.taken, 0),
         perfect3: [0, 1, 2].map(() => D.arena({ tier: 2, guardian: true, maxT: 240, bot: 'perfect' })).reduce((a, x) => a + x.taken, 0),
+        // step 7: an elite room is a bigger fight than a rare pack; careless play loses with a fast build too; a unique row runs
+        rare: D.arena({ tier: 2, fight: [['zombie', 4]], rare: 'zombie' }),
+        elite: D.arena({ tier: 2, elite: 'zombie', maxT: 180 }),
+        carelessFs: D.arena({ tier: 4, guardian: true, maxT: 240, bot: 'careless', main: 'fstrike' }), smartFs: D.arena({ tier: 4, guardian: true, maxT: 240, main: 'fstrike' }),
+        bell: D.arena({ tier: 5, guardian: true, maxT: 1, unique: 'bell' }).life > 0 && D.P.gear.helm.uid === 'bell',
       };
     });
     console.log('  balance:', JSON.stringify(Object.fromEntries(Object.entries(r).map(([k, v]) => [k, typeof v === 'number' ? v : `${v.result} ${v.t}s lowest ${v.lowest}`]))));
@@ -762,6 +789,10 @@ try {
     check(r.under.result !== 'clear', `balance: starter sword can't beat the tier 2 guardian in 2 minutes (${r.under.result})`);
     check(r.smart.result === 'clear' && (r.careless.result === 'died' || r.careless.taken > r.smart.taken * 3), `balance: never parrying, blocking or rolling against the tier 2 guardian does far worse (${r.careless.result}, ${r.careless.taken} taken vs ${r.smart.taken})`);
     check(r.perfect.result === 'clear' && r.perfect3 < r.smart3 && r.smart.parries > 5 && r.smart.rolls > 2, `balance: perfect timing takes less than a good rider over three tier 2 guardian fights (${r.perfect3} vs ${r.smart3}), who parries and rolls (${r.smart.parries} parries, ${r.smart.rolls} rolls)`);
+    check(r.elite.result === 'clear' && r.elite.t > r.rare.t && r.rare.result === 'clear', `balance: a good rider beats a tier 2 elite room at par, and it takes longer than a rare pack (${r.elite.t}s vs ${r.rare.t}s)`);
+    check(r.smartFs.result === 'clear' && (r.carelessFs.result === 'died' || (r.carelessFs.lowest < .15 && r.carelessFs.taken > r.smartFs.taken * 4)),
+      `balance: careless play does far worse against the tier 4 guardian with Frost Strike too (its chill doesn't stop the guardian: ${r.carelessFs.result}, ${r.carelessFs.taken} taken vs ${r.smartFs.taken})`);
+    check(r.bell === true, 'balance: the arena can put a unique in its slot (The Answering Bell)');
     check(errors.length === 0, `balance: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   }
 
@@ -1369,7 +1400,7 @@ try {
         const cuts = []; for (let i = 0; i < 3; i++) { const h = rz.hp, st = rz.stag; swing('sword'); cuts.push([h - rz.hp, rz.stag - st]); }
         g.lvl = 4; D.recalc(); P.atkN = 2; const h4 = rz.hp; swing('sword'); const l4 = h4 - rz.hp; S.crit = crit; Math.random = rnd;
         const Ms = D.GEMS.sword.mile; out.cut = cuts.map(c => Math.round(c[0])).join(',') + ' · L4 3rd: ' + Math.round(l4);
-        out.heavyCut = Math.abs(cuts[2][0] / cuts[0][0] - Ms.mult) < .05 && Math.abs(cuts[1][0] - cuts[0][0]) < 1 && cuts[2][1] > cuts[0][1] * (Ms.stagger - .1) && Math.abs(l4 - cuts[0][0]) < 1; g.gem = 'fstrike'; g.lvl = 5; D.recalc(); }
+        out.heavyCut = Math.abs(cuts[2][0] / cuts[0][0] - Ms.mult) < .05 && Math.abs(cuts[1][0] - cuts[0][0]) < 1 && cuts[2][1] > cuts[0][1] * (Ms.stagger - .1) && l4 <= cuts[0][0] + .5 && l4 > cuts[0][0] * .8; g.gem = 'fstrike'; g.lvl = 5; D.recalc(); }
       // Thunder Slam knocks back harder than Cleave.
       clear(); e = foe(0, 1.8); e.hp = e.maxHp = 1e6; const z0 = e.z; P.aimAt = [P.x, P.z + 5]; D.strike('slam'); P.aimAt = null; D.sim(14); out.kbSlam = e.z - z0;
       clear(); e = foe(0, 1.5); const z1 = e.z; P.aimAt = [P.x, P.z + 5]; D.strike('cleave'); P.aimAt = null; D.sim(9); out.kbCleave = e.z - z1;

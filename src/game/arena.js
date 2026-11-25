@@ -38,7 +38,10 @@ const DT = .033;
 // The scripted player at a tier's par level, gear, bar and supports (or what spec asks for), full life, Surge and flasks.
 export function parHero(spec, tier, lvl) {
   Object.assign(P, { lvl, tree: [], treeNew: [], gear: gearProfile(spec.gear || PAR_GEAR(tier), tier), dead: 0, invuln: 0, shield: 0, shieldT: 0, castT: 0,
-    blocking: false, parryT: 0, parryCd: 0, posture: 0, broken: 0, riposteT: 0, rollT: 0, apPause: 0, flaskT: 0, kills: 0, staggers: 0, finishers: 0, chans: 0, chanBroken: 0, taken: 0, takenBy: {}, takenType: {}, gems: [], bar: {}, sock: {}, cd: {}, shrined: { main: 1, flexA: 1, flexB: 1, guard: 1, evade: 1 } });
+    blocking: false, parryT: 0, parryCd: 0, posture: 0, broken: 0, riposteT: 0, rollT: 0, apPause: 0, flaskT: 0, kills: 0, staggers: 0, finishers: 0, chans: 0, chanBroken: 0, taken: 0, takenBy: {}, takenType: {}, gems: [], bar: {}, sock: {}, cd: {}, shrined: { main: 1, flexA: 1, flexB: 1, guard: 1, evade: 1 },
+    // and everything a fight leaves behind, so a fight plays the same whatever ran before it (the arena's seeds)
+    face: 0, surgeK: 0, castAnim: 0, barrierFx: 0, flaskRate: 0, postWait: 0, rollVx: 0, rollVz: 0, swingTok: 0, walkT: 0, moving: false, fbN: 0, autoNovaT: 5, moveX: 0, moveZ: 1, atkN: 0, castSeq: 0, lastCast: null, xp: 0, rollDir: 'Forward', aimAt: null, riposteMul: undefined });
+  Object.assign(G, { gt: 0, hitStop: 0, shakeA: 0 });
   if (spec.unique) { const u = makeUnique(spec.unique, tier); P.gear[u.slot] = u; }
   const bar = { ...(spec.bar || parBar(tier)) };
   if (spec.gemUnder) for (const s of Object.keys(bar)) bar[s] = [bar[s][0], Math.max(1, bar[s][1] - spec.gemUnder)];
