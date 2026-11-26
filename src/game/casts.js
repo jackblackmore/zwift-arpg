@@ -13,6 +13,7 @@ import blink from './sk/blink.js';
 import totem from './sk/totem.js';
 import meteor from './sk/meteor.js';
 import roll from './sk/roll.js';
+import { updCorpses, clearCorpses } from './raise.js';
 
 const MODS = {
   blink, totem, meteor, roll,
@@ -20,5 +21,5 @@ const MODS = {
 
 export const CAST = { arc: () => castArc(), nova: () => castNova(), dash: castDash };
 for (const id in GEMS) if (GEMS[id].melee) CAST[id] = () => strike(id);
-export const TICK = [skeletons.tick, arts.tick], CLEAR = [skeletons.clear, arts.clear]; // skeletons come from the Raise Skeletons support, frost rings from Frost Ward's parries
+export const TICK = [skeletons.tick, arts.tick, updCorpses], CLEAR = [skeletons.clear, arts.clear, clearCorpses]; // skeletons come from the Raise Skeletons support, frost rings from Frost Ward's parries, corpses from deaths (game/raise.js)
 for (const [id, m] of Object.entries(MODS)) { CAST[id] = m.cast; if (m.tick) TICK.push(m.tick); if (m.clear) CLEAR.push(m.clear); }

@@ -4,7 +4,8 @@
 export const G = {
   tier: 1, mapKills: 0, mapTotal: 0, gt: 0, paused: true, started: false,
   minions: [], // allies: Raise Skeletons (game/sk/skeletons.js)
-  enemies: [], eproj: [], patches: [], pools: [], ground: [], floats: [], queue: [], effects: [],
+  enemies: [], eproj: [], patches: [], pools: [], corpses: [], // corpses: the fallen a necromancer can raise (game/raise.js)
+  ground: [], floats: [], queue: [], effects: [],
   packs: [], obst: [], jn: null, goal: null, skip: new Set(), jnDone: new Set(), // route choice at junctions (game/route.js)
    torches: [], portal: null, gate: null, gates: [], chests: [], rest: null, bossSpec: null, shrine: null, shrineAsk: null, layout: null, // layout: the level grid (world/gen.js); null = open floor (arena). gates: fog gates (game/gate.js), gate the guardian arena's; chests, rest: room roles (game/rooms.js)
   devSeed: 0, // dev: ?seed=N fixes the level layouts (src/main.js, world/map.js)

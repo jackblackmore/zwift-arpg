@@ -8,14 +8,15 @@ import { SFX } from '../core/audio.js';
 import { scene, flashLight } from '../render/scene.js';
 import { decal } from '../render/assets.js';
 import { sparks, glows, emit, burst, ringFx, flashFx, floatT, banner } from '../render/fx.js';
-import { near, wake, spawnEnemy } from './enemies.js';
+import { near, wake, spawnEnemy, interruptRaise, guardUp, shieldFaces, openGuard } from './enemies.js';
+import { addCorpse } from './raise.js';
 import { dropItem, dropGem } from './items.js';
 import { gainXp, xpNeed } from './stats.js';
 import { makePortal } from './maps.js';
 import * as skel from './sk/skeletons.js';
 import { HERO, RARITY, COMBAT } from '../data/balance.js';
 import { DROP, EXTRA } from '../data/items.js';
-import { BLAST, RARE, STAGGER, ANIM, ELITE } from '../data/monsters.js';
+import { BLAST, RARE, STAGGER, ANIM, ELITE, BKNIGHT } from '../data/monsters.js';
 import { TELL, DMG_COL, DMG_ICON } from '../data/graphics.js';
 import { shieldHit } from './sk/guard.js';
 import { SUPPORTS } from '../data/gems.js';
@@ -25,7 +26,8 @@ const ECOL = { fire: '#ffb070', cold: '#bff0ff', light: '#e0c8ff' };
 
 // Hit an enemy with `mult` × (gem base + flat damage from gear) of an element. src.gem = the skill gem it came from (sets the base and the skill's `more` from supports),
 // src.kx/kz = knockback direction (src.kb scales it), src.stag = × the stagger it fills (the Sword's heavy cut), src.dot = no number/sound, src.by = who gets the kill instead of the gem
-// ('minion': a skeleton's hit, so it doesn't count as the gem's kill for Raise Skeletons).
+// ('minion': a skeleton's hit, so it doesn't count as the gem's kill for Raise Skeletons), src.heavy = a heavy hit (the Sword's heavy cut, a
+// riposte), which opens a bone knight's guard (data/monsters.js BKNIGHT) where a plain hit is blocked by its shield.
 export function hit(e, mult, elem, src = {}) {
   if (e.deathT) return 0;
   wake(e);
@@ -33,15 +35,21 @@ export function hit(e, mult, elem, src = {}) {
   let d = hitBase(S, gem) * mult * (S.dmg + (S[elem] || 0)) * ((K && K.more) || 1) * rand(COMBAT.spread[0], COMBAT.spread[1]);
   const crit = Math.random() < S.crit; if (crit) d *= HERO.critMult;
   if (e.shock > 0) d *= 1 + (e.shockMore || SK.arc.shockMore); // Conduit (Arc's support) marks the shocks it makes
+  let shielded = false; // a bone knight's shield (BKNIGHT): blocks a plain hit from in front of it; a heavy hit or enough blows open it
+  if (!src.dot && guardUp(e) && shieldFaces(e, P.x, P.z)) {
+    if (src.heavy) openGuard(e);
+    else { shielded = true; d *= BKNIGHT.taken; e.guardHits = (e.guardHits || 0) + 1; P.foeBlocks = (P.foeBlocks || 0) + 1; floatT(e.x, e.h + .5, e.z, 'BLOCKED', '#9fc8ff', 11, .6); flashFx(e.x + Math.sin(e.face) * .5, e.h * .55, e.z + Math.cos(e.face) * .5, TELL.guard, 1.6, .15); SFX.clang(); if (e.guardHits >= BKNIGHT.hits) openGuard(e, BKNIGHT.hitOpen); }
+  }
   if (e.stun > 0 && e.stagMax) { // staggered: wide open, and the first hero hit is a finisher
     d *= 1 + STAGGER.taken;
     if (e.finisher && !src.dot && src.by !== 'minion') { e.finisher = false; d *= STAGGER.finisher * (S.fight ? S.fight.finisher : 1); finisherFx(e); if (S.finBlast) G.queue.push({ k: 'finblast', x: e.x, z: e.z, d: d * EXTRA.finBlast.share, src: e }); } // Headsman's Seal (a unique) // the tree's finisher nodes
   }
   else if (e.stagMax && !src.dot) { const C = e.channel && e.gd.channel; stagger(e, d / e.maxHp * STAGGER.dmg * (src.stag || 1) * stagMul() * (C ? C.hits * (1 + C.surge * (P.surgeK || 0)) : 1 + STAGGER.surge * (P.surgeK || 0))); } // a channel is easier to break, more so surging
+  if (e.raising) interruptRaise(e); // a necromancer's raise stops when you hit it
   e.hp -= d; e.flash = .07; e.lastElem = elem; e.lastGem = src.by || gem; e.lastHit = Math.max(e.lastHit || 0, d);
   if (!src.dot) {
     floatT(e.x, e.h + .3, e.z, Math.round(d), crit ? '#ffe060' : ECOL[elem] || '#fff', crit ? 17 : 12);
-    if (src.kx !== undefined && e.type !== 'boss') { const k = (crit ? 5 : 3) / (e.rar === 2 ? 3 : 1) * (src.kb ?? 1); e.vx += src.kx * k; e.vz += src.kz * k; }
+    if (src.kx !== undefined && e.type !== 'boss') { const k = (crit ? 5 : 3) / (e.rar === 2 ? 3 : 1) * (src.kb ?? 1) * (shielded ? .3 : 1); e.vx += src.kx * k; e.vz += src.kz * k; }
     SFX.hit(); if (crit) shake(.08);
   }
   if (e.hp <= 0) kill(e);
@@ -69,13 +77,15 @@ function finisherFx(e) {
 }
 function stun(e, t) {
   if (e.channel) { e.channel = null; P.chanBroken++; floatT(e.x, e.h + 1.4, e.z, 'CHANNEL BROKEN', '#' + TELL.channel.toString(16).padStart(6, '0'), 16, 1.4); } // stagger breaks a channel (GUARDIANS[..].channel)
-  e.stun = t; e.windup = 0; e.cast = null; e.charging = null; e.fuse = 0; e.combo = 0; e.inCombo = null; e.heavy = false;
+  if (e.raising) interruptRaise(e);
+  e.stun = t; e.windup = 0; e.cast = null; e.charging = null; e.fuse = 0; e.combo = 0; e.inCombo = null; e.heavy = false; e.unblk = false;
   if (e.model.rigged) { const [n, sp] = ANIM.stun, d = e.model.play(n, { once: true, speed: sp * 3 / Math.max(1, t), fade: .05 }); e.lock = d / (sp * 3 / Math.max(1, t)); }
 }
 // You parried monster e (game/sk/guard.js): stagger a guardian or rare, stun anything else for a moment. k < 1: a share of a
 // parry's stagger and no stun (the Bulwark keystone's blocks).
 export function parried(e, k = 1) {
   if (e.deathT) return;
+  if (e.shield && k >= 1) openGuard(e); // a parried bone knight's guard opens (BKNIGHT)
   if (e.stagMax) stagger(e, (e.type === 'boss' ? STAGGER.parry : STAGGER.parryRare) * (e.channel ? e.gd.channel.parry : 1) * stagMul() * k);
   else if (k >= 1) stun(e, STAGGER.minorStun);
 }
@@ -94,7 +104,8 @@ export function kill(e) {
     const D = DROP.elite; stop(.1); shake(.5); banner(e.name.toUpperCase() + ' FALLS', '#ff7a3a', 'The fog lifts');
     for (let i = 0; i < D.n; i++) G.queue.push({ k: 'later', t: i * D.gap, fn: () => dropItem(e.x, e.z, i === 0 ? D.first : D.rest) });
   } else if (e.rar === 2) { const D = DROP.rare; dropItem(e.x, e.z, D.boost); if (Math.random() < D.second) dropItem(e.x, e.z, D.boost2); if (Math.random() < DROP.gem) dropGem(e.x, e.z); stop(.06); shake(.3); }
-  else if (e.type !== 'boss' && Math.random() < (e.rar === 1 ? DROP.magic : DROP.normal)) dropItem(e.x, e.z, 0);
+  else if (e.type !== 'boss' && !e.raised && Math.random() < (e.rar === 1 ? DROP.magic : DROP.normal)) dropItem(e.x, e.z, 0); // a raised monster drops nothing
+  addCorpse(e); // the fallen a necromancer can raise (game/raise.js)
   if (e.shatter && e.freeze > 0) G.queue.push({ k: 'shatter', x: e.x, z: e.z, hp: e.maxHp }); // frozen by a Frost Nova with Shatter
   if (S.sk[e.lastGem] && S.sk[e.lastGem].raise) skel.onKill(e); // Raise Skeletons support on the skill that killed it
   // Death blasts: a bloater only when its fuse ran out (killing it first defuses it); a volatile rare always.

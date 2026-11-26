@@ -10,7 +10,7 @@ export const SK = {
   sword: { cast: .7, mult: 1, windup: .12, reach: 2.2, arc: 110, kb: .3, stop: .035 },
   cleave: { cast: .8, mult: .78, windup: .12, reach: 2.4, arc: 150, kb: .35, stop: .035 },
   fstrike: { cast: .62, mult: .78, windup: .1, reach: 2.1, arc: 90, kb: .2, stop: .03, chill: 2, bossChill: .15, bossFreeze: .5 },
-  slam: { cast: 1.3, mult: .95, windup: .3, reach: 1.5, radius: 1.9, kb: 1, stop: .07, shockChance: .25 },
+  slam: { cast: 1.3, mult: 1.03, windup: .3, reach: 1.5, radius: 1.9, kb: 1, stop: .07, shockChance: .25 },
   // Arc: shocks `shockChance` of the time for `shockT` s; shocked enemies take `shockMore` more damage from everything.
   arc: { cast: .8, mult: .9, range: 11, chainRange: 5.5, shockChance: .3, shockT: 3, shockMore: .2 },
   // Frost Nova: freezes for `freeze` s (× freeze duration); guardians can't be frozen and are chilled for `bossChill` s instead.

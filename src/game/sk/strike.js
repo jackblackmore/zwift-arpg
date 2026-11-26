@@ -53,7 +53,7 @@ export function counter(id, e, mul) {
   const K = SK[id], D = GEMS[id]; if (!D || !D.melee || e.deathT) return false;
   const d = dist(e.x, e.z, P.x, P.z) || 1; if (d > K.reach + (K.radius || 0) + e.r + P.r + .5) return false;
   cancelSwing(); P.face = Math.atan2(e.x - P.x, e.z - P.z); P.castAnim = .3; P.castT = K.cast / (S.cast * ((P.eff && P.eff.cast) || 1));
-  hit(e, K.mult * mul, D.elem, { gem: id, kx: (e.x - P.x) / d, kz: (e.z - P.z) / d, kb: K.kb });
+  hit(e, K.mult * mul, D.elem, { gem: id, kx: (e.x - P.x) / d, kz: (e.z - P.z) / d, kb: K.kb, heavy: true }); // a riposte is a heavy hit (opens a bone knight's guard)
   floatT(P.x, 2.9, P.z, 'RIPOSTE', '#ffd23f', 15); flashFx(e.x, 1, e.z, COL[D.elem][1], 2.4, .15); SFX.thud();
   return true;
 }
@@ -73,7 +73,7 @@ function land(id, a, n, mult, at) {
   if (rip > 1) { P.riposteT = 0; floatT(P.x, 2.6, P.z, 'RIPOSTE', '#ffd23f', 15); }
   if (cut && T.list.length) { floatT(P.x, 2.4, P.z, 'HEAVY CUT', '#e8ecf4', 13); shake(.1); }
   for (const e of T.list) {
-    const d = dist(e.x, e.z, P.x, P.z) || 1, dmg = hit(e, K.mult * mult * rip * (cut ? M.mult : 1), elem, { gem: id, kx: (e.x - P.x) / d, kz: (e.z - P.z) / d, kb: K.kb * (cut ? 2 : 1), stag: cut ? M.stagger / M.mult : 1 });
+    const d = dist(e.x, e.z, P.x, P.z) || 1, dmg = hit(e, K.mult * mult * rip * (cut ? M.mult : 1), elem, { gem: id, kx: (e.x - P.x) / d, kz: (e.z - P.z) / d, kb: K.kb * (cut ? 2 : 1), stag: cut ? M.stagger / M.mult : 1, heavy: cut || rip > 1 }); // heavy cuts and ripostes open a bone knight's guard
     if (e.deathT) continue;
     if (k.ignite) { const IG = SUPPORTS.ignite; e.burnT = IG.dur; e.burnDps = Math.max(e.burnDps, dmg * IG.share / IG.dur); }
     if (K.chill) e.chill = Math.max(e.chill, e.type === 'boss' ? K.bossChill ?? K.chill : K.chill); // a guardian shrugs it off faster

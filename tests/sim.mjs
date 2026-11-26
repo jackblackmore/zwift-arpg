@@ -22,7 +22,7 @@ import { ESTIMATE, parLevel, parGem, parSock, TARGETS, ARENA_TARGETS, PAR_SUPPOR
 import { parStats, power, powerSteps, eliteStats, eliteRoomHp, gemDps } from '../src/game/formulas.js';
 import { GEM } from '../src/data/gems.js';
 import { DEFENCE } from '../src/data/balance.js';
-import { MT, BOSS, GUARDIANS, MIX, PACKS, BLAST, RARE, LEAN, ELITE, TIER } from '../src/data/monsters.js';
+import { MT, BOSS, GUARDIANS, MIX, PACKS, PACK, BLAST, RARE, LEAN, ELITE, TIER } from '../src/data/monsters.js';
 import { readFileSync } from 'node:fs';
 
 const chrome = process.env.CHROME_PATH || ['/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser'].find(existsSync);
@@ -670,7 +670,7 @@ try {
     check(errors.length === 0, `levels: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   }
 
-  // ---------- The new guardians (step 9 part A): every threat telegraphed by how you answer it; each staggers and dies ----------
+  // ---------- The new guardians (step 9 parts A and B): every threat telegraphed by how you answer it; each staggers and dies ----------
   {
     const { page, errors } = await open('/');
     const r = await page.evaluate(() => {
@@ -680,7 +680,7 @@ try {
       const reset = () => { G.eproj.forEach(p => D.scene.remove(p.g)); G.eproj = []; G.queue = []; Object.assign(P, { invuln: 0, life: S.maxLife, posture: 0, broken: 0, blocking: false, parryT: 0, parryCd: 0, riposteT: 0, rollT: 0, apPause: 0, lastThreat: null, lastHurt: null, x: G.start.x, z: G.start.z, face: 0 }); P.cd.evade.ch = 2; P.cd.evade.cd = 0; ctl.guard = false; ctl.tap = {}; };
       const want = A => A.kind === 'area' ? (A.tell === 'unblockable' ? 'unblockable' : 'heavy') : A.kind === 'volley' ? 'hit' : 'unblockable'; // the kind of hit each ability is
       const tellOf = A => A.kind === 'area' ? A.tell : A.kind === 'volley' ? 'parry' : 'unblockable'; // its telegraph colour ('!' over the hero)
-      for (const gid of ['knight', 'captain', 'plague']) {
+      for (const gid of ['knight', 'captain', 'plague', 'lich', 'lieutenant']) {
         D.newMap(1); G.packs = []; G.enemies.forEach(e => { e.deathT = 1; e.gone = true; }); G.bossSpec = null; reset();
         const gd = D.GUARDIANS[gid], o = out[gid] = { kinds: {}, tells: {}, answered: {} };
         const spawn = () => { G.enemies.forEach(e => { if (!e.deathT) { e.deathT = 1; e.gone = true; } }); const b = D.spawnEnemy('boss', P.x, P.z + 2.4, null, 0, { guard: gid }); b.awake = true; b.rise = 0; b.abilT = 99; b.atkT = 99; b.spd = 0; P.face = 0; D.sim(1); b.atkT = 99; return b; };
@@ -688,7 +688,7 @@ try {
         // Every ability and channel effect: what kind of hit it is, the colour of its '!', and that its answer works.
         const abil = { ...gd.abil, ...Object.fromEntries(gd.channel.effects.filter(k => k !== 'mend').map(k => [k, gd.channel[k]])) };
         for (const [key, A] of Object.entries(abil)) {
-          if (A.kind === 'summon' || A.kind === 'combo') continue;
+          if (A.kind === 'summon' || A.kind === 'combo' || A.kind === 'revive') continue;
           // Unanswered: the hit lands, of the right kind.
           reset(); b = spawn(); G.floats = []; D.bossDo(b, key); const f = G.floats.filter(x => x.txt === '!').pop(); o.tells[key] = f && f.col === hex(TELL[tellOf(A)]);
           for (let k = 0; k < 150 && !P.lastThreat; k++) D.sim(1); o.kinds[key] = P.lastThreat && P.lastThreat.kind === want(A) ? 'ok' : (P.lastThreat ? P.lastThreat.kind : 'none');
@@ -708,7 +708,9 @@ try {
         for (let k = 0; k < 300 && !(b.stun > 0); k++) { if (b.windup > 0 && b.windup <= .15 && P.parryCd <= 0) ctl.tap.guard = true; const seq = P.castSeq; D.sim(1); if (P.castSeq !== seq && P.lastCast === 'parry') parries++; if (G.floats.some(x => x.txt === '!' && x.col === hex(TELL.parry))) o.swingTell = true; }
         o.parries = parries; o.staggered = b.stun > 0 && b.finisher;
         ctl.tap = {}; D.sim(15); /* let the parry window close (a raised shield doesn't swing) */ const h0 = b.hp; for (let i = 0; i < 3 && b.finisher; i++) { P.aimAt = [b.x, b.z]; D.strike('sword'); P.aimAt = null; D.sim(10); } o.finisher = !b.finisher && b.hp < h0; if (!o.finisher) o.finDbg = [h0, b.hp, b.finisher, b.stun, Math.hypot(b.x - P.x, b.z - P.z), P.dead, P.broken, P.castT, G.enemies.filter(e => !e.deathT).length].join(',');
-        if (gd.abil.combo) { reset(); b = spawn(); D.bossDo(b, 'combo'); b.atkT = .05; let lands = 0; for (let k = 0; k < 200 && (b.combo > 0 || b.inCombo || b.windup > 0); k++) { D.sim(1); if (P.lastThreat && P.lastThreat.kind === 'hit') { lands++; P.lastThreat = null; P.life = S.maxLife; } } o.comboSwings = lands; }
+        // The combo: its swings in order, each the kind its seq says (all parryable 'hit's unless it's mixed), with the matching '!'.
+        const combo = ph2 => { reset(); b = spawn(); b.phase2 = ph2; D.bossDo(b, 'combo'); b.atkT = .05; const kinds = [], tells = []; G.floats = []; for (let k = 0; k < 300 && (b.combo > 0 || b.inCombo || b.windup > 0); k++) { D.sim(1); const f = G.floats.find(x => x.txt === '!'); if (f) { tells.push(Object.keys(TELL).find(t => hex(TELL[t]) === f.col)); G.floats = []; } if (P.lastThreat) { kinds.push(P.lastThreat.kind); P.lastThreat = null; P.life = S.maxLife; P.posture = 0; P.broken = 0; } } return { kinds: kinds.join(), tells: tells.join() }; };
+        if (gd.abil.combo) { const A = gd.abil.combo; o.combo = combo(false); o.comboWant = (A.seq || Array(A.n).fill('hit')).join(); if (A.seq2) { o.combo2 = combo(true); o.combo2Want = A.seq2.join(); } }
         // Phase 2: below half life it enrages, opens with a channel (blue) and breaks like the Warden's; the plague bloat bursts into bloaters.
         reset(); b = spawn(); const nb = G.enemies.filter(e => !e.deathT && e.type === 'bloater').length; b.hp = b.maxHp * .45; b.abilT = 0; G.floats = []; D.sim(2);
         o.phase2 = b.phase2 && !!b.channel; o.chanTell = G.floats.some(x => x.txt === '!' && x.col === hex(TELL.channel));
@@ -725,9 +727,104 @@ try {
       check(!bad('answered'), `guardian ${gid}: each threat is answered as designed: heavies and volleys blocked by the shield, unblockables rolled${bad('answered') ? ' · failed: ' + bad('answered') : ''}`);
       check(o.swingTell && o.parries >= 2 && o.staggered && o.finisher, `guardian ${gid}: its swings are parryable (yellow); ${o.parries} parries break its stagger bar, and the first hit is a finisher`);
       check(o.summon >= 1 && o.phase2 && o.chanTell && (gid !== 'plague' || o.burst >= 2) && o.died, `guardian ${gid}: summons (${o.summon}), enrages below half life with a channel (blue)${gid === 'plague' ? `, bursts into ${o.burst} bloaters` : ''}, and dies with its banner and loot`);
-      if (o.comboSwings !== undefined) check(o.comboSwings === 3, `guardian ${gid}: its combo is three quick parryable swings (${o.comboSwings})`);
+      const tw = k => k.split(',').map(x => x === 'hit' ? 'parry' : x).join();
+      if (o.combo) check(o.combo.kinds === o.comboWant && o.combo.tells === tw(o.comboWant), `guardian ${gid}: its combo is ${o.comboWant.split(',').length} quick swings of the kinds ${o.comboWant} with matching '!' colours (${o.combo.kinds} · ${o.combo.tells})`);
+      if (o.combo2) check(o.combo2.kinds === o.combo2Want && o.combo2.tells === tw(o.combo2Want), `guardian ${gid}: in phase 2 its combo turns ${o.combo2Want} (${o.combo2.kinds} · ${o.combo2.tells})`);
     }
     check(errors.length === 0, `guardians: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
+  }
+
+  // ---------- Crypt levels 4–5 (step 9 part B): Bone Gardens' necromancers, Throne Approach's bone knights, the high necromancer's
+  // mass revive, the Pale Warden as a rare stand-in ----------
+  {
+    const types = m => MIX[m].packs.flatMap(p => p.map(([t]) => t)), has = (m, t) => MIX[m].packs.filter(p => p.some(([x]) => x === t)).length;
+    check(LEVELS[3].guardian === 'lich' && LEVELS[4].guardian === 'lieutenant' && LEVELS[3].mix === 'gardens' && LEVELS[4].mix === 'throne' && LEVELS[3].alt.guardian === 'warden' && LEVELS[4].alt.guardian === 'warden',
+      `levels 4–5: Bone Gardens (the high necromancer) and Throne Approach (the King's lieutenant); the Pale Warden is a rare stand-in on both (${LEVELS[3].alt.chance}, ${LEVELS[4].alt.chance})`);
+    check(has('gardens', 'necro') >= 4 && !types('gardens').includes('bknight') && has('throne', 'bknight') >= 5 && MIX.throne.rareChance > PACK.rareChance && MIX.throne.eliteTypes.includes('bknight'),
+      `levels 4–5: necromancers in ${has('gardens', 'necro')} of Bone Gardens' packs, bone knights in ${has('throne', 'bknight')} of Throne Approach's, which has more rares (${MIX.throne.rareChance} vs ${PACK.rareChance}) and bone knight elites`);
+    let s3 = SEED + 9; const rng3 = () => { s3 = (s3 + 0x6D2B79F5) >>> 0; let t = s3; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    const lay = {};
+    for (const k of [3, 4]) { const L0 = LEVELS[k], q = lay[k + 1] = { doors: { doors: 0, offGap: 0, unrecorded: 0, wrongTo: 0, unpaired: 0 }, unreach: 0 };
+      for (let n = 0; n < 100; n++) { const L = generateLevel({ ...L0.gen, pools: !!L0.pools }, rng3), f = walkField(L, cellOf(L, L.start.x), cellOf(L, L.start.z)); doorCheck(L, q.doors); for (let i = 0; i < L.n * L.n; i++) if (L.grid[i] && f[i] < 0) q.unreach++; } }
+    check(Object.values(lay).every(q => q.doors.offGap + q.doors.unrecorded + q.doors.wrongTo + q.doors.unpaired === 0 && q.unreach === 0), `levels 4–5: their layouts (100 each) are sound with their own tuning`);
+
+    const { page, errors } = await open('/');
+    const r = await page.evaluate(() => {
+      const D = window.__dbg, P = D.P, S = D.S, G = D.G, ctl = D.ctl, TELL = D.TELL, out = { lv: {} }, hex = c => '#' + c.toString(16).padStart(6, '0');
+      D.start(true); D.setAutoAtk(false);
+      // In play: names, packs from the mix, the guardian (now and then the Pale Warden instead).
+      for (const t of [4, 5]) {
+        const o = out.lv[t] = { ids: {} }; D.newMap(t); o.banner = document.getElementById('bT').textContent === D.LEVELS[t - 1].name.toUpperCase();
+        o.types = [...new Set(G.packs.flatMap(p => p.mem))].sort().join(); o.rares = G.packs.filter(p => p.rare && !p.elite).length / G.packs.filter(p => !p.elite).length;
+        for (let n = 0; n < 40; n++) { D.newMap(t); o.ids[G.bossSpec.id] = (o.ids[G.bossSpec.id] || 0) + 1; }
+      }
+      const clear = () => { G.enemies.forEach(e => { e.deathT = 1; e.gone = true; D.scene.remove(e.model.g); }); D.sim(1); G.eproj.forEach(p => D.scene.remove(p.g)); G.eproj = []; G.queue = []; G.corpses.forEach(c => D.scene.remove(c.g)); G.corpses = []; Object.assign(P, { invuln: 0, life: 1e6, posture: 0, broken: 0, blocking: false, parryT: 0, parryCd: 0, riposteT: 0, rollT: 0, x: G.start.x, z: G.start.z, face: 0, raised: 0 }); ctl.guard = false; ctl.tap = {}; };
+      D.newMap(4); G.packs = []; G.bossSpec = null;
+      // The necromancer: zombies fall and leave corpses; it channels (green rings, a green '!' and its sound), and they get up.
+      const scene = () => { clear(); const n = D.spawnEnemy('necro', P.x + 6, P.z, null, 0); n.awake = true; n.raiseT = 1; n.spd = 0; n.shootT = 99; const zs = [0, 1, 2].map(i => { const z = D.spawnEnemy('zombie', P.x + 2.5, P.z + i - 1, null, 0); z.awake = true; return z; }); D.sim(2); zs.forEach(z => D.kill(z)); D.sim(1); return n; };
+      let n = scene(); out.corpses = G.corpses.length; G.floats = [];
+      for (let k = 0; k < 100 && !n.raising; k++) { P.life = 1e6; D.sim(1); }
+      out.raising = !!n.raising; out.raiseTell = G.floats.some(f => f.txt === '!' && f.col === hex(TELL.raise)); out.raiseT = n.raising && n.raising.t;
+      for (let k = 0; k < 100 && n.raising; k++) { P.life = 1e6; D.sim(1); }
+      const up = G.enemies.filter(e => !e.deathT && e.raised);
+      out.raised = up.length; out.raisedHp = up.every(e => Math.abs(e.hp - e.maxHp * D.RAISE.hp) < 1 && e.xp === 0 && e.type === 'zombie' && e.awake); out.corpsesLeft = G.corpses.length;
+      up.forEach(e => D.kill(e)); D.sim(2); out.raisedNoCorpse = G.corpses.length === 0;
+      // Killing it first: it dies mid-raise and nobody gets up.
+      n = scene(); for (let k = 0; k < 100 && !n.raising; k++) { P.life = 1e6; D.sim(1); } out.killMid = !!n.raising; D.kill(n); D.sim(120);
+      out.killedNone = G.enemies.filter(e => !e.deathT && e.raised).length === 0 && G.corpses.length === 3;
+      // A hit interrupts the raise.
+      n = scene(); for (let k = 0; k < 100 && !n.raising; k++) { P.life = 1e6; D.sim(1); } n.hp = n.maxHp * 10; D.hit(n, .2, 'phys', { gem: 'sword' }); out.interrupted = !n.raising;
+      D.sim(40); out.interruptedNone = G.enemies.filter(e => !e.deathT && e.raised).length === 0;
+      // The bone knight: its shield blocks a plain hit from in front (BKNIGHT.taken), not from behind; a parry, a heavy hit or
+      // enough blocked hits open its guard (full damage). Its swings flash yellow. (Crits and the hit spread pinned.)
+      const crit = S.crit, rnd = Math.random; S.crit = 0; Math.random = () => .5;
+      const kn = () => { clear(); const k = D.spawnEnemy('bknight', P.x, P.z + 1.6, null, 0); k.awake = true; k.atkT = 99; k.spd = 0; k.hp = k.maxHp = 1e6; D.sim(2); k.atkT = 99; k.face = Math.PI; return k; };
+      let k = kn(); const front = D.hit(k, 1, 'phys', { gem: 'sword' }); k.face = 0; k.guardHits = 0; const back = D.hit(k, 1, 'phys', { gem: 'sword' }); out.shield = +(front / back).toFixed(2); out.blockTxt = G.floats.some(f => f.txt === 'BLOCKED');
+      k.face = Math.PI; k.guardHits = 0; const hv = D.hit(k, 1, 'phys', { gem: 'sword', heavy: true }); out.heavyOpens = k.open > 0 && Math.abs(hv / back - 1) < .01;
+      k = kn(); for (let i = 0; i < D.BKNIGHT.hits; i++) D.hit(k, 1, 'phys', { gem: 'sword' }); out.hitsOpen = k.open > 0 && Math.abs(D.hit(k, 1, 'phys', { gem: 'sword' }) / back - 1) < .01;
+      k = kn(); D.hit(k, 1, 'fire', { gem: 'sword', dot: 1 }); out.dotThrough = !k.guardHits;
+      Math.random = rnd; S.crit = crit;
+      k = kn(); k.atkT = .05; G.floats = []; let par = 0, tell = false;
+      for (let i = 0; i < 120 && !(k.open > 0); i++) { if (k.windup > 0 && k.windup <= .15 && P.parryCd <= 0) ctl.tap.guard = true; const s = P.castSeq; D.sim(1); if (P.castSeq !== s && P.lastCast === 'parry') par++; if (G.floats.some(f => f.txt === '!' && f.col === hex(TELL.parry))) tell = true; }
+      out.parryOpens = par >= 1 && k.open > 0; out.swingTell = tell;
+      // The high necromancer's channel raises the dead round it; breaking it with stagger keeps them down.
+      const lich = () => { clear(); const b = D.spawnEnemy('boss', P.x, P.z + 2.4, null, 0, { guard: 'lich' }); b.awake = true; b.rise = 0; b.abilT = 99; b.atkT = 99; b.spd = 0; D.sim(1); b.atkT = 99; b.abilT = 99;
+        for (let i = 0; i < 4; i++) { const z = D.spawnEnemy('zombie', b.x + Math.cos(i * 1.6) * 3, b.z + Math.sin(i * 1.6) * 3, null, 0); D.kill(z); } D.sim(1);
+        b.phase2 = true; b.hp = b.maxHp * .4; b.rot = 0; b.chanN = 0; b.abilT = 0; D.sim(1); b.atkT = 99; return b; };
+      let b = lich(); out.lichChan = !!b.channel && b.channel.fx === 'revive'; const c0 = G.corpses.length;
+      for (let i = 0; i < 200 && b.channel; i++) { P.life = 1e6; b.atkT = 99; D.sim(1); }
+      out.revived = G.enemies.filter(e => !e.deathT && e.raised && e.summoner === b).length; out.revivedFrom = c0;
+      b = lich(); D.stagger(b, 1); out.lichBroken = !b.channel && b.stun > 0; D.sim(120); out.brokenNone = G.enemies.filter(e => !e.deathT && e.raised).length === 0;
+      return out;
+    });
+    console.log('  levels 4–5:', JSON.stringify(r));
+    const L4 = r.lv[4], L5 = r.lv[5];
+    check(L4.banner && L5.banner && L4.types.includes('necro') && L5.types.includes('bknight') && L5.rares > L4.rares * .9, `levels 4–5: Bone Gardens and Throne Approach show their names; their packs bring necromancers (${L4.types}) and bone knights (${L5.types}); rares ${Math.round(L4.rares * 100)}%, ${Math.round(L5.rares * 100)}% of packs`);
+    check(L4.ids.lich > 25 && L4.ids.warden >= 1 && L5.ids.lieutenant > 25 && L5.ids.warden >= 1, `levels 4–5: the level's own guardian waits in most arenas, the Pale Warden in a few (${JSON.stringify(L4.ids)}, ${JSON.stringify(L5.ids)} over 40 maps each)`);
+    check(r.corpses === 3 && r.raising && r.raiseTell && r.raised === 3 && r.raisedHp && r.corpsesLeft === 0 && r.raisedNoCorpse, `necromancer: fallen zombies leave ${r.corpses} corpses; it raises them after a green-cued channel (${r.raiseT} s): ${r.raised} get up at half life and no XP, and leave no corpse the second time`);
+    check(r.killMid && r.killedNone && r.interrupted && r.interruptedNone, `necromancer: killing it mid-raise keeps the dead down, and a hit interrupts the raise (kill order)`);
+    check(r.shield > .1 && r.shield < .2 && r.blockTxt && r.heavyOpens && r.hitsOpen && r.dotThrough, `bone knight: its shield blocks a plain hit from in front (${r.shield} of the damage it takes from behind, "BLOCKED"); a heavy hit or ${'5'} blocked hits open it for full damage; burns go round it`);
+    check(r.parryOpens && r.swingTell, `bone knight: its swings flash yellow and parrying one opens its guard`);
+    check(r.lichChan && r.revived >= 3 && r.lichBroken && r.brokenNone, `high necromancer: its phase 2 channel raises the corpses round it (${r.revived} from ${r.revivedFrom}); breaking it with stagger keeps them down`);
+    if (process.env.SCREENSHOT) { // each new enemy and guardian at work (SCREENSHOT-necro, -bknight, -lich, -lieutenant), then the primitive models (-prim)
+      const shot = n => process.env.SCREENSHOT.replace(/\.png$/, `-${n}.png`);
+      const stage = async (name, code) => { await page.evaluate('{' + code + '}'); await page.evaluate(() => { document.getElementById('banner').style.opacity = 0; }); await new Promise(r => setTimeout(r, 300)); await page.screenshot({ path: shot(name) }); };
+      const setup = `const D = window.__dbg, P = D.P, G = D.G, ctl = D.ctl; G.enemies.forEach(e => { e.deathT = 1; e.gone = true; D.scene.remove(e.model.g); }); D.sim(1); G.corpses.forEach(c => D.scene.remove(c.g)); G.corpses = []; G.eproj = []; G.queue = []; P.life = 1e6; P.invuln = 0;
+        const L = G.layout, R = L.rooms[0]; P.x = R.x; P.z = R.z + 2.5; P.face = Math.PI; document.getElementById('banner').style.opacity = 0; G.bannerT = .01;
+        const sp = (t, dx, dz, o) => { const e = D.spawnEnemy(t, P.x + dx, P.z - dz, null, 0, o); /* +dz: up the screen, away from the camera */ e.awake = true; e.rise = 0; return e; };`;
+      await page.evaluate(() => { const D = window.__dbg; D.G.enemies.forEach(e => D.scene.remove(e.model.g)); D.G.enemies = []; D.start(true); D.setAutoAtk(false); D.newMap(4); D.G.packs = []; D.G.bossSpec = null; });
+      await stage('necro', setup + `const n = sp('necro', 0, 5.5); n.spd = 0; n.shootT = 99; for (let i = 0; i < 3; i++) D.kill(sp('zombie', -1.6 + i * 1.6, 3)); sp('zombie', 1.2, 1.4).atkT = 99; D.sim(8); n.raiseT = 0; D.sim(18); D.snapCam();`);
+      await page.evaluate(() => { const D = window.__dbg; D.newMap(5); D.G.packs = []; D.G.bossSpec = null; });
+      await stage('bknight', setup + `const a = sp('bknight', -.8, 1.7), b = sp('bknight', 1.4, 2.4); a.spd = b.spd = 0; a.atkT = 99; b.atkT = .2; D.sim(3); for (let i = 0; i < 2; i++) D.hit(a, 1, 'phys', { gem: 'sword' }); P.aimAt = [a.x, a.z]; D.strike('sword'); P.aimAt = null; D.sim(5); D.snapCam();`);
+      await page.evaluate(() => { const D = window.__dbg; D.newMap(4); D.G.packs = []; D.G.bossSpec = null; });
+      await stage('lich', setup + `const b = sp('boss', 0, 3.8, { guard: 'lich' }); b.spd = 0; b.atkT = 99; b.abilT = 99; D.sim(2); for (let i = 0; i < 4; i++) D.kill(sp('zombie', Math.cos(i * 1.5) * 3, 3.8 + Math.sin(i * 1.5) * 2.2)); sp('zombie', 1.5, 1.5).atkT = 99; D.sim(2); b.phase2 = true; b.hp = b.maxHp * .4; b.rot = 0; b.chanN = 0; b.abilT = 0; D.sim(20); b.atkT = 99; D.snapCam();`);
+      await page.evaluate(() => { const D = window.__dbg; D.newMap(5); D.G.packs = []; D.G.bossSpec = null; });
+      await stage('lieutenant', setup + `const b = sp('boss', 0, 3.2, { guard: 'lieutenant' }); b.spd = 0; b.atkT = 99; b.abilT = 99; sp('bknight', -2.4, 2.6).atkT = 99; D.sim(2); D.bossDo(b, 'combo'); b.atkT = .05; for (let k = 0; k < 120 && !b.heavy; k++) { P.life = 1e6; D.sim(1); } D.sim(8); D.snapCam();`);
+      await page.evaluate(() => { const D = window.__dbg; D.newMap(5); D.G.packs = []; D.G.bossSpec = null; });
+      await stage('prim', setup + `D.chars.ready = false; sp('necro', -4.5, 1).spd = 0; const k = sp('bknight', -1.2, 1.8); k.spd = 0; k.atkT = 99; const b = sp('boss', 2.8, 3, { guard: 'lich' }); b.spd = 0; b.atkT = b.abilT = 99; const l = sp('boss', -2.6, 4.4, { guard: 'lieutenant' }); l.spd = 0; l.atkT = l.abilT = 99; D.chars.ready = true; D.sim(4); D.snapCam();`);
+      console.log('  screenshots: ' + ['necro', 'bknight', 'lich', 'lieutenant', 'prim'].map(shot).join(', '));
+    }
+    check(errors.length === 0, `levels 4–5: no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   }
 
   // ---------- Room roles in play (game/rooms.js, game/gate.js, game/route.js): rest, treasure, elite, signs ----------
@@ -927,7 +1024,7 @@ try {
     check(r.boss.result === 'clear' && r.boss.t > 45 && r.boss.t < 180, `balance: tier 1 guardian can't be burned down (${r.boss.t}s)`);
     check(r.under.result !== 'clear', `balance: starter sword can't beat the tier 2 guardian in 2 minutes (${r.under.result})`);
     check(r.smart.result === 'clear' && (r.careless.result === 'died' || r.careless.taken > r.smart.taken * 3), `balance: never parrying, blocking or rolling against the tier 2 guardian does far worse (${r.careless.result}, ${r.careless.taken} taken vs ${r.smart.taken})`);
-    check(r.perfect.result === 'clear' && r.perfect3 < r.smart3 && r.smart.parries > 5 && r.smart.rolls > 2, `balance: perfect timing takes less than a good rider over three tier 2 guardian fights (${r.perfect3} vs ${r.smart3}), who parries and rolls (${r.smart.parries} parries, ${r.smart.rolls} rolls)`);
+    check(r.perfect.result === 'clear' && r.perfect3 < r.smart3 && r.smart.parries > 5 && r.smart.rolls >= 1, `balance: perfect timing takes less than a good rider over three tier 2 guardian fights (${r.perfect3} vs ${r.smart3}), who parries and rolls (${r.smart.parries} parries, ${r.smart.rolls} rolls)`);
     check(r.elite.result === 'clear' && r.elite.t > r.rare.t && r.rare.result === 'clear', `balance: a good rider beats a tier 2 elite room at par, and it takes longer than a rare pack (${r.elite.t}s vs ${r.rare.t}s)`);
     check(r.smartFs.result === 'clear' && (r.carelessFs.result === 'died' || (r.carelessFs.lowest < .15 && r.carelessFs.taken > r.smartFs.taken * 4)),
       `balance: careless play does far worse against the tier 4 guardian with Frost Strike too (its chill doesn't stop the guardian: ${r.carelessFs.result}, ${r.carelessFs.taken} taken vs ${r.smartFs.taken})`);

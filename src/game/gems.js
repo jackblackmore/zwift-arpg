@@ -138,7 +138,7 @@ export function updSlots(dt, fx) {
 // ---- auto-attack: the melee Main gem swings on its own at an awake monster in reach (ctl.autoAtk, the ATTACK toggle) ----
 // How far a melee gem's swing reaches from you.
 export function meleeReach(gem) { const sh = shape(gem); return sh.cone ? sh.cone[0] : sh.circle[0] + sh.circle[1] * .8; }
-// What to swing at: the guardian and rares first, then the nearest; null if nothing's in reach, auto-attack is off, or you're
+// What to swing at: the guardian first, then a necromancer (kill order: it raises the fallen), rares, then the nearest; null if nothing's in reach, auto-attack is off, or you're
 // steering away from it by hand (autopilot steering doesn't count). Sleeping monsters are left alone so you don't pull rooms.
 export function autoTarget(gem) {
   if (!GEMS[gem] || !GEMS[gem].melee || !ctl.autoAtk || P.dead > 0) return null;
@@ -148,7 +148,7 @@ export function autoTarget(gem) {
     if (e.deathT || !e.awake || e.rise > 0) continue;
     const d = dist(e.x, e.z, P.x, P.z); if (d > reach + e.r) continue;
     if (steering && (e.x - P.x) * mx + (e.z - P.z) * mz < 0) continue;
-    const sc = (e.type === 'boss' ? 200 : e.rar === 2 ? 100 : 0) - d;
+    const sc = (e.type === 'boss' ? 200 : e.ai === 'necro' ? 150 : e.rar === 2 ? 100 : 0) - d;
     if (sc > bs) { bs = sc; best = e; }
   }
   return best;
