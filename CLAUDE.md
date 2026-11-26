@@ -22,3 +22,11 @@
 - Bluetooth is deliberately last. The current focus is making the ARPG fun with keyboard, mouse and touch.
 - Pushing to `main` deploys to GitHub Pages.
 - While the game is being built, the owner has authorised Claude to open a PR to `main` and merge it once `npm run build && npm test` pass, without asking each time. Work on the session branch, never push straight to `main`, and say in the reply what was merged. Ask first for anything risky or hard to undo (deleting content, big asset changes, upgrading three.js). Wiping old saves is fine (see above).
+- **Usage is limited (the owner's weekly plan), so work lean.** Lessons from the long autopilot sessions (Nov 2026), where most usage went on balance-tuning loops and large contexts:
+  - Balance tuning has a budget: at most 3 arena sweeps per PR, 6 seeds (12 only to confirm a final number), `ONLY=<regex>` to run just the rows you changed. Write long output (`npm run arena`, `npm run level`, test logs) to a file and read only the summary lines or a `grep`; never paste whole reports into the conversation.
+  - Read files in parts (`grep -n`, then the lines you need) rather than whole; `src/game/enemies.js`, `tests/sim.mjs` and the design notes are large.
+  - Keep PRs small: split a big step into parts (as step 9 was split into A and B), since every tool call re-sends the whole context and big contexts cost the most.
+  - Run `npm test` once per change set, not after every edit; while iterating, use the instant `npm run balance` for maths checks.
+  - Screenshots only when something visual changed, one per new thing.
+  - An orchestrating session delegates one item at a time, gives sub-agents a cheaper model for well-specified work, and doesn't run agents in parallel. If an agent stops at a usage limit with its work nearly done, the orchestrator finishes the last steps itself instead of resuming the agent (resuming reloads its whole context).
+  - Commit WIP locally as you go, so a container restart or limit doesn't lose work.
